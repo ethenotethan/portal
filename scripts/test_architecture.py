@@ -886,6 +886,7 @@ class ArchitectureCompilerTests(unittest.TestCase):
         bus = "resource:backend-contract:AgentBackend:event_bus:eventStream"
         good = {
             "id": "prompt-to-stream", "title": "Prompt to streamed reply", "summary": "A prompt rides the transport and returns on the stream.",
+            "journey": "chat_turn", "interaction": "Send button",
             "steps": [
                 {"from": "caller:chat-state:ChatViewModel", "to": core, "relation": "holds"},
                 {"from": "caller:chat-state:ChatViewModel", "to": "endpoint:jsonrpc:prompt", "relation": "invokes"},
@@ -904,6 +905,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn("teleports", broken["problems"][0])
         # Schema errors: disconnected steps, unknown nodes, bad ids, too few steps, evidence outside the path.
         for raw, needle in [
+            ({**good, "journey": "sideways"}, "journey"),
+            ({**good, "journey": "page", "page": "chat"}, "navigation page"),
             ({**good, "steps": [good["steps"][0], {"from": "hub:ChatViewModel", "to": core, "relation": "holds"}, good["steps"][2]]}, "no earlier step reached"),
             ({**good, "steps": [{"from": "caller:x:Y", "to": core, "relation": "holds"}] + good["steps"][1:]}, "not on the map"),
             ({**good, "id": "Bad Id"}, "kebab-case"),
@@ -934,9 +937,18 @@ class ArchitectureCompilerTests(unittest.TestCase):
             self.assertTrue(node["semantic"]["evidence"])
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
-        for needle in ("function describedSection(", "function renderFlows(", "function traceFlow(", "function renderFlowInspector(", "flowSteps.get(edge.dataset.hkey)", "let selectedFlowId = null"):
+        for needle in ("function describedSection(", "function renderFlows(", "function traceFlow(", "function renderFlowInspector(", "flowSteps.get(edge.dataset.hkey)", "let selectedFlowId = null",
+                       "function flowMermaid(", "sequenceDiagram", 'JOURNEY_TITLES = { launch:', "mermaid-ready", 'element("ol", "flow-procedure")'):
             self.assertIn(needle, app)
         self.assertIn('id="flows-list"', index)
+        self.assertIn("mermaid.esm.min.mjs", index)
+        # Flows are user journeys: launch, a chat turn, then each page, in that order.
+        journeys = [flow["journey"] for flow in interplay.get("flows", [])]
+        order = {"launch": 0, "chat_turn": 1, "page": 2}
+        self.assertEqual(journeys, sorted(journeys, key=order.__getitem__))
+        for flow in interplay.get("flows", []):
+            self.assertIn(flow["journey"], order)
+            self.assertTrue(flow["page"])
         self.assertIn(".described-table", (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8"))
 
     # ---- History: the same map at every commit ---------------------------------

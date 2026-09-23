@@ -696,57 +696,95 @@ def run_constructs(ctx: Context, targets: list[dict[str, Any]], source_revision:
 # System flows
 # ---------------------------------------------------------------------------
 
-FLOW_SEEDS = [
-    "a typed prompt leaving the chat surface, riding the transport as a JSON-RPC call, and returning as deltas on the event stream",
-    "local voice inference: a spoken question answered by the on-device engine and read back by speech",
-    "gateway push: a server-initiated event reaching a page's subscriber through the event stream",
-    "the activity inbox: approvals and clarifications arriving and being acted on",
-    "launch: the App entry points constructing the settings provider, which reads the keychain and configures the transport",
-    "a page loading its data through a client extension file and the core (cron, feed, learning, files, graphs, skills)",
-    "an artifact action dispatched back to the gateway",
-]
+JOURNEY_BRIEFS = {
+    "launch": ("Starting the app", "What happens when the user starts the application: what the entry points construct, "
+               "what is read from disk or the keychain, how the transport is configured and connected, what the first "
+               "screen depends on. 1 to 3 flows."),
+    "chat_turn": ("A chat turn", "What happens when the user does a chat turn: typing a prompt and receiving the streamed "
+                  "reply, answering an approval or clarification, a voice turn, anything that is part of one exchange. "
+                  "2 to 4 flows, one per distinct interaction."),
+    "page": ("Entering and using a page", "What the user can do on this page: entering it (lifecycle triggers such as "
+             "onAppear/task load data), then each interaction the page's views offer (each user_action trigger: buttons, "
+             "toggles, pickers, gestures), and what each reaches (client file, transport, namespace, gateway, store, event "
+             "stream). One flow for entering the page, then one flow per distinct interaction or group of closely related "
+             "interactions. 1 to 4 flows."),
+}
 
 
-def flows_prompt(ctx: Context, existing: list[dict[str, Any]], source_revision: str, count: int) -> tuple[str, dict[str, Any]]:
+def journey_scope(ctx: Context, journey: str, page_id: str | None) -> tuple[set[str], list[dict[str, Any]]]:
+    """The node keys and triggers a journey may use: the page's constructs, everything
+    one edge away from them, the transport and gateway, the event stream, externals."""
+    key_of = {n["id"]: n["history_key"] for n in ctx.interplay["nodes"]}
+    drawn = {n["history_key"]: n for n in ctx.interplay["nodes"] if n["kind"] != "operation"}
+    page = page_id or ("launch" if journey == "launch" else "chat")
+    seeds = {k for k, n in drawn.items() if n.get("page") == page}
+    always = {k for k, n in drawn.items() if n["kind"] in ("seam", "external") or (n["kind"] == "owner" and "transport" in (n.get("roles") or []))
+              or n.get("sub_kind") == "event_bus" or n["kind"] == "endpoint" or n["kind"] == "client"}
+    scope = set(seeds) | always
+    for edge in ctx.interplay["edges"]:
+        source, target = key_of.get(edge["source"]), key_of.get(edge["target"])
+        if source in seeds and target in drawn:
+            scope.add(target)
+        if target in seeds and source in drawn:
+            scope.add(source)
+    # The core's own resources and sections travel with it so a flow can name the pool.
+    core = next((n for n in drawn.values() if n["kind"] == "owner" and "transport" in (n.get("roles") or [])), None)
+    if core:
+        scope |= {k for k, n in drawn.items() if n.get("owner_type") == core["label"] and n["kind"] in ("resource", "section")}
+    triggers = [t for t in ctx.interplay.get("triggers", []) if t.get("page") == page]
+    return scope, triggers
+
+
+def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list[dict[str, Any]], source_revision: str) -> tuple[str, dict[str, Any]]:
     compiler = ctx.compiler
     key_of = {n["id"]: n["history_key"] for n in ctx.interplay["nodes"]}
     drawn = {n["history_key"]: n for n in ctx.interplay["nodes"] if n["kind"] != "operation"}
-    nodes = [{"key": k, "kind": n["kind"], "label": n["label"], "page": n.get("page"), "roles": n.get("roles")} for k, n in sorted(drawn.items())]
+    scope, triggers = journey_scope(ctx, journey, page_id)
+    page = page_id or ("launch" if journey == "launch" else "chat")
+    page_label = next((p["label"] for p in ctx.interplay.get("pages", []) if p["id"] == page), page)
+    nodes = [{"key": k, "kind": drawn[k]["kind"], "label": drawn[k]["label"], "page": drawn[k].get("page"), "roles": drawn[k].get("roles"),
+              "summary": (drawn[k].get("semantic") or {}).get("summary")} for k in sorted(scope) if k in drawn]
     triples = sorted({(key_of[e["source"]], e["relation"], key_of[e["target"]]) for e in ctx.interplay["edges"]
-                      if key_of.get(e["source"]) in drawn and key_of.get(e["target"]) in drawn})
+                      if key_of.get(e["source"]) in scope and key_of.get(e["target"]) in scope})
     trigger_rows = []
-    for t in ctx.interplay.get("triggers", []):
+    for t in triggers:
         surface = compiler.surface_node_for(ctx.interplay["nodes"], t["surface"])
-        if surface is not None and t.get("page"):
-            trigger_rows.append({"id": t["id"], "page": t["page"], "kind": t["kind"], "api": t["api"], "view": t.get("view"), "surface_key": surface["history_key"], "method": t["method"], "path": t["path"], "line": t["line"]})
-    files_of = {k: n.get("path") for k, n in drawn.items() if n.get("path")}
+        if surface is not None:
+            trigger_rows.append({"id": t["id"], "kind": t["kind"], "api": t["api"], "view": t.get("view"), "surface_key": surface["history_key"],
+                                 "method": t["method"], "namespaces": t.get("namespaces"), "path": t["path"], "line": t["line"]})
+    files_of = {k: drawn[k].get("path") for k in scope if k in drawn and drawn[k].get("path")}
+    title, brief = JOURNEY_BRIEFS[journey]
     packet = {
         "repository": ctx.model["repository"], "source_revision": source_revision,
+        "journey": journey, "page": page, "page_label": page_label, "brief": brief,
         "nodes": nodes, "edges": [list(t) for t in triples],
-        "trigger_edges": "a trigger row implies the edge [\"page:<page>\", \"triggers\", surface_key]",
-        "triggers": trigger_rows[:200], "node_files": files_of, "existing_flows": existing,
-        "candidate_flows": FLOW_SEEDS, "requested_count": count,
+        "trigger_edges": f"a trigger row implies the edge [\"page:{page}\", \"triggers\", surface_key]; a flow that starts from a user action or from launch should begin with it",
+        "triggers": trigger_rows[:120], "node_files": files_of, "existing_flows_for_this_journey": existing,
     }
     text = json.dumps(packet, indent=1, sort_keys=True, ensure_ascii=False)
-    prompt = f"""You identify the key system flows of one application from its mechanically derived architecture graph.
-A flow is a path over edges that exist in the graph, never a diagram beside it.
+    prompt = f"""You describe one user journey of an application as system flows over its mechanically derived architecture graph.
+Journey: {title} ({'page ' + page_label if journey == 'page' else journey}). Brief: {brief}
+A flow is a path over edges that exist in the graph, never a diagram beside it; it will be rendered as a sequence diagram whose participants are the nodes and whose messages are the steps.
 
-Return one JSON object {{"flows": [...]}} with about {count} flows, each shaped:
+Return one JSON object {{"flows": [...]}}, each flow shaped:
 {{
-  "id": "kebab-case-slug",
-  "title": "at most 80 characters",
+  "id": "kebab-case-slug, unique, prefixed with the journey or page (e.g. cron-open-dashboard)",
+  "title": "at most 80 characters, from the user's point of view (\"Open the cron dashboard\", \"Toggle a job\")",
+  "interaction": "at most 80 characters: the user action or lifecycle moment that starts it (\"Refresh button\", \"page appears\", \"app starts\")",
   "summary": "what happens end to end, at most {compiler.SEMANTIC_SUMMARY_MAX} characters, present tense",
+  "journey": "{journey}",
+  "page": "{page}",
   "trigger": "a trigger id from `triggers`, or null",
-  "steps": [{{"from": "node key", "to": "node key", "relation": "edge relation", "note": "at most {compiler.SEMANTIC_NOTE_MAX} characters"}}],
-  "outcome": "at most 200 characters",
+  "steps": [{{"from": "node key", "to": "node key", "relation": "edge relation", "note": "what this hop means for the user, at most {compiler.SEMANTIC_NOTE_MAX} characters"}}],
+  "outcome": "what the user sees at the end, at most 200 characters",
   "evidence": [{{"path": "a file from node_files of a node in the steps", "line": 1}}]
 }}
 
 Hard rules:
-- Every step must be exactly one of the listed `edges` triples [from, relation, to], or a trigger edge ["page:<page>", "triggers", surface_key] for a listed trigger. Do not invent edges.
+- Every step must be exactly one of the listed `edges` triples [from, relation, to], or a trigger edge ["page:{page}", "triggers", surface_key] for a listed trigger. Do not invent edges.
 - Steps are connected: a step's `from` must be a node an earlier step already reached (or the very first `from`); fan-out from an earlier node is allowed.
-- {compiler.FLOW_MIN_STEPS} to {compiler.FLOW_MAX_STEPS} steps. If a trigger is given, the first step starts at that trigger's page ("page:<page>") or at its surface_key.
-- Use the candidate_flows as themes when the graph supports them; skip any the graph cannot express, and add flows the graph clearly supports.
+- {compiler.FLOW_MIN_STEPS} to {compiler.FLOW_MAX_STEPS} steps. Start each flow from the trigger edge when a trigger fits.
+- Cover the interactions the triggers show; do not describe interactions the triggers and edges cannot support.
 - Evidence lines are best-effort line numbers in the named file (line 1 is acceptable when unknown).
 - Output JSON only.
 
@@ -760,7 +798,10 @@ Packet:
             "properties": {
                 "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,60}$"},
                 "title": {"type": "string", "maxLength": 80},
+                "interaction": {"type": "string", "maxLength": 80},
                 "summary": {"type": "string", "maxLength": compiler.SEMANTIC_SUMMARY_MAX},
+                "journey": {"type": "string", "enum": [journey]},
+                "page": {"type": "string", "enum": [page]},
                 "trigger": {"type": ["string", "null"]},
                 "steps": {"type": "array", "minItems": compiler.FLOW_MIN_STEPS, "maxItems": compiler.FLOW_MAX_STEPS, "items": {"type": "object", "properties": {
                     "from": {"type": "string"}, "to": {"type": "string"}, "relation": {"type": "string"},
@@ -769,50 +810,83 @@ Packet:
                 "outcome": {"type": "string", "maxLength": 200},
                 "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}},
             },
-            "required": ["id", "title", "summary", "steps", "evidence"],
+            "required": ["id", "title", "interaction", "summary", "journey", "page", "steps", "outcome", "evidence"],
         }}},
         "required": ["flows"],
     }
     return prompt, json_schema
 
 
-def run_flows(ctx: Context, source_revision: str, count: int, dry_run: bool, replace: bool) -> tuple[int, int]:
+def all_journeys(ctx: Context) -> list[tuple[str, str | None]]:
+    journeys: list[tuple[str, str | None]] = [("launch", None), ("chat_turn", None)]
+    for page in ctx.interplay.get("pages", []):
+        if page["id"] not in ("launch", "chat"):
+            journeys.append(("page", page["id"]))
+    return journeys
+
+
+def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str | None]], jobs: int, dry_run: bool, replace: bool) -> tuple[int, int]:
     compiler = ctx.compiler
     existing_doc = json.loads(FLOWS_PATH.read_text(encoding="utf-8")) if FLOWS_PATH.is_file() else {"schema_version": "1.0.0", "flows": []}
-    existing = [f for f in existing_doc.get("flows", []) if isinstance(f, dict)]
-    prompt, schema = flows_prompt(ctx, [] if replace else existing, source_revision, count)
+    existing = [f for f in existing_doc.get("flows", []) if isinstance(f, dict) and isinstance(f.get("id"), str)]
+    selected = {(j, p or ("launch" if j == "launch" else "chat")) for j, p in journeys}
+
+    def for_journey(journey: str, page_id: str | None) -> list[dict[str, Any]]:
+        page = page_id or ("launch" if journey == "launch" else "chat")
+        return [f for f in existing if f.get("journey") == journey and f.get("page") == page]
+
     if dry_run:
-        print(f"--- flows packet ({len(prompt)} chars)")
-        print(prompt[:4000])
+        for journey, page_id in journeys:
+            prompt, _schema = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
+            print(f"--- {journey} {page_id or ''}: {len(prompt)} chars")
         return 0, 0
-    response, model_name = request_json(prompt, schema)
-    raw_flows = response.get("flows") if isinstance(response, dict) else None
-    if not isinstance(raw_flows, list):
-        raise AgentError("flows response has no flows array")
-    accepted: dict[str, dict[str, Any]] = {} if replace else {f["id"]: f for f in existing if isinstance(f.get("id"), str)}
-    rejected = 0
-    for raw in raw_flows:
-        if not isinstance(raw, dict):
-            rejected += 1
-            continue
-        raw = dict(raw)
-        raw["source_revision"] = source_revision
-        raw["model"] = model_name
+
+    def work(item: tuple[str, str | None]) -> list[tuple[dict[str, Any] | None, str]]:
+        journey, page_id = item
+        prompt, schema = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
         try:
-            flow = compiler.validate_flow(raw, ctx.interplay, ctx.files)
-        except compiler.ArchitectureError as exc:
-            rejected += 1
-            print(f"rejected flow {raw.get('id')!r}: {exc}", file=sys.stderr, flush=True)
-            continue
-        if flow["problems"]:
-            rejected += 1
-            print(f"rejected flow {flow['id']}: " + "; ".join(flow["problems"]), file=sys.stderr, flush=True)
-            continue
-        stored = {k: v for k, v in flow.items() if k not in ("status", "problems", "authority")}
-        accepted[flow["id"]] = stored
-        print(f"traced flow {flow['id']} ({len(flow['steps'])} steps)", flush=True)
-    FLOWS_PATH.write_text(json.dumps({"schema_version": "1.0.0", "flows": [accepted[k] for k in sorted(accepted)]}, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
-    return len(accepted), rejected
+            response, model_name = request_json(prompt, schema)
+        except AgentError as exc:
+            return [(None, f"{journey} {page_id or ''}: request failed: {exc}")]
+        raw_flows = response.get("flows") if isinstance(response, dict) else None
+        if not isinstance(raw_flows, list):
+            return [(None, f"{journey} {page_id or ''}: response has no flows array")]
+        out = []
+        for raw in raw_flows:
+            if not isinstance(raw, dict):
+                out.append((None, "flow is not an object"))
+                continue
+            raw = dict(raw)
+            raw["source_revision"] = source_revision
+            raw["model"] = model_name
+            try:
+                flow = compiler.validate_flow(raw, ctx.interplay, ctx.files)
+            except compiler.ArchitectureError as exc:
+                out.append((None, f"{raw.get('id')!r}: {exc}"))
+                continue
+            if flow["problems"]:
+                out.append((None, f"{flow['id']}: " + "; ".join(flow["problems"])))
+                continue
+            out.append(({k: v for k, v in flow.items() if k not in ("status", "problems", "authority")}, "ok"))
+        return out
+
+    kept: dict[str, dict[str, Any]] = {}
+    if not replace:
+        kept = {f["id"]: f for f in existing if (f.get("journey"), f.get("page")) not in selected and f.get("journey")}
+    rejected = 0
+    accepted = 0
+    with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        for results in pool.map(work, journeys):
+            for flow, reason in results:
+                if flow is None:
+                    rejected += 1
+                    print(f"rejected flow {reason}", file=sys.stderr, flush=True)
+                else:
+                    kept[flow["id"]] = flow
+                    accepted += 1
+                    print(f"traced flow {flow['id']} ({flow['journey']} {flow['page']}, {len(flow['steps'])} steps)", flush=True)
+    FLOWS_PATH.write_text(json.dumps({"schema_version": "1.0.0", "flows": [kept[k] for k in sorted(kept)]}, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
+    return accepted, rejected
 
 
 # ---------------------------------------------------------------------------
@@ -827,8 +901,8 @@ def main() -> int:
     parser.add_argument("--keys", default="", help="construct mode: comma-separated construct keys to include")
     parser.add_argument("--stale-only", action="store_true", help="construct mode: only constructs with no record or a stale one")
     parser.add_argument("--flows", action="store_true", help="write system flows (architecture/semantic/flows.json)")
-    parser.add_argument("--count", type=int, default=6, help="flows mode: how many flows to ask for")
-    parser.add_argument("--replace-flows", action="store_true", help="flows mode: start from an empty set instead of extending")
+    parser.add_argument("--journeys", default="", help="flows mode: comma-separated journeys to (re)write, e.g. launch,chat_turn,page:cron (default: all)")
+    parser.add_argument("--replace-flows", action="store_true", help="flows mode: discard every existing flow first")
     parser.add_argument("--jobs", type=int, default=4, help="construct mode: parallel requests")
     parser.add_argument("--dry-run", action="store_true", help="print the bounded packet(s) without calling a model")
     args = parser.parse_args()
@@ -857,7 +931,11 @@ def main() -> int:
                     if not args.dry_run:
                         print(f"construct records: {accepted} described, {rejected} rejected")
             if args.flows:
-                accepted, rejected = run_flows(ctx, head, args.count, args.dry_run, args.replace_flows)
+                journeys = all_journeys(ctx)
+                if args.journeys:
+                    wanted = [j.strip() for j in args.journeys.split(",") if j.strip()]
+                    journeys = [(j.split(":", 1)[0], j.split(":", 1)[1] if ":" in j else None) for j in wanted]
+                accepted, rejected = run_flows(ctx, head, journeys, args.jobs, args.dry_run, args.replace_flows)
                 if not args.dry_run:
                     print(f"flows: {accepted} kept, {rejected} rejected")
             return 0

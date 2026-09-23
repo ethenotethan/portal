@@ -109,7 +109,7 @@
       <section class="invariants flows" id="flows" aria-labelledby="flows-title">
         <h3 id="flows-title">System flows</h3>
         <p class="invariants-lede" id="flows-lede"></p>
-        <ol class="invariants-list" id="flows-list"></ol>
+        <div class="flows-list" id="flows-list"></div>
       </section>
     </section>
 
@@ -178,5 +178,14 @@
   <!-- Optional: written by `make architecture-history`, absent otherwise. -->
   <script src="history.js"></script>
   <script src="app.js"></script>
+  <!-- Mermaid renders the system-flow sequence diagrams generated in app.js from
+       compiler-validated steps. Loaded after the page works without it: if the
+       CDN is unreachable the diagrams stay as their text source. -->
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict", sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 24, messageMargin: 28 } });
+    window.__mermaid = mermaid;
+    window.dispatchEvent(new Event("mermaid-ready"));
+  </script>
 </body>
 </html>

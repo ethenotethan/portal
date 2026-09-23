@@ -242,6 +242,10 @@
   let selectedFlowId = null; // a traced system flow: its steps light up like a selection's path
   const flows = interplay.flows || [];
   const flowById = new Map(flows.map((flow) => [flow.id, flow]));
+  // Journey tables live up here because renderFlows() runs during init.
+  const JOURNEY_TITLES = { launch: "1 · Starting the app", chat_turn: "2 · A chat turn", page: "3 · Entering and using a page" };
+  const MERMAID_ASYNC = new Set(["notifies", "provides", "publish", "declares", "replays-into", "persists-to"]);
+  let mermaidRenderSeq = 0;
   let interplayPositions = new Map();
   // Pan/zoom state for the free-form graph: the SVG fills its frame and we move a
   // viewBox window over the content, so click-drag pans, the wheel zooms, and a
@@ -1520,37 +1524,142 @@
     container.append(evidence, element("p", "described-meta", `Written by ${flow.model} at ${String(flow.source_revision).slice(0, 9)}; every step is checked against the map on every build.`));
     inspector.replaceChildren(container);
   }
-  // The flows, as text at the foot of the System map beneath the invariants, each
-  // with one action: trace it on the map.
+  // The flows: the user's journeys, rendered inline as Mermaid sequence diagrams
+  // beneath the invariants. Participants are the nodes a flow's steps touch;
+  // messages are the steps; the user (or the App at launch) is the first
+  // participant when a flow starts from a trigger. Each diagram is generated from
+  // the validated steps, so it can only show wiring the map has. Mermaid itself
+  // is loaded by index.html; until it arrives (or if it never does) the diagram's
+  // source is shown as text.
+  function mermaidLabel(text) {
+    return String(text).replace(/[;:#<>"`]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  function flowMermaid(flow) {
+    const participants = new Map();
+    const alias = (key) => {
+      if (!participants.has(key)) {
+        let label;
+        if (key.startsWith("page:")) {
+          const pageId = key.slice(5);
+          label = pageId === "launch" ? "App entry points" : `User on ${PAGE_LABEL.get(pageId) || pageId}`;
+        } else {
+          const id = idByHistoryKey.get(key);
+          const node = id ? interplayNodeById.get(id) : null;
+          label = node ? node.label : key.split(":").pop();
+        }
+        participants.set(key, { alias: `p${participants.size}`, label });
+      }
+      return participants.get(key).alias;
+    };
+    const lines = ["sequenceDiagram", "  autonumber"];
+    const messages = [];
+    const trigger = flow.trigger ? triggers.find((t) => t.id === flow.trigger) : null;
+    flow.steps.forEach((step) => {
+      const from = alias(step.from);
+      const to = alias(step.to);
+      const arrow = MERMAID_ASYNC.has(step.relation) ? "-->>" : "->>";
+      let text = step.relation.replace(/-/g, " ");
+      if (step.relation === "triggers" && trigger) text = `${trigger.api} · ${trigger.method}()${trigger.view ? ` in ${trigger.view}` : ""}`;
+      if (step.note) text += ` · ${step.note}`;
+      messages.push(`  ${from}${arrow}${to}: ${mermaidLabel(text)}`);
+    });
+    participants.forEach(({ alias: name, label }) => lines.push(`  participant ${name} as ${mermaidLabel(label)}`));
+    return lines.concat(messages).join("\n");
+  }
+  async function renderMermaidDiagrams() {
+    const mermaid = window.__mermaid;
+    if (!mermaid) return;
+    const blocks = Array.from(document.querySelectorAll(".flow-diagram[data-state='pending']"));
+    for (const block of blocks) {
+      block.dataset.state = "rendering";
+      try {
+        const { svg } = await mermaid.render(`flow-svg-${mermaidRenderSeq += 1}`, block.dataset.source);
+        block.innerHTML = svg; // Mermaid's own SVG output; the source was generated here from validated steps
+        block.dataset.state = "rendered";
+      } catch (_error) {
+        block.dataset.state = "failed";
+        block.textContent = block.dataset.source;
+      }
+    }
+  }
+  window.addEventListener("mermaid-ready", renderMermaidDiagrams);
   function renderFlows() {
-    const list = document.getElementById("flows-list");
+    const host = document.getElementById("flows-list");
     const lede = document.getElementById("flows-lede");
-    const section = document.getElementById("flows");
-    if (!list || !lede || !section) return;
+    if (!host || !lede) return;
     if (!flows.length) {
-      lede.textContent = "No system flows are declared yet. They are written by scripts/architecture_agent.py --flows and validated step by step against this map.";
-      list.replaceChildren();
+      lede.textContent = "No system flows are declared yet. They are written by scripts/architecture_agent.py --flows, one journey at a time, and validated step by step against this map.";
+      host.replaceChildren();
       return;
     }
     const traceable = flows.filter((flow) => flow.status === "traceable").length;
-    lede.textContent = `${traceable} of ${flows.length} declared flows trace fully over edges on this map. Each is written by a model from the graph and validated step by step on every build; a step whose edge disappears fails the build.`;
-    list.replaceChildren(...flows.map((flow) => {
-      const li = element("li", `flow${flow.id === selectedFlowId ? " tracing" : ""}`);
-      const head = element("div", "invariant-head");
-      head.append(
-        element("span", `invariant-status ${flow.status === "traceable" ? "holds" : "violated"}`, flow.status.toUpperCase()),
-        element("strong", "", flow.title),
-        element("span", "invariant-meta", `${flow.steps.length} steps${flow.trigger ? " · from a trigger" : ""}`)
-      );
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "quiet-button trace-button";
-      button.textContent = flow.id === selectedFlowId ? "Stop tracing" : "Trace on map";
-      button.addEventListener("click", () => (flow.id === selectedFlowId ? clearFlow() : traceFlow(flow.id)));
-      head.append(button);
-      li.append(head, element("p", "", flow.summary));
-      return li;
-    }));
+    lede.textContent = `${flows.length} flows across three journeys, ${traceable} tracing fully over edges on this map. Each is written by a model from the graph and validated step by step on every build; the diagrams are generated from those steps, so they can only show wiring the map has.`;
+    const groups = new Map();
+    flows.forEach((flow) => {
+      const groupKey = flow.journey === "page" ? `page:${flow.page}` : (flow.journey || "other");
+      if (!groups.has(groupKey)) groups.set(groupKey, []);
+      groups.get(groupKey).push(flow);
+    });
+    const sections = [];
+    let pageIndex = 0;
+    groups.forEach((list, groupKey) => {
+      const section = element("section", "journey");
+      let title;
+      if (groupKey.startsWith("page:")) {
+        pageIndex += 1;
+        title = `${JOURNEY_TITLES.page}${pageIndex === 1 ? "" : ""} · ${PAGE_LABEL.get(groupKey.slice(5)) || groupKey.slice(5)}`;
+      } else {
+        title = JOURNEY_TITLES[groupKey] || groupKey;
+      }
+      section.append(element("h4", "journey-title", title));
+      list.forEach((flow) => {
+        const article = element("article", `flow${flow.id === selectedFlowId ? " tracing" : ""}`);
+        article.id = `flow-${flow.id}`;
+        const head = element("div", "flow-head");
+        head.append(element("h5", "", flow.title));
+        if (flow.interaction) head.append(element("span", "flow-interaction", flow.interaction));
+        if (flow.status !== "traceable") head.append(element("span", "invariant-status violated", "BROKEN"));
+        article.append(head, element("p", "flow-summary", flow.summary));
+        const diagram = element("div", "flow-diagram");
+        diagram.dataset.source = flowMermaid(flow);
+        diagram.dataset.state = "pending";
+        diagram.textContent = diagram.dataset.source;
+        article.append(diagram);
+        // The same steps as a numbered procedure: who does what to whom, and what it
+        // means for the user. Numbers match the diagram's.
+        const trigger = flow.trigger ? triggers.find((t) => t.id === flow.trigger) : null;
+        const nameOf = (key) => {
+          if (key.startsWith("page:")) return key === "page:launch" ? "App entry points" : `User on ${PAGE_LABEL.get(key.slice(5)) || key.slice(5)}`;
+          const id = idByHistoryKey.get(key);
+          const node = id ? interplayNodeById.get(id) : null;
+          return node ? node.label : key.split(":").pop();
+        };
+        const procedure = element("ol", "flow-procedure");
+        flow.steps.forEach((step) => {
+          const li = document.createElement("li");
+          let verb = step.relation.replace(/-/g, " ");
+          if (step.relation === "triggers" && trigger) verb = `${trigger.api} · ${trigger.method}()${trigger.view ? ` in ${trigger.view}` : ""}`;
+          li.append(element("strong", "", nameOf(step.from)), document.createTextNode(` ${verb} `), element("strong", "", nameOf(step.to)));
+          if (step.note) li.append(element("span", "step-note", step.note));
+          procedure.append(li);
+        });
+        article.append(procedure);
+        if (flow.outcome) article.append(element("p", "flow-outcome", `Outcome: ${flow.outcome}`));
+        const meta = element("p", "flow-meta");
+        meta.append(document.createTextNode(`${flow.steps.length} steps · written by ${flow.model} at ${String(flow.source_revision).slice(0, 9)} · `));
+        const trace = document.createElement("a");
+        trace.href = "#systemmap";
+        trace.className = "flow-trace";
+        trace.textContent = flow.id === selectedFlowId ? "stop tracing on the map" : "trace on the map";
+        trace.addEventListener("click", (event) => { event.preventDefault(); if (flow.id === selectedFlowId) clearFlow(); else traceFlow(flow.id); });
+        meta.append(trace);
+        article.append(meta);
+        section.append(article);
+      });
+      sections.push(section);
+    });
+    host.replaceChildren(...sections);
+    renderMermaidDiagrams();
   }
 
   // The invariants, as text at the foot of the System map: what each pins, why it

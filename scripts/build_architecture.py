@@ -3336,6 +3336,9 @@ def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], exte
 
 FLOW_ID_RE = re.compile(r"^[a-z][a-z0-9-]{2,60}$")
 FLOW_MIN_STEPS, FLOW_MAX_STEPS = 3, 12
+# A flow belongs to one user journey: starting the app, doing a chat turn, or
+# entering and using one navigation page. The site orders and groups by this.
+FLOW_JOURNEYS = ("launch", "chat_turn", "page")
 
 
 def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]]) -> dict[str, Any]:
@@ -3397,6 +3400,20 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
     outcome = raw.get("outcome", "")
     if not isinstance(outcome, str) or len(outcome) > 200:
         raise ArchitectureError(f"{owner} outcome must be a string of at most 200 characters")
+    journey = raw.get("journey")
+    if journey not in FLOW_JOURNEYS:
+        raise ArchitectureError(f"{owner} journey must be one of {', '.join(FLOW_JOURNEYS)}")
+    page_id = raw.get("page")
+    if journey == "page":
+        if page_id not in page_labels or page_id in (LAUNCH_PAGE_ID, "chat"):
+            raise ArchitectureError(f"{owner} is a page journey and must name a navigation page other than launch or chat")
+    else:
+        page_id = LAUNCH_PAGE_ID if journey == "launch" else "chat"
+    if trigger_id is not None and trigger_id in triggers and triggers[trigger_id].get("page") != page_id:
+        raise ArchitectureError(f"{owner} is on {page_id} but its trigger fires on {triggers[trigger_id].get('page')}")
+    interaction = raw.get("interaction", "")
+    if not isinstance(interaction, str) or len(interaction) > 80:
+        raise ArchitectureError(f"{owner} interaction must be a string of at most 80 characters")
     allowed: set[str] = set()
     for step in normalized_steps:
         for key in (step["from"], step["to"]):
@@ -3405,10 +3422,13 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
                 allowed.add(node["path"])
             if key.startswith("page:"):
                 allowed |= page_files(key.split(":", 1)[1], interplay, files)
+    # The views that hold the journey's triggers are where a flow starts; they may be cited too.
+    allowed |= {t["path"] for t in triggers.values() if t.get("page") == page_id and t.get("path")}
     line_counts = {item["path"]: item["line_count"] for item in files}
     evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner)
     return {
         "id": flow_id, "title": title.strip(), "summary": summary.strip(), "trigger": trigger_id,
+        "journey": journey, "page": page_id, "interaction": interaction.strip(),
         "steps": normalized_steps, "outcome": outcome.strip(), "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
         "status": "broken" if problems else "traceable", "problems": problems, "authority": "synthesized",
@@ -3438,7 +3458,8 @@ def load_flows(interplay: dict[str, Any], files: list[dict[str, Any]]) -> list[d
             continue
         seen.add(flow["id"])
         flows.append(flow)
-    flows.sort(key=lambda item: item["id"])
+    page_order = {page["id"]: index for index, page in enumerate(interplay.get("pages", []))}
+    flows.sort(key=lambda item: (FLOW_JOURNEYS.index(item["journey"]), page_order.get(item["page"], 99), item["id"]))
     by_key = {node["history_key"]: node for node in interplay["nodes"]}
     for flow in flows:
         for step in flow["steps"]:
