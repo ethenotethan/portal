@@ -49,6 +49,22 @@ internal struct ModelCatalogTests {
         #expect(catalog?.selectableProviders.count == 1)
     }
 
+    @Test("A minimal provider row receives stable backward-compatible defaults")
+    internal func minimalProviderDefaults() throws {
+        let catalog = try #require(ModelCatalog.from(result("""
+        {"providers": [{"slug": "legacy"}]}
+        """)))
+
+        let provider = try #require(catalog.providers.first)
+        #expect(provider.name == "legacy")
+        #expect(provider.models.isEmpty)
+        #expect(provider.authenticated)
+        #expect(!provider.isCurrent)
+        #expect(catalog.currentModel.isEmpty)
+        #expect(catalog.currentProvider.isEmpty)
+        #expect(catalog.selectableProviders.isEmpty)
+    }
+
     @Test("Empty or malformed payloads return nil (static catalog fallback)")
     internal func malformedReturnsNil() throws {
         #expect(ModelCatalog.from(try result("{\"model\": \"x\"}")) == nil)
