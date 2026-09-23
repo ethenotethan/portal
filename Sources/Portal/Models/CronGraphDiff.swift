@@ -265,8 +265,6 @@ internal struct CronGraphDiff: Equatable {
         return nil
     }
 
-    internal static let empty = CronGraphDiff(changes: [])
-
     // MARK: - Computing
 
     internal static func between(_ before: CronGraph, _ after: CronGraph) -> CronGraphDiff {
