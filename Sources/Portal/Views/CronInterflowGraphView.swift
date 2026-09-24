@@ -471,11 +471,14 @@ internal struct CronInterflowGraphView: View {
                     if let health = node.health {
                         CronServiceHealthDetails(health: health)
                     }
-                    if node.kind == "cron", !node.sourceFiles.isEmpty {
+                    if !node.sourceFiles.isEmpty {
                         sourceFilesList(node.sourceFiles)
                     }
                     if node.kind == "service", let codeGraph = node.codeGraph {
                         codeGraphButton(node: node, ref: codeGraph)
+                    }
+                    if node.kind == "service", let architecture = node.architecture {
+                        architectureButton(node: node, ref: architecture)
                     }
                     connectionsList
                 }
@@ -604,6 +607,42 @@ internal struct CronInterflowGraphView: View {
         .buttonStyle(.plain)
         .disabled(onExpand == nil)
         .help(onExpand == nil ? "Open the full-screen graph to view the code graph" : "Open this service's code knowledge graph")
+    }
+
+    /// A service's "View architecture" affordance: hands the request to the
+    /// full-screen surface (via the shared view model) and expands into it.
+    @ViewBuilder
+    private func architectureButton(node: CronGraphNode, ref: CronServiceArchitectureRef) -> some View {
+        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
+        Button {
+            viewModel.requestedArchitecture = ArchitectureRequest(
+                service: ref.ref,
+                label: node.label,
+                revision: ref.revision
+            )
+            onExpand?()
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "square.3.layers.3d")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 12)
+                Text("View architecture")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                Spacer(minLength: 4)
+                if let status = ref.checkStatus {
+                    Text(status)
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .monospaced()
+                        .foregroundStyle(Theme.secondary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(onExpand == nil)
+        .help(onExpand == nil ? "Open the full-screen graph to view the architecture model" : "Open this service's architecture model")
     }
 
     /// The small caption under a node's title: its kind for the actor nodes

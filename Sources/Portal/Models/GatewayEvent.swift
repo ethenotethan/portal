@@ -47,6 +47,7 @@ enum GatewayEvent {
         case .artifactChanged: "artifact.changed"
         case .artifactQueryChanged: "artifact.query.changed"
         case .learningChanged: "learning.changed"
+        case .architectureChanged: "architecture.changed"
         }
     }
 
@@ -187,6 +188,11 @@ enum GatewayEvent {
     // Learning surface (course/deck/progress mutations — metadata only;
     // clients refetch via learning.course.get / learning.deck.get)
     case learningChanged(entity: String, id: String, rev: Int, deleted: Bool)
+
+    // A service's architecture model moved: a revision the gateway had not
+    // stored before (`reason: "snapshot"`) or a finished `--check`
+    // (`reason: "check"`, `status`). Clients refetch via architecture.describe.
+    case architectureChanged(service: String, revision: String, reason: String, status: String)
 
     /// Parse from raw JSON-RPC event params.
     static func from(type: String, payload: AnyCodable?) -> GatewayEvent {
@@ -370,6 +376,14 @@ enum GatewayEvent {
                 id: p["id"]?.stringValue ?? "",
                 rev: p["rev"]?.intValue ?? 0,
                 deleted: p["deleted"]?.boolValue ?? false
+            )
+
+        case "architecture.changed":
+            return .architectureChanged(
+                service: p["service"]?.stringValue ?? "",
+                revision: p["revision"]?.stringValue ?? "",
+                reason: p["reason"]?.stringValue ?? "snapshot",
+                status: p["status"]?.stringValue ?? ""
             )
 
         case "review.summary":

@@ -60,10 +60,16 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
     /// revision), when it has one. Undecoded before now; carried so a surface
     /// can show "graph of owner/name @ revision".
     internal var codeControl: CodeGraphProvenance? = nil // swiftlint:disable:this implicit_optional_initialization
+    /// Present on a `service` node declared by an architecture manifest on the
+    /// gateway: the `ref` for `architecture.describe` plus the cheap status the
+    /// graph already knows (source, revision, last check). `nil` for every other
+    /// service, so the "View architecture" affordance stays hidden. Node
+    /// metadata, like `sourceFiles`: outside the configuration digest.
+    internal var architecture: CronServiceArchitectureRef? = nil // swiftlint:disable:this implicit_optional_initialization
 
     private enum CodingKeys: String, CodingKey {
         case id, kind, type, label, description, schedule, enabled, usesLLM, lastStatus, deliver, health
-        case sourceFiles, codeGraph, codeControl
+        case sourceFiles, codeGraph, codeControl, architecture
     }
 
     internal init(
@@ -80,7 +86,8 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         health: CronServiceHealth? = nil,
         sourceFiles: [CronSourceFile] = [],
         codeGraph: CronServiceCodeGraphRef? = nil,
-        codeControl: CodeGraphProvenance? = nil
+        codeControl: CodeGraphProvenance? = nil,
+        architecture: CronServiceArchitectureRef? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -96,6 +103,7 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         self.sourceFiles = sourceFiles
         self.codeGraph = codeGraph
         self.codeControl = codeControl
+        self.architecture = architecture
     }
 
     /// Tolerates a snapshot written before `sourceFiles` existed: the revision
@@ -118,6 +126,30 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         sourceFiles = try container.decodeIfPresent([CronSourceFile].self, forKey: .sourceFiles) ?? []
         codeGraph = try container.decodeIfPresent(CronServiceCodeGraphRef.self, forKey: .codeGraph)
         codeControl = try container.decodeIfPresent(CodeGraphProvenance.self, forKey: .codeControl)
+        architecture = try container.decodeIfPresent(CronServiceArchitectureRef.self, forKey: .architecture)
+    }
+}
+
+/// The pointer a `service` node carries to its architecture model. `ref` is
+/// the argument for `architecture.describe`; the rest is what the gateway knew
+/// cheaply when it built the graph, so the node can say "local · 62911e4 ·
+/// check passed" before the model is opened.
+internal struct CronServiceArchitectureRef: Hashable, Codable {
+    internal let ref: String
+    internal let source: String
+    internal let revision: String
+    internal let checkStatus: String?
+    internal let snapshots: Int
+
+    internal static func decodeGatewayValue(_ value: AnyCodable) -> CronServiceArchitectureRef? {
+        guard let d = value.dictionaryValue, let ref = d["ref"]?.stringValue, !ref.isEmpty else { return nil }
+        return CronServiceArchitectureRef(
+            ref: ref,
+            source: d["source"]?.stringValue ?? "local",
+            revision: d["revision"]?.stringValue ?? "",
+            checkStatus: d["check"]?.dictionaryValue?["status"]?.stringValue,
+            snapshots: d["snapshots"]?.intValue ?? 0
+        )
     }
 }
 
@@ -304,6 +336,7 @@ internal struct CronGraph: Codable, Equatable {
                 codeGraph = CronServiceCodeGraphRef(ref: ref, digest: cg["digest"]?.stringValue ?? "")
             }
             let codeControl = d["code_control"].flatMap(CodeGraphProvenance.decodeGatewayValue)
+            let architecture = d["architecture"].flatMap(CronServiceArchitectureRef.decodeGatewayValue)
             return CronGraphNode(
                 id: id,
                 kind: kind,
@@ -318,7 +351,8 @@ internal struct CronGraph: Codable, Equatable {
                 health: health,
                 sourceFiles: sourceFiles,
                 codeGraph: codeGraph,
-                codeControl: codeControl
+                codeControl: codeControl,
+                architecture: architecture
             )
         }
 

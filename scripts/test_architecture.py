@@ -340,7 +340,7 @@ class ArchitectureCompilerTests(unittest.TestCase):
             for path, content in second.items()
         }
         self.assertEqual(first_hashes, second_hashes)
-        self.assertEqual({"model.json", "data.js"}, set(first_hashes))
+        self.assertEqual({"model.json", "data.js", "ArchitectureObservatoryAssets.swift"}, set(first_hashes))
 
 
     def test_external_systems_are_declared_observed_and_evidenced(self) -> None:
@@ -1458,6 +1458,29 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for trigger_path in (".github/workflows/**", ".swiftlint.yml", "Tests/PortalTests/ArchitectureTests.swift", "metrics-baseline.json"):
             self.assertIn(trigger_path, workflow)
         self.assertNotIn("build_metrics_page", (ROOT / "Makefile").read_text(encoding="utf-8"))
+
+    def test_observatory_renderer_is_embedded_for_the_app(self) -> None:
+        outputs = architecture.expected_outputs()
+        swift = outputs[architecture.OBSERVATORY_ASSETS_PATH]
+        self.assertTrue(swift.startswith("// GENERATED"))
+        self.assertIn("Sources/Portal/Models/ArchitectureObservatoryAssets.swift", (ROOT / ".swiftlint.yml").read_text(encoding="utf-8"), "the generated asset is excluded from lint")
+        for name in ("indexHTML", "appJS", "stylesCSS"):
+            self.assertIn(f"internal static let {name} = ", swift)
+        for filename in ("index.html", "app.js", "styles.css"):
+            content = (ROOT / "architecture/site" / filename).read_text(encoding="utf-8").rstrip("\n")
+            self.assertIn(content, swift, f"{filename} is embedded verbatim")
+        # The committed copy is current, and the page builder knows the tags it splices at.
+        self.assertEqual(swift, architecture.OBSERVATORY_ASSETS_PATH.read_text(encoding="utf-8"))
+        page = (ROOT / "Sources/Portal/Models/ArchitecturePanelPage.swift").read_text(encoding="utf-8")
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
+        for tag in ('<link rel=\\"stylesheet\\" href=\\"styles.css\\">', '<script src=\\"data.js\\"></script>',
+                    '<script src=\\"history.js\\"></script>', '<script src=\\"app.js\\"></script>'):
+            self.assertIn(tag, page)
+            self.assertIn(tag.replace("\\", ""), index, "the site still uses the tag the builder splices at")
+        # Raw literals: the delimiter never collides with the content.
+        self.assertEqual('#"""\nabc\n"""#', architecture.swift_raw_literal("abc"))
+        self.assertTrue(architecture.swift_raw_literal('x """# y').startswith('##"""'))
+        self.assertTrue(architecture.swift_raw_literal("\\#(x)").startswith('##"""'))
 
 
 if __name__ == "__main__":

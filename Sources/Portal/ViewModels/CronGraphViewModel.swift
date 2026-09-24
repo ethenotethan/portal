@@ -63,6 +63,9 @@ internal final class CronGraphViewModel: ObservableObject {
     /// graph, which presents `WikiGraphView` backed by a `CodeGraphSource` and
     /// then clears this. Mirrors `requestedSourceFile`; same cross-surface reason.
     @Published internal var requestedCodeGraph: CodeGraphRequest?
+    /// An architecture model asked for from the inline dock, which can't present
+    /// it; the full-screen surface consumes and clears it, like `requestedCodeGraph`.
+    @Published internal var requestedArchitecture: ArchitectureRequest?
     /// Group scheme keys currently collapsed into a single super-node. Persists
     /// across reloads (stale keys are ignored) so a folded-away cluster stays
     /// folded when the graph refreshes.

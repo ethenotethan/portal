@@ -133,6 +133,28 @@ gateway contract in `harness/docs/api/artifact-queries.md`.
 | `cron.manage` | `action:"pause"` / `"resume"` / `"remove"` / `"add"`, `name` | Lifecycle; `add` also takes `schedule`, `prompt` |
 | `cron.graph` | — | Dataflow graph: `nodes` (kind `cron` / `source` / `artifact` / `sink` / `service` / `object`) + typed `edges`. A `cron` node carries `source_files[]`: `{path, declared, role: script|monitor|declared, root?, rel?, exists}` — the job's code, each resolved onto a `files.read` root when it lives under one. Not part of the commitment digest (see `CronGraphDigest`) |
 
+### architecture.*
+
+Per-service architecture models: a service declared by a manifest on the gateway
+(`~/.hermes/services/architecture/<id>.json`, a local checkout or a GitHub
+repository) has a compiler-emitted model the gateway reads, snapshots per
+revision and checks on demand. Portal opens it from the service node on the
+dataflow graph (`ArchitectureSurfaceView`), rendering the model with the
+Architecture Observatory's own renderer (`ArchitecturePanelPage`). Contract:
+`harness/docs/api/architecture.md`.
+
+| Method | Params | Description |
+|--------|--------|-------------|
+| `architecture.describe` | `service` (graph id `arch:<id>`), `revision?` | `{service, revision, source, stored_at, summary, check, model}` — the current model, read now and snapshotted, or a stored revision. **4029** missing service, **4030** unknown, **4032** model missing/invalid, **4404** no such revision |
+| `architecture.check` | `service` | Runs the manifest's `check` in the service root (local only) → `{service, check: {status: passed\|failed\|unavailable, exit_code?, output?, reason?, revision, checked_at, duration_s}}` |
+| `architecture.list` | — | Every manifest service with its `status` (the node annotation) — not called by Portal yet |
+| `architecture.history` | `service` | Stored revisions (genesis first) and recorded check runs — not called by Portal yet |
+
+`cron.graph` service nodes declared by a manifest carry an `architecture`
+annotation `{ref, source, revision, model, snapshots, check?: {status, checked_at}, summary?}`
+and their `source_files`, resolved onto the `arch-<id>` browse root the gateway
+exposes for the checkout.
+
 ### wiki.*
 
 | Method | Params | Description |
@@ -314,6 +336,7 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields; clients refetch content via `artifact.get` |
 | `artifact.query.changed` | `artifactQueryChanged(artifactID, queryID, status, reason)` | A subscribed query's result changed (`status: "ok"` — re-fetch via `artifact.query.invoke`) or its slot was dropped server-side (`"unsupported"` + `reason`). Etag-diffed: identical data emits nothing |
 | `learning.changed` | `learningChanged(entity, id, rev, deleted)` | Learning store mutation (course/deck) — id + rev only; clients refetch via `learning.course.get` / `learning.deck.get` |
+| `architecture.changed` | `architectureChanged(service, revision, reason, status)` | A service's architecture model moved: a newly stored revision (`reason: "snapshot"`) or a finished check (`reason: "check"` + `status`). Clients refetch via `architecture.describe` |
 | `review.summary` | `reviewSummary(text)` | Summary / review content |
 
 ## Errors

@@ -1,0 +1,142 @@
+import SwiftUI
+
+/// A service's architecture model, presented natively: the Architecture
+/// Observatory renderer (system map, invariants, data stores, externals, CI
+/// gates) hosting the model the gateway returned for that service, with the
+/// revision, the invariant tally and the last `--check` in the header. Opened
+/// from a service node on the dataflow graph.
+@MainActor
+internal struct ArchitectureSurfaceView: View {
+    private let request: ArchitectureRequest
+    @StateObject private var model: ArchitectureSurfaceModel
+    @Environment(\.dismiss) private var dismiss
+
+    internal init(request: ArchitectureRequest, client: GatewayClient) {
+        self.request = request
+        _model = StateObject(wrappedValue: ArchitectureSurfaceModel(service: request.service, reader: client))
+    }
+
+    internal var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider().background(Theme.border)
+            content
+        }
+        #if os(macOS)
+        .frame(minWidth: 900, minHeight: 620)
+        #endif
+        .background(Theme.background)
+        .task(id: request.revision) { await model.load() }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(request.label)
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                    .help(model.document?.tooltip ?? request.service)
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+                    .lineLimit(1)
+                    .help(model.document?.summary.detailLine ?? "")
+                if let message = model.checkMessage {
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            if let check = model.document?.check {
+                checkBadge(check)
+            }
+            if model.canRunCheck {
+                Button(model.isChecking ? "Checking…" : "Run check") { Task { await model.runCheck() } }
+                    .portalButton(prominent: false, size: .small)
+                    .disabled(model.isChecking)
+                    .help("Run the service's own --check in its checkout")
+            }
+            Button("Done") { dismiss() }
+                .portalButton(prominent: true, size: .small)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Theme.surface)
+    }
+
+    private var summary: String {
+        guard let document = model.document else { return "Architecture model" }
+        let invariants = "\(document.summary.invariantsHolding)/\(document.summary.invariantsTotal) invariants hold"
+        let gates = document.summary.gates > 0 ? " · \(document.summary.gates) PR gates" : ""
+        return "\(document.shortRevision) · \(document.service.origin) · \(document.summary.components) components · \(invariants)\(gates)"
+    }
+
+    private func checkBadge(_ check: ArchitectureCheckResult) -> some View {
+        let color: Color = check.passed ? Theme.success : (check.ran ? Theme.warning : Theme.secondary)
+        return Text(check.status.uppercased())
+            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .monospaced()
+            .foregroundStyle(color)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.14), in: Capsule())
+            .help(check.detail)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch model.phase {
+        case .idle, .loading:
+            stateMessage(
+                icon: "square.3.layers.3d",
+                title: "Loading architecture model",
+                detail: "Reading the service's compiled model and its invariants…",
+                showsProgress: true
+            )
+        case .loaded:
+            InlineHTMLView(html: model.pageHTML, baseURL: model.baseURL)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed:
+            VStack(spacing: 14) {
+                stateMessage(
+                    icon: "exclamationmark.triangle",
+                    title: "Architecture model unavailable",
+                    detail: model.errorMessage ?? "The gateway could not read this service's model."
+                )
+                Button("Try Again") { Task { await model.load() } }
+                    .portalButton(prominent: false, size: .small)
+            }
+        }
+    }
+
+    private func stateMessage(
+        icon: String,
+        title: String,
+        detail: String,
+        showsProgress: Bool = false
+    ) -> some View {
+        VStack(spacing: 10) {
+            if showsProgress {
+                ProgressView()
+                    .controlSize(.large)
+            } else {
+                Image(systemName: icon)
+                    .font(.system(size: 30, weight: .light))
+                    .foregroundStyle(Theme.secondary)
+            }
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Theme.primary)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+}
