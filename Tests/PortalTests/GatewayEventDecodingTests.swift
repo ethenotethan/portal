@@ -5,6 +5,35 @@ import Foundation
 @Suite("Gateway Event Decoding — new families")
 struct GatewayEventDecodingTests {
 
+    // MARK: - architecture.changed
+
+    @Test("architecture.changed parses a snapshot announcement and a check outcome")
+    internal func architectureChangedPayloads() {
+        let snapshot = GatewayEvent.from(type: "architecture.changed", payload: .dictionary([
+            "service": .string("arch:portal"), "revision": .string("62911e4"), "source": .string("local"), "reason": .string("snapshot"),
+        ]))
+        guard case .architectureChanged(let service, let revision, let reason, let status) = snapshot else {
+            Issue.record("expected architectureChanged, got \(snapshot.debugName)")
+            return
+        }
+        #expect(service == "arch:portal")
+        #expect(revision == "62911e4")
+        #expect(reason == "snapshot")
+        #expect(status.isEmpty)
+        #expect(snapshot.debugName == "architecture.changed")
+        let check = GatewayEvent.from(type: "architecture.changed", payload: .dictionary([
+            "service": .string("arch:portal"), "reason": .string("check"), "status": .string("failed"),
+        ]))
+        guard case .architectureChanged(_, let checkRevision, let checkReason, let checkStatus) = check else {
+            Issue.record("expected architectureChanged, got \(check.debugName)")
+            return
+        }
+        #expect(checkRevision.isEmpty)
+        #expect(checkReason == "check")
+        #expect(checkStatus == "failed")
+        #expect(!snapshot.isLiveTurnEvent)
+    }
+
     // MARK: - tool.output_risk
 
     @Test("tool.output_risk parses full payload")

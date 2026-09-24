@@ -3754,7 +3754,7 @@ client.eventStream
         }
 
         switch event {
-        case .artifactChanged, .artifactQueryChanged, .learningChanged, .unknown:
+        case .artifactChanged, .artifactQueryChanged, .learningChanged, .architectureChanged, .unknown:
             // Store-level concerns; ArtifactStore/LearningStore subscribe
             // directly. .unknown never reaches consumers (GatewayClient
             // drops it).
@@ -4261,7 +4261,7 @@ client.eventStream
 
         switch event {
         case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary, .artifactChanged,
-             .artifactQueryChanged, .learningChanged, .sessionTitle, .unknown:
+             .artifactQueryChanged, .learningChanged, .architectureChanged, .sessionTitle, .unknown:
             break
 
         case .sessionInfo(let info):

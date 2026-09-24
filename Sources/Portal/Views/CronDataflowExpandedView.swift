@@ -51,6 +51,9 @@ internal struct CronDataflowExpandedView: View {
     /// any — set from the resource card's button or a request handed up from the
     /// inline dock. Presented on its own code-topology surface.
     @State private var presentedCodeGraph: CodeGraphRequest?
+    /// The service whose architecture model is presented over the surface, if
+    /// any — from the resource card's button or a request from the inline dock.
+    @State private var presentedArchitecture: ArchitectureRequest?
 
     internal init(
         graphVM: CronGraphViewModel,
@@ -86,11 +89,19 @@ internal struct CronDataflowExpandedView: View {
                 graphVM.requestedCodeGraph = nil
                 presentedCodeGraph = request
             }
+            .task(id: graphVM.requestedArchitecture) {
+                guard let request = graphVM.requestedArchitecture else { return }
+                graphVM.requestedArchitecture = nil
+                presentedArchitecture = request
+            }
             // Selecting another node retires the reader: a file from job A open
             // beside job B's card would read as B's code.
             .onChange(of: graphVM.selectedNodeIndex) { _, _ in sourceVM.close() }
             .sheet(item: $presentedCodeGraph) { request in
                 CodeGraphSurfaceView(request: request, client: gatewayClientWrapper.client)
+            }
+            .sheet(item: $presentedArchitecture) { request in
+                ArchitectureSurfaceView(request: request, client: gatewayClientWrapper.client)
             }
     }
 
@@ -271,9 +282,10 @@ internal struct CronDataflowExpandedView: View {
                 } else {
                     resourceCard(node)
                 }
-                // The code behind the job, from the node itself — shown for any
-                // cron node, whether or not the job list has caught up with it.
-                if node.kind == "cron", !node.sourceFiles.isEmpty {
+                // The code behind the node — a cron's scripts, a service's declared
+                // files — from the node itself, whether or not the job list has
+                // caught up with it.
+                if !node.sourceFiles.isEmpty {
                     CronSourceFilesSection(
                         files: node.sourceFiles,
                         viewModel: sourceVM,
@@ -359,6 +371,27 @@ internal struct CronDataflowExpandedView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(Theme.accent)
                 .accessibilityIdentifier("runtime.graph.open-wiki-page")
+            }
+            if node.kind == "service", let architecture = node.architecture {
+                Button {
+                    presentedArchitecture = ArchitectureRequest(
+                        service: architecture.ref,
+                        label: node.label,
+                        revision: architecture.revision
+                    )
+                } label: {
+                    Label("View architecture", systemImage: "square.3.layers.3d")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                infoRow(icon: "square.3.layers.3d", label: "Model", value: "\(architecture.source) · \(architecture.revision.prefix(9))")
+                if architecture.snapshots > 0 {
+                    infoRow(icon: "clock.arrow.circlepath", label: "Snapshots", value: String(architecture.snapshots))
+                }
+                if let status = architecture.checkStatus {
+                    infoRow(icon: "checkmark.seal", label: "Last check", value: status)
+                }
             }
             if let health = node.health {
                 Divider().background(Theme.border)
