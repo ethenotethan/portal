@@ -252,16 +252,24 @@ class ArchitectureCompilerTests(unittest.TestCase):
             )
 
     def test_behavior_site_has_navigation_and_semantic_view_sections(self) -> None:
+        # The observatory is three views: the system map, the source inventory and the CI gates.
+        # Connections & streams, External systems and Data stores were retired as pages; what they
+        # showed lives on the system map (boundary hulls, storage containers, artifact nodes).
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
-        for view in ("connections",):
+        for view in ("systemmap", "inventory", "gates"):
             self.assertRegex(index, rf'<button[^>]+data-view="{view}"')
             self.assertRegex(index, rf'<section[^>]+id="{view}-view"')
-            self.assertRegex(index, rf'id="{view}-content"')
+        for retired in ("connections", "externals", "stores"):
+            self.assertNotRegex(index, rf'data-view="{retired}"')
+            self.assertNotRegex(index, rf'id="{retired}-view"')
+            self.assertNotRegex(index, rf'id="{retired}-content"')
 
     def test_behavior_site_has_deterministic_renderers_and_line_provenance(self) -> None:
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
-        for renderer in ("renderConnections",):
+        for renderer in ("renderInterplay", "renderInventory", "renderGates"):
             self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        for retired in ("renderConnections", "renderExternals", "renderStores", "externalCard", "recordRow"):
+            self.assertNotIn(retired, app)
         self.assertRegex(app, r"function\s+sourceLink\s*\(")
         self.assertIn("#L${evidence.line}", app)
         self.assertIn("textContent", app)
@@ -815,14 +823,10 @@ class ArchitectureCompilerTests(unittest.TestCase):
                     self.assertIn(entry["path"], node["files"])
 
     def test_boundary_site_views_and_renderers_exist(self) -> None:
+        # Externals and stores have no page of their own; the system map draws them as boundary
+        # hulls, storage containers and artifact nodes.
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
-        for view in ("externals", "stores"):
-            self.assertRegex(index, rf'<button[^>]+data-view="{view}"')
-            self.assertRegex(index, rf'<section[^>]+id="{view}-view"')
-            self.assertRegex(index, rf'id="{view}-content"')
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
-        for renderer in ("renderExternals", "renderStores"):
-            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
         self.assertIn("INTERPLAY_EXTERNAL_GROUP", app)
         self.assertIn("INTERPLAY_APP_GROUP", app)
         self.assertIn("interplay.pages", app)
@@ -1365,6 +1369,16 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertEqual(perf["counts"], by_id["perf"]["current"]["counts"])
         self.assertEqual(len(lint), by_id["lint"]["current"]["total"])
         self.assertIsNone(by_id["perf"]["patch"], "op counts are floor-only")
+        # The constraint ratchet guards the declarations themselves; its "current" is what it counts.
+        constraints = by_id["constraints"]
+        self.assertEqual("ratchet/constraints", constraints["job"])
+        self.assertEqual("count", constraints["current"]["kind"])
+        counts = constraints["current"]["counts"]
+        self.assertEqual(len(json.loads((ROOT / "architecture/interplay/invariants.json").read_text(encoding="utf-8"))["invariants"]), counts["invariants"])
+        self.assertEqual((ROOT / "Tests/PortalTests/ArchitectureTests.swift").read_text(encoding="utf-8").count("@Test("), counts["architecture_tests"])
+        self.assertGreater(counts["lint_rules"], 10)
+        self.assertEqual(len(list((ROOT / "architecture/specifications").glob("*.md"))), counts["specifications"])
+        self.assertIsNone(constraints["patch"])
         self.assertTrue(by_id["coverage"]["patch"])
         for ratchet in ci["ratchets"]:
             self.assertIn(ratchet["job"], jobs)

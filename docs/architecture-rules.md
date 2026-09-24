@@ -107,6 +107,7 @@ floor that its baseline can't be *grown* to silence one is a ratchet
 | `Ratchet / Dead Code` | Ratchet | Unused declarations | `metrics-baseline.json` `deadcode` | Periphery + `check-metrics-ratchet.py --deadcode` |
 | `Ratchet / Performance` | Ratchet | Algorithmic work | `perf-baseline.json` | `check-perf-ratchet.py` |
 | `Ratchet / Quality` | Ratchet | Lint debt (baseline only shrinks) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
+| `Ratchet / Constraints` | Ratchet | The declarations behind every other gate may only tighten | `invariants.json`, `config.json`, `.swiftlint.yml`, `ArchitectureTests.swift`, specifications, gate scripts, `CODEOWNERS`, the gate workflows — as they exist on base | `check-constraint-growth.py` |
 
 Within `ratchet.yml`, Warnings and Coverage both need a from-scratch compile (+
 tests for coverage), so a single `Measure (build + test)` job builds ONCE and
@@ -141,6 +142,33 @@ checks (custom lint rules, `ArchitectureTests`, System-map invariants) and the
 static compiler checks beneath it. The compiler fails when a posture job exists
 that no ratchet declares, so the one-concern-per-job rule is enforced, not just
 written. See `architecture/README.md`.
+
+### Constraint erosion (why the Constraints ratchet exists)
+
+Every file above lives in the same tree the agents write to. A change blocked by
+a gate could loosen the gate in the same PR: delete the invariant, grow the
+exception list, drop the lint rule, remove the workflow step, lower the
+baseline. Two defences, one mechanical and one human:
+
+- **Mechanical.** The numeric ratchets already read their baselines from the
+  *base branch* via `git show`, so a lowered `metrics-baseline.json` in the PR
+  changes nothing. `Ratchet / Constraints` extends that to everything
+  declarative: it diffs `invariants.json`, `config.json`, `.swiftlint.yml`, the
+  `ArchitectureTests`, the specifications, the `check-*`/`collect-*` scripts,
+  `CODEOWNERS` and the three gate workflows against base and rejects any
+  loosening — a removed or relaxed invariant, a grown `allow_*` list, a removed
+  or demoted rule, a grown `excluded`, fewer architecture tests, a deleted
+  specification or script, a removed job, a job that gained an `if:`, a lost
+  gate step, a workflow that stopped listening to `pull_request`. Tightening
+  always passes. A deliberate loosening is still possible: state why in the PR
+  and add the `constraints-loosened` label; the guard then reports the loosening
+  and passes, so it is explicit in the log rather than silent in a diff.
+- **Human.** `.github/CODEOWNERS` names an owner for every one of those paths.
+  It binds once the `main` ruleset requires review from code owners, which is
+  only useful when agent PRs are opened under a separate identity — today every
+  PR is opened under the maintainer's own token, so requiring an owner review
+  would block the maintainer's own merges. The file is in place for when that
+  changes; the mechanical half does not depend on it.
 
 The rest of this section details each posture's benchmark.
 

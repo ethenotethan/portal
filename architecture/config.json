@@ -434,6 +434,15 @@
         "patch": null
       },
       {
+        "id": "constraints",
+        "title": "Constraint declarations",
+        "job": "ratchet/constraints",
+        "source": {"kind": "declarations", "path": "architecture/interplay/invariants.json"},
+        "measures": "The declarations that decide what CI accepts: invariants, fail-closed config declarations, custom lint rules, architecture tests, specifications, gate scripts, CODEOWNERS and the gate workflows themselves.",
+        "floor": "Nothing declared on base may be removed or loosened: no invariant dropped or relaxed, no exception list grown, no rule removed or demoted, no gate step or job removed, no specification deleted. Tightening always passes; a deliberate loosening carries the constraints-loosened label.",
+        "patch": null
+      },
+      {
         "id": "secrets",
         "title": "Secret ignore-list",
         "job": "ratchet/security",

@@ -82,6 +82,20 @@ internal struct GatewayPersonaTests {
         #expect(gateway.name == "Old")
     }
 
+    @Test("only legacy harness gateways remain compatible")
+    internal func legacyBackendKindCompatibility() throws {
+        func decode(kindFragment: String) throws -> SavedGateway {
+            let jsonString = """
+            {"id":"\(UUID().uuidString)","name":"Old","url":"wss://x","apiKey":"k"\(kindFragment)}
+            """
+            return try JSONDecoder().decode(SavedGateway.self, from: Data(jsonString.utf8))
+        }
+
+        #expect(try decode(kindFragment: "").speaksHarness)
+        #expect(try decode(kindFragment: ",\"kind\":\"hermes\"").speaksHarness)
+        #expect(try !decode(kindFragment: ",\"kind\":\"centaur\"").speaksHarness)
+    }
+
     @Test("a gateway round-trips its avatar path through Codable")
     internal func avatarPathRoundTrips() throws {
         var gateway = SavedGateway(name: "Cosmos", url: "wss://x", apiKey: "k")
@@ -90,6 +104,18 @@ internal struct GatewayPersonaTests {
         let decoded = try JSONDecoder().decode(SavedGateway.self, from: data)
         #expect(decoded.avatarImagePath == "/tmp/persona-abc.png")
         #expect(decoded == gateway)
+    }
+}
+
+@Suite("Persona image")
+internal struct PersonaImageTests {
+    @Test("a missing avatar path fails closed without constructing an image")
+    internal func missingAvatarReturnsNil() {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("portal-missing-avatar-\(UUID().uuidString).png")
+            .path
+
+        #expect(PersonaImage.load(path: path) == nil)
     }
 }
 

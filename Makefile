@@ -11,7 +11,7 @@ SCHEME_MAC := Portal
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build installer installer-test run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
+.PHONY: generate build installer installer-test run kill lint lint-fix lint-baseline lint-baseline-guard constraint-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -251,7 +251,16 @@ perf-baseline:
 # If this is green, CI is. (The Warnings/Coverage posture ratchets need a clean
 # from-scratch build + base diff, so run `make metrics-ratchet` separately when
 # touching those — kept out of `check` so the fast pre-push loop stays fast.)
-check: lint lint-baseline-guard secret-scan secret-scan-guard installer-test
+# Constraint ratchet: the declarations that decide what CI accepts (invariants,
+# config declarations, lint rules, architecture tests, specifications, gate
+# scripts, CODEOWNERS, the gate workflows) may only tighten vs origin/main.
+# In CI this is Ratchet / Constraints; a deliberate loosening carries the
+# `constraints-loosened` label there. See scripts/check-constraint-growth.py.
+constraint-guard:
+	python3 scripts/check-constraint-growth.py origin/main
+	python3 -m unittest scripts/test_constraint_growth.py
+
+check: lint lint-baseline-guard secret-scan secret-scan-guard constraint-guard installer-test
 	swift build
 	swift build --build-tests
 	swift test --disable-sandbox

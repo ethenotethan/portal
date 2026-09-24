@@ -45,7 +45,7 @@
     {
       "id": "stores-mapped",
       "kind": "stores_mapped",
-      "why": "Every store the extractor recognises is a construction on the map, so the Data stores view and the System map can never disagree about what holds state."
+      "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
     },
     {
       "id": "triggers-observed",

@@ -9059,7 +9059,7 @@
           "id": "stores-mapped",
           "kind": "stores_mapped",
           "status": "holds",
-          "why": "Every store the extractor recognises is a construction on the map, so the Data stores view and the System map can never disagree about what holds state."
+          "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
         },
         {
           "id": "triggers-observed",
@@ -9367,6 +9367,11 @@
       },
       {
         "kind": "gates",
+        "source": "ratchet/constraints",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
         "source": "ratchet/coverage",
         "target": "merge:main"
       },
@@ -9459,6 +9464,11 @@
         "kind": "trigger",
         "source": "trigger:pull_request",
         "target": "build/build"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "ratchet/constraints"
       },
       {
         "kind": "trigger",
@@ -10244,7 +10254,55 @@
         "artifacts_out": [],
         "condition": null,
         "evidence": {
-          "line": 329,
+          "line": 327,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/constraints",
+        "key": "constraints",
+        "name": "Constraints",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/check-constraint-growth.py",
+          "scripts/test_constraint_growth.py"
+        ],
+        "step_count": 3,
+        "steps": [
+          {
+            "line": 331,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "python3 scripts/check-constraint-growth.py \"$BASE\" $LOOSENED",
+            "command_lines": 2,
+            "line": 335,
+            "name": "Check no declared constraint is looser than base",
+            "scripts": [
+              "scripts/check-constraint-growth.py"
+            ]
+          },
+          {
+            "command": "python3 -m unittest scripts/test_constraint_growth.py",
+            "command_lines": 1,
+            "line": 342,
+            "name": "Test the constraint guard",
+            "scripts": [
+              "scripts/test_constraint_growth.py"
+            ]
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 355,
           "path": ".github/workflows/ratchet.yml"
         },
         "family": "posture",
@@ -10261,14 +10319,14 @@
         "step_count": 2,
         "steps": [
           {
-            "line": 336,
+            "line": 362,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
             "command": "python3 scripts/check-baseline-growth.py \"$BASE\"",
             "command_lines": 2,
-            "line": 340,
+            "line": 366,
             "name": "Check the lint baseline did not grow",
             "scripts": [
               "scripts/check-baseline-growth.py"
@@ -10775,6 +10833,7 @@
       "inputs": [
         "architecture-pages/validate",
         "build/build",
+        "ratchet/constraints",
         "ratchet/coverage",
         "ratchet/dead-code",
         "ratchet/measure",
@@ -10951,6 +11010,33 @@
       },
       {
         "current": {
+          "counts": {
+            "architecture_tests": 7,
+            "external_systems": 13,
+            "invariants": 12,
+            "lint_rules": 14,
+            "pages": 11,
+            "ratchets": 8,
+            "specifications": 5
+          },
+          "kind": "count",
+          "sites": 70,
+          "total": 70
+        },
+        "floor": "Nothing declared on base may be removed or loosened: no invariant dropped or relaxed, no exception list grown, no rule removed or demoted, no gate step or job removed, no specification deleted. Tightening always passes; a deliberate loosening carries the constraints-loosened label.",
+        "id": "constraints",
+        "job": "ratchet/constraints",
+        "measures": "The declarations that decide what CI accepts: invariants, fail-closed config declarations, custom lint rules, architecture tests, specifications, gate scripts, CODEOWNERS and the gate workflows themselves.",
+        "patch": null,
+        "source": {
+          "kind": "declarations",
+          "path": "architecture/interplay/invariants.json"
+        },
+        "source_path": "architecture/interplay/invariants.json",
+        "title": "Constraint declarations"
+      },
+      {
+        "current": {
           "counts": {},
           "kind": "count",
           "sites": 0,
@@ -11019,11 +11105,11 @@
     ],
     "summary": {
       "architecture_tests": 7,
-      "gates": 14,
+      "gates": 15,
       "invariants": 12,
-      "jobs": 19,
+      "jobs": 20,
       "lint_rules": 14,
-      "ratchets": 7,
+      "ratchets": 8,
       "static_checks": 4,
       "workflows": 7
     },
@@ -11191,6 +11277,7 @@
           "ratchet/skipped-tests",
           "ratchet/dead-code",
           "ratchet/performance",
+          "ratchet/constraints",
           "ratchet/quality"
         ],
         "label": "Ratchet",
@@ -12986,7 +13073,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 21220,
+      "line_count": 20993,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14773,7 +14860,6 @@
       "authority": "observed",
       "description": "References 3 declaration(s) owned by shared-ui.",
       "evidence": [
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ButtonTheme.swift",
         "Sources/Portal/Models/CelebrationPreferences.swift",
         "Sources/Portal/Models/NetworkGraphSpec.swift",
@@ -14788,7 +14874,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 9
+      "weight": 8
     },
     {
       "authority": "observed",
@@ -25646,7 +25732,7 @@
         "id": "stores-mapped",
         "kind": "stores_mapped",
         "status": "holds",
-        "why": "Every store the extractor recognises is a construction on the map, so the Data stores view and the System map can never disagree about what holds state."
+        "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
       },
       {
         "checked": 242,
@@ -38928,7 +39014,7 @@
     "assigned_files": 373,
     "declarations": 1104,
     "swift_files": 373,
-    "swift_lines": 113416,
+    "swift_lines": 113189,
     "unassigned_files": []
   },
   "layers": [
@@ -38960,7 +39046,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "b07ed8f41ddfb1f1c1a8fdacee34cee6cd6be0a43e45b137409b93ca7a66db82",
+  "source_tree_sha256": "d7c3073ecdca940f276b81f2edccad670491a03432a0b009ea6030126078926c",
   "stores": {
     "by_persistence": {
       "defaults": 6,
