@@ -193,6 +193,25 @@ internal struct NetworkGraphCanvasSizingTests {
         #expect(!NetworkGraphVisualSemantics.appearance(for: spec.edges[3]).showsArrow)
     }
 
+    @Test("legacy type-only edges retain their visual semantics")
+    internal func typeOnlyEdgeSemantics() throws {
+        let spec = try #require(NetworkGraphSpec.parse("""
+        {"nodes": [{"id": "a"}, {"id": "b"}],
+         "edges": [
+           {"from": "a", "to": "b", "type": "reads"},
+           {"from": "a", "to": "b", "type": "delivery"},
+           {"from": "a", "to": "b", "type": "hosts"},
+           {"from": "a", "to": "b", "type": "owns"},
+           {"from": "a", "to": "b", "type": "controls"},
+           {"from": "a", "to": "b", "type": "custom"}
+         ]}
+        """))
+
+        #expect(spec.edges.map(NetworkGraphVisualSemantics.appearance) == [
+            .dataflow, .delivery, .containment, .authority, .control, .generic,
+        ])
+    }
+
     @Test("Interactive graph adapter preserves typed directed semantics")
     internal func interactiveGraphSemantics() throws {
         let spec = try #require(NetworkGraphSpec.parse("""
