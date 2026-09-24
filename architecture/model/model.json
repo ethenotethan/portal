@@ -9420,7 +9420,7 @@
       "line_count": 5021
     },
     {
-      "declaration_count": 124,
+      "declaration_count": 126,
       "declarations": [
         "Artifact",
         "ArtifactActionControls",
@@ -9482,6 +9482,7 @@
         "GraphCard",
         "GraphErrorNote",
         "GraphExplorerBlockView",
+        "GraphVisualStyle",
         "HSplitViewCompat",
         "IntentButton",
         "InteractiveArtifactWeb",
@@ -9522,6 +9523,7 @@
         "NativeChartView",
         "NativeMermaidRenderer",
         "NetworkGraphCanvasSizing",
+        "NetworkGraphTypedLegend",
         "NetworkGraphView",
         "OpenArtifactKey",
         "OpenCronKey",
@@ -9589,7 +9591,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11909,
+      "line_count": 12104,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10268,7 +10270,7 @@
       }
     },
     {
-      "declaration_count": 277,
+      "declaration_count": 282,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -10372,6 +10374,8 @@
         "DownloadState",
         "DroppedEventReason",
         "Edge",
+        "EdgeAppearance",
+        "EdgeLegendEntry",
         "EdgeStatement",
         "Element",
         "ElementKind",
@@ -10433,9 +10437,12 @@
         "ModelSpec",
         "ModelSwitchConfirmation",
         "ModelSwitchOutcome",
+        "NetworkGraphInteractiveSemantics",
         "NetworkGraphLayout",
         "NetworkGraphSpec",
+        "NetworkGraphVisualSemantics",
         "Node",
+        "NodeLegendEntry",
         "NodeStatus",
         "NodeToolCall",
         "NodeTranscriptEntry",
@@ -10643,7 +10650,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 16053,
+      "line_count": 16180,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -11496,7 +11503,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 47 declaration(s) owned by domain-models.",
+      "description": "References 50 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
@@ -11528,7 +11535,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 80
+      "weight": 83
     },
     {
       "authority": "observed",
@@ -23454,7 +23461,7 @@
         "path": "Sources/Portal/Models/CronRunHistory.swift",
         "semantic": {
           "authority": "synthesized",
-          "cited_hash": "527fb6b65550528db624d215a514f647ad6ac00b3f8735acae81791905edf934",
+          "cited_hash": "0c8d07208a95f700be95a3a953dcb2170d3306c51123ecfe12061c88e5dd7494",
           "evidence": [
             {
               "line": 26,
@@ -31242,7 +31249,7 @@
           "stale": false,
           "summary": "The Skills page has two roots, SkillsCanvasView and SkillsView, each holding its own SkillsViewModel. On appear both wire the gateway client into the view model, warm SkillSummaryService.shared, and call refreshIfNeeded when connected. SkillsCanvasView renders a persisted DashboardLayout of panels; SkillsView renders header, installed and hub sections and presents SkillMarkdownSheet."
         },
-        "type_count": 51
+        "type_count": 56
       },
       {
         "components": [],
@@ -31374,14 +31381,14 @@
           ],
           "fields": {
             "entry_triggers": [
+              "trigger-0003198db685",
               "trigger-0109e2cd0f92",
-              "trigger-01ab378dee25",
-              "trigger-1725096f82d5",
+              "trigger-033147a7f5cb",
               "trigger-173f8ac250bd",
+              "trigger-21e14661ae99",
               "trigger-226eb4696e07",
               "trigger-233a5c60ff0b",
               "trigger-26eed17c6d54",
-              "trigger-2e1204620502",
               "trigger-367b7adf5b1d",
               "trigger-3b56159af21d",
               "trigger-3baae13ebeb3",
@@ -31402,7 +31409,6 @@
               "trigger-97ba48ee7927",
               "trigger-9fd79c005129",
               "trigger-a07c4d25bb15",
-              "trigger-a468bc3cffb0",
               "trigger-aa3b2de0a929",
               "trigger-b56cfc782a40",
               "trigger-b8886d3b90fe",
@@ -31410,10 +31416,11 @@
               "trigger-d09036b2aaab",
               "trigger-d2e4694d32bf",
               "trigger-d5ae4140b3a5",
+              "trigger-e47061d7f608",
               "trigger-e728c9c6595f",
               "trigger-e791301e6c80",
-              "trigger-f3a4e2c143df",
-              "trigger-f642dde11983"
+              "trigger-f642dde11983",
+              "trigger-fe992e7fd3aa"
             ],
             "owns_state_in": [
               "caller:operations-state:CodeGraphSource",
@@ -33974,9 +33981,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-f3a4e2c143df",
+        "id": "trigger-fe992e7fd3aa",
         "kind": "lifecycle",
-        "line": 131,
+        "line": 134,
         "method": "tick",
         "namespaces": [],
         "page": "graphs",
@@ -33989,9 +33996,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-1725096f82d5",
+        "id": "trigger-0003198db685",
         "kind": "lifecycle",
-        "line": 138,
+        "line": 141,
         "method": "setupSimulation",
         "namespaces": [],
         "page": "graphs",
@@ -34004,9 +34011,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-01ab378dee25",
+        "id": "trigger-21e14661ae99",
         "kind": "user_action",
-        "line": 168,
+        "line": 171,
         "method": "resetView",
         "namespaces": [],
         "page": "graphs",
@@ -34019,9 +34026,9 @@
         "api": "onAppear",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-2e1204620502",
+        "id": "trigger-033147a7f5cb",
         "kind": "lifecycle",
-        "line": 237,
+        "line": 240,
         "method": "setupSimulation",
         "namespaces": [],
         "page": "graphs",
@@ -34034,9 +34041,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-a468bc3cffb0",
+        "id": "trigger-e47061d7f608",
         "kind": "lifecycle",
-        "line": 245,
+        "line": 248,
         "method": "setupSimulation",
         "namespaces": [],
         "page": "graphs",
@@ -35350,9 +35357,9 @@
   },
   "inventory": {
     "assigned_files": 367,
-    "declarations": 1085,
+    "declarations": 1092,
     "swift_files": 367,
-    "swift_lines": 107625,
+    "swift_lines": 107947,
     "unassigned_files": []
   },
   "layers": [
@@ -35384,7 +35391,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "e51edecdb0c4f806f4d4e5040a637835f0fdaa104f403cbd950bd812a5c9b302",
+  "source_tree_sha256": "474972049fd3b4faf3816cda9990712fabf31c5a68acd97d26e20cdab5b4aca1",
   "stores": {
     "by_persistence": {
       "defaults": 6,
@@ -35692,11 +35699,11 @@
             "component": "domain-models",
             "evidence": {
               "excerpt": "if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {",
-              "line": 220,
+              "line": 216,
               "path": "Sources/Portal/Models/CronRunHistory.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-mechanism-0b45722de075",
+            "id": "store-mechanism-446fd6c623d7",
             "kind": "defaults",
             "label": "UserDefaults",
             "rule_id": "swift.store.mechanism.defaults",
@@ -35708,11 +35715,11 @@
             "component": "domain-models",
             "evidence": {
               "excerpt": "guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }",
-              "line": 238,
+              "line": 234,
               "path": "Sources/Portal/Models/CronRunHistory.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-mechanism-3cc37f4a92e0",
+            "id": "store-mechanism-e7c41fc1d1e7",
             "kind": "defaults",
             "label": "UserDefaults",
             "rule_id": "swift.store.mechanism.defaults",
@@ -35724,11 +35731,11 @@
             "component": "domain-models",
             "evidence": {
               "excerpt": "UserDefaults.standard.removeObject(forKey: Self.storageKey)",
-              "line": 242,
+              "line": 238,
               "path": "Sources/Portal/Models/CronRunHistory.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-mechanism-460850c60d1c",
+            "id": "store-mechanism-3cc37f4a92e0",
             "kind": "defaults",
             "label": "UserDefaults",
             "rule_id": "swift.store.mechanism.defaults",
