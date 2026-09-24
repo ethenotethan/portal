@@ -17052,6 +17052,25 @@
         "weight": 13
       }
     ],
+    "groups": [
+      {
+        "categories": [
+          "platform-storage"
+        ],
+        "description": "Everything the app persists on the device: the Application Support tree of JSON documents and directories, the UserDefaults keys, and the Keychain items. Each store is drawn writing the artifacts its source names.",
+        "id": "platform-storage",
+        "label": "Platform storage"
+      },
+      {
+        "categories": [
+          "ml-runtime",
+          "on-device-engine"
+        ],
+        "description": "Model loading and inference that never leaves the device: the MLX runtime for local language models and the neural speech engines. Both are in-process frameworks the engines run on.",
+        "id": "on-device-inference",
+        "label": "On-device inference"
+      }
+    ],
     "systems": [
       {
         "authority": "observed",
@@ -19299,6 +19318,34 @@
     ]
   },
   "interplay": {
+    "boundary_groups": [
+      {
+        "categories": [
+          "ml-runtime",
+          "on-device-engine"
+        ],
+        "description": "Model loading and inference that never leaves the device: the MLX runtime for local language models and the neural speech engines. Both are in-process frameworks the engines run on.",
+        "id": "on-device-inference",
+        "label": "On-device inference",
+        "members": [
+          "external:apple-mlx",
+          "external:speech-synthesis"
+        ]
+      },
+      {
+        "categories": [
+          "platform-storage"
+        ],
+        "description": "Everything the app persists on the device: the Application Support tree of JSON documents and directories, the UserDefaults keys, and the Keychain items. Each store is drawn writing the artifacts its source names.",
+        "id": "platform-storage",
+        "label": "Platform storage",
+        "members": [
+          "external:file-system",
+          "external:keychain",
+          "external:user-defaults"
+        ]
+      }
+    ],
     "clusters": [
       {
         "component": null,
@@ -19419,7 +19466,21 @@
         "component": "device-services",
         "id": "interplay-cluster-3185448f7114",
         "node_ids": [
-          "external:user-defaults"
+          "external:user-defaults",
+          "artifact:user-defaults:portal.activityItems",
+          "artifact:user-defaults:portal.activityItems.fileMigrated",
+          "artifact:user-defaults:portal.cronRunHistory",
+          "artifact:user-defaults:portal.cronRunHistory.fileMigrated",
+          "artifact:user-defaults:portal.delegationBatchHistory",
+          "artifact:user-defaults:portal.delegationBatchHistory.fileMigrated",
+          "artifact:user-defaults:portal.sessionRunHistory",
+          "artifact:user-defaults:portal.sessionRunHistory.fileMigrated",
+          "artifact:user-defaults:portal.skillCache.timestamp",
+          "artifact:user-defaults:portal.skillCache.v1",
+          "artifact:user-defaults:portal.skillStore.fileMigrated",
+          "artifact:user-defaults:portal.skillStore.timestamp",
+          "artifact:user-defaults:portal.skillStore.v2",
+          "artifact:user-defaults:portal.skillStore.version"
         ],
         "owner_type": "External systems"
       },
@@ -19604,7 +19665,20 @@
         "component": "device-services",
         "id": "interplay-cluster-a1b9b166a7fc",
         "node_ids": [
-          "external:file-system"
+          "external:file-system",
+          "artifact:file-system:hermes-videos",
+          "artifact:file-system:portal/activity-items.json",
+          "artifact:file-system:portal/artifacts.json",
+          "artifact:file-system:portal/cron-graph-revisions.json",
+          "artifact:file-system:portal/cron-run-history.json",
+          "artifact:file-system:portal/curricula",
+          "artifact:file-system:portal/delegation-batch-history.json",
+          "artifact:file-system:portal/quizzes",
+          "artifact:file-system:portal/session-run-history.json",
+          "artifact:file-system:portal/sessions",
+          "artifact:file-system:portal/skill-store.json",
+          "artifact:file-system:portal/srs-decks",
+          "artifact:file-system:portal/wiki-graph-cache"
         ],
         "owner_type": "External systems"
       },
@@ -19707,6 +19781,168 @@
       "stale": 0
     },
     "edges": [
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:hermes-videos",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/activity-items.json",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/artifacts.json",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/cron-graph-revisions.json",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/cron-run-history.json",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/curricula",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/delegation-batch-history.json",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/quizzes",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/session-run-history.json",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/sessions",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/skill-store.json",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/srs-decks",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:file-system:portal/wiki-graph-cache",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.activityItems",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.activityItems.fileMigrated",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.cronRunHistory",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.cronRunHistory.fileMigrated",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.delegationBatchHistory",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.delegationBatchHistory.fileMigrated",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.sessionRunHistory",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.sessionRunHistory.fileMigrated",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.skillCache.timestamp",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.skillCache.v1",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.skillStore.fileMigrated",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.skillStore.timestamp",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.skillStore.v2",
+        "target": "external:user-defaults"
+      },
+      {
+        "class": "boundary",
+        "relation": "stored-in",
+        "source": "artifact:user-defaults:portal.skillStore.version",
+        "target": "external:user-defaults"
+      },
       {
         "class": "interplay",
         "relation": "notifies",
@@ -19960,6 +20196,18 @@
         "target": "owner:hermes-services:GatewayClient"
       },
       {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "caller:local-services:SkillCache",
+        "target": "artifact:user-defaults:portal.skillCache.timestamp"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "caller:local-services:SkillCache",
+        "target": "artifact:user-defaults:portal.skillCache.v1"
+      },
+      {
         "class": "usage",
         "relation": "invokes",
         "source": "caller:local-services:SkillCache",
@@ -19970,12 +20218,6 @@
         "relation": "invokes",
         "source": "caller:local-services:SkillCache",
         "target": "endpoint:d01b8fa18b67"
-      },
-      {
-        "class": "boundary",
-        "relation": "persists-to",
-        "source": "caller:local-services:SkillCache",
-        "target": "external:user-defaults"
       },
       {
         "class": "usage",
@@ -19984,6 +20226,36 @@
         "target": "owner:hermes-services:GatewayClient"
       },
       {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "caller:local-services:SkillStore",
+        "target": "artifact:file-system:portal/skill-store.json"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "caller:local-services:SkillStore",
+        "target": "artifact:user-defaults:portal.skillStore.fileMigrated"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "caller:local-services:SkillStore",
+        "target": "artifact:user-defaults:portal.skillStore.timestamp"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "caller:local-services:SkillStore",
+        "target": "artifact:user-defaults:portal.skillStore.v2"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "caller:local-services:SkillStore",
+        "target": "artifact:user-defaults:portal.skillStore.version"
+      },
+      {
         "class": "usage",
         "relation": "invokes",
         "source": "caller:local-services:SkillStore",
@@ -19994,18 +20266,6 @@
         "relation": "invokes",
         "source": "caller:local-services:SkillStore",
         "target": "endpoint:d01b8fa18b67"
-      },
-      {
-        "class": "boundary",
-        "relation": "persists-to",
-        "source": "caller:local-services:SkillStore",
-        "target": "external:file-system"
-      },
-      {
-        "class": "boundary",
-        "relation": "persists-to",
-        "source": "caller:local-services:SkillStore",
-        "target": "external:user-defaults"
       },
       {
         "class": "usage",
@@ -21397,67 +21657,91 @@
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:ActivityStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/activity-items.json"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:ActivityStore",
-        "target": "external:user-defaults"
+        "target": "artifact:user-defaults:portal.activityItems"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "store:domain-models:ActivityStore",
+        "target": "artifact:user-defaults:portal.activityItems.fileMigrated"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:CronGraphRevisionStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/cron-graph-revisions.json"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:CronRunHistoryStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/cron-run-history.json"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:CronRunHistoryStore",
-        "target": "external:user-defaults"
+        "target": "artifact:user-defaults:portal.cronRunHistory"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "store:domain-models:CronRunHistoryStore",
+        "target": "artifact:user-defaults:portal.cronRunHistory.fileMigrated"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:DelegationBatchHistoryStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/delegation-batch-history.json"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:DelegationBatchHistoryStore",
-        "target": "external:user-defaults"
+        "target": "artifact:user-defaults:portal.delegationBatchHistory"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "store:domain-models:DelegationBatchHistoryStore",
+        "target": "artifact:user-defaults:portal.delegationBatchHistory.fileMigrated"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:SessionRunHistoryStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/session-run-history.json"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:domain-models:SessionRunHistoryStore",
-        "target": "external:user-defaults"
+        "target": "artifact:user-defaults:portal.sessionRunHistory"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "store:domain-models:SessionRunHistoryStore",
+        "target": "artifact:user-defaults:portal.sessionRunHistory.fileMigrated"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:local-services:ChatHistoryStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/sessions"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:local-services:CurriculumStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/curricula"
       },
       {
         "class": "boundary",
@@ -21469,25 +21753,25 @@
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:local-services:QuizStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/quizzes"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:local-services:SRSStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/srs-decks"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:local-services:VideoCache",
-        "target": "external:file-system"
+        "target": "artifact:file-system:hermes-videos"
       },
       {
         "class": "boundary",
         "relation": "persists-to",
         "source": "store:local-services:WikiGraphCache",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/wiki-graph-cache"
       },
       {
         "class": "usage",
@@ -21499,7 +21783,7 @@
         "class": "boundary",
         "relation": "persists-to",
         "source": "subscriber:ArtifactStore",
-        "target": "external:file-system"
+        "target": "artifact:file-system:portal/artifacts.json"
       },
       {
         "class": "structure",
@@ -21912,6 +22196,12 @@
             "from": "store:domain-models:SessionRunHistoryStore",
             "note": "Debounced atomic JSON write to Application Support",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/session-run-history.json"
+          },
+          {
+            "from": "artifact:file-system:portal/session-run-history.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -22015,7 +22305,7 @@
             "from": "store:local-services:ChatHistoryStore",
             "note": "One JSON file per session under Application Support/portal/sessions",
             "relation": "persists-to",
-            "to": "external:file-system"
+            "to": "artifact:file-system:portal/sessions"
           }
         ],
         "summary": "The user submits a prompt. ChatViewModel calls the prompt RPC through GatewayClient, which registers a pending continuation and sends the frame over the WebSocket to the Harness gateway. Streamed events come back on the AgentBackend eventStream, ChatViewModel appends deltas to the transcript, and ChatHistoryStore persists the session to disk.",
@@ -22507,7 +22797,7 @@
             "from": "store:local-services:ChatHistoryStore",
             "note": "Transcripts read from Application Support/portal/sessions",
             "relation": "persists-to",
-            "to": "external:file-system"
+            "to": "artifact:file-system:portal/sessions"
           },
           {
             "from": "owner:hermes-services:GatewayClient",
@@ -22657,6 +22947,12 @@
             "from": "store:local-services:ChatHistoryStore",
             "note": "Per-session JSON transcript under Application Support",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/sessions"
+          },
+          {
+            "from": "artifact:file-system:portal/sessions",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
@@ -22782,7 +23078,7 @@
             "from": "store:domain-models:CronRunHistoryStore",
             "note": "Debounced JSON write of run history",
             "relation": "persists-to",
-            "to": "external:file-system"
+            "to": "artifact:file-system:portal/cron-run-history.json"
           },
           {
             "from": "caller:operations-state:CronListViewModel",
@@ -22966,6 +23262,12 @@
             "from": "store:domain-models:CronRunHistoryStore",
             "note": "History trimmed to 500 per job and saved",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/cron-run-history.json"
+          },
+          {
+            "from": "artifact:file-system:portal/cron-run-history.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -23100,6 +23402,12 @@
             "from": "store:domain-models:ActivityStore",
             "note": "Store schedules a 2-second debounced background save",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/activity-items.json"
+          },
+          {
+            "from": "artifact:file-system:portal/activity-items.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -23185,6 +23493,12 @@
             "from": "store:domain-models:ActivityStore",
             "note": "Debounced save writes the updated inbox",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/activity-items.json"
+          },
+          {
+            "from": "artifact:file-system:portal/activity-items.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -23252,12 +23566,24 @@
             "from": "store:domain-models:ActivityStore",
             "note": "Debounced save writes activity-items.json under Application Support",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/activity-items.json"
+          },
+          {
+            "from": "artifact:file-system:portal/activity-items.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
             "from": "store:domain-models:ActivityStore",
             "note": "Legacy inbox blob is migrated once and the migration marker recorded",
             "relation": "persists-to",
+            "to": "artifact:user-defaults:portal.activityItems"
+          },
+          {
+            "from": "artifact:user-defaults:portal.activityItems",
+            "note": "Defaults key kept in UserDefaults",
+            "relation": "stored-in",
             "to": "external:user-defaults"
           }
         ],
@@ -23351,6 +23677,12 @@
             "from": "store:domain-models:ActivityStore",
             "note": "Store schedules a debounced save to disk",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/activity-items.json"
+          },
+          {
+            "from": "artifact:file-system:portal/activity-items.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -23521,6 +23853,12 @@
             "from": "caller:local-services:SkillStore",
             "note": "Fresh catalog is written to Application Support for next launch",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/skill-store.json"
+          },
+          {
+            "from": "artifact:file-system:portal/skill-store.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
@@ -23630,13 +23968,19 @@
             "from": "caller:local-services:SkillStore",
             "note": "Non-empty result saved to disk",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/skill-store.json"
+          },
+          {
+            "from": "artifact:file-system:portal/skill-store.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
             "from": "caller:local-services:SkillStore",
             "note": "Refresh markers recorded in UserDefaults",
             "relation": "persists-to",
-            "to": "external:user-defaults"
+            "to": "artifact:user-defaults:portal.skillStore.fileMigrated"
           }
         ],
         "summary": "The user taps Reload or Refresh, or pulls down the list. SkillsViewModel asks SkillStore to reload; the store lists skills over the gateway, falling back to a slash-command scan through the commands namespace when the list is empty. The call is registered in the pending-request pool, sent over the WebSocket, and the result is persisted to disk and UserDefaults.",
@@ -24118,6 +24462,12 @@
             "from": "store:local-services:CurriculumStore",
             "note": "Delete the course JSON under portal/curricula",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/curricula"
+          },
+          {
+            "from": "artifact:file-system:portal/curricula",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
@@ -24130,6 +24480,12 @@
             "from": "store:local-services:SRSStore",
             "note": "Delete the deck JSON under portal/srs-decks",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/srs-decks"
+          },
+          {
+            "from": "artifact:file-system:portal/srs-decks",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
@@ -24142,6 +24498,12 @@
             "from": "store:local-services:QuizStore",
             "note": "Delete the session JSON under portal/quizzes",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/quizzes"
+          },
+          {
+            "from": "artifact:file-system:portal/quizzes",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -24197,6 +24559,12 @@
             "from": "store:local-services:CurriculumStore",
             "note": "Atomic write of the course JSON in the background",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/curricula"
+          },
+          {
+            "from": "artifact:file-system:portal/curricula",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -24250,6 +24618,12 @@
             "from": "store:local-services:CurriculumStore",
             "note": "Read one JSON file per course from portal/curricula",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/curricula"
+          },
+          {
+            "from": "artifact:file-system:portal/curricula",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
@@ -24262,6 +24636,12 @@
             "from": "store:local-services:QuizStore",
             "note": "Read one JSON file per session from portal/quizzes",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/quizzes"
+          },
+          {
+            "from": "artifact:file-system:portal/quizzes",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
@@ -24274,6 +24654,12 @@
             "from": "store:local-services:SRSStore",
             "note": "Read one JSON file per deck from portal/srs-decks",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/srs-decks"
+          },
+          {
+            "from": "artifact:file-system:portal/srs-decks",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -24414,6 +24800,12 @@
             "from": "store:local-services:WikiGraphCache",
             "note": "One JSON file per (identity, wiki) under wiki-graph-cache",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/wiki-graph-cache"
+          },
+          {
+            "from": "artifact:file-system:portal/wiki-graph-cache",
+            "note": "Directory kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
@@ -24521,6 +24913,12 @@
             "from": "store:domain-models:CronGraphRevisionStore",
             "note": "Debounced atomic JSON write to Application Support",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/cron-graph-revisions.json"
+          },
+          {
+            "from": "artifact:file-system:portal/cron-graph-revisions.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           },
           {
@@ -24533,6 +24931,12 @@
             "from": "store:domain-models:CronRunHistoryStore",
             "note": "Legacy run history is migrated once, tracked by a flag",
             "relation": "persists-to",
+            "to": "artifact:user-defaults:portal.cronRunHistory"
+          },
+          {
+            "from": "artifact:user-defaults:portal.cronRunHistory",
+            "note": "Defaults key kept in UserDefaults",
+            "relation": "stored-in",
             "to": "external:user-defaults"
           }
         ],
@@ -24972,6 +25376,12 @@
             "from": "subscriber:ArtifactStore",
             "note": "Store reads and writes portal/artifacts.json in Application Support",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/artifacts.json"
+          },
+          {
+            "from": "artifact:file-system:portal/artifacts.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -25017,6 +25427,12 @@
             "from": "subscriber:ArtifactStore",
             "note": "Updated artifact map is written to portal/artifacts.json",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/artifacts.json"
+          },
+          {
+            "from": "artifact:file-system:portal/artifacts.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -25062,6 +25478,12 @@
             "from": "subscriber:ArtifactStore",
             "note": "Artifact with new maintainers is saved to portal/artifacts.json",
             "relation": "persists-to",
+            "to": "artifact:file-system:portal/artifacts.json"
+          },
+          {
+            "from": "artifact:file-system:portal/artifacts.json",
+            "note": "File kept in Application Support files",
+            "relation": "stored-in",
             "to": "external:file-system"
           }
         ],
@@ -25142,7 +25564,7 @@
         "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
       },
       {
-        "checked": 369,
+        "checked": 392,
         "id": "flows-traceable",
         "kind": "flows_traceable",
         "status": "holds",
@@ -25402,6 +25824,8 @@
         },
         "store": {
           "artifacts": [
+            "portal.activityItems",
+            "portal.activityItems.fileMigrated",
             "portal",
             "activity-items.json"
           ],
@@ -25420,6 +25844,7 @@
         }
       },
       {
+        "boundary_group": "platform-storage",
         "cluster": "interplay-cluster-3185448f7114",
         "component": "device-services",
         "description": "Preferences, small state flags, and migration markers.",
@@ -25429,7 +25854,6 @@
           "sessions-open-page",
           "sessions-select-session",
           "activity-open-inbox",
-          "skills-reload-catalog",
           "graphs-open-page"
         ],
         "history_key": "external:user-defaults",
@@ -25536,6 +25960,56 @@
         ]
       },
       {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private let saveKey = \"portal.activityItems\"",
+            "line": 12,
+            "path": "Sources/Portal/Models/ActivityStore.swift"
+          }
+        ],
+        "flows": [
+          "activity-open-inbox"
+        ],
+        "history_key": "artifact:user-defaults:portal.activityItems",
+        "id": "artifact:user-defaults:portal.activityItems",
+        "kind": "artifact",
+        "label": "portal.activityItems",
+        "line": 12,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/ActivityStore.swift",
+        "stores": [
+          "ActivityStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let fileMigratedKey = \"portal.activityItems.fileMigrated\"",
+            "line": 13,
+            "path": "Sources/Portal/Models/ActivityStore.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.activityItems.fileMigrated",
+        "id": "artifact:user-defaults:portal.activityItems.fileMigrated",
+        "kind": "artifact",
+        "label": "portal.activityItems.fileMigrated",
+        "line": 13,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/ActivityStore.swift",
+        "stores": [
+          "ActivityStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "boundary_group": "platform-storage",
         "cluster": "interplay-cluster-a1b9b166a7fc",
         "component": "device-services",
         "description": "Per-user persistence for sessions, artifacts, skills, curricula, run history, and caches.",
@@ -25543,10 +26017,7 @@
         "file_count": 19,
         "flows": [
           "chat-turn-interrupt-reply",
-          "chat-turn-submit-prompt",
-          "sessions-open-page",
           "sessions-select-session",
-          "cron-open-dashboard",
           "cron-pull-to-refresh",
           "activity-mark-all-clear-all",
           "activity-mark-read-dismiss",
@@ -25642,6 +26113,35 @@
         ]
       },
       {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"activity-items.json\") }",
+            "line": 24,
+            "path": "Sources/Portal/Models/ActivityStore.swift"
+          }
+        ],
+        "flows": [
+          "activity-mark-all-clear-all",
+          "activity-mark-read-dismiss",
+          "activity-open-inbox",
+          "activity-refresh-inbox"
+        ],
+        "history_key": "artifact:file-system:portal/activity-items.json",
+        "id": "artifact:file-system:portal/activity-items.json",
+        "kind": "artifact",
+        "label": "portal/activity-items.json",
+        "line": 24,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/ActivityStore.swift",
+        "stores": [
+          "ActivityStore"
+        ],
+        "sub_kind": "file",
+        "system_id": "file-system"
+      },
+      {
         "cluster": "interplay-cluster-161e96e44ccd",
         "component": "domain-models",
         "flows": [
@@ -25729,6 +26229,32 @@
         }
       },
       {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"cron-graph-revisions.json\") }",
+            "line": 54,
+            "path": "Sources/Portal/Models/CronGraphRevisionStore.swift"
+          }
+        ],
+        "flows": [
+          "graphs-open-page"
+        ],
+        "history_key": "artifact:file-system:portal/cron-graph-revisions.json",
+        "id": "artifact:file-system:portal/cron-graph-revisions.json",
+        "kind": "artifact",
+        "label": "portal/cron-graph-revisions.json",
+        "line": 54,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/CronGraphRevisionStore.swift",
+        "stores": [
+          "CronGraphRevisionStore"
+        ],
+        "sub_kind": "file",
+        "system_id": "file-system"
+      },
+      {
         "cluster": "interplay-cluster-58dc2c03c93f",
         "component": "domain-models",
         "flows": [
@@ -25802,6 +26328,8 @@
         },
         "store": {
           "artifacts": [
+            "portal.cronRunHistory",
+            "portal.cronRunHistory.fileMigrated",
             "portal",
             "cron-run-history.json"
           ],
@@ -25818,6 +26346,82 @@
           "lifecycle": 7,
           "user_action": 4
         }
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let storageKey = \"portal.cronRunHistory\"",
+            "line": 32,
+            "path": "Sources/Portal/Models/CronRunHistory.swift"
+          }
+        ],
+        "flows": [
+          "graphs-open-page"
+        ],
+        "history_key": "artifact:user-defaults:portal.cronRunHistory",
+        "id": "artifact:user-defaults:portal.cronRunHistory",
+        "kind": "artifact",
+        "label": "portal.cronRunHistory",
+        "line": 32,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/CronRunHistory.swift",
+        "stores": [
+          "CronRunHistoryStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let fileMigratedKey = \"portal.cronRunHistory.fileMigrated\"",
+            "line": 33,
+            "path": "Sources/Portal/Models/CronRunHistory.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.cronRunHistory.fileMigrated",
+        "id": "artifact:user-defaults:portal.cronRunHistory.fileMigrated",
+        "kind": "artifact",
+        "label": "portal.cronRunHistory.fileMigrated",
+        "line": 33,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/CronRunHistory.swift",
+        "stores": [
+          "CronRunHistoryStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"cron-run-history.json\") }",
+            "line": 46,
+            "path": "Sources/Portal/Models/CronRunHistory.swift"
+          }
+        ],
+        "flows": [
+          "cron-open-dashboard",
+          "cron-pull-to-refresh"
+        ],
+        "history_key": "artifact:file-system:portal/cron-run-history.json",
+        "id": "artifact:file-system:portal/cron-run-history.json",
+        "kind": "artifact",
+        "label": "portal/cron-run-history.json",
+        "line": 46,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/CronRunHistory.swift",
+        "stores": [
+          "CronRunHistoryStore"
+        ],
+        "sub_kind": "file",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-54ff7b5a4929",
@@ -25885,6 +26489,8 @@
         },
         "store": {
           "artifacts": [
+            "portal.delegationBatchHistory",
+            "portal.delegationBatchHistory.fileMigrated",
             "portal",
             "delegation-batch-history.json"
           ],
@@ -25901,6 +26507,75 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let storageKey = \"portal.delegationBatchHistory\"",
+            "line": 21,
+            "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.delegationBatchHistory",
+        "id": "artifact:user-defaults:portal.delegationBatchHistory",
+        "kind": "artifact",
+        "label": "portal.delegationBatchHistory",
+        "line": 21,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+        "stores": [
+          "DelegationBatchHistoryStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let fileMigratedKey = \"portal.delegationBatchHistory.fileMigrated\"",
+            "line": 22,
+            "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.delegationBatchHistory.fileMigrated",
+        "id": "artifact:user-defaults:portal.delegationBatchHistory.fileMigrated",
+        "kind": "artifact",
+        "label": "portal.delegationBatchHistory.fileMigrated",
+        "line": 22,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+        "stores": [
+          "DelegationBatchHistoryStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"delegation-batch-history.json\") }",
+            "line": 39,
+            "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+          }
+        ],
+        "history_key": "artifact:file-system:portal/delegation-batch-history.json",
+        "id": "artifact:file-system:portal/delegation-batch-history.json",
+        "kind": "artifact",
+        "label": "portal/delegation-batch-history.json",
+        "line": 39,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+        "stores": [
+          "DelegationBatchHistoryStore"
+        ],
+        "sub_kind": "file",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-cd563db7be44",
@@ -25973,6 +26648,8 @@
         },
         "store": {
           "artifacts": [
+            "portal.sessionRunHistory",
+            "portal.sessionRunHistory.fileMigrated",
             "portal",
             "session-run-history.json"
           ],
@@ -25989,6 +26666,78 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let storageKey = \"portal.sessionRunHistory\"",
+            "line": 57,
+            "path": "Sources/Portal/Models/SessionRunEvent.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.sessionRunHistory",
+        "id": "artifact:user-defaults:portal.sessionRunHistory",
+        "kind": "artifact",
+        "label": "portal.sessionRunHistory",
+        "line": 57,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/SessionRunEvent.swift",
+        "stores": [
+          "SessionRunHistoryStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let fileMigratedKey = \"portal.sessionRunHistory.fileMigrated\"",
+            "line": 58,
+            "path": "Sources/Portal/Models/SessionRunEvent.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.sessionRunHistory.fileMigrated",
+        "id": "artifact:user-defaults:portal.sessionRunHistory.fileMigrated",
+        "kind": "artifact",
+        "label": "portal.sessionRunHistory.fileMigrated",
+        "line": 58,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/SessionRunEvent.swift",
+        "stores": [
+          "SessionRunHistoryStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"session-run-history.json\") }",
+            "line": 69,
+            "path": "Sources/Portal/Models/SessionRunEvent.swift"
+          }
+        ],
+        "flows": [
+          "chat-turn-interrupt-reply"
+        ],
+        "history_key": "artifact:file-system:portal/session-run-history.json",
+        "id": "artifact:file-system:portal/session-run-history.json",
+        "kind": "artifact",
+        "label": "portal/session-run-history.json",
+        "line": 69,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/SessionRunEvent.swift",
+        "stores": [
+          "SessionRunHistoryStore"
+        ],
+        "sub_kind": "file",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-1f63bb30e98d",
@@ -26152,6 +26901,34 @@
         }
       },
       {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))",
+            "line": 94,
+            "path": "Sources/Portal/Services/ArtifactStore.swift"
+          }
+        ],
+        "flows": [
+          "artifacts-open-page",
+          "artifacts-pull-remove-canvas",
+          "artifacts-set-maintainers"
+        ],
+        "history_key": "artifact:file-system:portal/artifacts.json",
+        "id": "artifact:file-system:portal/artifacts.json",
+        "kind": "artifact",
+        "label": "portal/artifacts.json",
+        "line": 94,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/ArtifactStore.swift",
+        "stores": [
+          "ArtifactStore"
+        ],
+        "sub_kind": "file",
+        "system_id": "file-system"
+      },
+      {
         "cluster": "interplay-cluster-f988c7b8947c",
         "component": "local-services",
         "flows": [
@@ -26229,7 +27006,9 @@
           "summary": "Singleton that persists per-session chat transcripts as one JSON file per session ID under Application Support/portal/sessions (a per-process /tmp scratch dir in test processes). Saves and deletes run on detached background tasks; loads have sync and async variants. Keeps an in-memory Set of session IDs so hasLocalMessages can answer from SwiftUI body without touching disk."
         },
         "store": {
-          "artifacts": [],
+          "artifacts": [
+            "portal/sessions"
+          ],
           "line": 10,
           "mechanism_count": 1,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift",
@@ -26242,6 +27021,34 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "return appSupport.appendingPathComponent(\"portal/sessions\", isDirectory: true)",
+            "line": 63,
+            "path": "Sources/Portal/Services/ChatHistoryStore.swift"
+          }
+        ],
+        "flows": [
+          "chat-turn-submit-prompt",
+          "sessions-open-page",
+          "sessions-select-session"
+        ],
+        "history_key": "artifact:file-system:portal/sessions",
+        "id": "artifact:file-system:portal/sessions",
+        "kind": "artifact",
+        "label": "portal/sessions",
+        "line": 63,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/ChatHistoryStore.swift",
+        "stores": [
+          "ChatHistoryStore"
+        ],
+        "sub_kind": "directory",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-6d7f034d539c",
@@ -26387,7 +27194,9 @@
           "summary": "CurriculumStore persists Curriculum values as one JSON file per course id under Application Support/portal/curricula (falling back to /tmp/portal/curricula). save and delete run on detached background tasks with atomic writes; load(id:) and allCurricula() read synchronously, decoding each .json file and sorting newest first. All failures are logged and degrade to nil or an empty list."
         },
         "store": {
-          "artifacts": [],
+          "artifacts": [
+            "portal/curricula"
+          ],
           "line": 17,
           "mechanism_count": 1,
           "path": "Sources/Portal/Services/CurriculumStore.swift",
@@ -26400,6 +27209,34 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "return appSupport.appendingPathComponent(\"portal/curricula\", isDirectory: true)",
+            "line": 41,
+            "path": "Sources/Portal/Services/CurriculumStore.swift"
+          }
+        ],
+        "flows": [
+          "learning-delete-course-deck-attempt",
+          "learning-live-update-from-gateway",
+          "learning-open-dashboard"
+        ],
+        "history_key": "artifact:file-system:portal/curricula",
+        "id": "artifact:file-system:portal/curricula",
+        "kind": "artifact",
+        "label": "portal/curricula",
+        "line": 41,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/CurriculumStore.swift",
+        "stores": [
+          "CurriculumStore"
+        ],
+        "sub_kind": "directory",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-25f686f6e338",
@@ -28010,6 +28847,7 @@
         "sub_kind": "rpc_namespace"
       },
       {
+        "boundary_group": null,
         "cluster": "interplay-cluster-ac86e3dcdf5d",
         "component": "hermes-gateway",
         "description": "The Hermes fork's gateway: every chat, session, wiki, skills, cron, learning, and artifact RPC crosses this boundary.",
@@ -29354,6 +30192,7 @@
         }
       },
       {
+        "boundary_group": "platform-storage",
         "cluster": "interplay-cluster-0fc908d68dc4",
         "component": "device-services",
         "description": "Secure storage for gateway API keys, OAuth tokens, and Access cookies.",
@@ -29663,6 +30502,7 @@
         }
       },
       {
+        "boundary_group": "on-device-inference",
         "cluster": "interplay-cluster-8988b46acf1a",
         "component": "device-services",
         "description": "On-device language-model inference on Apple silicon for local chat, reasoning summaries, and skill summaries.",
@@ -29841,6 +30681,7 @@
         }
       },
       {
+        "boundary_group": "on-device-inference",
         "cluster": "interplay-cluster-1c9f05a6df6f",
         "component": "device-services",
         "description": "Speaks assistant replies locally; no audio leaves the device.",
@@ -30049,7 +30890,9 @@
           "summary": "A singleton class that persists completed quiz sessions as one JSON file per session under Application Support/portal/quizzes. Saves encode a PersistedQuizSession on a detached background task with an atomic write; listing scans the directory, decodes every .json file, skips undecodable ones with a log, and sorts newest first. Deletes remove the file by id in the background."
         },
         "store": {
-          "artifacts": [],
+          "artifacts": [
+            "portal/quizzes"
+          ],
           "line": 9,
           "mechanism_count": 1,
           "path": "Sources/Portal/Services/QuizStore.swift",
@@ -30062,6 +30905,33 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "quizzesDir = appSupport.appendingPathComponent(\"portal/quizzes\", isDirectory: true)",
+            "line": 23,
+            "path": "Sources/Portal/Services/QuizStore.swift"
+          }
+        ],
+        "flows": [
+          "learning-delete-course-deck-attempt",
+          "learning-open-dashboard"
+        ],
+        "history_key": "artifact:file-system:portal/quizzes",
+        "id": "artifact:file-system:portal/quizzes",
+        "kind": "artifact",
+        "label": "portal/quizzes",
+        "line": 23,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/QuizStore.swift",
+        "stores": [
+          "QuizStore"
+        ],
+        "sub_kind": "directory",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-7b136d3c2c60",
@@ -30232,7 +31102,9 @@
           "summary": "A singleton class that persists flashcard decks as one JSON file per deck under Application Support/portal/srs-decks. Saves encode a FlashcardDeck on a detached background task with an atomic write; a single deck can be loaded by id, or all decks listed by scanning the directory and decoding each .json file, logging and skipping failures. Deletes remove the deck file in the background."
         },
         "store": {
-          "artifacts": [],
+          "artifacts": [
+            "portal/srs-decks"
+          ],
           "line": 10,
           "mechanism_count": 1,
           "path": "Sources/Portal/Services/SRSStore.swift",
@@ -30245,6 +31117,33 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "srsDir = appSupport.appendingPathComponent(\"portal/srs-decks\", isDirectory: true)",
+            "line": 24,
+            "path": "Sources/Portal/Services/SRSStore.swift"
+          }
+        ],
+        "flows": [
+          "learning-delete-course-deck-attempt",
+          "learning-open-dashboard"
+        ],
+        "history_key": "artifact:file-system:portal/srs-decks",
+        "id": "artifact:file-system:portal/srs-decks",
+        "kind": "artifact",
+        "label": "portal/srs-decks",
+        "line": 24,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/SRSStore.swift",
+        "stores": [
+          "SRSStore"
+        ],
+        "sub_kind": "directory",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-ef88c482cacc",
@@ -30322,6 +31221,52 @@
         }
       },
       {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let key = \"portal.skillCache.v1\"",
+            "line": 13,
+            "path": "Sources/Portal/Services/SkillCache.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.skillCache.v1",
+        "id": "artifact:user-defaults:portal.skillCache.v1",
+        "kind": "artifact",
+        "label": "portal.skillCache.v1",
+        "line": 13,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/SkillCache.swift",
+        "stores": [
+          "SkillCache"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "private static let timestampKey = \"portal.skillCache.timestamp\"",
+            "line": 14,
+            "path": "Sources/Portal/Services/SkillCache.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.skillCache.timestamp",
+        "id": "artifact:user-defaults:portal.skillCache.timestamp",
+        "kind": "artifact",
+        "label": "portal.skillCache.timestamp",
+        "line": 14,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/SkillCache.swift",
+        "stores": [
+          "SkillCache"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
         "cluster": "interplay-cluster-ef88c482cacc",
         "component": "local-services",
         "history_key": "caller:local-services:SkillCache",
@@ -30390,7 +31335,10 @@
           "summary": "SkillCache is a singleton holding a lightweight list of SkillInfo loaded from the gateway. It seeds from SkillCacheDisk on init, lists skills via the gateway, falls back to scanning slash commands when the list is empty, preserves lazily loaded content across reloads, saves non-empty results back to disk, and reads single SKILL.md files on demand."
         },
         "store": {
-          "artifacts": [],
+          "artifacts": [
+            "portal.skillCache.v1",
+            "portal.skillCache.timestamp"
+          ],
           "line": 100,
           "mechanism_count": 4,
           "path": "Sources/Portal/Services/SkillCache.swift",
@@ -30403,6 +31351,128 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "nonisolated private static let key = \"portal.skillStore.v2\"",
+            "line": 11,
+            "path": "Sources/Portal/Services/SkillStore.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.skillStore.v2",
+        "id": "artifact:user-defaults:portal.skillStore.v2",
+        "kind": "artifact",
+        "label": "portal.skillStore.v2",
+        "line": 11,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/SkillStore.swift",
+        "stores": [
+          "SkillStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "nonisolated private static let timestampKey = \"portal.skillStore.timestamp\"",
+            "line": 12,
+            "path": "Sources/Portal/Services/SkillStore.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.skillStore.timestamp",
+        "id": "artifact:user-defaults:portal.skillStore.timestamp",
+        "kind": "artifact",
+        "label": "portal.skillStore.timestamp",
+        "line": 12,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/SkillStore.swift",
+        "stores": [
+          "SkillStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "nonisolated private static let versionKey = \"portal.skillStore.version\"",
+            "line": 13,
+            "path": "Sources/Portal/Services/SkillStore.swift"
+          }
+        ],
+        "history_key": "artifact:user-defaults:portal.skillStore.version",
+        "id": "artifact:user-defaults:portal.skillStore.version",
+        "kind": "artifact",
+        "label": "portal.skillStore.version",
+        "line": 13,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/SkillStore.swift",
+        "stores": [
+          "SkillStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "nonisolated private static let fileStorageKey = \"portal.skillStore.fileMigrated\"",
+            "line": 14,
+            "path": "Sources/Portal/Services/SkillStore.swift"
+          }
+        ],
+        "flows": [
+          "skills-reload-catalog"
+        ],
+        "history_key": "artifact:user-defaults:portal.skillStore.fileMigrated",
+        "id": "artifact:user-defaults:portal.skillStore.fileMigrated",
+        "kind": "artifact",
+        "label": "portal.skillStore.fileMigrated",
+        "line": 14,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/SkillStore.swift",
+        "stores": [
+          "SkillStore"
+        ],
+        "sub_kind": "defaults_key",
+        "system_id": "user-defaults"
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "nonisolated private static var skillStoreFile: URL { storageDir.appendingPathComponent(\"skill-store.json\") }",
+            "line": 38,
+            "path": "Sources/Portal/Services/SkillStore.swift"
+          }
+        ],
+        "flows": [
+          "skills-open-page",
+          "skills-reload-catalog"
+        ],
+        "history_key": "artifact:file-system:portal/skill-store.json",
+        "id": "artifact:file-system:portal/skill-store.json",
+        "kind": "artifact",
+        "label": "portal/skill-store.json",
+        "line": 38,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/SkillStore.swift",
+        "stores": [
+          "SkillStore"
+        ],
+        "sub_kind": "file",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-ef88c482cacc",
@@ -30498,6 +31568,10 @@
         },
         "store": {
           "artifacts": [
+            "portal.skillStore.v2",
+            "portal.skillStore.timestamp",
+            "portal.skillStore.version",
+            "portal.skillStore.fileMigrated",
             "portal",
             "skill-store.json"
           ],
@@ -30758,6 +31832,29 @@
         }
       },
       {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": "let dir = base.appendingPathComponent(\"hermes-videos\", isDirectory: true)",
+            "line": 47,
+            "path": "Sources/Portal/Services/VideoCache.swift"
+          }
+        ],
+        "history_key": "artifact:file-system:hermes-videos",
+        "id": "artifact:file-system:hermes-videos",
+        "kind": "artifact",
+        "label": "hermes-videos",
+        "line": 47,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/VideoCache.swift",
+        "stores": [
+          "VideoCache"
+        ],
+        "sub_kind": "directory",
+        "system_id": "file-system"
+      },
+      {
         "cluster": "interplay-cluster-38515aafcabe",
         "component": "local-services",
         "flows": [
@@ -30844,6 +31941,32 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "evidence": [
+          {
+            "excerpt": ".appendingPathComponent(\"wiki-graph-cache\", isDirectory: true)",
+            "line": 29,
+            "path": "Sources/Portal/Services/WikiGraphCache.swift"
+          }
+        ],
+        "flows": [
+          "graphs-load-wiki-graph"
+        ],
+        "history_key": "artifact:file-system:portal/wiki-graph-cache",
+        "id": "artifact:file-system:portal/wiki-graph-cache",
+        "kind": "artifact",
+        "label": "portal/wiki-graph-cache",
+        "line": 29,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/WikiGraphCache.swift",
+        "stores": [
+          "WikiGraphCache"
+        ],
+        "sub_kind": "directory",
+        "system_id": "file-system"
       },
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
@@ -37694,6 +38817,38 @@
             "authority": "observed",
             "component": "domain-models",
             "evidence": {
+              "excerpt": "private let saveKey = \"portal.activityItems\"",
+              "line": 12,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-375efed1a816",
+            "kind": "defaults_key",
+            "label": "portal.activityItems",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "ActivityStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private static let fileMigratedKey = \"portal.activityItems.fileMigrated\"",
+              "line": 13,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-3772a4a91c41",
+            "kind": "defaults_key",
+            "label": "portal.activityItems.fileMigrated",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "ActivityStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
               "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
               "line": 22,
               "path": "Sources/Portal/Models/ActivityStore.swift"
@@ -37907,6 +39062,38 @@
             "authority": "observed",
             "component": "domain-models",
             "evidence": {
+              "excerpt": "private static let storageKey = \"portal.cronRunHistory\"",
+              "line": 32,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-df54bb02de4a",
+            "kind": "defaults_key",
+            "label": "portal.cronRunHistory",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "CronRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private static let fileMigratedKey = \"portal.cronRunHistory.fileMigrated\"",
+              "line": 33,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-3a3cdbf709dc",
+            "kind": "defaults_key",
+            "label": "portal.cronRunHistory.fileMigrated",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "CronRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
               "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
               "line": 44,
               "path": "Sources/Portal/Models/CronRunHistory.swift"
@@ -38046,6 +39233,38 @@
             "authority": "observed",
             "component": "domain-models",
             "evidence": {
+              "excerpt": "private static let storageKey = \"portal.delegationBatchHistory\"",
+              "line": 21,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-7d253b66f0be",
+            "kind": "defaults_key",
+            "label": "portal.delegationBatchHistory",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private static let fileMigratedKey = \"portal.delegationBatchHistory.fileMigrated\"",
+              "line": 22,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-c19ae525b4b5",
+            "kind": "defaults_key",
+            "label": "portal.delegationBatchHistory.fileMigrated",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
               "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
               "line": 37,
               "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
@@ -38181,6 +39400,38 @@
       },
       {
         "artifacts": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private static let storageKey = \"portal.sessionRunHistory\"",
+              "line": 57,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-64b3a6250baa",
+            "kind": "defaults_key",
+            "label": "portal.sessionRunHistory",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private static let fileMigratedKey = \"portal.sessionRunHistory.fileMigrated\"",
+              "line": 58,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-85ea59ad2231",
+            "kind": "defaults_key",
+            "label": "portal.sessionRunHistory.fileMigrated",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          },
           {
             "authority": "observed",
             "component": "domain-models",
@@ -38393,7 +39644,24 @@
         "type_name": "ArtifactStore"
       },
       {
-        "artifacts": [],
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "return appSupport.appendingPathComponent(\"portal/sessions\", isDirectory: true)",
+              "line": 63,
+              "path": "Sources/Portal/Services/ChatHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-81139831c2b2",
+            "kind": "directory",
+            "label": "portal/sessions",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "ChatHistoryStore",
+            "via": null
+          }
+        ],
         "authority": "observed",
         "component": "local-services",
         "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
@@ -38434,7 +39702,24 @@
         "type_name": "ChatHistoryStore"
       },
       {
-        "artifacts": [],
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "return appSupport.appendingPathComponent(\"portal/curricula\", isDirectory: true)",
+              "line": 41,
+              "path": "Sources/Portal/Services/CurriculumStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-5820398e8c15",
+            "kind": "directory",
+            "label": "portal/curricula",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "CurriculumStore",
+            "via": null
+          }
+        ],
         "authority": "observed",
         "component": "local-services",
         "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
@@ -38612,7 +39897,24 @@
         "type_name": "LocalModelInventory"
       },
       {
-        "artifacts": [],
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "quizzesDir = appSupport.appendingPathComponent(\"portal/quizzes\", isDirectory: true)",
+              "line": 23,
+              "path": "Sources/Portal/Services/QuizStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-74b5cae36b1e",
+            "kind": "directory",
+            "label": "portal/quizzes",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "QuizStore",
+            "via": null
+          }
+        ],
         "authority": "observed",
         "component": "local-services",
         "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
@@ -38653,7 +39955,24 @@
         "type_name": "QuizStore"
       },
       {
-        "artifacts": [],
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "srsDir = appSupport.appendingPathComponent(\"portal/srs-decks\", isDirectory: true)",
+              "line": 24,
+              "path": "Sources/Portal/Services/SRSStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-dd863ef9bb7d",
+            "kind": "directory",
+            "label": "portal/srs-decks",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "SRSStore",
+            "via": null
+          }
+        ],
         "authority": "observed",
         "component": "local-services",
         "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
@@ -38694,7 +40013,40 @@
         "type_name": "SRSStore"
       },
       {
-        "artifacts": [],
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "private static let key = \"portal.skillCache.v1\"",
+              "line": 13,
+              "path": "Sources/Portal/Services/SkillCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-363cdda715c8",
+            "kind": "defaults_key",
+            "label": "portal.skillCache.v1",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "SkillCache",
+            "via": "helper SkillCacheDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "private static let timestampKey = \"portal.skillCache.timestamp\"",
+              "line": 14,
+              "path": "Sources/Portal/Services/SkillCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-5f31362c5524",
+            "kind": "defaults_key",
+            "label": "portal.skillCache.timestamp",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "SkillCache",
+            "via": "helper SkillCacheDisk"
+          }
+        ],
         "authority": "observed",
         "component": "local-services",
         "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
@@ -38785,6 +40137,70 @@
       },
       {
         "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "nonisolated private static let key = \"portal.skillStore.v2\"",
+              "line": 11,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-9ba27c7552f1",
+            "kind": "defaults_key",
+            "label": "portal.skillStore.v2",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "nonisolated private static let timestampKey = \"portal.skillStore.timestamp\"",
+              "line": 12,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-c6c43411b124",
+            "kind": "defaults_key",
+            "label": "portal.skillStore.timestamp",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "nonisolated private static let versionKey = \"portal.skillStore.version\"",
+              "line": 13,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-792f1f13e78c",
+            "kind": "defaults_key",
+            "label": "portal.skillStore.version",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "nonisolated private static let fileStorageKey = \"portal.skillStore.fileMigrated\"",
+              "line": 14,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-60bff594a680",
+            "kind": "defaults_key",
+            "label": "portal.skillStore.fileMigrated",
+            "rule_id": "swift.store.defaults_key_literal",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
           {
             "authority": "observed",
             "component": "local-services",

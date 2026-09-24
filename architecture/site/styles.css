@@ -397,6 +397,13 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .legend-overlay.collapsed .legend-items { display: none; }
 /* A gateway boundary hull: same schema as the group hulls, nested in External systems. */
 .interplay-group.gateway .interplay-group-rect { fill: rgba(224, 112, 79, .05); stroke: #e0704f; stroke-width: 1.25; stroke-dasharray: 2 4; }
+/* A storage system holding the artifacts its stores write, and the declared boundary
+   boxes (platform storage, on-device inference) beside the application. */
+.interplay-group.storage .interplay-group-rect { fill: rgba(217, 164, 65, .05); stroke: #d9a441; stroke-width: 1.25; stroke-dasharray: 2 4; }
+.interplay-group.boundary .interplay-group-rect { fill: rgba(224, 112, 79, .03); stroke: #e0704f; stroke-width: 1.25; stroke-dasharray: 6 4; }
+.interplay-group.boundary .interplay-group-label { fill: #e0704f; opacity: .85; }
+.interplay-node rect.artifact { fill: var(--bg); stroke-dasharray: 1 3; }
+.interplay-node[data-kind="artifact"] .node-title { font: 600 11px var(--mono); }
 .interplay-node rect.hull-label { fill: transparent; stroke: none; }
 .interplay-group.transport .interplay-group-rect { fill: rgba(92, 168, 216, .05); stroke: #5ca8d8; stroke-width: 1.25; stroke-dasharray: none; }
 .interplay-group.owner .interplay-group-rect { fill: rgba(92, 168, 216, .04); stroke: #5ca8d8; stroke-width: 1; stroke-dasharray: 3 3; }

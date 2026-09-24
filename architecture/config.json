@@ -330,6 +330,20 @@
       ]
     }
   ],
+  "external_groups": [
+    {
+      "id": "platform-storage",
+      "label": "Platform storage",
+      "description": "Everything the app persists on the device: the Application Support tree of JSON documents and directories, the UserDefaults keys, and the Keychain items. Each store is drawn writing the artifacts its source names.",
+      "categories": ["platform-storage"]
+    },
+    {
+      "id": "on-device-inference",
+      "label": "On-device inference",
+      "description": "Model loading and inference that never leaves the device: the MLX runtime for local language models and the neural speech engines. Both are in-process frameworks the engines run on.",
+      "categories": ["ml-runtime", "on-device-engine"]
+    }
+  ],
   "pages": {
     "shell": ["ContentView"],
     "items": [
