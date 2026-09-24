@@ -3989,7 +3989,7 @@ CI_FAMILIES = {
     "release": "Can a signed build ship?",
     "maintenance": "Manual upkeep of committed artifacts.",
 }
-CI_RATCHET_SOURCES = {"metrics", "perf", "swiftlint_baseline", "gitleaks_ignore"}
+CI_RATCHET_SOURCES = {"metrics", "perf", "swiftlint_baseline", "gitleaks_ignore", "declarations"}
 CI_TRIGGER_EVENTS = ("pull_request", "push", "workflow_dispatch", "schedule")
 SCRIPT_REFERENCE_RE = re.compile(r"(?<![\w/.-])((?:scripts|\.github/scripts)/[A-Za-z0-9_./-]+\.(?:py|sh|rb))\b")
 TOOL_PIN_RE = re.compile(r"^([A-Z][A-Z0-9_]*_VERSION)$")
@@ -4462,6 +4462,28 @@ def _ratchet_current(source: dict[str, Any], ratchet_id: str) -> dict[str, Any]:
         entries = json.loads(SWIFTLINT_BASELINE_PATH.read_text(encoding="utf-8"))
         by_rule = Counter(str(entry["violation"]["ruleIdentifier"]) for entry in entries)
         return {"kind": "count", "total": len(entries), "counts": dict(sorted(by_rule.items())), "sites": len(entries)}
+    if kind == "declarations":
+        # What the constraint ratchet guards, counted: the declarations may only grow.
+        counts: dict[str, int] = {}
+        if INTERPLAY_INVARIANTS_PATH.is_file():
+            counts["invariants"] = len(load_json(INTERPLAY_INVARIANTS_PATH).get("invariants", []))
+        config_doc = load_json(CONFIG_PATH) if CONFIG_PATH.is_file() else {}
+        counts["external_systems"] = len(config_doc.get("external_systems", []))
+        counts["pages"] = len((config_doc.get("pages") or {}).get("items", []))
+        counts["ratchets"] = len((config_doc.get("ci") or {}).get("ratchets", []))
+        if SWIFTLINT_CONFIG_PATH.is_file():
+            try:
+                lint_doc = parse_yaml_subset(SWIFTLINT_CONFIG_PATH.read_text(encoding="utf-8"))
+                counts["lint_rules"] = len(lint_doc.get("custom_rules") or {}) if isinstance(lint_doc, dict) else 0
+            except YamlSubsetError:
+                counts["lint_rules"] = 0
+        tests_path = ROOT / "Tests/PortalTests/ArchitectureTests.swift"
+        if tests_path.is_file():
+            counts["architecture_tests"] = tests_path.read_text(encoding="utf-8").count("@Test(")
+        specifications = ROOT / "architecture/specifications"
+        if specifications.is_dir():
+            counts["specifications"] = len(list(specifications.glob("*.md")))
+        return {"kind": "count", "total": sum(counts.values()), "counts": dict(sorted(counts.items())), "sites": sum(counts.values())}
     if kind == "gitleaks_ignore":
         if not GITLEAKS_IGNORE_PATH.is_file():
             gate("ci", f"ratchet {ratchet_id}: {relative(GITLEAKS_IGNORE_PATH)} is missing")

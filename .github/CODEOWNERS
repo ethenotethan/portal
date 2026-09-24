@@ -1,0 +1,36 @@
+# The constraint surface: the files that decide what CI accepts.
+#
+# Agents write to the same tree these live in, so a change blocked by a gate
+# could loosen the gate in the same PR. Two defences, one mechanical and one
+# human: `Ratchet / Constraints` (scripts/check-constraint-growth.py) rejects any
+# loosening of the declarations against the base branch, and this file requires
+# a human owner's review on every change to a gate, a baseline, a declaration,
+# or a workflow. Enable "Require review from Code Owners" on main for the second
+# half to bind.
+
+# The gates themselves and the workflows that run them
+/.github/                                    @ethenotethan
+/scripts/check-*.py                          @ethenotethan
+/scripts/collect-*.py                        @ethenotethan
+/scripts/build_architecture.py               @ethenotethan
+/scripts/test_architecture.py                @ethenotethan
+/scripts/test_constraint_growth.py           @ethenotethan
+/Makefile                                    @ethenotethan
+
+# Frozen baselines (already compared against main by the ratchets)
+/metrics-baseline.json                       @ethenotethan
+/perf-baseline.json                          @ethenotethan
+/.swiftlint-baseline                         @ethenotethan
+/.gitleaksignore                             @ethenotethan
+
+# Rule definitions
+/.swiftlint.yml                              @ethenotethan
+/.gitleaks.toml                              @ethenotethan
+/Tests/PortalTests/ArchitectureTests.swift   @ethenotethan
+
+# Declared architecture: invariants, fail-closed declarations, specifications
+/architecture/config.json                    @ethenotethan
+/architecture/interplay/invariants.json      @ethenotethan
+/architecture/interplay/overlay.json         @ethenotethan
+/architecture/specifications/                @ethenotethan
+/docs/architecture-rules.md                  @ethenotethan
