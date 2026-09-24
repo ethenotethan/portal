@@ -234,7 +234,7 @@
     operations_resolve_scope: "Every extracted operation resolves to an enclosing function, so critical sections lose no steps.",
     endpoints_dispatched_by_transport: "Every namespace box is dispatched by a transport core.",
     pages_populated: "Every declared navigation page owns at least one construct.",
-    stores_mapped: "Every store the extractor recognises appears on the map, so the Data stores view and the System map cannot disagree.",
+    stores_mapped: "Every store the extractor recognises appears on the map, so the map cannot disagree with the extractor about what holds state.",
     triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
     launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core.",
     flows_traceable: "Every declared system flow is a path over edges the map draws; a step whose edge disappeared, or fewer flows than declared, fails the build until the flow is updated.",
@@ -255,16 +255,6 @@
   const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, artifact: 1, operation: 2 };
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
-  const EXTERNAL_CATEGORY_LABELS = {
-    backend: "Backend",
-    network: "Network edge",
-    "ml-runtime": "ML runtime",
-    "on-device-engine": "On-device engine",
-    "platform-service": "Platform service",
-    "platform-storage": "Platform storage",
-    "platform-framework": "Platform framework",
-    "third-party-api": "Third-party API"
-  };
   const componentById = new Map(model.components.map((component) => [component.id, component]));
   const layerById = new Map(model.layers.map((layer) => [layer.id, layer]));
   const layerColors = {
@@ -297,9 +287,6 @@
   renderInvariants();
   renderFlows();
   renderTimeline();
-  renderConnections();
-  renderExternals();
-  renderStores();
   renderInventory();
   renderGates();
   wireNavigation();
@@ -2788,187 +2775,12 @@
     return element("p", "empty-state", message);
   }
 
-  function recordRow(record, details = []) {
-    const row = element("article", "behavior-row");
-    const heading = element("h4", "", record.label || record.kind || "Observed item");
-    const metadata = element("p", "behavior-meta");
-    const values = [record.kind, ...details, record.rule_id].filter(Boolean);
-    metadata.textContent = values.join(" · ");
-    row.append(heading, metadata);
-    if (record.evidence) {
-      const provenance = element("p", "provenance");
-      provenance.append(element("span", "", "Static source · "), sourceLink(record.evidence));
-      row.append(provenance);
-    }
-    return row;
-  }
-
   function behaviorGroup(title, subtitle = "") {
     const section = element("section", "behavior-group");
     section.append(element("h3", "", title));
     if (subtitle) section.append(element("p", "group-note", subtitle));
     return section;
   }
-
-  function renderConnections() {
-    const container = document.getElementById("connections-content");
-    const resourceById = new Map(resources.map((item) => [item.id, item]));
-    const taskById = new Map(taskSites.map((item) => [item.id, item]));
-    const operationById = new Map(operations.map((item) => [item.id, item]));
-    const orderedPockets = [...pockets].sort((left, right) =>
-      String(left.component || "").localeCompare(String(right.component || "")) ||
-      String(left.owner_type || "").localeCompare(String(right.owner_type || "")) ||
-      String(left.id || "").localeCompare(String(right.id || ""))
-    );
-    if (!orderedPockets.length) {
-      container.replaceChildren(emptyState("No static connection or stream pockets matched the deterministic rules."));
-      return;
-    }
-    const cards = orderedPockets.map((pocket) => {
-      const card = behaviorGroup(
-        pocket.owner_type || componentLabel(pocket.component),
-        `${componentLabel(pocket.component)} · ${pocket.confidence || "mechanically grouped"}`
-      );
-      card.append(element("p", "derivation", pocket.derivation || "Static source grouping."));
-      const ownedResources = (pocket.resource_ids || []).map((id) => resourceById.get(id)).filter(Boolean).sort(sourceSort);
-      const handles = (pocket.task_handle_ids || []).map((id) => taskById.get(id)).filter(Boolean).sort(sourceSort);
-      const lifecycle = (pocket.operation_ids || []).map((id) => operationById.get(id)).filter(Boolean).sort(sourceSort);
-      const collections = [
-        ["Owned resources", ownedResources, (item) => [item.cardinality]],
-        ["Stored task handles", handles, (item) => [item.enclosing_type && `type ${item.enclosing_type}`]],
-        ["Lifecycle operations", lifecycle, (item) => [item.resource_label && `resource ${item.resource_label}`]]
-      ];
-      collections.forEach(([title, items, details]) => {
-        const block = element("section", "pocket-section");
-        block.append(element("h4", "", `${title} (${items.length})`));
-        if (items.length) items.forEach((item) => block.append(recordRow(item, details(item))));
-        else block.append(emptyState("None observed."));
-        card.append(block);
-      });
-      return card;
-    });
-    container.replaceChildren(...cards);
-  }
-
-  function boundaryComponentLabel(componentId) {
-    return componentById.get(componentId)?.label || componentId || "unassigned";
-  }
-
-  function renderExternals() {
-    const container = document.getElementById("externals-content");
-    const systems = [...externals.systems].sort((left, right) =>
-      String(left.category).localeCompare(String(right.category)) || String(left.label).localeCompare(String(right.label))
-    );
-    if (!systems.length) {
-      container.replaceChildren(emptyState("No external systems are declared in architecture/config.json."));
-      return;
-    }
-    const grouped = new Map();
-    systems.forEach((system) => {
-      if (!grouped.has(system.category)) grouped.set(system.category, []);
-      grouped.get(system.category).push(system);
-    });
-    const sections = [...grouped.entries()].map(([category, items]) => {
-      const section = behaviorGroup(EXTERNAL_CATEGORY_LABELS[category] || category, `${items.length} system(s)`);
-      const list = element("div", "behavior-list");
-      items.forEach((system) => list.append(externalCard(system)));
-      section.append(list);
-      return section;
-    });
-    container.replaceChildren(...sections);
-  }
-
-  function externalCard(system) {
-    const card = element("article", "behavior-row");
-    card.append(element("h4", "", system.label));
-    const meta = element("p", "behavior-meta");
-    meta.textContent = [
-      system.protocol,
-      `${system.hit_count} hit(s) in ${system.file_count} file(s)`,
-      system.component && `graph node ${boundaryComponentLabel(system.component)}`,
-      "swift.boundary.external_signature"
-    ].filter(Boolean).join(" · ");
-    card.append(meta);
-    card.append(element("p", "derivation", `${system.description} Description is specified in config; usage below is observed.`));
-    const used = element("div", "chip-list");
-    (system.usage || []).forEach((usage) => {
-      used.append(element("span", "chip", `${boundaryComponentLabel(usage.component)} · ${usage.hit_count}`));
-    });
-    card.append(used);
-    const list = element("ul", "evidence-list");
-    (system.usage || []).flatMap((usage) => (usage.evidence || []).slice(0, 3)).slice(0, 12).forEach((evidence) => {
-      const item = document.createElement("li");
-      item.append(sourceLink(evidence), element("span", "", ` ${evidence.excerpt || ""}`));
-      list.append(item);
-    });
-    card.append(list);
-    return card;
-  }
-
-  function renderStores() {
-    const container = document.getElementById("stores-content");
-    const items = [...stores.items].sort((left, right) =>
-      String(left.component || "").localeCompare(String(right.component || "")) || sourceSort(left, right)
-    );
-    if (!items.length) {
-      container.replaceChildren(emptyState("No store, cache, inventory, or ledger types matched the deterministic rules."));
-      return;
-    }
-    const grouped = new Map();
-    items.forEach((item) => {
-      const key = item.component || "unassigned";
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key).push(item);
-    });
-    const sections = [...grouped.entries()].map(([componentId, records]) => {
-      const section = behaviorGroup(boundaryComponentLabel(componentId), `${records.length} store type(s)`);
-      const list = element("div", "behavior-list");
-      records.forEach((record) => {
-        const artifacts = (record.artifacts || []).map((artifact) => artifact.label);
-        const storeNode = interplay.nodes.find((node) => node.label === record.type_name && node.store);
-        const described = storeNode && storeNode.semantic ? storeNode.semantic : null;
-        const fields = (described && described.fields) || {};
-        const row = recordRow(record, [
-          `persistence ${(record.persistence || []).join(", ")}`,
-          artifacts.length ? `artifacts ${artifacts.join(", ")}` : null,
-          fields.medium ? `medium ${semanticValue(fields.medium)}` : null,
-          (fields.record_type || []).length ? `records ${fields.record_type.join(", ")}` : null,
-          fields.keyed_by ? `keyed by ${fields.keyed_by}` : null,
-          (fields.written_when || []).length ? `written ${semanticValue(fields.written_when)}` : null,
-          (fields.read_when || []).length ? `read ${semanticValue(fields.read_when)}` : null
-        ].filter(Boolean));
-        if (described) {
-          const summary = element("p", "derivation described-summary", described.summary);
-          if (described.stale) summary.prepend(element("span", "stale-badge", "stale"));
-          row.append(summary);
-        }
-        const mechanisms = record.mechanisms || [];
-        if (mechanisms.length) {
-          const block = element("ul", "evidence-list");
-          mechanisms.slice(0, 6).forEach((mechanism) => {
-            const item = document.createElement("li");
-            item.append(element("span", "", `${mechanism.kind}${mechanism.via ? ` via ${mechanism.via}` : ""} · `), sourceLink(mechanism.evidence));
-            block.append(item);
-          });
-          row.append(block);
-        } else {
-          row.append(element("p", "derivation", record.derivation || "No persistence API observed."));
-        }
-        list.append(row);
-      });
-      section.append(list);
-      return section;
-    });
-    container.replaceChildren(...sections);
-  }
-
-  // ── CI gates ──────────────────────────────────────────────────────────────
-  // The pipeline as a circuit. A pull request is the input signal; every job
-  // that runs on pull requests is a gate the signal must pass; `needs` and
-  // artifact hand-offs are wires between gates; all of them feed one AND gate,
-  // the merge. What runs only after a merge sits downstream of that gate; what
-  // runs by hand sits in its own band. Layout is a fixed-column circuit: each
-  // workflow is a lane, depth in its `needs` graph is the column.
 
   function gateDepth(job, seen = new Set()) {
     if (!job.needs.length) return 0;

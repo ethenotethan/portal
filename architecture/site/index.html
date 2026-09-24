@@ -43,9 +43,6 @@
 
   <nav class="section-nav" aria-label="Architecture views">
     <button class="nav-item active" data-view="systemmap" type="button">System map</button>
-    <button class="nav-item" data-view="connections" type="button">Connections &amp; streams</button>
-    <button class="nav-item" data-view="externals" type="button">External systems</button>
-    <button class="nav-item" data-view="stores" type="button">Data stores</button>
     <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
     <button class="nav-item" data-view="gates" type="button">CI gates</button>
   </nav>
@@ -125,42 +122,6 @@
         <p class="invariants-lede" id="invariants-lede"></p>
         <ol class="invariants-list" id="invariants-list"></ol>
       </section>
-    </section>
-
-    <section class="view" id="connections-view" aria-labelledby="connections-title">
-      <div class="intro-row compact">
-        <div>
-          <p class="eyebrow">STATIC OWNERSHIP &amp; LIFECYCLE CLUSTERS</p>
-          <h2 id="connections-title">Connections &amp; streams</h2>
-          <p class="lede">Deterministic pockets group stored resources, task handles, and mechanically recognized lifecycle operations by component and enclosing owner type.</p>
-        </div>
-      </div>
-      <div class="authority-banner" role="note">These pockets are static clusters, not runtime topology. Cardinality describes source fields, never live connection counts.</div>
-      <div class="behavior-content" id="connections-content"></div>
-    </section>
-
-    <section class="view" id="externals-view" aria-labelledby="externals-title">
-      <div class="intro-row compact">
-        <div>
-          <p class="eyebrow">DETERMINISTIC BOUNDARY EVIDENCE</p>
-          <h2 id="externals-title">External systems</h2>
-          <p class="lede">Systems outside the Swift source that Portal talks to or runs on, declared in <code>architecture/config.json</code> and attributed to components by source signatures. Descriptions are specified; usage counts and evidence lines are observed.</p>
-        </div>
-      </div>
-      <div class="authority-banner" role="note">A signature match proves a supported source form is present at the cited line—not that the system is reached at runtime, and not how often.</div>
-      <div class="behavior-content" id="externals-content"></div>
-    </section>
-
-    <section class="view" id="stores-view" aria-labelledby="stores-title">
-      <div class="intro-row compact">
-        <div>
-          <p class="eyebrow">DETERMINISTIC PERSISTENCE EVIDENCE</p>
-          <h2 id="stores-title">Data stores</h2>
-          <p class="lede">Store, cache, inventory, and ledger types recognised by name, with the persistence mechanism and on-disk artifact names observed in the type body, its same-file extensions, and namesake helper types.</p>
-        </div>
-      </div>
-      <div class="authority-banner" role="note">“Unobserved” means no supported persistence API appears in those bodies—the store is in-memory or delegates elsewhere. It is not a claim that nothing is persisted.</div>
-      <div class="behavior-content" id="stores-content"></div>
     </section>
 
     <section class="view" id="inventory-view" aria-labelledby="inventory-title">

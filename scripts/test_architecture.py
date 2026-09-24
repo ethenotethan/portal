@@ -252,16 +252,24 @@ class ArchitectureCompilerTests(unittest.TestCase):
             )
 
     def test_behavior_site_has_navigation_and_semantic_view_sections(self) -> None:
+        # The observatory is three views: the system map, the source inventory and the CI gates.
+        # Connections & streams, External systems and Data stores were retired as pages; what they
+        # showed lives on the system map (boundary hulls, storage containers, artifact nodes).
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
-        for view in ("connections",):
+        for view in ("systemmap", "inventory", "gates"):
             self.assertRegex(index, rf'<button[^>]+data-view="{view}"')
             self.assertRegex(index, rf'<section[^>]+id="{view}-view"')
-            self.assertRegex(index, rf'id="{view}-content"')
+        for retired in ("connections", "externals", "stores"):
+            self.assertNotRegex(index, rf'data-view="{retired}"')
+            self.assertNotRegex(index, rf'id="{retired}-view"')
+            self.assertNotRegex(index, rf'id="{retired}-content"')
 
     def test_behavior_site_has_deterministic_renderers_and_line_provenance(self) -> None:
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
-        for renderer in ("renderConnections",):
+        for renderer in ("renderInterplay", "renderInventory", "renderGates"):
             self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        for retired in ("renderConnections", "renderExternals", "renderStores", "externalCard", "recordRow"):
+            self.assertNotIn(retired, app)
         self.assertRegex(app, r"function\s+sourceLink\s*\(")
         self.assertIn("#L${evidence.line}", app)
         self.assertIn("textContent", app)
@@ -815,14 +823,10 @@ class ArchitectureCompilerTests(unittest.TestCase):
                     self.assertIn(entry["path"], node["files"])
 
     def test_boundary_site_views_and_renderers_exist(self) -> None:
+        # Externals and stores have no page of their own; the system map draws them as boundary
+        # hulls, storage containers and artifact nodes.
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
-        for view in ("externals", "stores"):
-            self.assertRegex(index, rf'<button[^>]+data-view="{view}"')
-            self.assertRegex(index, rf'<section[^>]+id="{view}-view"')
-            self.assertRegex(index, rf'id="{view}-content"')
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
-        for renderer in ("renderExternals", "renderStores"):
-            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
         self.assertIn("INTERPLAY_EXTERNAL_GROUP", app)
         self.assertIn("INTERPLAY_APP_GROUP", app)
         self.assertIn("interplay.pages", app)

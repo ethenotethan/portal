@@ -9059,7 +9059,7 @@
           "id": "stores-mapped",
           "kind": "stores_mapped",
           "status": "holds",
-          "why": "Every store the extractor recognises is a construction on the map, so the Data stores view and the System map can never disagree about what holds state."
+          "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
         },
         {
           "id": "triggers-observed",
@@ -13073,7 +13073,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 21210,
+      "line_count": 20983,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14847,7 +14847,6 @@
       "authority": "observed",
       "description": "References 3 declaration(s) owned by shared-ui.",
       "evidence": [
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ButtonTheme.swift",
         "Sources/Portal/Models/CelebrationPreferences.swift",
         "Sources/Portal/Models/NetworkGraphSpec.swift",
@@ -14862,7 +14861,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 9
+      "weight": 8
     },
     {
       "authority": "observed",
@@ -25720,7 +25719,7 @@
         "id": "stores-mapped",
         "kind": "stores_mapped",
         "status": "holds",
-        "why": "Every store the extractor recognises is a construction on the map, so the Data stores view and the System map can never disagree about what holds state."
+        "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
       },
       {
         "checked": 242,
@@ -39002,7 +39001,7 @@
     "assigned_files": 373,
     "declarations": 1104,
     "swift_files": 373,
-    "swift_lines": 113372,
+    "swift_lines": 113145,
     "unassigned_files": []
   },
   "layers": [
@@ -39034,7 +39033,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "8a666593c606189549611b6eea12abab7f2bafab6b5c47dbcce2d01c1ef2ef4e",
+  "source_tree_sha256": "2816b057f1c6b7a345573b87c29ad558f0a5612952ac26cbff1cfa48d41cf664",
   "stores": {
     "by_persistence": {
       "defaults": 6,
