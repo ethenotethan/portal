@@ -107,6 +107,18 @@ internal struct GatewayPersonaTests {
     }
 }
 
+@Suite("Persona image")
+internal struct PersonaImageTests {
+    @Test("a missing avatar path fails closed without constructing an image")
+    internal func missingAvatarReturnsNil() {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("portal-missing-avatar-\(UUID().uuidString).png")
+            .path
+
+        #expect(PersonaImage.load(path: path) == nil)
+    }
+}
+
 @Suite("Identicon")
 internal struct IdenticonTests {
 
