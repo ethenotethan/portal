@@ -362,6 +362,21 @@ h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em;
 .interplay-group.boundary .interplay-group-rect { fill: rgba(224, 112, 79, .03); stroke: #e0704f; stroke-width: 1.25; stroke-dasharray: 6 4; }
 .interplay-group.boundary .interplay-group-label { fill: #e0704f; opacity: .85; }
 .interplay-node rect.artifact { fill: var(--bg); stroke-dasharray: 1 3; }
+/* Collapsed hulls: one box standing for everything inside; bundled wiring between them. */
+.interplay-hull { cursor: pointer; }
+.interplay-hull-rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.25; }
+.interplay-hull:hover .interplay-hull-rect, .interplay-hull:focus .interplay-hull-rect { fill: var(--surface-hover); stroke: var(--ink); }
+.interplay-hull.app .interplay-hull-rect { fill: rgba(139, 131, 255, .06); stroke: var(--line-strong); stroke-width: 1.5; }
+.interplay-hull.boundary .interplay-hull-rect { fill: rgba(224, 112, 79, .05); stroke: #e0704f; stroke-dasharray: 6 4; }
+.interplay-hull .hull-kicker { fill: var(--faint); font: 700 9px var(--mono); letter-spacing: .14em; }
+.interplay-hull .hull-title { fill: var(--ink); font: 600 14px var(--sans); }
+.interplay-hull .hull-meta { fill: var(--muted); font: 10px var(--mono); }
+.interplay-group-label.clickable { cursor: pointer; }
+.interplay-group-label.clickable:hover { fill: var(--ink); opacity: 1; }
+.interplay-edge.bundle { stroke: var(--edge-quiet); opacity: .7; stroke-dasharray: none; }
+.interplay-bundle-label { fill: var(--muted); font: 700 10px var(--mono); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+.interplay-edge.bundle.active { stroke: var(--ink); opacity: 1; }
+.interplay-edge.bundle.dimmed { opacity: .1; }
 .interplay-node[data-kind="artifact"] .node-title { font: 600 11px var(--mono); }
 .interplay-node rect.hull-label { fill: transparent; stroke: none; }
 .interplay-group.transport .interplay-group-rect { fill: rgba(92, 168, 216, .05); stroke: #5ca8d8; stroke-width: 1.25; stroke-dasharray: none; }
