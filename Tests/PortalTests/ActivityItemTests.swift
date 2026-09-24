@@ -89,6 +89,35 @@ struct ActivityItemTests {
         #expect(item?.isDismissed == true)
     }
 
+    @Test("activity presentation exposes readable status and severity cues")
+    internal func presentationCues() {
+        var item = ActivityItem(
+            id: "act_presentation",
+            createdAt: Date(timeIntervalSinceNow: -3_600),
+            updatedAt: nil,
+            kind: "activity",
+            severity: .info,
+            source: "gateway",
+            title: "Activity",
+            summary: "",
+            sessionID: nil,
+            isRead: false,
+            isDismissed: false,
+            actions: [],
+            artifacts: [],
+            externalRefs: []
+        )
+
+        #expect(!item.relativeTimestamp.isEmpty)
+        #expect(item.unreadBadgeAccessibilityLabel == "Unread")
+        item.isRead = true
+        #expect(item.unreadBadgeAccessibilityLabel == "Read")
+
+        #expect(ActivitySeverity.info.icon == "bell.fill")
+        #expect(ActivitySeverity.warning.icon == "exclamationmark.triangle.fill")
+        #expect(ActivitySeverity.error.icon == "xmark.octagon.fill")
+    }
+
     @Test("artifact type labels recognize MIME types and filename fallbacks")
     internal func artifactTypeLabels() {
         let cases: [(name: String, mimeType: String, expected: String)] = [
