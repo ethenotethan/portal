@@ -1,4 +1,5 @@
 {
+  "schema_version": "1.0.0",
   "records": [
     {
       "cited_hash": "fad70feeaae273a6bae3bbec052b418d21ff9198e34bf313486e78b397539190",
@@ -2479,28 +2480,19 @@
       "summary": "FilesBrowserView is the Files section root. It owns a FilesBrowserViewModel, sets the gateway client and loads browsable roots on first appearance, and renders a sidebar tree of roots plus a reader pane. On compact iOS layouts the reader slides over the sidebar; otherwise both sit side by side."
     },
     {
-      "cited_hash": "65f4f7faadc2f70a50979bb4e9f8e80d1e342424790063354e48e318a434513a",
-      "evidence": [
-        {
-          "line": 80,
-          "path": "Sources/Portal/Views/GraphsView.swift"
-        },
-        {
-          "line": 93,
-          "path": "Sources/Portal/Views/GraphsView.swift"
-        }
-      ],
+      "key": "page:graphs",
+      "kind": "page",
+      "summary": "GraphsView hosts the wiki/code knowledge graph and cron runtime dataflow graph behind a persisted switcher. It lazily seeds runtime jobs, keeps both graph states alive across switches, and routes wiki resource nodes into the shared wiki reader with the referenced page selected.",
       "fields": {
+        "purpose": "Host wiki/code knowledge and runtime dataflow graphs, including runtime-to-wiki page navigation.",
         "entry_triggers": [
           "trigger-0003198db685",
           "trigger-0109e2cd0f92",
           "trigger-033147a7f5cb",
+          "trigger-156d765a203f",
           "trigger-173f8ac250bd",
           "trigger-21e14661ae99",
-          "trigger-226eb4696e07",
-          "trigger-233a5c60ff0b",
-          "trigger-26eed17c6d54",
-          "trigger-367b7adf5b1d",
+          "trigger-2c4f8714c4b5",
           "trigger-3b56159af21d",
           "trigger-3baae13ebeb3",
           "trigger-3dd060ed8816",
@@ -2511,22 +2503,24 @@
           "trigger-4f2de5d9b8b2",
           "trigger-4f9c46a20d70",
           "trigger-56f686776e42",
+          "trigger-6f4bfb424ffa",
           "trigger-801347710668",
+          "trigger-83f9c35fbc5a",
           "trigger-8a590206c277",
           "trigger-8bd0cb87f885",
           "trigger-8bd30eb871bc",
-          "trigger-8f95f775d32b",
-          "trigger-8fc503338569",
           "trigger-97ba48ee7927",
-          "trigger-9fd79c005129",
           "trigger-a07c4d25bb15",
           "trigger-aa3b2de0a929",
+          "trigger-accf5766e17d",
           "trigger-b56cfc782a40",
+          "trigger-b6b83e7e0d22",
           "trigger-b8886d3b90fe",
           "trigger-bdbe3a47c64a",
           "trigger-d09036b2aaab",
           "trigger-d2e4694d32bf",
           "trigger-d5ae4140b3a5",
+          "trigger-e34733d96d2f",
           "trigger-e47061d7f608",
           "trigger-e728c9c6595f",
           "trigger-e791301e6c80",
@@ -2541,18 +2535,27 @@
           "caller:wiki-state:WikiTimelineViewModel",
           "store:domain-models:CronGraphRevisionStore",
           "store:local-services:WikiGraphCache"
-        ],
-        "purpose": "Host the wiki/code knowledge graph and the cron runtime dataflow graph behind a persisted surface switcher."
+        ]
       },
-      "key": "page:graphs",
-      "kind": "page",
-      "model": "us.anthropic.claude-fable-5-1",
       "open_questions": [
         "How CronGraphRevisionStore and WikiGraphCache are used is not visible in the excerpt.",
         "WikiGraphViewModel is injected rather than owned; the excerpt does not show who creates it or how CodeGraphSource supplies overrideSource."
       ],
-      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-      "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
+      "evidence": [
+        {
+          "path": "Sources/Portal/Views/GraphsView.swift",
+          "line": 80
+        },
+        {
+          "path": "Sources/Portal/Views/GraphsView.swift",
+          "line": 120
+        }
+      ],
+      "source_revision": "62911e439a3171878f8cdead1579d15fbb6e7597",
+      "model": "openai-codex/gpt-5.6-sol",
+      "cited_hash": "31711362258f11b42d7505477ffeb9af60eeb0f304e399254f61052ff232a767",
+      "stale": false,
+      "authority": "synthesized"
     },
     {
       "cited_hash": "aee0400016dcefa182a10d82cf99dbc988d4d73ab9af53765dabf4f9e10df41d",
@@ -3907,6 +3910,5 @@
       "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
       "summary": "SpawnTreeStore is an ObservableObject that subscribes to a GatewayClient's eventStream, batches incoming events, and folds subagent, tool, thinking and message events into per-session SessionTree objects. It maps display session IDs to runtime IDs, buffers events for sessions without a tree, coalesces deltas, and persists finished batches through an owned DelegationBatchHistoryStore."
     }
-  ],
-  "schema_version": "1.0.0"
+  ]
 }

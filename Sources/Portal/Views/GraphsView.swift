@@ -117,6 +117,19 @@ internal struct GraphsView: View {
         )
     }
 
+    /// Follow a `wiki:<path>` node from the runtime graph into the shared wiki
+    /// reader. The selected page is established before the surface switches, so
+    /// the wiki arrives already focused instead of flashing its neutral graph.
+    internal static func openWikiResource(
+        _ node: CronGraphNode,
+        in viewModel: WikiGraphViewModel
+    ) -> GraphSurface? {
+        guard let path = node.wikiPagePath else { return nil }
+        viewModel.navigate(to: path)
+        viewModel.openReaderForSelection()
+        return .wiki
+    }
+
     internal var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -145,7 +158,11 @@ internal struct GraphsView: View {
                 graphVM: cronGraphVM,
                 listVM: cronListVM,
                 onDismiss: nil,
-                surfaceSelection: surfaceBinding
+                surfaceSelection: surfaceBinding,
+                onOpenWikiResource: { node in
+                    guard let destination = Self.openWikiResource(node, in: wikiViewModel) else { return }
+                    storedSurface = destination.rawValue
+                }
             )
             .environmentObject(gatewayClientWrapper)
         }
