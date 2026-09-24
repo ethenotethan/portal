@@ -411,6 +411,18 @@ internal struct CronRunHistoryTests {
         #expect(!record(status: "OK").isOk)
     }
 
+    @Test("success rate counts exact ok runs and handles empty history")
+    internal func successRate() {
+        let store = CronRunHistoryStore(testing: true)
+        #expect(store.successRate(for: "daily-digest") == 0)
+
+        store.seedFromJobs([job(lastRunAt: Date(timeIntervalSince1970: 100), status: "ok")])
+        store.seedFromJobs([job(lastRunAt: Date(timeIntervalSince1970: 200), status: "error")])
+        store.seedFromJobs([job(lastRunAt: Date(timeIntervalSince1970: 300), status: "OK")])
+
+        #expect(abs(store.successRate(for: "daily-digest") - 33.333_333) < 0.000_001)
+    }
+
     private func record(
         status: String = "ok",
         duration: TimeInterval? = nil
@@ -425,14 +437,14 @@ internal struct CronRunHistoryTests {
         )
     }
 
-    private func job(lastRunAt: Date) -> CronJob {
+    private func job(lastRunAt: Date, status: String = "ok") -> CronJob {
         CronJob(
             id: "daily-digest",
             name: "Daily digest",
             schedule: "every 1m",
             nextRunAt: nil,
             lastRunAt: lastRunAt,
-            lastStatus: "ok",
+            lastStatus: status,
             enabled: true,
             state: "scheduled",
             deliver: "local",
