@@ -9,12 +9,15 @@ on:
       - scripts/build_architecture.py
       - scripts/build_architecture_history.py
       - scripts/test_architecture.py
-      - scripts/build_metrics_page.py
+      # The CI gates view is compiled from these; a change here without
+      # `make architecture` leaves the committed model stale.
+      - .github/workflows/**
+      - .swiftlint.yml
+      - Tests/PortalTests/ArchitectureTests.swift
       - metrics-baseline.json
       - perf-baseline.json
       - .swiftlint-baseline
       - .gitleaksignore
-      - .github/workflows/architecture-pages.yml
   pull_request:
     branches: [main]
     paths:
@@ -24,13 +27,13 @@ on:
       - scripts/build_architecture_history.py
       - scripts/architecture_agent.py
       - scripts/test_architecture.py
-      - scripts/build_metrics_page.py
+      - .github/workflows/**
+      - .swiftlint.yml
+      - Tests/PortalTests/ArchitectureTests.swift
       - metrics-baseline.json
       - perf-baseline.json
       - .swiftlint-baseline
       - .gitleaksignore
-      - .github/workflows/architecture-pages.yml
-      - .github/workflows/architecture-maintenance.yml
   workflow_dispatch:
 
 concurrency:
@@ -60,12 +63,6 @@ jobs:
       # under site/img/ would otherwise 404 silently on a live page.
       - name: Check product site asset references
         run: python3 scripts/check_site_assets.py
-
-      # The quality-gates page quotes numbers extracted from the committed
-      # baselines; fail if it drifted from them (a baseline moved but the page
-      # wasn't regenerated with `make metrics-page`).
-      - name: Verify quality-gates page is current
-        run: python3 scripts/build_metrics_page.py --check
 
       # Assemble the deployed tree: the product site at the Pages root, the
       # observatory nested under /architecture/. Both jobs build it the same

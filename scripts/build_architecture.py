@@ -10,7 +10,7 @@ import json
 import re
 import sys
 import tempfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -3809,6 +3809,773 @@ def shape_of(model: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ───────────────────────────── CI gates ──────────────────────────────────────
+# The pipeline plane: every GitHub Actions workflow is read deterministically,
+# its jobs become gate nodes, `needs` and artifact hand-offs become wires, and
+# the jobs that run on pull requests feed one AND gate — the merge. Beneath the
+# graph the model separates the RATCHETS (metric floors read from the committed
+# baselines), the ARCHITECTURAL checks (SwiftLint custom rules, ArchitectureTests,
+# System-map invariants) and the STATIC compiler checks (the `--check` steps that
+# recompile generated artifacts and fail on drift). Which workflow belongs to
+# which family, and what each ratchet measures, is declared in
+# architecture/config.json under `ci`; the compiler fails when a declaration
+# names a job that no workflow defines, or a posture job exists that nothing
+# declares, so the picture cannot quietly diverge from the pipeline.
+
+WORKFLOWS_DIR = ROOT / ".github/workflows"
+SWIFTLINT_CONFIG_PATH = ROOT / ".swiftlint.yml"
+SWIFTLINT_BASELINE_PATH = ROOT / ".swiftlint-baseline"
+GITLEAKS_IGNORE_PATH = ROOT / ".gitleaksignore"
+METRICS_BASELINE_PATH = ROOT / "metrics-baseline.json"
+PERF_BASELINE_PATH = ROOT / "perf-baseline.json"
+
+CI_FAMILIES = {
+    "behavior": "Does it work?",
+    "posture": "Did a tracked metric get worse?",
+    "build": "Does it build on every platform?",
+    "publication": "Do the generated artifacts match the tree, and does the site deploy?",
+    "release": "Can a signed build ship?",
+    "maintenance": "Manual upkeep of committed artifacts.",
+}
+CI_RATCHET_SOURCES = {"metrics", "perf", "swiftlint_baseline", "gitleaks_ignore"}
+CI_TRIGGER_EVENTS = ("pull_request", "push", "workflow_dispatch", "schedule")
+SCRIPT_REFERENCE_RE = re.compile(r"(?<![\w/.-])((?:scripts|\.github/scripts)/[A-Za-z0-9_./-]+\.(?:py|sh|rb))\b")
+TOOL_PIN_RE = re.compile(r"^([A-Z][A-Z0-9_]*_VERSION)$")
+ARCHITECTURE_TEST_RE = re.compile(r'@Test\(\s*"((?:[^"\\]|\\.)*)"')
+CI_LIMITATIONS = [
+    "Workflow structure is read from the YAML in .github/workflows; it does not prove a job ran, passed, or is required by branch protection.",
+    "A job is drawn as a pull-request gate when its workflow listens to pull_request and its condition does not exclude that event; GitHub's required-checks list is repository configuration and is not read here.",
+    "Ratchet values are the committed baselines CI compares against, not a fresh measurement of this tree.",
+]
+
+
+class YamlMap(dict):
+    """A mapping that remembers the 1-based line each key was declared on."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.lines: dict[str, int] = {}
+
+
+class YamlSubsetError(ArchitectureError):
+    pass
+
+
+def _yaml_split_key(content: str) -> tuple[str, str] | None:
+    """Split ``key: rest`` at the first unquoted ``:`` followed by space or end."""
+    quote: str | None = None
+    for index, char in enumerate(content):
+        if quote:
+            if char == quote:
+                quote = None
+            continue
+        if char in "\"'" and index == 0:
+            quote = char
+            continue
+        if char == ":" and (index + 1 == len(content) or content[index + 1] in " \t"):
+            key = content[:index].strip()
+            if key.startswith(("'", '"')) and key.endswith(key[0]) and len(key) >= 2:
+                key = key[1:-1]
+            if not key or "{" in key or "[" in key:
+                return None
+            return key, content[index + 1:]
+    return None
+
+
+def _yaml_strip_comment(content: str) -> str:
+    quote: str | None = None
+    for index, char in enumerate(content):
+        if quote:
+            if char == quote:
+                quote = None
+            continue
+        if char in "\"'":
+            quote = char
+        elif char == "#" and (index == 0 or content[index - 1] in " \t"):
+            return content[:index].rstrip()
+    return content.rstrip()
+
+
+def _yaml_scalar(text: str) -> Any:
+    text = text.strip()
+    if text == "":
+        return None
+    if text[0] == '"' and text.endswith('"') and len(text) >= 2:
+        body = text[1:-1]
+        return re.sub(r'\\(["\\/])', r"\1", body).replace("\\n", "\n").replace("\\t", "\t")
+    if text[0] == "'" and text.endswith("'") and len(text) >= 2:
+        return text[1:-1].replace("''", "'")
+    if text[0] == "[" and text.endswith("]"):
+        inner = text[1:-1].strip()
+        if not inner:
+            return []
+        items: list[str] = []
+        quote: str | None = None
+        current = ""
+        for char in inner:
+            if quote:
+                current += char
+                if char == quote:
+                    quote = None
+            elif char in "\"'":
+                quote = char
+                current += char
+            elif char == ",":
+                items.append(current)
+                current = ""
+            else:
+                current += char
+        items.append(current)
+        return [_yaml_scalar(item) for item in items]
+    if text == "{}":
+        return YamlMap()
+    if text in ("~", "null"):
+        return None
+    return text
+
+
+class _YamlSubsetParser:
+    """A deterministic parser for the YAML the workflows and lint config use:
+    block mappings and sequences, literal/folded block scalars, flow sequences,
+    quoted and plain scalars, comments. Everything is a string, a list, a
+    YamlMap or None — no implicit typing, so ``on`` stays ``on`` and ``0.65.0``
+    stays a version."""
+
+    def __init__(self, text: str) -> None:
+        self.raw = text.splitlines()
+        # [indent, content, line_number]; content has comments stripped.
+        self.lines: list[list[Any]] = []
+        for number, raw in enumerate(self.raw, start=1):
+            stripped = raw.lstrip(" ")
+            if stripped.startswith("\t") or "\t" in raw[: len(raw) - len(stripped)]:
+                raise YamlSubsetError(f"tab indentation at line {number}")
+            content = _yaml_strip_comment(stripped)
+            if not content or content == "---":
+                self.lines.append([None, "", number])
+                continue
+            self.lines.append([len(raw) - len(stripped), content, number])
+        self.position = 0
+
+    def peek(self) -> list[Any] | None:
+        while self.position < len(self.lines) and self.lines[self.position][0] is None:
+            self.position += 1
+        return self.lines[self.position] if self.position < len(self.lines) else None
+
+    def advance(self) -> None:
+        self.position += 1
+
+    def parse_document(self) -> Any:
+        first = self.peek()
+        if first is None:
+            return YamlMap()
+        value = self.parse_node(first[0])
+        trailing = self.peek()
+        if trailing is not None:
+            raise YamlSubsetError(f"unexpected content at line {trailing[2]}")
+        return value
+
+    def parse_node(self, indent: int) -> Any:
+        line = self.peek()
+        if line is None or line[0] < indent:
+            return None
+        if line[1] == "-" or line[1].startswith("- "):
+            return self.parse_sequence(line[0])
+        return self.parse_mapping(line[0])
+
+    def parse_mapping(self, indent: int) -> YamlMap:
+        result = YamlMap()
+        while True:
+            line = self.peek()
+            if line is None or line[0] < indent:
+                break
+            if line[0] > indent:
+                raise YamlSubsetError(f"unexpected indentation at line {line[2]}")
+            if line[1] == "-" or line[1].startswith("- "):
+                break
+            split = _yaml_split_key(line[1])
+            if split is None:
+                raise YamlSubsetError(f"expected a mapping entry at line {line[2]}")
+            key, rest = split
+            self.advance()
+            result.lines[key] = line[2]
+            rest = rest.strip()
+            if rest == "":
+                following = self.peek()
+                if following is not None and following[0] > indent:
+                    result[key] = self.parse_node(following[0])
+                elif following is not None and following[0] == indent and (following[1] == "-" or following[1].startswith("- ")):
+                    result[key] = self.parse_sequence(indent)
+                else:
+                    result[key] = None
+            elif rest[0] in "|>":
+                result[key] = self.parse_block_scalar(indent, rest)
+            else:
+                result[key] = _yaml_scalar(rest)
+        return result
+
+    def parse_sequence(self, indent: int) -> list[Any]:
+        items: list[Any] = []
+        while True:
+            line = self.peek()
+            if line is None or line[0] < indent:
+                break
+            if line[0] > indent:
+                raise YamlSubsetError(f"unexpected indentation at line {line[2]}")
+            if not (line[1] == "-" or line[1].startswith("- ")):
+                break
+            rest = line[1][1:].strip()
+            if rest == "":
+                self.advance()
+                following = self.peek()
+                items.append(self.parse_node(following[0]) if following is not None and following[0] > indent else None)
+            elif rest[0] in "|>":
+                self.advance()
+                items.append(self.parse_block_scalar(indent, rest))
+            elif rest[0] not in "\"'[{" and _yaml_split_key(rest) is not None:
+                # `- key: value` opens a mapping whose remaining entries sit two
+                # columns in; re-anchor this line there and let the mapping parser
+                # consume it with its siblings.
+                line[0] = indent + 2
+                line[1] = rest
+                items.append(self.parse_mapping(indent + 2))
+            else:
+                self.advance()
+                items.append(_yaml_scalar(rest))
+        return items
+
+    def parse_block_scalar(self, indent: int, header: str) -> str:
+        style = header[0]
+        chomp = "clip"
+        if "-" in header[1:]:
+            chomp = "strip"
+        elif "+" in header[1:]:
+            chomp = "keep"
+        start = self.position
+        block: list[str] = []
+        block_indent: int | None = None
+        while self.position < len(self.raw):
+            raw = self.raw[self.position]
+            stripped = raw.lstrip(" ")
+            if stripped == "":
+                block.append("")
+                self.position += 1
+                continue
+            current_indent = len(raw) - len(stripped)
+            if current_indent <= indent:
+                break
+            if block_indent is None:
+                block_indent = current_indent
+            if current_indent < block_indent:
+                break
+            block.append(raw[block_indent:])
+            self.position += 1
+        if self.position == start:
+            return ""
+        while block and block[-1] == "":
+            block.pop()
+        if style == "|":
+            text = "\n".join(block)
+        else:
+            # Folded: adjacent lines join with a space, a blank line is a newline.
+            paragraphs: list[list[str]] = [[]]
+            for line in block:
+                if line == "":
+                    paragraphs.append([])
+                else:
+                    paragraphs[-1].append(line)
+            text = "\n".join(" ".join(paragraph) for paragraph in paragraphs)
+        if chomp == "strip":
+            return text
+        return text + "\n"
+
+
+def parse_yaml_subset(text: str) -> Any:
+    return _YamlSubsetParser(text).parse_document()
+
+
+def _as_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+SHELL_PREAMBLE_RE = re.compile(
+    r"^(?:set\s|export\s|cd\s|mkdir\s|echo\s|if\s|for\s|while\s|fi$|done$|then$|else$|\.\s|[A-Z_][A-Z0-9_]*=)"
+)
+URL_LINE_RE = re.compile(r"://")
+
+
+def _first_command_line(run: Any) -> str:
+    """The first line of a run block that is a command rather than shell preamble
+    (option setting, directory changes, variable assignment, control flow)."""
+    fallback = ""
+    for line in str(run or "").splitlines():
+        candidate = line.strip()
+        if not candidate or candidate.startswith("#"):
+            continue
+        if not fallback:
+            fallback = candidate
+        if not SHELL_PREAMBLE_RE.match(candidate):
+            return candidate.rstrip("\\").strip()[:160]
+    return fallback.rstrip("\\").strip()[:160]
+
+
+def _tool_pins(env: Any, run: Any) -> list[dict[str, str]]:
+    """`X_VERSION` env values that the same step interpolates into a download URL."""
+    if not isinstance(env, dict):
+        return []
+    url_lines = [line for line in str(run or "").splitlines() if URL_LINE_RE.search(line)]
+    pins: list[dict[str, str]] = []
+    for name in sorted(env):
+        if not TOOL_PIN_RE.match(str(name)):
+            continue
+        if any(f"${{{name}}}" in line or f"${name}" in line for line in url_lines):
+            pins.append({"name": str(name), "value": str(env[name])})
+    return pins
+
+
+def _job_condition_excludes_pull_requests(condition: str | None) -> bool:
+    """`if: github.event_name != 'pull_request'` (the deploy shape) keeps a job off PRs."""
+    if not condition:
+        return False
+    compact = condition.replace(" ", "")
+    return "pull_request" in compact and "!=" in compact
+
+
+def _normalize_triggers(raw: Any, workflow: str) -> list[dict[str, Any]]:
+    if raw is None:
+        raise ArchitectureError(f"workflow {workflow} declares no triggers")
+    if isinstance(raw, str):
+        raw = {raw: None}
+    if isinstance(raw, list):
+        raw = {str(item): None for item in raw}
+    triggers: list[dict[str, Any]] = []
+    for event in sorted(raw):
+        detail = raw[event] if isinstance(raw[event], dict) else {}
+        record: dict[str, Any] = {"event": str(event)}
+        for field in ("branches", "tags", "paths", "types"):
+            values = [str(item) for item in _as_list(detail.get(field))]
+            if values:
+                record[field] = values
+        if event == "workflow_dispatch" and isinstance(detail.get("inputs"), dict):
+            record["inputs"] = sorted(str(name) for name in detail["inputs"])
+        if event == "schedule":
+            record["cron"] = [str(item.get("cron")) for item in _as_list(raw[event]) if isinstance(item, dict)]
+        triggers.append(record)
+    return triggers
+
+
+def read_workflows() -> list[dict[str, Any]]:
+    """Every workflow file, parsed into workflow and job records with line provenance."""
+    if not WORKFLOWS_DIR.is_dir():
+        gate("ci", f"{relative(WORKFLOWS_DIR)} is missing; the CI plane is empty")
+        return []
+    workflows: list[dict[str, Any]] = []
+    for path in sorted(WORKFLOWS_DIR.glob("*.yml")) + sorted(WORKFLOWS_DIR.glob("*.yaml")):
+        text = path.read_text(encoding="utf-8")
+        try:
+            document = parse_yaml_subset(text)
+        except YamlSubsetError as exc:
+            raise ArchitectureError(f"{relative(path)}: {exc}") from exc
+        if not isinstance(document, dict):
+            raise ArchitectureError(f"{relative(path)} is not a workflow mapping")
+        workflow_id = path.stem
+        jobs_raw = document.get("jobs")
+        if not isinstance(jobs_raw, dict) or not jobs_raw:
+            raise ArchitectureError(f"{relative(path)} declares no jobs")
+        triggers = _normalize_triggers(document.get("on"), workflow_id)
+        events = {trigger["event"] for trigger in triggers}
+        jobs: list[dict[str, Any]] = []
+        for key in jobs_raw:
+            job = jobs_raw[key]
+            if not isinstance(job, dict):
+                raise ArchitectureError(f"{relative(path)}: job {key} is not a mapping")
+            condition = job.get("if")
+            condition_text = str(condition).strip() if condition is not None else None
+            steps: list[dict[str, Any]] = []
+            artifacts_out: list[str] = []
+            artifacts_in: list[str] = []
+            scripts: set[str] = set()
+            pins: list[dict[str, str]] = []
+            for step in _as_list(job.get("steps")):
+                if not isinstance(step, dict):
+                    continue
+                uses = step.get("uses")
+                run = step.get("run")
+                step_scripts = sorted(set(SCRIPT_REFERENCE_RE.findall(str(run or ""))))
+                scripts.update(step_scripts)
+                with_block = step.get("with") if isinstance(step.get("with"), dict) else {}
+                if isinstance(uses, str) and uses.startswith("actions/upload-artifact") and with_block.get("name"):
+                    artifacts_out.append(str(with_block["name"]))
+                if isinstance(uses, str) and uses.startswith("actions/download-artifact") and with_block.get("name"):
+                    artifacts_in.append(str(with_block["name"]))
+                pins.extend(_tool_pins(step.get("env"), run))
+                first_line = None
+                for candidate in ("name", "uses", "run", "id", "if", "with", "env", "working-directory"):
+                    if candidate in getattr(step, "lines", {}):
+                        first_line = step.lines[candidate] if first_line is None else min(first_line, step.lines[candidate])
+                if first_line is None:
+                    first_line = job.lines.get("steps", 1) if isinstance(job, YamlMap) else 1
+                record: dict[str, Any] = {
+                    "name": str(step.get("name") or uses or _first_command_line(run) or "step"),
+                    "line": first_line,
+                }
+                if isinstance(uses, str):
+                    record["uses"] = uses
+                if run is not None:
+                    record["command"] = _first_command_line(run)
+                    record["command_lines"] = len([line for line in str(run).splitlines() if line.strip() and not line.strip().startswith("#")])
+                if step_scripts:
+                    record["scripts"] = step_scripts
+                if step.get("if") is not None:
+                    record["condition"] = str(step["if"]).strip()
+                steps.append(record)
+            needs = [f"{workflow_id}/{item}" for item in _as_list(job.get("needs"))]
+            disabled = condition_text is not None and condition_text.lower() in ("false", "${{ false }}")
+            if disabled:
+                role = "disabled"
+            elif "pull_request" in events and not _job_condition_excludes_pull_requests(condition_text):
+                role = "gate"
+            elif "push" in events or "schedule" in events:
+                role = "post-merge"
+            else:
+                role = "manual"
+            jobs.append({
+                "id": f"{workflow_id}/{key}",
+                "workflow": workflow_id,
+                "key": str(key),
+                "name": str(job.get("name") or key),
+                "runs_on": str(job.get("runs-on") or ""),
+                "needs": needs,
+                "condition": condition_text,
+                "role": role,
+                "steps": steps,
+                "step_count": len(steps),
+                "scripts": sorted(scripts),
+                "pins": pins,
+                "artifacts_out": artifacts_out,
+                "artifacts_in": artifacts_in,
+                "evidence": {"path": relative(path), "line": jobs_raw.lines.get(key, 1) if isinstance(jobs_raw, YamlMap) else 1},
+            })
+        workflows.append({
+            "id": workflow_id,
+            "name": str(document.get("name") or workflow_id),
+            "path": relative(path),
+            "triggers": triggers,
+            "events": sorted(events),
+            "jobs": [job["id"] for job in jobs],
+            "_jobs": jobs,
+        })
+    return workflows
+
+
+def _ratchet_current(source: dict[str, Any], ratchet_id: str) -> dict[str, Any]:
+    kind = source.get("kind")
+    if kind == "metrics":
+        if not METRICS_BASELINE_PATH.is_file():
+            gate("ci", f"ratchet {ratchet_id}: {relative(METRICS_BASELINE_PATH)} is missing")
+            return {}
+        metrics = load_json(METRICS_BASELINE_PATH)
+        key = str(source.get("key"))
+        if key not in metrics:
+            raise ArchitectureError(f"ratchet {ratchet_id} names metrics key {key!r} which {relative(METRICS_BASELINE_PATH)} lacks")
+        block = metrics[key]
+        if key == "coverage":
+            return {
+                "kind": "coverage",
+                "percent": block["testable_pct"],
+                "covered": block["testable_covered"],
+                "count": block["testable_count"],
+                "layers": {name: {"percent": item["pct"], "covered": item["covered"], "count": item["count"]}
+                           for name, item in sorted(block.get("layers", {}).items())} if isinstance(block.get("layers"), dict) else {},
+                "uncovered_files": len(block.get("uncovered", {})),
+            }
+        return {
+            "kind": "count",
+            "total": block["total"],
+            "counts": dict(sorted(block.get("counts", {}).items())),
+            "sites": len(block.get("sites", [])),
+        }
+    if kind == "perf":
+        if not PERF_BASELINE_PATH.is_file():
+            gate("ci", f"ratchet {ratchet_id}: {relative(PERF_BASELINE_PATH)} is missing")
+            return {}
+        return {"kind": "counters", "counts": dict(sorted(load_json(PERF_BASELINE_PATH)["counts"].items()))}
+    if kind == "swiftlint_baseline":
+        if not SWIFTLINT_BASELINE_PATH.is_file():
+            gate("ci", f"ratchet {ratchet_id}: {relative(SWIFTLINT_BASELINE_PATH)} is missing")
+            return {}
+        entries = json.loads(SWIFTLINT_BASELINE_PATH.read_text(encoding="utf-8"))
+        by_rule = Counter(str(entry["violation"]["ruleIdentifier"]) for entry in entries)
+        return {"kind": "count", "total": len(entries), "counts": dict(sorted(by_rule.items())), "sites": len(entries)}
+    if kind == "gitleaks_ignore":
+        if not GITLEAKS_IGNORE_PATH.is_file():
+            gate("ci", f"ratchet {ratchet_id}: {relative(GITLEAKS_IGNORE_PATH)} is missing")
+            return {}
+        fingerprints = [line for line in GITLEAKS_IGNORE_PATH.read_text(encoding="utf-8").splitlines()
+                        if line.strip() and not line.lstrip().startswith("#")]
+        return {"kind": "count", "total": len(fingerprints), "counts": {}, "sites": len(fingerprints)}
+    raise ArchitectureError(f"ratchet {ratchet_id} has unknown source kind {kind!r}")
+
+
+def read_lint_rules(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        gate("ci", f"{relative(path)} is missing; no custom lint rules")
+        return []
+    try:
+        document = parse_yaml_subset(path.read_text(encoding="utf-8"))
+    except YamlSubsetError as exc:
+        raise ArchitectureError(f"{relative(path)}: {exc}") from exc
+    custom = document.get("custom_rules") if isinstance(document, dict) else None
+    if not isinstance(custom, dict):
+        raise ArchitectureError(f"{relative(path)} has no custom_rules mapping")
+    baselined: Counter[str] = Counter()
+    if SWIFTLINT_BASELINE_PATH.is_file():
+        for entry in json.loads(SWIFTLINT_BASELINE_PATH.read_text(encoding="utf-8")):
+            baselined[str(entry["violation"]["ruleIdentifier"])] += 1
+    rules: list[dict[str, Any]] = []
+    for rule_id in custom:
+        body = custom[rule_id] if isinstance(custom[rule_id], dict) else {}
+        message = " ".join(str(body.get("message") or "").split())
+        rules.append({
+            "id": str(rule_id),
+            "severity": str(body.get("severity") or "warning"),
+            "message": message,
+            "included": [str(item) for item in _as_list(body.get("included"))],
+            "excluded_count": len(_as_list(body.get("excluded"))),
+            "baselined": baselined.get(str(rule_id), 0),
+            "evidence": {"path": relative(path), "line": custom.lines.get(rule_id, 1) if isinstance(custom, YamlMap) else 1},
+        })
+    return rules
+
+
+def read_architecture_tests(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        gate("ci", f"{relative(path)} is missing; no architecture tests")
+        return []
+    text = path.read_text(encoding="utf-8")
+    tests: list[dict[str, Any]] = []
+    for match in ARCHITECTURE_TEST_RE.finditer(text):
+        tests.append({
+            "title": match.group(1).replace('\\"', '"'),
+            "evidence": {"path": relative(path), "line": text.count("\n", 0, match.start()) + 1},
+        })
+    return tests
+
+
+def validate_ci_config(config: dict[str, Any]) -> dict[str, Any]:
+    ci = config.get("ci")
+    if not isinstance(ci, dict):
+        raise ArchitectureError("architecture/config.json must declare a `ci` block")
+    declared = ci.get("workflows")
+    if not isinstance(declared, dict) or not declared:
+        raise ArchitectureError("config ci.workflows must map each workflow file stem to its family")
+    for workflow_id, entry in declared.items():
+        if not isinstance(entry, dict) or entry.get("family") not in CI_FAMILIES:
+            raise ArchitectureError(f"config ci.workflows[{workflow_id}] must declare a family in {sorted(CI_FAMILIES)}")
+        if not entry.get("label"):
+            raise ArchitectureError(f"config ci.workflows[{workflow_id}] needs a label")
+    ratchets = ci.get("ratchets")
+    if not isinstance(ratchets, list) or not ratchets:
+        raise ArchitectureError("config ci.ratchets must be a non-empty array")
+    seen: set[str] = set()
+    for ratchet in ratchets:
+        for field in ("id", "title", "job", "source", "measures", "floor"):
+            if field not in ratchet:
+                raise ArchitectureError(f"config ci.ratchets entry {ratchet.get('id')!r} lacks {field}")
+        if ratchet["id"] in seen:
+            raise ArchitectureError(f"config ci.ratchets declares {ratchet['id']!r} twice")
+        seen.add(ratchet["id"])
+        if not isinstance(ratchet["source"], dict) or ratchet["source"].get("kind") not in CI_RATCHET_SOURCES:
+            raise ArchitectureError(f"ratchet {ratchet['id']} source.kind must be one of {sorted(CI_RATCHET_SOURCES)}")
+        if "patch" not in ratchet:
+            raise ArchitectureError(f"ratchet {ratchet['id']} must state its patch rule (null when floor-only)")
+    architectural = ci.get("architectural")
+    if not isinstance(architectural, dict):
+        raise ArchitectureError("config ci.architectural must be an object")
+    for field in ("lint_config", "tests", "runs_in"):
+        if field not in architectural:
+            raise ArchitectureError(f"config ci.architectural lacks {field}")
+    static_checks = ci.get("static_checks")
+    if not isinstance(static_checks, dict) or not isinstance(static_checks.get("jobs"), list):
+        raise ArchitectureError("config ci.static_checks.jobs must be an array of job ids")
+    return ci
+
+
+def empty_ci_model() -> dict[str, Any]:
+    return {
+        "families": {family: {"question": question} for family, question in CI_FAMILIES.items()},
+        "workflows": [], "jobs": [], "edges": [], "triggers": [],
+        "merge": {"id": "merge:main", "label": "Merge to main", "inputs": []},
+        "ratchets": [],
+        "architectural": {"lint_rules": [], "tests": [], "invariants": [], "runs_in": [], "lint_config": "", "tests_path": ""},
+        "static_checks": [], "limitations": CI_LIMITATIONS,
+        "summary": {"workflows": 0, "jobs": 0, "gates": 0, "ratchets": 0, "lint_rules": 0, "architecture_tests": 0, "invariants": 0, "static_checks": 0},
+    }
+
+
+def build_ci_model(config: dict[str, Any], interplay: dict[str, Any]) -> dict[str, Any]:
+    if LENIENT:
+        # Snapshot mode walks past checkouts for the System map's history; the
+        # scratch tree has no workflows or baselines and the CI plane is not part
+        # of the map's shape, so it is neither compiled nor counted as a gap.
+        return empty_ci_model()
+    ci_config = validate_ci_config(config)
+    workflows = read_workflows()
+    declared = ci_config["workflows"]
+    jobs: list[dict[str, Any]] = []
+    for workflow in workflows:
+        entry = declared.get(workflow["id"])
+        if entry is None:
+            raise ArchitectureError(
+                f"{workflow['path']} has no entry under config ci.workflows; declare its family so the CI plane stays complete"
+            )
+        workflow["family"] = entry["family"]
+        workflow["label"] = str(entry["label"])
+        workflow["question"] = str(entry.get("question") or CI_FAMILIES[entry["family"]])
+        for job in workflow.pop("_jobs"):
+            job["family"] = entry["family"]
+            jobs.append(job)
+    present = {workflow["id"] for workflow in workflows}
+    if workflows:
+        for workflow_id in declared:
+            if workflow_id not in present:
+                raise ArchitectureError(f"config ci.workflows declares {workflow_id!r} but .github/workflows/{workflow_id}.yml does not exist")
+    job_by_id = {job["id"]: job for job in jobs}
+    for job in jobs:
+        for dependency in job["needs"]:
+            if dependency not in job_by_id:
+                raise ArchitectureError(f"{job['id']} needs {dependency}, which no workflow defines")
+
+    edges: list[dict[str, Any]] = []
+    for job in jobs:
+        for dependency in job["needs"]:
+            edges.append({"source": dependency, "target": job["id"], "kind": "needs"})
+        producers = [other for other in jobs if other["workflow"] == job["workflow"] and other["id"] != job["id"]]
+        for artifact in job["artifacts_in"]:
+            for producer in producers:
+                if artifact in producer["artifacts_out"]:
+                    edges.append({"source": producer["id"], "target": job["id"], "kind": "artifact", "label": artifact})
+    for job in jobs:
+        if job["needs"]:
+            continue
+        if job["role"] == "gate":
+            edges.append({"source": "trigger:pull_request", "target": job["id"], "kind": "trigger"})
+        elif job["role"] == "manual":
+            edges.append({"source": "trigger:workflow_dispatch", "target": job["id"], "kind": "trigger"})
+        elif job["role"] == "post-merge":
+            edges.append({"source": "merge:main", "target": job["id"], "kind": "release"})
+    for job in jobs:
+        if job["role"] == "gate":
+            edges.append({"source": job["id"], "target": "merge:main", "kind": "gates"})
+        elif job["role"] == "post-merge" and job["needs"]:
+            edges.append({"source": "merge:main", "target": job["id"], "kind": "release"})
+    edges.sort(key=lambda edge: (edge["kind"], edge["source"], edge["target"], edge.get("label", "")))
+
+    trigger_workflows: dict[str, list[str]] = defaultdict(list)
+    for workflow in workflows:
+        for trigger in workflow["triggers"]:
+            trigger_workflows[trigger["event"]].append(workflow["id"])
+    triggers = [
+        {"id": f"trigger:{event}", "event": event, "workflows": sorted(trigger_workflows[event])}
+        for event in CI_TRIGGER_EVENTS if trigger_workflows.get(event)
+    ]
+
+    ratchets: list[dict[str, Any]] = []
+    ratchet_jobs: set[str] = set()
+    for declared_ratchet in ci_config["ratchets"]:
+        job_id = str(declared_ratchet["job"])
+        if workflows and job_id not in job_by_id:
+            raise ArchitectureError(f"ratchet {declared_ratchet['id']} names job {job_id}, which no workflow defines")
+        if workflows and job_by_id[job_id]["family"] != "posture":
+            raise ArchitectureError(f"ratchet {declared_ratchet['id']} names {job_id}, but that job's workflow is not the posture family")
+        ratchet_jobs.add(job_id)
+        ratchets.append({
+            "id": str(declared_ratchet["id"]),
+            "title": str(declared_ratchet["title"]),
+            "job": job_id,
+            "source": dict(declared_ratchet["source"]),
+            "source_path": str(declared_ratchet["source"].get("path", "")),
+            "measures": str(declared_ratchet["measures"]),
+            "floor": str(declared_ratchet["floor"]),
+            "patch": str(declared_ratchet["patch"]) if declared_ratchet.get("patch") else None,
+            "current": _ratchet_current(declared_ratchet["source"], str(declared_ratchet["id"])),
+        })
+    dependents: dict[str, set[str]] = defaultdict(set)
+    for job in jobs:
+        for dependency in job["needs"]:
+            dependents[dependency].add(job["id"])
+    for job in jobs:
+        if job["family"] == "posture" and job["id"] not in ratchet_jobs and not dependents.get(job["id"]):
+            raise ArchitectureError(
+                f"{job['id']} is a posture job that no ratchet declares and no other job needs; "
+                "declare it under config ci.ratchets (one concern per job) or make it a shared measurement"
+            )
+
+    architectural_config = ci_config["architectural"]
+    runs_in = [str(item) for item in architectural_config["runs_in"]]
+    for job_id in runs_in:
+        if workflows and job_id not in job_by_id:
+            raise ArchitectureError(f"config ci.architectural.runs_in names {job_id}, which no workflow defines")
+    lint_rules = read_lint_rules(ROOT / str(architectural_config["lint_config"]))
+    tests = read_architecture_tests(ROOT / str(architectural_config["tests"]))
+    invariants = [
+        {"id": item["id"], "kind": item["kind"], "status": item["status"], "why": item.get("why", "")}
+        for item in interplay.get("invariants", [])
+    ]
+
+    static_checks: list[dict[str, Any]] = []
+    for job_id in ci_config["static_checks"]["jobs"]:
+        job_id = str(job_id)
+        if workflows and job_id not in job_by_id:
+            raise ArchitectureError(f"config ci.static_checks.jobs names {job_id}, which no workflow defines")
+        if job_id not in job_by_id:
+            continue
+        for step in job_by_id[job_id]["steps"]:
+            # A check recompiles or verifies: it runs a repository script or a
+            # `--check`. Tree assembly and uploads in the same job are not checks.
+            if "command" in step and (step.get("scripts") or "--check" in step["command"]):
+                static_checks.append({
+                    "job": job_id,
+                    "name": step["name"],
+                    "command": step["command"],
+                    "scripts": step.get("scripts", []),
+                    "evidence": {"path": job_by_id[job_id]["evidence"]["path"], "line": step["line"]},
+                })
+
+    return {
+        "families": {family: {"question": question} for family, question in CI_FAMILIES.items()},
+        "workflows": workflows,
+        "jobs": jobs,
+        "edges": edges,
+        "triggers": triggers,
+        "merge": {"id": "merge:main", "label": "Merge to main", "inputs": sorted(job["id"] for job in jobs if job["role"] == "gate")},
+        "ratchets": ratchets,
+        "architectural": {
+            "lint_rules": lint_rules,
+            "tests": tests,
+            "invariants": invariants,
+            "runs_in": runs_in,
+            "lint_config": str(architectural_config["lint_config"]),
+            "tests_path": str(architectural_config["tests"]),
+        },
+        "static_checks": static_checks,
+        "limitations": CI_LIMITATIONS,
+        "summary": {
+            "workflows": len(workflows),
+            "jobs": len(jobs),
+            "gates": sum(1 for job in jobs if job["role"] == "gate"),
+            "ratchets": len(ratchets),
+            "lint_rules": len(lint_rules),
+            "architecture_tests": len(tests),
+            "invariants": len(invariants),
+            "static_checks": len(static_checks),
+        },
+    }
+
+
 def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     config = load_json(CONFIG_PATH)
     validate_config(config)
@@ -3877,6 +4644,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     load_constructs(interplay, files + launch_files, externals)
     load_flows(interplay, files + launch_files)
     interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
+    ci = build_ci_model(config, interplay)
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
         "schema_version": "1.0.0",
@@ -3894,6 +4662,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
         "interplay": interplay,
         "externals": externals,
         "stores": stores,
+        "ci": ci,
         "layers": sorted(config["layers"], key=lambda item: item["order"]),
         "components": components,
         "edges": specified_edges + reference_edges,

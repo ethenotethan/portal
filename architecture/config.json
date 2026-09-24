@@ -351,5 +351,90 @@
   "launch": {
     "label": "App launch",
     "roots": ["App"]
+  },
+  "ci": {
+    "_comment": "The CI gates plane. Workflow structure (jobs, needs, artifacts, triggers) is read from .github/workflows; this block declares what the files cannot say: which family each workflow belongs to and what each ratchet measures. The compiler fails on a workflow with no family, a declared workflow with no file, a ratchet naming an unknown job, or a posture job that nothing declares.",
+    "workflows": {
+      "tests": {"family": "behavior", "label": "Tests", "question": "Does it work? Each job runs and passes or fails on behavior."},
+      "ratchet": {"family": "posture", "label": "Ratchet", "question": "Did a tracked metric get worse? Each job compares the tree against a committed baseline."},
+      "build": {"family": "build", "label": "Build", "question": "Do the macOS and iOS apps build from the generated project, and does the offline UI smoke test pass?"},
+      "architecture-pages": {"family": "publication", "label": "Pages", "question": "Do the committed architecture model and site match what the compiler produces from this tree?"},
+      "testflight": {"family": "release", "label": "TestFlight", "question": "Can a signed iOS build be archived and uploaded after a merge or tag?"},
+      "snapshot-record": {"family": "maintenance", "label": "Snapshot Record", "question": "Re-record the View-snapshot goldens on the CI runner image the verify job uses."},
+      "architecture-maintenance": {"family": "maintenance", "label": "Architecture Maintenance", "question": "Manual fallback that refreshes deterministic evidence and proposes semantic summaries as a pull request."}
+    },
+    "ratchets": [
+      {
+        "id": "warnings",
+        "title": "Compiler warnings",
+        "job": "ratchet/warnings",
+        "source": {"kind": "metrics", "key": "warnings", "path": "metrics-baseline.json"},
+        "measures": "Swift compiler warning sites, per category. The build is the source of truth; the baseline freezes pre-existing debt.",
+        "floor": "No category exceeds base.",
+        "patch": "No warning on a line the PR added."
+      },
+      {
+        "id": "coverage",
+        "title": "Test coverage",
+        "job": "ratchet/coverage",
+        "source": {"kind": "metrics", "key": "coverage", "path": "metrics-baseline.json"},
+        "measures": "Line coverage from swift test over the testable layers only (Models, Services, Utilities, ViewModels). Views are excluded: the unit suite cannot reach them.",
+        "floor": "Aggregate drops at most 0.5 pt vs base.",
+        "patch": "At least 80% of added executable lines covered; skipped under 10 lines."
+      },
+      {
+        "id": "skipped",
+        "title": "Skipped tests",
+        "job": "ratchet/skipped-tests",
+        "source": {"kind": "metrics", "key": "skipped", "path": "metrics-baseline.json"},
+        "measures": "Disabled, conditionally enabled, known-issue or XCTest-skipped tests: coverage that never runs.",
+        "floor": "Count at most base.",
+        "patch": "No new skip on an added line."
+      },
+      {
+        "id": "deadcode",
+        "title": "Dead code",
+        "job": "ratchet/dead-code",
+        "source": {"kind": "metrics", "key": "deadcode", "path": "metrics-baseline.json"},
+        "measures": "Unused declarations from Periphery: unreferenced symbols, assign-only properties, redundant protocols, conformances and accessibility.",
+        "floor": "No category exceeds base.",
+        "patch": "No finding on a line the PR added."
+      },
+      {
+        "id": "perf",
+        "title": "Performance op-counts",
+        "job": "ratchet/performance",
+        "source": {"kind": "perf", "path": "perf-baseline.json"},
+        "measures": "Algorithmic operation counts (not time) for the hot pure layout paths over fixed fixtures under -DPERF_COUNTERS. Deterministic on any machine.",
+        "floor": "Every counter at most base; the ceiling is read from base via git show.",
+        "patch": null
+      },
+      {
+        "id": "lint",
+        "title": "Lint baseline",
+        "job": "ratchet/quality",
+        "source": {"kind": "swiftlint_baseline", "path": ".swiftlint-baseline"},
+        "measures": "Pre-existing SwiftLint debt frozen per rule via swiftlint --baseline. The run itself is a Tests job; this ratchet is the lock on growing the baseline to silence a new violation.",
+        "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
+        "patch": null
+      },
+      {
+        "id": "secrets",
+        "title": "Secret ignore-list",
+        "job": "ratchet/security",
+        "source": {"kind": "gitleaks_ignore", "path": ".gitleaksignore"},
+        "measures": "Accepted gitleaks fingerprints: matches reviewed and judged not to be real secrets. The scan itself runs in the same job.",
+        "floor": "Count may not grow silently; each addition is justified in the PR.",
+        "patch": null
+      }
+    ],
+    "architectural": {
+      "lint_config": ".swiftlint.yml",
+      "tests": "Tests/PortalTests/ArchitectureTests.swift",
+      "runs_in": ["tests/swift-lint", "tests/swift-test", "architecture-pages/validate"]
+    },
+    "static_checks": {
+      "jobs": ["architecture-pages/validate"]
+    }
   }
 }

@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Portal's continuously maintained, source-backed architecture model.">
   <title>Portal Architecture</title>
+  <script>
+    // Theme before first paint: ?theme=light|dark wins, then the saved choice,
+    // then the OS preference. app.js owns the toggle; this only avoids a flash.
+    (() => {
+      const wanted = new URLSearchParams(location.search).get("theme");
+      let theme = wanted === "light" || wanted === "dark" ? wanted : null;
+      if (!theme) { try { theme = localStorage.getItem("portal.architecture.theme"); } catch (_e) { theme = null; } }
+      if (theme !== "light" && theme !== "dark") theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,6 +38,7 @@
       <a href="../">Overview</a>
       <a href="../#features">Features</a>
       <a href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">Repository ↗</a>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode" title="Switch to light mode"><span aria-hidden="true">☾</span></button>
     </div>
   </header>
 
@@ -36,6 +48,7 @@
     <button class="nav-item" data-view="externals" type="button">External systems</button>
     <button class="nav-item" data-view="stores" type="button">Data stores</button>
     <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
+    <button class="nav-item" data-view="gates" type="button">CI gates</button>
   </nav>
 
   <main id="main">
@@ -97,19 +110,19 @@
         </div>
         <aside class="inspector" id="interplay-inspector" aria-live="polite" hidden></aside>
       </div>
-      <!-- The constructions the map assumes, declared in architecture/interplay/invariants.json
-           and checked on every build. Plain text: reading them never touches the graph. -->
-      <section class="invariants" id="invariants" aria-labelledby="invariants-title">
-        <h3 id="invariants-title">Invariants</h3>
-        <p class="invariants-lede" id="invariants-lede"></p>
-        <ol class="invariants-list" id="invariants-list"></ol>
-      </section>
       <!-- System flows: LLM-identified, compiler-validated paths over edges the map
            draws (architecture/semantic/flows.json). Trace on map lights the path. -->
       <section class="invariants flows" id="flows" aria-labelledby="flows-title">
         <h3 id="flows-title">System flows</h3>
         <p class="invariants-lede" id="flows-lede"></p>
         <div class="flows-list" id="flows-list"></div>
+      </section>
+      <!-- The constructions the map assumes, declared in architecture/interplay/invariants.json
+           and checked on every build. Plain text: reading them never touches the graph. -->
+      <section class="invariants" id="invariants" aria-labelledby="invariants-title">
+        <h3 id="invariants-title">Invariants</h3>
+        <p class="invariants-lede" id="invariants-lede"></p>
+        <ol class="invariants-list" id="invariants-list"></ol>
       </section>
     </section>
 
@@ -167,6 +180,34 @@
         </table>
       </div>
     </section>
+
+    <section class="view" id="gates-view" aria-labelledby="gates-title">
+      <div class="intro-row">
+        <div>
+          <p class="eyebrow">DETERMINISTIC PIPELINE MODEL</p>
+          <h2 id="gates-title">CI gates</h2>
+          <p class="lede">Every GitHub Actions job drawn as a logic gate: a pull request is the input signal, each job either passes it or blocks it, <code>needs</code> and artifact hand-offs are the wires between jobs, and every gate that runs on pull requests feeds one AND gate, the merge. What runs only after a merge or by hand sits downstream. Beneath the circuit, the gates are sorted by what they defend: ratchets that hold a metric floor, architectural checks that pin the shape of the code, and static compiler checks that fail on drift between the tree and its generated artifacts.</p>
+        </div>
+        <div class="stats" id="gates-stats" aria-label="Pipeline statistics"></div>
+      </div>
+      <div class="authority-banner" role="note">Jobs, <code>needs</code>, artifacts and triggers are read from <code>.github/workflows</code>; the family of each workflow and what each ratchet measures are declared in <code>architecture/config.json</code>; the numbers are the committed baselines CI compares against. The diagram does not read branch protection: a gate here is a job that runs on pull requests, not a proof that GitHub requires it.</div>
+      <div class="graph-toolbar" aria-label="CI gate controls">
+        <label class="search-control">
+          <span class="sr-only">Search CI jobs</span>
+          <input id="gates-search" type="search" placeholder="Search workflows, jobs, scripts, or artifacts…" autocomplete="off">
+        </label>
+        <button id="reset-gates" class="quiet-button" type="button">Reset selection</button>
+      </div>
+      <p class="graph-hint" aria-hidden="true">Click a gate for its steps, scripts, pins and artifacts · every gate links to its line in the workflow file</p>
+      <div class="graph-workspace gates-workspace" id="gates-workspace">
+        <div class="graph-scroll" id="gates-scroll">
+          <svg id="gates-graph" role="img" aria-label="Portal CI pipeline drawn as logic gates"></svg>
+        </div>
+        <aside class="inspector" id="gates-inspector" aria-live="polite" hidden></aside>
+      </div>
+      <div class="legend" id="gates-legend" aria-label="CI gate families"></div>
+      <div class="behavior-content" id="gates-content"></div>
+    </section>
   </main>
 
   <footer>
@@ -183,7 +224,10 @@
        CDN is unreachable the diagrams stay as their text source. -->
   <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-    mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict", sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 24, messageMargin: 28 } });
+    // The diagram theme follows the page theme; app.js calls __mermaidInit again
+    // when the reader toggles, then re-renders the open diagrams.
+    window.__mermaidInit = (theme) => mermaid.initialize({ startOnLoad: false, theme: theme === "light" ? "neutral" : "dark", securityLevel: "strict", sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 24, messageMargin: 28 } });
+    window.__mermaidInit(document.documentElement.dataset.theme);
     window.__mermaid = mermaid;
     window.dispatchEvent(new Event("mermaid-ready"));
   </script>

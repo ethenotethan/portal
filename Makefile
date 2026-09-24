@@ -138,17 +138,12 @@ architecture-history:
 architecture-serve: architecture
 	python3 -m http.server 4173 --directory architecture/site
 
-# (Re)generate the product-site quality-gates page from the committed
-# baselines. Deterministic: numbers come straight from the state files.
-metrics-page:
-	python3 scripts/build_metrics_page.py
-
-# The product site has no build step, so the checks are that its relative asset
-# references (screenshots, stylesheet) resolve and that the generated
-# quality-gates page still matches the committed baselines.
+# The product site has no build step, so the check is that its relative asset
+# references (screenshots, stylesheet) resolve. The quality gates themselves are
+# the observatory's CI gates view, compiled by `make architecture` from the
+# workflow files and the committed baselines.
 site-check:
 	python3 scripts/check_site_assets.py
-	python3 scripts/build_metrics_page.py --check
 
 # Preview the DEPLOYED layout — product site at /, observatory at
 # /architecture/ — by assembling the same tree the Pages workflow does. Serving
@@ -220,6 +215,7 @@ metrics-baseline:
 	python3 scripts/collect-deadcode.py /tmp/portal-periphery.json --root "$(PWD)" --json /tmp/portal-deadcode.json
 	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); s=json.load(open('/tmp/portal-skipped.json')); d=json.load(open('/tmp/portal-deadcode.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; b['skipped']=s; b['deadcode']=d; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warnings,', str(c['testable_pct'])+'% coverage,', s['total'], 'skipped,', d['total'], 'dead-code')"
 	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings/skipped/deadcode should only DROP, coverage only RISE."
+	python3 scripts/build_architecture.py
 
 # Performance ratchet: fail if a hot pure layout path does MORE algorithmic work
 # than base for a fixed input. The metric is an integer OP COUNT, not time — the
@@ -248,6 +244,7 @@ perf-baseline:
 		swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests
 	@python3 -c "import json; s=json.load(open('/tmp/portal-perf-counts.json')); b=json.load(open('perf-baseline.json')); b['counts']=s['counts']; open('perf-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('perf-baseline.json updated:', ', '.join(f'{k}={v}' for k,v in sorted(s['counts'].items())))"
 	@echo "Baseline rewritten. Check 'git diff perf-baseline.json' — counts should only DROP (a faster path) unless a size change is intended."
+	python3 scripts/build_architecture.py
 
 # One command an agent (or human) runs before pushing — the whole CI gate:
 # strict-concurrency build, tests, baselined lint, and the security posture.

@@ -133,6 +133,15 @@ Rules of the taxonomy:
   baseline is pinned — a newer tool detects more and fails CI on debt it never
   recorded (the #222 drift).
 
+The taxonomy is also drawn: the Architecture Observatory's **CI gates** view
+(`architecture/#gates`) compiles every workflow into a logic-gate diagram (jobs
+as gates, `needs` and artifacts as wires, every PR job feeding the merge AND
+gate) and lists the ratchets with their current baselines, the architectural
+checks (custom lint rules, `ArchitectureTests`, System-map invariants) and the
+static compiler checks beneath it. The compiler fails when a posture job exists
+that no ratchet declares, so the one-concern-per-job rule is enforced, not just
+written. See `architecture/README.md`.
+
 The rest of this section details each posture's benchmark.
 
 ## The metric ratchet (self-improving benchmarks)
