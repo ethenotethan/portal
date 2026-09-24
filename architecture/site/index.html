@@ -43,6 +43,7 @@
 
   <nav class="section-nav" aria-label="Architecture views">
     <button class="nav-item active" data-view="systemmap" type="button">System map</button>
+    <button class="nav-item" data-view="extraction" type="button">Extraction map</button>
     <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
     <button class="nav-item" data-view="gates" type="button">CI gates</button>
   </nav>
@@ -122,6 +123,48 @@
         <p class="invariants-lede" id="invariants-lede"></p>
         <ol class="invariants-list" id="invariants-list"></ol>
       </section>
+    </section>
+
+    <section class="view" id="extraction-view" aria-labelledby="extraction-title">
+      <div class="intro-row">
+        <div>
+          <p class="eyebrow">THE EXTRACTOR AS A PROJECTION</p>
+          <h2 id="extraction-title">Extraction map</h2>
+          <p class="lede">The system map is the output of a function over the source tree: each compiler pass reads every Swift file and emits what its grammar recognises. This page shows the projection itself. On the left is the implementation's file schema, the directories and files as they sit in the repository. On the right is every construction the map drew, grouped by kind. Each wire is one extraction: it runs from the file and line a rule fired on to the entity that rule produced, coloured by the family of the rule. Files no wire leaves were read by every pass and cited by none. Whatever the grammar does not know does not exist on the map, so those files are exactly the region the invariants do not cover.</p>
+        </div>
+        <div class="stats" id="extraction-stats" aria-label="Extraction statistics"></div>
+      </div>
+      <div class="authority-banner" role="note">Every wire is a <code>(file, line, rule)</code> the compiled model already carries, joined to the entity whose citation it is, so this page can never disagree with the map. Untouched is a fact about the extractor's grammar, not about the code. Citations written by a person (construct records, flows) are counted separately and never drawn as extraction.</div>
+      <div class="graph-toolbar" aria-label="Extraction map controls">
+        <label class="search-control">
+          <span class="sr-only">Search files, entities, or rules</span>
+          <input id="extraction-search" type="search" placeholder="Search files, entities, declarations, or rules…" autocomplete="off">
+        </label>
+        <button id="provenance-expand-all" class="quiet-button" type="button">Expand all</button>
+        <button id="provenance-collapse-all" class="quiet-button" type="button">Collapse all</button>
+        <button id="reset-extraction" class="quiet-button" type="button">Reset selection</button>
+      </div>
+      <div class="graph-workspace provenance-workspace" id="provenance-workspace">
+        <div class="graph-scroll" id="provenance-scroll">
+          <svg id="extraction-provenance" role="img" aria-label="The repository's file tree wired to every construction on the system map by the rule that extracted it"></svg>
+        </div>
+        <aside class="inspector" id="provenance-inspector" aria-live="polite" hidden></aside>
+      </div>
+      <div class="legend" id="provenance-legend" aria-label="Extraction rule families"></div>
+      <div class="behavior-content" id="extraction-coverage">
+        <section class="behavior-group">
+          <h3>Coverage by file</h3>
+          <p class="group-note">The same projection as area: every analysed file is a cell sized by its lines; the fill is the share of its declarations a mechanical pass cited; hatched cells were read and cited by nothing.</p>
+          <div class="graph-workspace extraction-workspace" id="extraction-workspace">
+            <div class="graph-scroll" id="extraction-scroll">
+              <svg id="extraction-treemap" role="img" aria-label="Every analysed Swift file sized by lines and shaded by how much of it the extractor cited"></svg>
+            </div>
+            <aside class="inspector" id="extraction-inspector" aria-live="polite" hidden></aside>
+          </div>
+          <div class="legend" id="extraction-legend" aria-label="Coverage legend"></div>
+        </section>
+      </div>
+      <div class="behavior-content" id="extraction-content"></div>
     </section>
 
     <section class="view" id="inventory-view" aria-labelledby="inventory-title">

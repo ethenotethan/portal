@@ -112,6 +112,7 @@ BOUNDARY_RULES = {
     "swift.store.mechanism.defaults": "UserDefaults or @AppStorage referenced inside the store type body, a same-file extension of it, or a same-file helper type named after it",
     "swift.store.mechanism.keychain": "A SecItem* call inside the store type body, a same-file extension of it, or a same-file helper type named after it",
     "swift.store.artifact_literal": "A string literal in the store type body, a same-file extension, or a same-file namesake helper that names a file, or a folder passed with isDirectory: true",
+    "swift.store.defaults_key_literal": "A UserDefaults key handed to forKey: or @AppStorage inside the store type body, a same-file extension, or a same-file namesake helper, directly or through a let constant the store resolves",
 }
 BOUNDARY_LIMITATIONS = [
     "External-system usage is attributed per configured signature; a system reached only through an unlisted API, or through a wrapper in another file, is not attributed to the caller.",
@@ -4750,6 +4751,326 @@ def build_ci_model(config: dict[str, Any], interplay: dict[str, Any]) -> dict[st
     }
 
 
+# ── Extraction map: the compiler's projection over the source tree ────────────
+#
+# The extractor is a function over the tree: each pass reads every file and
+# emits what its grammar recognises; what the grammar does not know does not
+# exist on the map. The extraction map makes that projection visible. For every
+# analysed file and every declaration in it, it records which passes cited it
+# (pass, file, line) and which cited nothing. "Untouched" is a fact about the
+# extractor's grammar, not a defect in the code: it is exactly the region the
+# invariants do not cover, reported by construct rather than as a percentage.
+#
+# Mechanical citations come from the extractor's rules. Citations written by a
+# person (construct records, flows) are carried separately as the semantic
+# class and never count as extraction.
+
+EXTRACTION_DECLARATION_RE = re.compile(
+    r"\b(class|struct|enum|actor|protocol|extension|func)\s+([A-Za-z_][A-Za-z0-9_]*)"
+)
+EXTRACTION_TYPE_KINDS = ("class", "struct", "enum", "actor", "protocol", "extension")
+EXTRACTION_PASS_DESCRIPTIONS = {
+    "launch.unmapped": "A @StateObject constructed by an App entry point whose type is not on the map: parsed and observed, not placed",
+    "trigger.unattributed": "A SwiftUI action or lifecycle hook whose target surface could not be attributed to a page",
+    "semantic.construct": "A human-written construct record cites the lines it explains (semantic layer, validated against the map, not extraction)",
+    "semantic.flow": "A human-written flow cites the files it walks (semantic layer, validated against the map, not extraction)",
+}
+EXTRACTION_SEMANTIC_PASSES = {"semantic.construct", "semantic.flow"}
+
+
+def extraction_declarations(text: str) -> list[dict[str, Any]]:
+    """Every declaration with a body in one file: types, extensions and functions,
+    with the line range the body spans. Nested declarations are listed too, so a
+    citation inside a method maps the method and the type that holds it."""
+    code = strip_swift_noncode(text)
+    declarations: list[dict[str, Any]] = []
+    for match in EXTRACTION_DECLARATION_RE.finditer(code):
+        open_brace = header_open_brace(code, match.end())
+        if open_brace is None or "}" in code[match.end():open_brace]:
+            continue  # a body-less requirement (protocol member) must not borrow the next body's brace
+        end = balanced_block_end(code, open_brace + 1)
+        declarations.append({
+            "name": match.group(2),
+            "kind": match.group(1),
+            "line": code.count("\n", 0, match.start()) + 1,
+            "end_line": code.count("\n", 0, end) + 1,
+        })
+    declarations.sort(key=lambda item: (item["line"], -item["end_line"], item["name"]))
+    return declarations
+
+
+def extraction_declaration_record(declaration: dict[str, Any], passes: list[str]) -> dict[str, Any]:
+    """What the model carries per declaration: the body range stays internal."""
+    return {"kind": declaration["kind"], "name": declaration["name"], "line": declaration["line"], "passes": passes}
+
+
+def _extraction_pass_for(trail: tuple[str, ...], node_kind: str | None) -> str | None:
+    """The extractor pass a citation belongs to, from where it sits in the model."""
+    if not trail:
+        return None
+    root = trail[0]
+    if root == "behavior":
+        return "behavior"  # placeholder: behaviour items always carry rule_id
+    if root == "interplay" and len(trail) > 1:
+        section = trail[1]
+        if section == "nodes":
+            if "semantic" in trail[2:]:
+                return "semantic.construct"  # construct records folded onto the node: written by a person
+            return f"map.{node_kind or 'node'}"
+        if section == "triggers":
+            return "swift.trigger.surface_call"
+        if section == "unattributed_triggers":
+            return "trigger.unattributed"
+        if section == "launch":
+            return "launch.unmapped" if len(trail) > 2 and trail[2] == "unmapped" else "swift.trigger.launch_construction"
+        if section == "machines":
+            return "swift.state.machine"
+        if section == "constructs":
+            return "semantic.construct"
+        if section == "flows":
+            return "semantic.flow"
+        return None
+    if root == "stores":
+        if len(trail) > 2 and trail[2] == "mechanisms":
+            return "swift.store.mechanism"
+        if len(trail) > 2 and trail[2] == "artifacts":
+            return "swift.store.artifact_literal"
+        return "swift.store.declaration"
+    if root == "externals":
+        return "swift.boundary.external_signature"
+    return None
+
+
+def collect_extraction_citations(model_parts: dict[str, Any]) -> set[tuple[str, str, int]]:
+    """Every (pass, path, line) the compiled model cites in the analysed tree.
+    A dict carrying ``rule_id`` names its own pass; otherwise the pass is derived
+    from where the citation sits. Deduplicated: one construction cited by two
+    collections is one citation."""
+    citations: set[tuple[str, str, int]] = set()
+
+    def walk(value: Any, trail: tuple[str, ...], rule: str | None, node_kind: str | None) -> None:
+        if isinstance(value, dict):
+            own_rule = value.get("rule_id") if isinstance(value.get("rule_id"), str) else rule
+            kind = value.get("kind") if trail[:2] == ("interplay", "nodes") and isinstance(value.get("kind"), str) else node_kind
+            path, line = value.get("path"), value.get("line")
+            if isinstance(path, str) and path.endswith(".swift") and isinstance(line, int) and not isinstance(line, bool):
+                pass_id = _extraction_pass_for(trail, kind) if "semantic" in trail[2:] else (own_rule or _extraction_pass_for(trail, kind))
+                if pass_id and pass_id != "behavior":
+                    citations.add((pass_id, path, line))
+            for key, child in value.items():
+                if isinstance(child, (dict, list)):
+                    walk(child, trail + (key,), own_rule, kind)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child, trail, rule, node_kind)
+
+    for root in ("behavior", "interplay", "stores", "externals"):
+        if root in model_parts:
+            walk(model_parts[root], (root,), None, None)
+    return citations
+
+
+def extraction_pass_description(pass_id: str) -> str:
+    if pass_id in BEHAVIOR_RULES:
+        return BEHAVIOR_RULES[pass_id]
+    if pass_id in BOUNDARY_RULES:
+        return BOUNDARY_RULES[pass_id]
+    if pass_id in EXTRACTION_PASS_DESCRIPTIONS:
+        return EXTRACTION_PASS_DESCRIPTIONS[pass_id]
+    if pass_id.startswith("map."):
+        kind = pass_id[4:]
+        article = "An" if kind[:1] in "aeiou" else "A"
+        return f"{article} {kind} construction on the system map cites the declaration it was extracted from"
+    if pass_id.startswith("swift.store.mechanism"):
+        return "A persistence API observed inside a store type body, a same-file extension of it, or a same-file namesake helper"
+    return f"Extractor pass {pass_id}"
+
+
+PROVENANCE_RULE_FAMILIES = {
+    "store": "Store rules: a declaration named like a store, its persistence API, the files, folders and defaults keys it names",
+    "behaviour": "Behaviour rules: tasks, lifecycle operations, stored resources, locks, state machines",
+    "boundary": "Boundary rules: a configured external-system signature present in the code",
+    "wiring": "Map wiring: RPC call sites, client extensions, calling surfaces, owners, the hub, the provider and the seam",
+    "trigger": "Trigger rules: a SwiftUI action or lifecycle hook that drives a surface, or a launch construction",
+}
+
+
+def provenance_family(rule: str) -> str:
+    if rule.startswith("swift.trigger."):
+        return "trigger"
+    if rule.startswith("swift.store.") or rule in ("map.store", "map.artifact"):
+        return "store"
+    if rule.startswith("swift.boundary.") or rule == "map.external":
+        return "boundary"
+    if rule.startswith(("swift.task.", "swift.lifecycle.", "swift.resource.", "swift.state.")) or rule in (
+        "map.operation", "map.resource", "map.section", "map.machine"
+    ):
+        return "behaviour"
+    return "wiring"
+
+
+def build_entity_provenance(interplay: dict[str, Any], model_parts: dict[str, Any],
+                            analysed: set[str]) -> list[dict[str, Any]]:
+    """Every construction on the map with the (file, line, rule) it was extracted
+    from. A node's own citation is joined to the behaviour, store or boundary item
+    that cites the same line, so the wire carries the rule that fired rather than
+    the kind of box it became; a citation no item claims is credited to the map
+    pass for that kind. Triggers are origins of the surface they drive: the view
+    file is where that wire was read. Construct records (``semantic``) are left
+    out: a person wrote those citations."""
+    named: dict[tuple[str, int], set[str]] = defaultdict(set)
+
+    def index(value: Any, rule: str | None) -> None:
+        if isinstance(value, dict):
+            own = value.get("rule_id") if isinstance(value.get("rule_id"), str) else rule
+            path, line = value.get("path"), value.get("line")
+            if own and isinstance(path, str) and isinstance(line, int) and not isinstance(line, bool):
+                named[(path, line)].add(own)
+            for child in value.values():
+                if isinstance(child, (dict, list)):
+                    index(child, own)
+        elif isinstance(value, list):
+            for child in value:
+                index(child, rule)
+
+    for root in ("behavior", "stores", "externals"):
+        if root in model_parts:
+            index(model_parts[root], None)
+
+    def origins_of(node: dict[str, Any]) -> list[dict[str, Any]]:
+        found: dict[tuple[str, int, str], dict[str, Any]] = {}
+
+        def visit(value: Any, rule: str | None) -> None:
+            if isinstance(value, dict):
+                own = value.get("rule_id") if isinstance(value.get("rule_id"), str) else rule
+                path, line = value.get("path"), value.get("line")
+                if isinstance(path, str) and path in analysed and isinstance(line, int) and not isinstance(line, bool):
+                    for rule_id in sorted(named.get((path, line)) or ({own} if own else {f"map.{node['kind']}"})):
+                        found.setdefault((path, line, rule_id), {"path": path, "line": line, "rule": rule_id})
+                for key, child in value.items():
+                    if key in ("semantic", "flows"):
+                        continue
+                    if isinstance(child, (dict, list)):
+                        visit(child, own)
+            elif isinstance(value, list):
+                for child in value:
+                    visit(child, rule)
+
+        visit(node, None)
+        return [found[key] for key in sorted(found)]
+
+    by_label: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    entities: list[dict[str, Any]] = []
+    for node in interplay.get("nodes", []):
+        entity = {
+            "id": node["id"],
+            "kind": node["kind"],
+            "label": node["label"],
+            "component": node.get("component"),
+            "origins": origins_of(node),
+        }
+        entities.append(entity)
+        by_label[node["label"]].append(entity)
+    for trigger in interplay.get("triggers", []):
+        path, line = trigger.get("path"), trigger.get("line")
+        if not (isinstance(path, str) and path in analysed and isinstance(line, int)):
+            continue
+        rule = trigger.get("rule_id") or "swift.trigger.surface_call"
+        for entity in by_label.get(str(trigger.get("surface")), []):
+            if not any(o["path"] == path and o["line"] == line and o["rule"] == rule for o in entity["origins"]):
+                entity["origins"].append({"path": path, "line": line, "rule": rule, "via": "trigger"})
+    for entity in entities:
+        entity["origins"].sort(key=lambda o: (o["path"], o["line"], o["rule"]))
+        for origin in entity["origins"]:
+            origin["family"] = provenance_family(origin["rule"])
+    entities.sort(key=lambda e: e["id"])
+    return entities
+
+
+def build_extraction_map(files: list[dict[str, Any]], model_parts: dict[str, Any]) -> dict[str, Any]:
+    """The compiler's projection over the analysed tree: every file, every
+    declaration, and the passes that cited each. Pure over the compiled model,
+    so it can never disagree with the map."""
+    analysed = {item["path"]: item for item in files}
+    by_file: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    passes: dict[str, dict[str, Any]] = {}
+    for pass_id, path, line in collect_extraction_citations(model_parts):
+        if path not in analysed:
+            continue  # tests, workflows, generated assets: outside the analysed tree
+        by_file[path].append((pass_id, line))
+        entry = passes.setdefault(pass_id, {"files": set(), "citations": 0})
+        entry["files"].add(path)
+        entry["citations"] += 1
+
+    records: list[dict[str, Any]] = []
+    by_kind: dict[str, dict[str, int]] = {}
+    for path in sorted(analysed):
+        item = analysed[path]
+        declarations = extraction_declarations(item["_text"])
+        cited = sorted(by_file.get(path, []))
+        mechanical = [(pass_id, line) for pass_id, line in cited if pass_id not in EXTRACTION_SEMANTIC_PASSES]
+        semantic = [(pass_id, line) for pass_id, line in cited if pass_id in EXTRACTION_SEMANTIC_PASSES]
+        carried: list[dict[str, Any]] = []
+        for declaration in declarations:
+            rules = sorted({pass_id for pass_id, line in mechanical if declaration["line"] <= line <= declaration["end_line"]})
+            bucket = by_kind.setdefault(declaration["kind"], {"total": 0, "mapped": 0})
+            bucket["total"] += 1
+            bucket["mapped"] += 1 if rules else 0
+            carried.append(extraction_declaration_record(declaration, rules))
+        records.append({
+            "path": path,
+            "component": item["component"],
+            "line_count": item["line_count"],
+            "passes": sorted({pass_id for pass_id, _ in mechanical}),
+            "citations": len(mechanical),
+            "semantic_citations": len(semantic),
+            "declaration_count": len(carried),
+            "mapped_declarations": sum(1 for d in carried if d["passes"]),
+            "touched": bool(mechanical),
+            "declarations": carried,
+        })
+
+    pass_records = [
+        {
+            "id": pass_id,
+            "class": "semantic" if pass_id in EXTRACTION_SEMANTIC_PASSES else "mechanical",
+            "description": extraction_pass_description(pass_id),
+            "files": len(entry["files"]),
+            "citations": entry["citations"],
+        }
+        for pass_id, entry in sorted(passes.items())
+    ]
+    entities = build_entity_provenance(model_parts.get("interplay") or {}, model_parts, set(analysed))
+    return {
+        "authority": "observed",
+        "entities": entities,
+        "families": dict(sorted(PROVENANCE_RULE_FAMILIES.items())),
+        "derivation": "Every (pass, file, line) the compiled model cites, joined to the declarations of the analysed tree by line range. "
+                      "A declaration is mapped when a mechanical pass cites a line inside its body; a file is touched when any mechanical pass cites it. "
+                      "Semantic citations (construct records, flows) are counted but never count as extraction.",
+        "passes": pass_records,
+        "files": records,
+        "summary": {
+            "files": len(records),
+            "touched_files": sum(1 for record in records if record["touched"]),
+            "untouched_files": sum(1 for record in records if not record["touched"]),
+            "declarations": sum(record["declaration_count"] for record in records),
+            "mapped_declarations": sum(record["mapped_declarations"] for record in records),
+            "by_kind": {kind: by_kind[kind] for kind in sorted(by_kind)},
+            "types": {
+                "total": sum(by_kind.get(kind, {}).get("total", 0) for kind in EXTRACTION_TYPE_KINDS),
+                "mapped": sum(by_kind.get(kind, {}).get("mapped", 0) for kind in EXTRACTION_TYPE_KINDS),
+            },
+            "functions": dict(by_kind.get("func", {"total": 0, "mapped": 0})),
+            "citations": sum(record["citations"] for record in records),
+            "semantic_citations": sum(record["semantic_citations"] for record in records),
+            "passes": sum(1 for record in pass_records if record["class"] == "mechanical"),
+            "entities": len(entities),
+            "entities_with_origin": sum(1 for entity in entities if entity["origins"]),
+        },
+    }
+
+
 def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     config = load_json(CONFIG_PATH)
     validate_config(config)
@@ -4819,6 +5140,9 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     load_flows(interplay, files + launch_files)
     interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
     ci = build_ci_model(config, interplay)
+    extraction = build_extraction_map(
+        files + launch_files, {"behavior": behavior, "interplay": interplay, "stores": stores, "externals": externals}
+    )
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
         "schema_version": "1.0.0",
@@ -4837,6 +5161,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
         "externals": externals,
         "stores": stores,
         "ci": ci,
+        "extraction": extraction,
         "layers": sorted(config["layers"], key=lambda item: item["order"]),
         "components": components,
         "edges": specified_edges + reference_edges,
