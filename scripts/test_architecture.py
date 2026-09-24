@@ -1365,6 +1365,16 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertEqual(perf["counts"], by_id["perf"]["current"]["counts"])
         self.assertEqual(len(lint), by_id["lint"]["current"]["total"])
         self.assertIsNone(by_id["perf"]["patch"], "op counts are floor-only")
+        # The constraint ratchet guards the declarations themselves; its "current" is what it counts.
+        constraints = by_id["constraints"]
+        self.assertEqual("ratchet/constraints", constraints["job"])
+        self.assertEqual("count", constraints["current"]["kind"])
+        counts = constraints["current"]["counts"]
+        self.assertEqual(len(json.loads((ROOT / "architecture/interplay/invariants.json").read_text(encoding="utf-8"))["invariants"]), counts["invariants"])
+        self.assertEqual((ROOT / "Tests/PortalTests/ArchitectureTests.swift").read_text(encoding="utf-8").count("@Test("), counts["architecture_tests"])
+        self.assertGreater(counts["lint_rules"], 10)
+        self.assertEqual(len(list((ROOT / "architecture/specifications").glob("*.md"))), counts["specifications"])
+        self.assertIsNone(constraints["patch"])
         self.assertTrue(by_id["coverage"]["patch"])
         for ratchet in ci["ratchets"]:
             self.assertIn(ratchet["job"], jobs)

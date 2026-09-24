@@ -316,6 +316,32 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # ── Constraints posture ───────────────────────────────────────────────────
+  # The declarations that decide what CI accepts may only tighten. The numeric
+  # ratchets read their baselines from base, so a floor can't be lowered in the
+  # PR that needs it; this closes the same hole for everything declarative —
+  # invariants, fail-closed config declarations, lint rules, the architecture
+  # tests, specifications, the gate scripts, CODEOWNERS and these workflows.
+  # A deliberate loosening carries the `constraints-loosened` label (a code
+  # owner's call), which makes the guard report and pass instead of fail.
+  constraints:
+    name: Constraints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check no declared constraint is looser than base
+        env:
+          LOOSENED: ${{ contains(github.event.pull_request.labels.*.name, 'constraints-loosened') && '--allow-loosening' || '' }}
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-constraint-growth.py "$BASE" $LOOSENED
+
+      - name: Test the constraint guard
+        run: python3 -m unittest scripts/test_constraint_growth.py
+
   # ── Quality posture ───────────────────────────────────────────────────────
   # Lint-debt floor: the frozen SwiftLint baseline (.swiftlint-baseline) may
   # only SHRINK. The SwiftLint run itself is a test (Tests / SwiftLint) — it
