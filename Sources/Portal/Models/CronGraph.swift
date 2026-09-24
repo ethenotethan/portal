@@ -67,6 +67,16 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
     /// metadata, like `sourceFiles`: outside the configuration digest.
     internal var architecture: CronServiceArchitectureRef? = nil // swiftlint:disable:this implicit_optional_initialization
 
+    /// The wiki page addressed by a `wiki:<path>` resource. Cron declarations
+    /// omit the Markdown extension (`wiki:reports/daily`), while `wiki.page`
+    /// consumes the repository-relative file path (`reports/daily.md`).
+    internal var wikiPagePath: String? {
+        guard type == "wiki", id.hasPrefix("wiki:") else { return nil }
+        let value = String(id.dropFirst("wiki:".count))
+        guard !value.isEmpty else { return nil }
+        return value.hasSuffix(".md") ? value : "\(value).md"
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id, kind, type, label, description, schedule, enabled, usesLLM, lastStatus, deliver, health
         case sourceFiles, codeGraph, codeControl, architecture

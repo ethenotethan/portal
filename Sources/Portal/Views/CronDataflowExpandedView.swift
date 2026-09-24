@@ -33,6 +33,10 @@ internal struct CronDataflowExpandedView: View {
     /// title for a dropdown onto its sibling wiki graph.
     internal var surfaceSelection: Binding<GraphSurface>?
 
+    /// Cross-surface navigation supplied by `GraphsView`. Standalone dataflow
+    /// surfaces omit it because they do not own the wiki surface to switch to.
+    internal var onOpenWikiResource: ((CronGraphNode) -> Void)?
+
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -55,12 +59,14 @@ internal struct CronDataflowExpandedView: View {
         graphVM: CronGraphViewModel,
         listVM: CronListViewModel,
         onDismiss: (() -> Void)?,
-        surfaceSelection: Binding<GraphSurface>? = nil
+        surfaceSelection: Binding<GraphSurface>? = nil,
+        onOpenWikiResource: ((CronGraphNode) -> Void)? = nil
     ) {
         self.graphVM = graphVM
         self.listVM = listVM
         self.onDismiss = onDismiss
         self.surfaceSelection = surfaceSelection
+        self.onOpenWikiResource = onOpenWikiResource
     }
 
     internal var body: some View {
@@ -354,6 +360,17 @@ internal struct CronDataflowExpandedView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Theme.accent)
+            }
+            if node.wikiPagePath != nil, let onOpenWikiResource {
+                Button {
+                    onOpenWikiResource(node)
+                } label: {
+                    Label("Open wiki page", systemImage: "doc.text.magnifyingglass")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                .accessibilityIdentifier("runtime.graph.open-wiki-page")
             }
             if node.kind == "service", let architecture = node.architecture {
                 Button {

@@ -97,6 +97,64 @@ internal struct GraphSurfaceTests {
         #expect(GraphSurface.wiki.systemImage == ToolbarIconSlot.wiki.systemImage)
     }
 
+    @Test("a runtime wiki resource resolves to its wiki page path")
+    internal func runtimeWikiResourceResolvesToPagePath() {
+        let node = CronGraphNode(
+            id: "wiki:reports/daily",
+            kind: "artifact",
+            type: "wiki",
+            label: "reports/daily",
+            description: "",
+            schedule: nil,
+            enabled: true,
+            usesLLM: false,
+            lastStatus: nil,
+            deliver: nil
+        )
+
+        #expect(node.wikiPagePath == "reports/daily.md")
+    }
+
+    @Test("opening a runtime wiki resource selects its page and the wiki surface")
+    @MainActor
+    internal func openingRuntimeWikiResourceSelectsPageAndSurface() {
+        let node = CronGraphNode(
+            id: "wiki:reports/daily",
+            kind: "artifact",
+            type: "wiki",
+            label: "reports/daily",
+            description: "",
+            schedule: nil,
+            enabled: true,
+            usesLLM: false,
+            lastStatus: nil,
+            deliver: nil
+        )
+        let page = WikiPage(
+            id: "daily",
+            title: "Daily report",
+            type: "report",
+            tags: [],
+            path: "reports/daily.md",
+            created: nil,
+            updated: nil,
+            confidence: nil,
+            contested: false,
+            tagPath: [],
+            integrationLinks: []
+        )
+        let wikiViewModel = WikiGraphViewModel()
+        wikiViewModel.graph = WikiGraph(pages: [page], links: [])
+        wikiViewModel.setupSimulation()
+
+        let destination = GraphsView.openWikiResource(node, in: wikiViewModel)
+
+        #expect(destination == .wiki)
+        #expect(wikiViewModel.selectedPath == "reports/daily.md")
+        #expect(wikiViewModel.showPageDetail)
+        #expect(wikiViewModel.selectedPage?.id == "daily")
+    }
+
     // MARK: - The door itself
 
     @Test("the toolbar slot reads as Graphs while keeping its stored raw value")

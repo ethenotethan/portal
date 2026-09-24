@@ -7149,11 +7149,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "Task { await sourceVM.open(file) }",
-          "line": 103,
+          "line": 109,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5b509bff63cf",
+        "id": "task-site-ac885f09846c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7165,11 +7165,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onPause: { Task { await listVM.pauseJob(id: job.id) } },",
-          "line": 301,
+          "line": 307,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-d6ddc87d2b62",
+        "id": "task-site-8b588c85c589",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7181,11 +7181,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onResume: { Task { await listVM.resumeJob(id: job.id) } },",
-          "line": 302,
+          "line": 308,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-042ab643bbcc",
+        "id": "task-site-1c9f740bb1df",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7197,11 +7197,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onRemove: { Task { await listVM.removeJob(id: job.id) } },",
-          "line": 303,
+          "line": 309,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-abadd449c0ad",
+        "id": "task-site-918a71e42b81",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7213,11 +7213,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onUpdatePrompt: { prompt in Task { await listVM.updatePrompt(id: job.id, newPrompt: prompt) } },",
-          "line": 304,
+          "line": 310,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ec04efbdd974",
+        "id": "task-site-f271a0db7e45",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7229,11 +7229,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onRename: { name in Task { await listVM.renameJob(id: job.id, newName: name) } },",
-          "line": 305,
+          "line": 311,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e58aaf68c84b",
+        "id": "task-site-6c8c0183cfa4",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7245,11 +7245,11 @@
         "enclosing_type": "CodeGraphSurfaceView",
         "evidence": {
           "excerpt": "Button(\"Try Again\") { Task { await model.load() } }",
-          "line": 564,
+          "line": 581,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-15fb673e0260",
+        "id": "task-site-ec0c0a28d456",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -11731,7 +11731,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17969,
+      "line_count": 17986,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13073,7 +13073,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 20983,
+      "line_count": 20993,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13258,7 +13258,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 7872,
+      "line_count": 7889,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13403,6 +13403,19 @@
       "source": "operations-ui",
       "target": "operations-state",
       "type": "observes",
+      "weight": 20
+    },
+    {
+      "authority": "specified",
+      "description": "A wiki resource selected in the runtime graph resolves its wiki path through the shared Graphs surface and opens that entry in the wiki reader.",
+      "evidence": [
+        "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "Sources/Portal/Views/GraphsView.swift"
+      ],
+      "source": "operations-ui",
+      "target": "wiki-state",
+      "type": "navigates",
       "weight": 20
     },
     {
@@ -15904,7 +15917,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 42 declaration(s) owned by domain-models.",
+      "description": "References 43 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -15936,7 +15949,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 80
+      "weight": 81
     },
     {
       "authority": "observed",
@@ -19927,7 +19940,7 @@
     ],
     "constructs": {
       "described": 102,
-      "stale": 13
+      "stale": 14
     },
     "edges": [
       {
@@ -34059,7 +34072,7 @@
         "id": "caller:operations-ui:CodeGraphSurfaceView",
         "kind": "caller",
         "label": "CodeGraphSurfaceView",
-        "line": 486,
+        "line": 503,
         "methods": {},
         "namespaces": [
           "code"
@@ -34759,7 +34772,7 @@
           "stale": false,
           "summary": "The Cron page has two roots. CronListView lists cron jobs from a CronListViewModel, filtered and optionally grouped by category, with pause, resume, remove, rename and prompt-update actions and error banners. CronDashboardView shows the job hierarchy plus run-history metrics from CronRunHistoryStore over a selectable time horizon, refreshing jobs and seeding history on appear and pull-to-refresh."
         },
-        "type_count": 29
+        "type_count": 28
       },
       {
         "components": [],
@@ -35021,42 +35034,42 @@
               "trigger-0109e2cd0f92",
               "trigger-033147a7f5cb",
               "trigger-1434d39d0082",
+              "trigger-156d765a203f",
               "trigger-173f8ac250bd",
-              "trigger-175b63e9e489",
               "trigger-21e14661ae99",
-              "trigger-226eb4696e07",
-              "trigger-233a5c60ff0b",
               "trigger-337e22ddac9c",
-              "trigger-367b7adf5b1d",
               "trigger-3b56159af21d",
               "trigger-3baae13ebeb3",
               "trigger-4aa381b7277e",
               "trigger-4e1b37cf8158",
-              "trigger-4e3e7593d807",
               "trigger-4e9c3c31e50a",
               "trigger-4f2de5d9b8b2",
               "trigger-4f9c46a20d70",
               "trigger-5477692195e5",
               "trigger-56f686776e42",
+              "trigger-6f4bfb424ffa",
+              "trigger-75e2e706a959",
               "trigger-7681fcb2ddca",
               "trigger-801347710668",
-              "trigger-8723033683ea",
               "trigger-8a590206c277",
               "trigger-8bd0cb87f885",
               "trigger-8bd30eb871bc",
-              "trigger-8f95f775d32b",
               "trigger-97ba48ee7927",
               "trigger-9bbd1c7fea7a",
               "trigger-a07c4d25bb15",
               "trigger-a3aabc9f918a",
               "trigger-aa3b2de0a929",
+              "trigger-abe953d895d3",
+              "trigger-b0f195f4ddf5",
               "trigger-b56cfc782a40",
+              "trigger-b6b83e7e0d22",
               "trigger-b8886d3b90fe",
               "trigger-bdbe3a47c64a",
               "trigger-bdc3090c9679",
               "trigger-d09036b2aaab",
               "trigger-d2e4694d32bf",
               "trigger-d5ae4140b3a5",
+              "trigger-e34733d96d2f",
               "trigger-e47061d7f608",
               "trigger-e728c9c6595f",
               "trigger-e791301e6c80",
@@ -35082,10 +35095,10 @@
             "WikiGraphViewModel is injected rather than owned; the excerpt does not show who creates it or how CodeGraphSource supplies overrideSource."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": false,
+          "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 86
+        "type_count": 90
       },
       {
         "components": [],
@@ -37273,9 +37286,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-8723033683ea",
+        "id": "trigger-abe953d895d3",
         "kind": "user_action",
-        "line": 264,
+        "line": 270,
         "method": "nodeColor",
         "namespaces": [],
         "page": "graphs",
@@ -37288,9 +37301,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-4e3e7593d807",
+        "id": "trigger-75e2e706a959",
         "kind": "user_action",
-        "line": 264,
+        "line": 270,
         "method": "selectNode",
         "namespaces": [],
         "page": "graphs",
@@ -37303,9 +37316,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-175b63e9e489",
+        "id": "trigger-b0f195f4ddf5",
         "kind": "user_action",
-        "line": 442,
+        "line": 459,
         "method": "nodeColor",
         "namespaces": [],
         "page": "graphs",
@@ -37858,9 +37871,9 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-8f95f775d32b",
+        "id": "trigger-e34733d96d2f",
         "kind": "lifecycle",
-        "line": 127,
+        "line": 140,
         "method": "refreshJobs",
         "namespaces": [
           "cron"
@@ -37875,9 +37888,9 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-367b7adf5b1d",
+        "id": "trigger-6f4bfb424ffa",
         "kind": "lifecycle",
-        "line": 127,
+        "line": 140,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": "graphs",
@@ -37890,9 +37903,9 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-226eb4696e07",
+        "id": "trigger-b6b83e7e0d22",
         "kind": "lifecycle",
-        "line": 127,
+        "line": 140,
         "method": "detectNewRuns",
         "namespaces": [],
         "page": "graphs",
@@ -37905,9 +37918,9 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-233a5c60ff0b",
+        "id": "trigger-156d765a203f",
         "kind": "lifecycle",
-        "line": 127,
+        "line": 140,
         "method": "seedFromJobs",
         "namespaces": [],
         "page": "graphs",
@@ -38995,13 +39008,13 @@
         "view": "WikiTimelineView"
       }
     ],
-    "unattributed_triggers": 446
+    "unattributed_triggers": 447
   },
   "inventory": {
     "assigned_files": 373,
     "declarations": 1104,
     "swift_files": 373,
-    "swift_lines": 113145,
+    "swift_lines": 113189,
     "unassigned_files": []
   },
   "layers": [
@@ -39033,7 +39046,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "2816b057f1c6b7a345573b87c29ad558f0a5612952ac26cbff1cfa48d41cf664",
+  "source_tree_sha256": "d7c3073ecdca940f276b81f2edccad670491a03432a0b009ea6030126078926c",
   "stores": {
     "by_persistence": {
       "defaults": 6,

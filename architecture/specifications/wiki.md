@@ -10,6 +10,13 @@ The graph *is* the wiki home. There is no separate index page: with nothing sele
 
 The rendering choice — a 2D canvas or a SceneKit 3D layout — is a toggle on that one surface rather than a second mode with its own state.
 
+The sibling runtime graph may classify a data reference as `wiki:<path>`. That
+classification is a navigation contract, not merely a color: its inspector
+offers the page as a destination, resolves the reference to the Markdown path,
+then hands the shared wiki selection plane that path before switching surfaces.
+The reader therefore arrives on the referenced entry while the wiki graph,
+folder tree, and reader remain synchronized.
+
 ## Capability markers, not backend checks
 
 The wiki reads from the harness gateway's `wiki.*` RPCs. A wiki surface still gates its affordances on protocol conformance rather than on a hard-coded assumption, so the seam survives a source that serves less:
