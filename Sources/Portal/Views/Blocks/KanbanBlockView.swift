@@ -86,6 +86,32 @@ private struct KanbanCard: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Theme.border, lineWidth: 0.5)
         )
+        // One popover for the whole board, not one per card. A per-card
+        // `.popover` mounts an NSPopover for every rendered card, and the
+        // column `LazyVStack`s re-mount those as cards scroll in and out —
+        // enough to beachball an expanded board mid-scroll. Anchoring a single
+        // popover to the board keeps card realization cheap.
+        .popover(isPresented: openTicketBinding, arrowEdge: .leading) {
+            if let card = selectedCard {
+                ticketDetail(card)
+                    .presentationCompactAdaptation(.popover)
+            }
+        }
+    }
+
+    /// The card whose ticket is open, resolved from the board's cards.
+    private var selectedCard: KanbanSpec.Card? {
+        guard let id = selectedCardID else { return nil }
+        return spec.cards.first { $0.id == id }
+    }
+
+    /// Board-level presentation state for the ticket popover. Dismissing it
+    /// clears the selection; opening is driven by tapping a card header.
+    private var openTicketBinding: Binding<Bool> {
+        Binding(
+            get: { selectedCardID != nil },
+            set: { isPresented in if !isPresented { selectedCardID = nil } }
+        )
     }
 
     @ViewBuilder
@@ -220,25 +246,7 @@ private struct KanbanCard: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(Theme.border, lineWidth: 0.5)
         )
-        .popover(isPresented: ticketDetailBinding(for: card.id), arrowEdge: .leading) {
-            ticketDetail(card)
-                .presentationCompactAdaptation(.popover)
-        }
-
         body
-    }
-
-    private func ticketDetailBinding(for cardID: String) -> Binding<Bool> {
-        Binding(
-            get: { selectedCardID == cardID },
-            set: { isPresented in
-                if isPresented {
-                    selectedCardID = cardID
-                } else if selectedCardID == cardID {
-                    selectedCardID = nil
-                }
-            }
-        )
     }
 
     /// Grip that carries the card id as a drag payload; columns match it in
