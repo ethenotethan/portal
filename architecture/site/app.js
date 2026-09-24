@@ -178,6 +178,7 @@
     store: "#c9a3d9",
     pool: "#7fa7c9",
     external: "#e0704f",
+    artifact: "#d9a441",
     other: "#6d6a68"
   };
   const INTERPLAY_ROLE_LABELS = {
@@ -194,10 +195,11 @@
     section: "Critical section (lock-guarded steps)",
     store: "Data store",
     pool: "Continuation-pool owner",
+    artifact: "Persisted artifact (file · directory · defaults key)",
     external: "External system",
     other: "Supporting owner"
   };
-  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, pool: 3, section: 4, caller: 5, provider: 5.5, machine: 5.7, endpoint: 6, client: 7, engine: 8, store: 9, external: 10, subscriber: 11, other: 12 };
+  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, pool: 3, section: 4, caller: 5, provider: 5.5, machine: 5.7, endpoint: 6, client: 7, engine: 8, store: 9, external: 10, artifact: 10.5, subscriber: 11, other: 12 };
   // Zones inside the application hull are the app's navigation pages, declared
   // in architecture/config.json with their root views; the compiler tags each
   // type-labelled node with the page whose view tree reaches it.
@@ -234,7 +236,7 @@
   // lock and socket; engines no single page owns) are in-memory constructions,
   // not shared code. They get their own hull inside the application boundary.
   const INTERPLAY_MEMORY_GROUP = "In-memory constructions";
-  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, operation: 2 };
+  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, artifact: 1, operation: 2 };
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
   const EXTERNAL_CATEGORY_LABELS = {
@@ -308,6 +310,7 @@
     if (node.kind === "provider") return "provider";
     if (node.kind === "machine") return "machine";
     if (node.kind === "external") return "external";
+    if (node.kind === "artifact") return "artifact";
     if (node.kind === "transport") return "transport";
     if (node.kind === "client") return "client";
     if (node.kind === "section") return "section";
@@ -319,11 +322,19 @@
   // A backend external that endpoint boxes are served by is drawn as a container
   // in the External systems hull: a header bar with the namespaces it serves inside.
   function isInterplayBar(node) {
-    return isGatewayContainer(node) || node.kind === "transport";
+    return isGatewayContainer(node) || isStorageContainer(node) || node.kind === "transport";
   }
   function isGatewayContainer(node) {
     return node.kind === "external" && node.sub_kind === "backend" &&
       interplay.edges.some((edge) => edge.target === node.id && edge.relation === "served-by");
+  }
+  // A storage system some store writes named artifacts into is drawn as a container
+  // too: a header bar with the files, directories and defaults keys inside.
+  function isStorageContainer(node) {
+    return node.kind === "external" && interplay.edges.some((edge) => edge.target === node.id && edge.relation === "stored-in");
+  }
+  function isContainmentEdge(edge, targetNode) {
+    return Boolean(targetNode) && isInterplayBar(targetNode) && (edge.relation === "served-by" || edge.relation === "stored-in");
   }
   // The transport core is drawn as a box that owns its pool, lock, socket, session
   // and critical sections: one special object taking control of shared resources.
@@ -342,9 +353,9 @@
     return node.kind === "owner" && (node.roles || []).includes("transport");
   }
   function containerMemberIds(container) {
-    if (isGatewayContainer(container)) {
+    if (isGatewayContainer(container) || isStorageContainer(container)) {
       return new Set(interplay.edges
-        .filter((edge) => edge.relation === "served-by" && edge.target === container.id)
+        .filter((edge) => (edge.relation === "served-by" || edge.relation === "stored-in") && edge.target === container.id)
         .map((edge) => edge.source));
     }
     if (container.kind === "transport") return new Set([container.core_id, container.bus_id]);
@@ -363,6 +374,7 @@
     if (isTransportContainer(node) || isBusSpine(node)) return { width: 236, height: 48 };
     if (node.kind === "section") return { width: Math.max(150, Math.min(220, (node.label || "").length * 7.6 + 60)), height: 48 };
     if (node.kind === "endpoint") return { width: 150, height: 46 };
+    if (node.kind === "artifact") return { width: Math.max(150, Math.min(230, (node.label || "").length * 6.6 + 40)), height: 46 };
     if (node.kind === "provider") return { width: 206, height: 48 }; // room for the init/configures meta line
     if (node.kind === "machine") return { width: Math.max(170, Math.min(230, (node.label || "").length * 6.4 + 40)), height: 48 };
     const label = node.label || "";
@@ -417,7 +429,7 @@
       if (role === "caller") group.set(node.id, callerFeature.get(node.id) || INTERPLAY_SHARED_GROUP);
       else if (role === "endpoint") {
         group.set(node.id, servedByBar.has(node.id) ? INTERPLAY_EXTERNAL_GROUP : single(endpointFeatures.get(node.id) || new Set()));
-      } else if (role === "external") group.set(node.id, INTERPLAY_EXTERNAL_GROUP);
+      } else if (role === "external" || role === "artifact") group.set(node.id, INTERPLAY_EXTERNAL_GROUP);
     });
     // 2. Client files: the page that declares ownership of a namespace they wrap;
     //    otherwise the single page whose callers reach the endpoints they implement.
@@ -571,7 +583,7 @@
         const inner = grid(members, PAD + INSET, top + HEADER_H + GAP, cols);
         const nested = expandOwners(members, PAD + INSET, inner.bottom, cols);
         const bottom = Math.max(inner.bottom, nested.bottom) + INSET;
-        containers.push({ nodeId: bar.id, top, bottom, left: PAD, right: null, kind: bar.kind === "transport" ? "transport" : "gateway" });
+        containers.push({ nodeId: bar.id, top, bottom, left: PAD, right: null, kind: bar.kind === "transport" ? "transport" : isStorageContainer(bar) ? "storage" : "gateway" });
         maxRight = Math.max(maxRight, inner.right + INSET, nested.right + INSET);
         y = bottom + GAP;
       });
@@ -695,7 +707,38 @@
       groupBoxes.push(box);
       placeGroup(box);
     }
-    const floating = externalNodes.filter((node) => !gatewayMembers.includes(node));
+    // Declared boundary groups (platform storage, on-device inference): each is a
+    // labelled box beside the application holding its systems and, inside a storage
+    // system, the artifacts the stores write. Placed on the side the nodes it links
+    // to lean toward, stacked in declared order.
+    const grouped = new Set();
+    const boundaryBoxes = { left: [], right: [] };
+    (interplay.boundary_groups || []).forEach((boundary) => {
+      const members = externalNodes.filter((node) => boundary.members.includes(node.id) ||
+        (node.kind === "artifact" && boundary.members.includes(`external:${node.system_id}`)));
+      if (!members.length) return;
+      members.forEach((node) => grouped.add(node.id));
+      const block = layoutGroup(members, 3);
+      const linked = edges
+        .filter((edge) => members.some((node) => node.id === edge.source || node.id === edge.target))
+        .map((edge) => positions.get(members.some((node) => node.id === edge.source) ? edge.target : edge.source))
+        .filter(Boolean);
+      const meanX = linked.length ? linked.reduce((sum, point) => sum + point.x, 0) / linked.length : anchor.x + anchor.w;
+      const side = meanX < anchor.x + anchor.w / 2 ? "left" : "right";
+      boundaryBoxes[side].push({ label: boundary.label, kind: "boundary", boundaryId: boundary.id, w: block.w, h: block.h, place: block.place, containers: block.containers });
+    });
+    Object.entries(boundaryBoxes).forEach(([side, boxes]) => {
+      const totalH = boxes.reduce((sum, box) => sum + box.h, 0) + Math.max(0, boxes.length - 1) * BOX_GAP;
+      let cursor = anchor.y + Math.max(0, (anchor.h - totalH) / 2);
+      boxes.forEach((box) => {
+        box.x = side === "left" ? anchor.x - SIDE_GAP - box.w : anchor.x + anchor.w + SIDE_GAP;
+        box.y = cursor;
+        cursor += box.h + BOX_GAP;
+        groupBoxes.push(box);
+        placeGroup(box);
+      });
+    });
+    const floating = externalNodes.filter((node) => !gatewayMembers.includes(node) && !grouped.has(node.id));
     const sides = { left: [], right: [] };
     floating.forEach((node) => {
       const linked = edges
@@ -712,9 +755,10 @@
       items.forEach((item) => {
         const s = size.get(item.node.id);
         const top = Math.max(item.y - s.height / 2, cursor, anchor.y);
+        const clearance = Math.max(0, ...boundaryBoxes[side].map((box) => box.w + BOX_GAP));
         const x = side === "left"
-          ? anchor.x - SIDE_GAP - s.width / 2
-          : anchor.x + anchor.w + SIDE_GAP + s.width / 2;
+          ? anchor.x - SIDE_GAP - clearance - s.width / 2
+          : anchor.x + anchor.w + SIDE_GAP + clearance + s.width / 2;
         positions.set(item.node.id, { x, y: top + s.height / 2 });
         cursor = top + s.height + GAP;
       });
@@ -818,9 +862,10 @@
       const shared = box.label === INTERPLAY_SHARED_GROUP;
       const appHull = box.kind === "app";
       const memoryHull = box.kind === "memory";
+      const boundaryHull = box.kind === "boundary";
       if (box.kind !== "free") {
         const hull = svgElement("g", {
-          class: `interplay-group${shared ? " shared" : ""}${appHull ? " app" : ""}${memoryHull ? " memory" : ""}`,
+          class: `interplay-group${shared ? " shared" : ""}${appHull ? " app" : ""}${memoryHull ? " memory" : ""}${boundaryHull ? " boundary" : ""}`,
           "data-group": box.label
         });
         const rect = svgElement("rect", {
@@ -885,7 +930,7 @@
       if (!source || !target) return;
       const targetNode = interplayNodeById.get(edge.target);
       const hkey = edgeHistoryKey(edge, interplayNodeById);
-      if (edge.relation === "served-by" && targetNode && isInterplayBar(targetNode)) return; // drawn as containment
+      if (isContainmentEdge(edge, targetNode)) return; // drawn as containment
       if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return; // containment
       if (["implements", "invokes", "extends"].includes(edge.relation)) return; // data for the inspector; the drawn flow is surface → client file → core → namespace
       const edgeClass = isPushEdge(edge) ? "push" : edge.class;
@@ -942,6 +987,7 @@
       else if (node.kind === "endpoint") rect.setAttribute("class", "endpoint");
       else if (node.kind === "caller") rect.setAttribute("class", "caller");
       else if (node.kind === "external") rect.setAttribute("class", isInterplayBar(node) ? "hull-label" : "external");
+      else if (node.kind === "artifact") rect.setAttribute("class", "artifact");
       else if (node.kind === "transport") rect.setAttribute("class", "hull-label");
       else if (isTransportContainer(node)) rect.setAttribute("class", `core${expandedOwners.has(node.id) ? " expanded" : ""}`);
       else if (node.kind === "client") rect.setAttribute("class", "client");
@@ -958,7 +1004,9 @@
       const kicker = svgElement("text", { x: 11, y: 15, class: "node-kicker" });
       kicker.textContent = interplayKicker(node);
       const title = svgElement("text", { x: 11, y: 29, class: "node-title" });
-      title.textContent = node.label;
+      // Artifact names (defaults keys, nested paths) can outrun the box; the full
+      // name is in the aria label and the inspector.
+      title.textContent = node.kind === "artifact" && node.label.length > 30 ? `${node.label.slice(0, 29)}…` : node.label;
       group.append(kicker, title);
       if (node.kind !== "operation" && !isInterplayBar(node)) {
         const meta = svgElement("text", { x: 11, y: 41, class: "node-meta" });
@@ -1237,6 +1285,7 @@
     if (node.kind === "subscriber") return "SUBSCRIBER";
     if (node.kind === "caller") return (componentLabel(node.component) || "CALLER").toUpperCase();
     if (node.kind === "external") return String(node.sub_kind || "system").replace(/-/g, " ").toUpperCase();
+    if (node.kind === "artifact") return String(node.sub_kind || "artifact").replace(/_/g, " ").toUpperCase();
     if (node.kind === "client") return "CLIENT FILE";
     if (node.kind === "provider") return "PROVIDER · LAUNCH";
     if (node.kind === "machine") return "STATE MACHINE";
@@ -1363,6 +1412,10 @@
     if (node.kind === "store") {
       const artifacts = (node.store && node.store.artifacts) || [];
       return artifacts.length ? artifacts.join(", ") : "no artifact literal";
+    }
+    if (node.kind === "artifact") {
+      const count = (node.stores || []).length;
+      return `written by ${count} store${count === 1 ? "" : "s"}`;
     }
     if (node.kind === "external") {
       return isInterplayBar(node) && node.protocol
@@ -2126,6 +2179,22 @@
     }
 
     if (node.semantic) container.append(describedSection(node.semantic));
+    if (node.kind === "artifact") {
+      const section = element("section", "inspector-section");
+      section.append(element("h4", "", "Written by"));
+      const chips = element("div", "chip-list");
+      (node.stores || []).forEach((label) => {
+        const chip = element("button", "chip", label);
+        chip.type = "button";
+        chip.addEventListener("click", () => { const target = surfaceNodeFor(label); if (target) selectInterplayNode(target.id); });
+        chips.append(chip);
+      });
+      section.append(chips);
+      const list = element("ul", "evidence-list");
+      (node.evidence || []).forEach((evidence) => { const li = document.createElement("li"); li.append(sourceLink(evidence)); list.append(li); });
+      section.append(list);
+      container.append(section);
+    }
     if (node.kind === "machine") container.append(machineSection(node));
     if ((node.machines || []).length) container.append(machineLinksSection(node.machines));
     if ((node.flows || []).length) container.append(flowLinksSection(node.flows));
@@ -2365,6 +2434,9 @@
 
   // Compact headline numbers for the inspector metrics grid, per node kind.
   function interplayInspectorMetrics(node) {
+    if (node.kind === "artifact") {
+      return [[(node.stores || []).length, "Stores"], [(node.evidence || []).length, "Sites"], [String(node.sub_kind || "").replace(/_/g, " "), "Kind"]];
+    }
     if (node.kind === "external") {
       const links = interplay.edges.filter((edge) => edge.target === node.id && edge.class === "boundary").length;
       return [[node.hit_count, "Hits"], [node.file_count, "Files"], [links, "Links"]];
@@ -2402,6 +2474,11 @@
   }
 
   function interplayInspectorSummary(node) {
+    if (node.kind === "artifact") {
+      const system = interplayNodeById.get(`external:${node.system_id}`);
+      const kind = String(node.sub_kind || "artifact").replace(/_/g, " ");
+      return `A ${kind} named in source and kept in ${system ? system.label : node.system_id}: the literal the store hands to its persistence API, observed in the store's own body. Which stores write it is drawn; what it contains is not read.`;
+    }
     if (node.kind === "external") {
       const protocol = node.protocol ? ` Protocol: ${node.protocol}.` : "";
       return `${node.description}${protocol} The description is specified in architecture/config.json; the links, files and hit counts are observed from source signatures.`;
@@ -3383,8 +3460,9 @@
         legendBox.classList.toggle("collapsed", collapsed);
         legendToggle.setAttribute("aria-expanded", String(!collapsed));
       };
-      let collapsed = false;
-      try { collapsed = window.localStorage.getItem(key) === "1"; } catch (_error) { collapsed = false; }
+      // Collapsed until the reader opens it; the choice is remembered either way.
+      let collapsed = true;
+      try { const saved = window.localStorage.getItem(key); if (saved !== null) collapsed = saved === "1"; } catch (_error) { collapsed = true; }
       apply(collapsed);
       legendToggle.addEventListener("click", () => {
         collapsed = !legendBox.classList.contains("collapsed");

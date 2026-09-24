@@ -128,7 +128,13 @@ STORE_MECHANISM_RULES = [
     ("keychain", "swift.store.mechanism.keychain", re.compile(r"\bSecItem(?:Add|CopyMatching|Update|Delete)\s*\(")),
 ]
 ARTIFACT_FILE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.(?:json|jsonl|log|db|sqlite|plist|txt|md)$")
-ARTIFACT_DIRECTORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+ARTIFACT_DIRECTORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$")
+# A UserDefaults key: the literal handed to `forKey:` or `@AppStorage(`.
+DEFAULTS_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9._-]{2,}$")
+DEFAULTS_KEY_CONTEXT_RE = re.compile(r"(?:forKey\s*:\s*|@AppStorage\s*\(\s*)$")
+# `forKey: Self.storageKey` / `forKey: saveKey`: the literal is the constant's initialiser.
+DEFAULTS_KEY_IDENTIFIER_RE = re.compile(r"forKey\s*:\s*(?:Self\.|self\.)?([A-Za-z_][A-Za-z0-9_]*)\b")
+ARTIFACT_MECHANISM = {"file": "file", "directory": "file", "defaults_key": "defaults"}
 TYPE_BLOCK_RE = re.compile(r"\b(class|struct|actor|enum|extension)\s+([A-Z][A-Za-z0-9_]*)[^\n{]*\{")
 
 # Interplay graph taxonomy: which extracted resource/operation kinds feed the
@@ -856,6 +862,35 @@ def validate_external_systems(config: dict[str, Any]) -> None:
                 raise ArchitectureError(f"external system {system['id']} has an invalid signature {pattern!r}: {error}") from error
 
 
+def validate_external_groups(config: dict[str, Any]) -> None:
+    """`external_groups` boxes external systems by category (platform storage, on-device
+    inference). A group names categories, never systems, so a new system of a boxed
+    category lands in the box without a config edit."""
+    groups = config.get("external_groups", [])
+    if not isinstance(groups, list):
+        raise ArchitectureError("config external_groups must be an array")
+    seen_ids: set[str] = set()
+    seen_categories: set[str] = set()
+    for group in groups:
+        if not isinstance(group, dict):
+            raise ArchitectureError("external group entries must be objects")
+        for key in ("id", "label", "description"):
+            if not isinstance(group.get(key), str) or not group[key]:
+                raise ArchitectureError(f"external group {group.get('id')!r} needs a non-empty {key}")
+        if group["id"] in seen_ids:
+            raise ArchitectureError(f"duplicate external group id {group['id']}")
+        seen_ids.add(group["id"])
+        categories = group.get("categories")
+        if not isinstance(categories, list) or not categories:
+            raise ArchitectureError(f"external group {group['id']} needs at least one category")
+        for category in categories:
+            if category not in EXTERNAL_CATEGORIES:
+                raise ArchitectureError(f"external group {group['id']} names unknown category {category!r}")
+            if category in seen_categories:
+                raise ArchitectureError(f"category {category!r} is boxed by more than one external group")
+            seen_categories.add(category)
+
+
 def masked_code(source: dict[str, Any]) -> str:
     """Comment/string-masked code for a read_sources() entry, computed once per file."""
     if "_code" not in source:
@@ -1304,7 +1339,7 @@ def build_externals_model(files: list[dict[str, Any]], config: dict[str, Any]) -
             "authority": "observed",
             "evidence_class": "static_source",
         })
-    return {"systems": systems, "edges": edges}
+    return {"systems": systems, "edges": edges, "groups": [dict(group) for group in config.get("external_groups", [])]}
 
 
 def extract_store_declarations(path: str, text: str, component: str | None,
@@ -1340,6 +1375,14 @@ def extract_store_declarations(path: str, text: str, component: str | None,
 
         mechanisms: dict[str, dict[str, Any]] = {}
         artifacts: dict[str, dict[str, Any]] = {}
+        key_constants = {
+            match.group(1)
+            for range_start, range_end, _ in ranges
+            for match in DEFAULTS_KEY_IDENTIFIER_RE.finditer(code[range_start:range_end])
+        }
+        constant_context = re.compile(
+            r"(?:let|var)\s+(" + "|".join(sorted(map(re.escape, key_constants))) + r")\s*(?::\s*String)?\s*=\s*$"
+        ) if key_constants else None
         for range_start, range_end, via in ranges:
             body = code[range_start:range_end]
             for mechanism_kind, rule_id, pattern in STORE_MECHANISM_RULES:
@@ -1352,17 +1395,24 @@ def extract_store_declarations(path: str, text: str, component: str | None,
             for start, end, content in literals:
                 if start < range_start or end > range_end:
                     continue
+                rule_id = "swift.store.artifact_literal"
                 if ARTIFACT_FILE_RE.match(content):
                     artifact_kind = "file"
                 elif ARTIFACT_DIRECTORY_RE.match(content) and re.match(
                     r"\s*,\s*isDirectory\s*:\s*true", code[end + 1:end + 40]
                 ):
                     artifact_kind = "directory"
+                elif DEFAULTS_KEY_RE.match(content) and (
+                    DEFAULTS_KEY_CONTEXT_RE.search(code[max(0, start - 40):start - 1])
+                    or (constant_context is not None and constant_context.search(code[max(0, start - 80):start - 1]))
+                ):
+                    artifact_kind = "defaults_key"
+                    rule_id = "swift.store.defaults_key_literal"
                 else:
                     continue
                 item = observed_item(
                     "store-artifact", artifact_kind, content, component,
-                    "swift.store.artifact_literal", path, text, start - 1, store=name, via=via,
+                    rule_id, path, text, start - 1, store=name, via=via,
                 )
                 artifacts.setdefault(item["id"], item)
 
@@ -1429,6 +1479,7 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ArchitectureError(f"edge has unknown endpoint: {edge}")
         validate_evidence(edge.get("evidence", []), f"edge {edge.get('source')} → {edge.get('target')}")
     validate_external_systems(config)
+    validate_external_groups(config)
     validate_pages(config)
 
 
@@ -2321,6 +2372,42 @@ BOUNDARY_RELATION_BY_CATEGORY = {
 }
 
 
+def store_leaf_artifacts(store: dict[str, Any]) -> list[dict[str, Any]]:
+    """The artifacts a store is drawn writing: its files, its directories that hold
+    no named file, and its defaults keys. When one directory literal accompanies
+    file literals it is the folder those files live in, so the files are named
+    `folder/file` and the folder itself is not a leaf."""
+    artifacts = store.get("artifacts", [])
+    files = [item for item in artifacts if item["kind"] == "file"]
+    directories = [item for item in artifacts if item["kind"] == "directory"]
+    keys = [item for item in artifacts if item["kind"] == "defaults_key"]
+    leaves: list[dict[str, Any]] = []
+    folder = directories[0]["label"] if len(directories) == 1 and files else None
+    for item in files:
+        label = f"{folder}/{item['label']}" if folder else item["label"]
+        leaves.append({"kind": "file", "label": label, "evidence": item["evidence"]})
+    if not folder:
+        if not files and len(directories) > 1 and "/" not in directories[0]["label"]:
+            # `.appendingPathComponent("portal").appendingPathComponent("wiki-graph-cache")`:
+            # the first, single-segment directory is the folder the others nest in.
+            parent = directories[0]["label"]
+            for item in directories[1:]:
+                leaves.append({"kind": "directory", "label": f"{parent}/{item['label']}", "evidence": item["evidence"]})
+        else:
+            for item in directories:
+                leaves.append({"kind": "directory", "label": item["label"], "evidence": item["evidence"]})
+    for item in keys:
+        leaves.append({"kind": "defaults_key", "label": item["label"], "evidence": item["evidence"]})
+    seen: set[tuple[str, str]] = set()
+    unique: list[dict[str, Any]] = []
+    for leaf in leaves:
+        key = (leaf["kind"], leaf["label"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(leaf)
+    return unique
+
+
 def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str, Any],
                                   stores: dict[str, Any]) -> None:
     """Fold the declared external systems into the interplay graph as boundary nodes.
@@ -2363,20 +2450,67 @@ def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str
         for target in sorted(owner_backends.get(owner_id or "", ())):
             new_edges.add((node["id"], target, "boundary", "served-by"))
 
+    # A store persists to the artifacts its body names (files, directories, defaults
+    # keys), each drawn inside the storage system that owns the mechanism; a
+    # mechanism with no named artifact links the store to the system itself.
     storage_system = {system["persistence"]: system["id"] for system in systems if system.get("persistence")}
     store_by_type = {item["type_name"]: item for item in stores["items"]}
+    artifact_nodes: dict[str, dict[str, Any]] = {}
     for node in nodes:
         if node["kind"] not in {"subscriber", "owner", "hub", "store", "caller"}:
             continue
         store = store_by_type.get(node["label"])
         if store is None:
             continue
+        leaves = store_leaf_artifacts(store)
+        covered = {ARTIFACT_MECHANISM[leaf["kind"]] for leaf in leaves}
+        for leaf in leaves:
+            system_id = storage_system.get(ARTIFACT_MECHANISM[leaf["kind"]])
+            if not system_id:
+                continue
+            artifact_id = f"artifact:{system_id}:{leaf['label']}"
+            record = artifact_nodes.get(artifact_id)
+            if record is None:
+                record = artifact_nodes[artifact_id] = {
+                    "id": artifact_id,
+                    "kind": "artifact",
+                    "sub_kind": leaf["kind"],
+                    "label": leaf["label"],
+                    "system_id": system_id,
+                    "component": system_by_id[system_id].get("component"),
+                    "owner_type": "External systems",
+                    "stores": [],
+                    "evidence": [],
+                    "path": leaf["evidence"]["path"],
+                    "line": leaf["evidence"]["line"],
+                }
+            if node["label"] not in record["stores"]:
+                record["stores"].append(node["label"])
+            if leaf["evidence"] not in record["evidence"]:
+                record["evidence"].append(leaf["evidence"])
+            new_edges.add((node["id"], artifact_id, "boundary", "persists-to"))
+            new_edges.add((artifact_id, external_node_id[system_id], "boundary", "stored-in"))
         for mechanism in store["persistence"]:
             system_id = storage_system.get(mechanism)
-            if system_id:
+            if system_id and mechanism not in covered:
                 new_edges.add((node["id"], external_node_id[system_id], "boundary", "persists-to"))
 
+    covered_systems = {
+        (source, external_node_id[artifact_nodes[target]["system_id"]])
+        for source, target, _, relation in new_edges if relation == "persists-to" and target in artifact_nodes
+    }
+    new_edges = {
+        edge for edge in new_edges
+        if not (edge[3] == "persists-to" and not edge[1].startswith("artifact:") and (edge[0], edge[1]) in covered_systems)
+    }
     linked_targets = {target for _, target, _, _ in new_edges}
+    groups = {group["id"]: group for group in externals.get("groups", [])}
+    group_of_category = {category: group["id"] for group in groups.values() for category in group["categories"]}
+    for artifact in artifact_nodes.values():
+        artifact["stores"].sort()
+        artifact["evidence"].sort(key=lambda item: (item["path"], item["line"]))
+        artifact["cluster"] = f"interplay-cluster-{hashlib.sha256(chr(0).join(['external', artifact['system_id']]).encode('utf-8')).hexdigest()[:12]}"
+        nodes.append(artifact)
     for system in systems:
         # Only systems some interplay node actually touches enter this graph; the
         # rest stay in the External systems view so no box floats unconnected.
@@ -2406,12 +2540,25 @@ def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str
             "path": first["path"],
             "line": first["line"],
             "cluster": cluster_id,
+            "boundary_group": group_of_category.get(system["category"]),
         })
         interplay["clusters"].append({
             "id": cluster_id,
             "component": system.get("component"),
             "owner_type": "External systems",
-            "node_ids": [external_node_id[system["id"]]],
+            "node_ids": [external_node_id[system["id"]]] + sorted(
+                artifact["id"] for artifact in artifact_nodes.values() if artifact["system_id"] == system["id"]
+            ),
+        })
+    drawn_externals = {node["id"]: node for node in nodes if node["kind"] == "external"}
+    interplay["boundary_groups"] = []
+    for group in sorted(groups.values(), key=lambda item: item["id"]):
+        members = sorted(node["id"] for node in drawn_externals.values() if node.get("boundary_group") == group["id"])
+        if not members:
+            gate("externals_ungrouped", f"external group {group['id']} boxes no drawn external system")
+        interplay["boundary_groups"].append({
+            "id": group["id"], "label": group["label"], "description": group["description"],
+            "categories": list(group["categories"]), "members": members,
         })
 
     for source, target, edge_class, relation in sorted(new_edges - existing):

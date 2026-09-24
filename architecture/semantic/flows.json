@@ -35,6 +35,12 @@
           "from": "store:domain-models:ActivityStore",
           "note": "Store schedules a 2-second debounced background save",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/activity-items.json"
+        },
+        {
+          "from": "artifact:file-system:portal/activity-items.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -117,6 +123,12 @@
           "from": "store:domain-models:ActivityStore",
           "note": "Debounced save writes the updated inbox",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/activity-items.json"
+        },
+        {
+          "from": "artifact:file-system:portal/activity-items.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -181,12 +193,24 @@
           "from": "store:domain-models:ActivityStore",
           "note": "Debounced save writes activity-items.json under Application Support",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/activity-items.json"
+        },
+        {
+          "from": "artifact:file-system:portal/activity-items.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
           "from": "store:domain-models:ActivityStore",
           "note": "Legacy inbox blob is migrated once and the migration marker recorded",
           "relation": "persists-to",
+          "to": "artifact:user-defaults:portal.activityItems"
+        },
+        {
+          "from": "artifact:user-defaults:portal.activityItems",
+          "note": "Defaults key kept in UserDefaults",
+          "relation": "stored-in",
           "to": "external:user-defaults"
         }
       ],
@@ -277,6 +301,12 @@
           "from": "store:domain-models:ActivityStore",
           "note": "Store schedules a debounced save to disk",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/activity-items.json"
+        },
+        {
+          "from": "artifact:file-system:portal/activity-items.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -325,6 +355,12 @@
           "from": "subscriber:ArtifactStore",
           "note": "Store reads and writes portal/artifacts.json in Application Support",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/artifacts.json"
+        },
+        {
+          "from": "artifact:file-system:portal/artifacts.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -367,6 +403,12 @@
           "from": "subscriber:ArtifactStore",
           "note": "Updated artifact map is written to portal/artifacts.json",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/artifacts.json"
+        },
+        {
+          "from": "artifact:file-system:portal/artifacts.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -409,6 +451,12 @@
           "from": "subscriber:ArtifactStore",
           "note": "Artifact with new maintainers is saved to portal/artifacts.json",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/artifacts.json"
+        },
+        {
+          "from": "artifact:file-system:portal/artifacts.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -575,6 +623,12 @@
           "from": "store:domain-models:SessionRunHistoryStore",
           "note": "Debounced atomic JSON write to Application Support",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/session-run-history.json"
+        },
+        {
+          "from": "artifact:file-system:portal/session-run-history.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -675,7 +729,7 @@
           "from": "store:local-services:ChatHistoryStore",
           "note": "One JSON file per session under Application Support/portal/sessions",
           "relation": "persists-to",
-          "to": "external:file-system"
+          "to": "artifact:file-system:portal/sessions"
         }
       ],
       "summary": "The user submits a prompt. ChatViewModel calls the prompt RPC through GatewayClient, which registers a pending continuation and sends the frame over the WebSocket to the Harness gateway. Streamed events come back on the AgentBackend eventStream, ChatViewModel appends deltas to the transcript, and ChatHistoryStore persists the session to disk.",
@@ -861,7 +915,7 @@
           "from": "store:domain-models:CronRunHistoryStore",
           "note": "Debounced JSON write of run history",
           "relation": "persists-to",
-          "to": "external:file-system"
+          "to": "artifact:file-system:portal/cron-run-history.json"
         },
         {
           "from": "caller:operations-state:CronListViewModel",
@@ -1039,6 +1093,12 @@
           "from": "store:domain-models:CronRunHistoryStore",
           "note": "History trimmed to 500 per job and saved",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/cron-run-history.json"
+        },
+        {
+          "from": "artifact:file-system:portal/cron-run-history.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -1883,6 +1943,12 @@
           "from": "store:local-services:WikiGraphCache",
           "note": "One JSON file per (identity, wiki) under wiki-graph-cache",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/wiki-graph-cache"
+        },
+        {
+          "from": "artifact:file-system:portal/wiki-graph-cache",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
@@ -1987,6 +2053,12 @@
           "from": "store:domain-models:CronGraphRevisionStore",
           "note": "Debounced atomic JSON write to Application Support",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/cron-graph-revisions.json"
+        },
+        {
+          "from": "artifact:file-system:portal/cron-graph-revisions.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
@@ -1999,6 +2071,12 @@
           "from": "store:domain-models:CronRunHistoryStore",
           "note": "Legacy run history is migrated once, tracked by a flag",
           "relation": "persists-to",
+          "to": "artifact:user-defaults:portal.cronRunHistory"
+        },
+        {
+          "from": "artifact:user-defaults:portal.cronRunHistory",
+          "note": "Defaults key kept in UserDefaults",
+          "relation": "stored-in",
           "to": "external:user-defaults"
         }
       ],
@@ -2327,6 +2405,12 @@
           "from": "store:local-services:CurriculumStore",
           "note": "Delete the course JSON under portal/curricula",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/curricula"
+        },
+        {
+          "from": "artifact:file-system:portal/curricula",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
@@ -2339,6 +2423,12 @@
           "from": "store:local-services:SRSStore",
           "note": "Delete the deck JSON under portal/srs-decks",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/srs-decks"
+        },
+        {
+          "from": "artifact:file-system:portal/srs-decks",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
@@ -2351,6 +2441,12 @@
           "from": "store:local-services:QuizStore",
           "note": "Delete the session JSON under portal/quizzes",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/quizzes"
+        },
+        {
+          "from": "artifact:file-system:portal/quizzes",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -2403,6 +2499,12 @@
           "from": "store:local-services:CurriculumStore",
           "note": "Atomic write of the course JSON in the background",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/curricula"
+        },
+        {
+          "from": "artifact:file-system:portal/curricula",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -2453,6 +2555,12 @@
           "from": "store:local-services:CurriculumStore",
           "note": "Read one JSON file per course from portal/curricula",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/curricula"
+        },
+        {
+          "from": "artifact:file-system:portal/curricula",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
@@ -2465,6 +2573,12 @@
           "from": "store:local-services:QuizStore",
           "note": "Read one JSON file per session from portal/quizzes",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/quizzes"
+        },
+        {
+          "from": "artifact:file-system:portal/quizzes",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
@@ -2477,6 +2591,12 @@
           "from": "store:local-services:SRSStore",
           "note": "Read one JSON file per deck from portal/srs-decks",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/srs-decks"
+        },
+        {
+          "from": "artifact:file-system:portal/srs-decks",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         }
       ],
@@ -2559,7 +2679,7 @@
           "from": "store:local-services:ChatHistoryStore",
           "note": "Transcripts read from Application Support/portal/sessions",
           "relation": "persists-to",
-          "to": "external:file-system"
+          "to": "artifact:file-system:portal/sessions"
         },
         {
           "from": "owner:hermes-services:GatewayClient",
@@ -2703,6 +2823,12 @@
           "from": "store:local-services:ChatHistoryStore",
           "note": "Per-session JSON transcript under Application Support",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/sessions"
+        },
+        {
+          "from": "artifact:file-system:portal/sessions",
+          "note": "Directory kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
@@ -3195,6 +3321,12 @@
           "from": "caller:local-services:SkillStore",
           "note": "Fresh catalog is written to Application Support for next launch",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/skill-store.json"
+        },
+        {
+          "from": "artifact:file-system:portal/skill-store.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
@@ -3301,13 +3433,19 @@
           "from": "caller:local-services:SkillStore",
           "note": "Non-empty result saved to disk",
           "relation": "persists-to",
+          "to": "artifact:file-system:portal/skill-store.json"
+        },
+        {
+          "from": "artifact:file-system:portal/skill-store.json",
+          "note": "File kept in Application Support files",
+          "relation": "stored-in",
           "to": "external:file-system"
         },
         {
           "from": "caller:local-services:SkillStore",
           "note": "Refresh markers recorded in UserDefaults",
           "relation": "persists-to",
-          "to": "external:user-defaults"
+          "to": "artifact:user-defaults:portal.skillStore.fileMigrated"
         }
       ],
       "summary": "The user taps Reload or Refresh, or pulls down the list. SkillsViewModel asks SkillStore to reload; the store lists skills over the gateway, falling back to a slash-command scan through the commands namespace when the list is empty. The call is registered in the pending-request pool, sent over the WebSocket, and the result is persisted to disk and UserDefaults.",

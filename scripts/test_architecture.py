@@ -441,11 +441,14 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn("external:apple-mlx", externals)
         boundary = [edge for edge in interplay["edges"] if edge["class"] == "boundary"]
         self.assertTrue(boundary)
+        artifacts = {node["id"] for node in interplay["nodes"] if node["kind"] == "artifact"}
         # No external node floats: each one is the target of at least one boundary edge.
-        self.assertEqual(set(externals), {edge["target"] for edge in boundary})
+        # Artifacts are the other boundary targets: a store persists to a named file,
+        # directory or defaults key, which is stored in its system.
+        self.assertEqual(set(externals), {edge["target"] for edge in boundary} - artifacts)
         for edge in boundary:
             self.assertIn(edge["source"], node_ids)
-            self.assertIn(edge["target"], externals)
+            self.assertIn(edge["target"], set(externals) | artifacts)
         # Every JSON-RPC / REST endpoint box hangs off the gateway it is served by.
         endpoint_ids = {node["id"] for node in interplay["nodes"] if node["kind"] == "endpoint"}
         served = {
@@ -461,6 +464,66 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for node in externals.values():
             self.assertEqual("External systems", clusters[node["cluster"]]["owner_type"])
             self.assertEqual("specified", node["description_authority"])
+
+    def test_stores_persist_to_named_artifacts_inside_boxed_storage_systems(self) -> None:
+        interplay = self.model["interplay"]
+        by_id = {node["id"]: node for node in interplay["nodes"]}
+        artifacts = {node["id"]: node for node in interplay["nodes"] if node["kind"] == "artifact"}
+        self.assertTrue(artifacts)
+        relations = {(e["source"], e["target"], e["relation"]) for e in interplay["edges"]}
+        # A file under its folder; a directory pair nested; a defaults key through a constant.
+        self.assertIn("artifact:file-system:portal/artifacts.json", artifacts)
+        self.assertEqual(["ArtifactStore"], artifacts["artifact:file-system:portal/artifacts.json"]["stores"])
+        self.assertIn(("subscriber:ArtifactStore", "artifact:file-system:portal/artifacts.json", "persists-to"), relations)
+        self.assertIn(("artifact:file-system:portal/artifacts.json", "external:file-system", "stored-in"), relations)
+        self.assertNotIn(("subscriber:ArtifactStore", "external:file-system", "persists-to"), relations, "the artifact edge replaces the direct one")
+        self.assertIn("artifact:file-system:portal/wiki-graph-cache", artifacts)
+        self.assertNotIn("artifact:file-system:portal", artifacts, "a bare parent folder is not a leaf")
+        self.assertIn("artifact:file-system:portal/sessions", artifacts)
+        defaults_keys = [node for node in artifacts.values() if node["sub_kind"] == "defaults_key"]
+        self.assertTrue(defaults_keys, "forKey: Self.storageKey resolves through the constant")
+        self.assertTrue(all(node["system_id"] == "user-defaults" for node in defaults_keys))
+        for node in artifacts.values():
+            self.assertIn(node["sub_kind"], {"file", "directory", "defaults_key"})
+            self.assertTrue(node["stores"] and node["evidence"])
+            self.assertIn(f"external:{node['system_id']}", by_id)
+            self.assertIn((node["id"], f"external:{node['system_id']}", "stored-in"), relations)
+            self.assertEqual(by_id[f"external:{node['system_id']}"]["cluster"], node["cluster"])
+        # The declared boundary groups box the storage and inference systems.
+        groups = {group["id"]: group for group in interplay["boundary_groups"]}
+        self.assertEqual({"platform-storage", "on-device-inference"}, set(groups))
+        self.assertEqual({"external:file-system", "external:keychain", "external:user-defaults"}, set(groups["platform-storage"]["members"]))
+        self.assertEqual({"external:apple-mlx", "external:speech-synthesis"}, set(groups["on-device-inference"]["members"]))
+        self.assertIsNone(by_id["external:harness-gateway"].get("boundary_group"))
+        self.assertEqual("platform-storage", by_id["external:keychain"]["boundary_group"])
+        # Fail-closed declarations.
+        config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
+        config["external_groups"].append({"id": "dup", "label": "Dup", "description": "x", "categories": ["ml-runtime"]})
+        with self.assertRaisesRegex(architecture.ArchitectureError, "boxed by more than one"):
+            architecture.validate_external_groups(config)
+        config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
+        config["external_groups"][0]["categories"] = ["nope"]
+        with self.assertRaisesRegex(architecture.ArchitectureError, "unknown category"):
+            architecture.validate_external_groups(config)
+        # Leaf rules on a synthetic store.
+        leaves = architecture.store_leaf_artifacts({"artifacts": [
+            {"kind": "directory", "label": "portal", "evidence": {"path": "a", "line": 1}},
+            {"kind": "file", "label": "x.json", "evidence": {"path": "a", "line": 2}},
+            {"kind": "defaults_key", "label": "portal.flag", "evidence": {"path": "a", "line": 3}},
+        ]})
+        self.assertEqual([("file", "portal/x.json"), ("defaults_key", "portal.flag")], [(l["kind"], l["label"]) for l in leaves])
+        leaves = architecture.store_leaf_artifacts({"artifacts": [
+            {"kind": "directory", "label": "portal", "evidence": {"path": "a", "line": 1}},
+            {"kind": "directory", "label": "cache", "evidence": {"path": "a", "line": 2}},
+        ]})
+        self.assertEqual([("directory", "portal/cache")], [(l["kind"], l["label"]) for l in leaves])
+        # The site draws storage systems as containers inside a boundary box.
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ("function isStorageContainer(", "function isContainmentEdge(", "interplay.boundary_groups", 'kind: "boundary"', 'rect.setAttribute("class", "artifact")', "Persisted artifact"):
+            self.assertIn(needle, app)
+        styles = (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8")
+        for rule in (".interplay-group.storage", ".interplay-group.boundary", ".interplay-node rect.artifact"):
+            self.assertIn(rule, styles)
 
     def test_interplay_tags_nodes_with_the_navigation_page_that_reaches_them(self) -> None:
         interplay = self.model["interplay"]
