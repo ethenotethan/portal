@@ -1687,7 +1687,7 @@
       "summary": "Apple MLX is the in-process ML runtime that MLXLocalChatEngine, MLXReasoningSummarizer, and SkillSummaryService run on for on-device language-model inference. The chat engine actor loads weights into a ModelContainer via LLMModelFactory.shared.loadContainer, keyed by the selected LocalChatModel so a Settings change reloads rather than reusing old weights, and keeps a session for continuity."
     },
     {
-      "cited_hash": "b212950ebfbf044c474f536a53d2c7dece430b0848f99a5a6bac23d641969ffe",
+      "cited_hash": "3ad3a8724b798be59d29396e6fb3dc4de5aab4b775c432f01ec9d9c45b84a39b",
       "evidence": [
         {
           "line": 19,
@@ -2492,14 +2492,14 @@
       ],
       "fields": {
         "entry_triggers": [
+          "trigger-0003198db685",
           "trigger-0109e2cd0f92",
-          "trigger-01ab378dee25",
-          "trigger-1725096f82d5",
+          "trigger-033147a7f5cb",
           "trigger-173f8ac250bd",
+          "trigger-21e14661ae99",
           "trigger-226eb4696e07",
           "trigger-233a5c60ff0b",
           "trigger-26eed17c6d54",
-          "trigger-2e1204620502",
           "trigger-367b7adf5b1d",
           "trigger-3b56159af21d",
           "trigger-3baae13ebeb3",
@@ -2520,7 +2520,6 @@
           "trigger-97ba48ee7927",
           "trigger-9fd79c005129",
           "trigger-a07c4d25bb15",
-          "trigger-a468bc3cffb0",
           "trigger-aa3b2de0a929",
           "trigger-b56cfc782a40",
           "trigger-b8886d3b90fe",
@@ -2528,10 +2527,11 @@
           "trigger-d09036b2aaab",
           "trigger-d2e4694d32bf",
           "trigger-d5ae4140b3a5",
+          "trigger-e47061d7f608",
           "trigger-e728c9c6595f",
           "trigger-e791301e6c80",
-          "trigger-f3a4e2c143df",
-          "trigger-f642dde11983"
+          "trigger-f642dde11983",
+          "trigger-fe992e7fd3aa"
         ],
         "owns_state_in": [
           "caller:operations-state:CodeGraphSource",
@@ -2996,7 +2996,7 @@
       "summary": "Process-wide, NSLock-guarded in-memory cache of parsed MarkdownBlock arrays keyed by input string hash. Holds a single last-input fast slot plus an LRU of 96 completed parses, evicting oldest on overflow. Populated on cache miss inside blocks(for:); never persisted. DEBUG builds expose a parse counter and reset hook for tests."
     },
     {
-      "cited_hash": "7ee39493505305d33895db0aa4f151c5fd5724b509460a6385cb6d8a4c7bd6af",
+      "cited_hash": "c2ce7b4a04a603a4c502f4b8bd798df1eb049bd411a1d2a43662204766ad6128",
       "evidence": [
         {
           "line": 7,
@@ -3037,8 +3037,6 @@
         ],
         "written_when": [
           "debounced",
-          "explicit_save",
-          "on_background",
           "on_change"
         ]
       },
@@ -3051,7 +3049,7 @@
         "load() runs in the singleton's private init; when ActivityStore.shared is first touched (launch vs. first inbox open) is not visible here."
       ],
       "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-      "summary": "Singleton holding the activity inbox as an in-memory array of ActivityItem, persisted as JSON to Application Support/portal/activity-items.json. Any mutation of items schedules a 2-second debounced background save; saveNow forces one. On init it loads from the file, or migrates a legacy UserDefaults blob once and records the migration in UserDefaults. Trims to 500 items, newest first."
+      "summary": "Singleton holding the activity inbox as an in-memory array of ActivityItem, persisted as JSON to Application Support/portal/activity-items.json. Any mutation of items schedules a 2-second debounced background save. On init it loads from the file, or migrates a legacy UserDefaults blob once and records the migration in UserDefaults. Trims to 500 items, newest first."
     },
     {
       "cited_hash": "9d8f038a44aba4dd11bdae29f0c9c32368538218adc9cee2a0eab1b5fa7fd1ff",
@@ -3106,7 +3104,7 @@
       "summary": "Shared singleton that keeps an append-only log of distinct cron graph configurations. `observe` hashes the configuration, appends a CronGraphRevision only when the digest differs from the last one, trims to 200 entries, and schedules a 5-second debounced atomic JSON write to Application Support. Exposes latest, parent-by-position, and diff helpers. A testing initializer makes it fully in-memory."
     },
     {
-      "cited_hash": "527fb6b65550528db624d215a514f647ad6ac00b3f8735acae81791905edf934",
+      "cited_hash": "0c8d07208a95f700be95a3a953dcb2170d3306c51123ecfe12061c88e5dd7494",
       "evidence": [
         {
           "line": 26,
