@@ -11999,7 +11999,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12112,
+      "line_count": 12134,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14035,6 +14035,7 @@
       "evidence": [
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
+        "Sources/Portal/Views/Blocks/ModelBlockView.swift",
         "Sources/Portal/Views/Blocks/TimelineBlockView.swift"
       ],
       "source": "artifact-ui",
@@ -14043,7 +14044,7 @@
       ],
       "target": "operations-ui",
       "type": "references",
-      "weight": 4
+      "weight": 5
     },
     {
       "authority": "observed",
@@ -44217,54 +44218,54 @@
           },
           {
             "kind": "func",
-            "line": 189,
+            "line": 194,
             "name": "cardView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 254,
+            "line": 259,
             "name": "dragHandle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 273,
+            "line": 278,
             "name": "ticketDetail",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 322,
+            "line": 327,
             "name": "fieldRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 337,
+            "line": 342,
             "name": "move",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 352,
+            "line": 357,
             "name": "moveMenu",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 384,
+            "line": 389,
             "name": "ColumnDropTarget",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 389,
+            "line": 394,
             "name": "body",
             "passes": []
           }
         ],
-        "line_count": 402,
+        "line_count": 407,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/Blocks/KanbanBlockView.swift",
@@ -44797,96 +44798,96 @@
           },
           {
             "kind": "func",
-            "line": 181,
+            "line": 190,
             "name": "viewBlock",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 241,
+            "line": 250,
             "name": "markerSelectionBinding",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 260,
+            "line": 269,
             "name": "labelFor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 269,
+            "line": 278,
             "name": "selectionPanel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 320,
+            "line": 329,
             "name": "metadataBadge",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 330,
+            "line": 339,
             "name": "relationRow",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 363,
+            "line": 372,
             "name": "ModelTableLayout",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 364,
+            "line": 373,
             "name": "CellAlignment",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 370,
+            "line": 379,
             "name": "alignment",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 377,
+            "line": 386,
             "name": "columnWidths",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 398,
+            "line": 407,
             "name": "tableWidth",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 407,
+            "line": 416,
             "name": "ModelEntityTable",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 479,
+            "line": 496,
             "name": "headerRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 512,
+            "line": 529,
             "name": "row",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 556,
+            "line": 573,
             "name": "PaneDivider",
             "passes": []
           }
         ],
-        "line_count": 622,
+        "line_count": 639,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/Blocks/ModelBlockView.swift",
@@ -75665,7 +75666,7 @@
     "assigned_files": 373,
     "declarations": 1104,
     "swift_files": 373,
-    "swift_lines": 114081,
+    "swift_lines": 114103,
     "unassigned_files": []
   },
   "layers": [
@@ -75697,7 +75698,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "fa0aa61fba6aba2ce0caca49150fb4a7ccd402919f5c818a04ef73d5d709d908",
+  "source_tree_sha256": "95037f304753fcc820aba63aeda9b6382f12b728adf98a9a45a08833b1858918",
   "stores": {
     "by_persistence": {
       "defaults": 6,
