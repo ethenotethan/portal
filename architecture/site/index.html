@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Portal's continuously maintained, source-backed architecture model.">
   <title>Portal Architecture</title>
+  <script>
+    // Theme before first paint: ?theme=light|dark wins, then the saved choice,
+    // then the OS preference. app.js owns the toggle; this only avoids a flash.
+    (() => {
+      const wanted = new URLSearchParams(location.search).get("theme");
+      let theme = wanted === "light" || wanted === "dark" ? wanted : null;
+      if (!theme) { try { theme = localStorage.getItem("portal.architecture.theme"); } catch (_e) { theme = null; } }
+      if (theme !== "light" && theme !== "dark") theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,6 +38,7 @@
       <a href="../">Overview</a>
       <a href="../#features">Features</a>
       <a href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">Repository ↗</a>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode" title="Switch to light mode"><span aria-hidden="true">☾</span></button>
     </div>
   </header>
 
@@ -98,19 +110,19 @@
         </div>
         <aside class="inspector" id="interplay-inspector" aria-live="polite" hidden></aside>
       </div>
-      <!-- The constructions the map assumes, declared in architecture/interplay/invariants.json
-           and checked on every build. Plain text: reading them never touches the graph. -->
-      <section class="invariants" id="invariants" aria-labelledby="invariants-title">
-        <h3 id="invariants-title">Invariants</h3>
-        <p class="invariants-lede" id="invariants-lede"></p>
-        <ol class="invariants-list" id="invariants-list"></ol>
-      </section>
       <!-- System flows: LLM-identified, compiler-validated paths over edges the map
            draws (architecture/semantic/flows.json). Trace on map lights the path. -->
       <section class="invariants flows" id="flows" aria-labelledby="flows-title">
         <h3 id="flows-title">System flows</h3>
         <p class="invariants-lede" id="flows-lede"></p>
         <div class="flows-list" id="flows-list"></div>
+      </section>
+      <!-- The constructions the map assumes, declared in architecture/interplay/invariants.json
+           and checked on every build. Plain text: reading them never touches the graph. -->
+      <section class="invariants" id="invariants" aria-labelledby="invariants-title">
+        <h3 id="invariants-title">Invariants</h3>
+        <p class="invariants-lede" id="invariants-lede"></p>
+        <ol class="invariants-list" id="invariants-list"></ol>
       </section>
     </section>
 
@@ -212,7 +224,10 @@
        CDN is unreachable the diagrams stay as their text source. -->
   <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-    mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict", sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 24, messageMargin: 28 } });
+    // The diagram theme follows the page theme; app.js calls __mermaidInit again
+    // when the reader toggles, then re-renders the open diagrams.
+    window.__mermaidInit = (theme) => mermaid.initialize({ startOnLoad: false, theme: theme === "light" ? "neutral" : "dark", securityLevel: "strict", sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 24, messageMargin: 28 } });
+    window.__mermaidInit(document.documentElement.dataset.theme);
     window.__mermaid = mermaid;
     window.dispatchEvent(new Event("mermaid-ready"));
   </script>

@@ -862,7 +862,8 @@
     const defs = svgElement("defs", {});
     const MARKER_COLORS = {
       structure: "#8a8a92", lifecycle: "#55545a", interplay: "#8b83ff", usage: "#7ec8b0",
-      push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", active: "#f2f2f4", ghost: "#d9a441"
+      push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", ghost: "#d9a441",
+      active: getComputedStyle(document.documentElement).getPropertyValue("--edge-active").trim() || "#f2f2f4"
     };
     Object.entries(MARKER_COLORS).forEach(([name, color]) => {
       const marker = svgElement("marker", {
@@ -3156,54 +3157,49 @@
       runsIn.append(gateJobButton(id, job ? `${(gateWorkflowById.get(job.workflow) || {}).label || job.workflow} / ${job.name}` : id));
     });
     arch.append(runsIn);
+    const checkItem = (headParts, body, provenanceParts) => {
+      const item = document.createElement("li");
+      const head = element("div", "check-head");
+      headParts.filter(Boolean).forEach((part) => head.append(part));
+      if (provenanceParts && provenanceParts.length) {
+        const provenance = element("p", "provenance");
+        provenanceParts.forEach((part, index) => { if (index) provenance.append(element("span", "", " · ")); provenance.append(part); });
+        head.append(provenance);
+      }
+      item.append(head);
+      if (body) item.append(body);
+      return item;
+    };
     const rulesSection = element("div", "pocket-section");
     rulesSection.append(element("h4", "", `SwiftLint custom rules · ${architectural.lint_config}`));
-    const rulesList = element("div", "behavior-list");
+    const rulesList = element("ul", "check-list");
     architectural.lint_rules.forEach((rule) => {
-      const row = element("article", "behavior-row");
-      const grid = element("div", "gate-rule");
-      grid.append(element("code", "", rule.id));
-      const flags = element("div", "gate-rule-flags");
-      flags.append(element("span", "chip", rule.severity));
-      if (rule.baselined) flags.append(element("span", "chip", `${rule.baselined.toLocaleString()} baselined`));
-      if (rule.excluded_count) flags.append(element("span", "chip", `${rule.excluded_count} grandfathered file(s)`));
-      grid.append(flags);
-      if (rule.message) grid.append(element("p", "", rule.message));
-      row.append(grid);
-      const provenance = element("p", "provenance");
-      provenance.append(element("span", "", "Rule · "), sourceLink(rule.evidence));
-      row.append(provenance);
-      rulesList.append(row);
+      rulesList.append(checkItem([
+        element("code", "", rule.id),
+        element("span", "chip", rule.severity),
+        rule.baselined ? element("span", "chip", `${rule.baselined.toLocaleString()} baselined`) : null,
+        rule.excluded_count ? element("span", "chip", `${rule.excluded_count} grandfathered file(s)`) : null
+      ], rule.message ? element("p", "", rule.message) : null, [sourceLink(rule.evidence)]));
     });
     rulesSection.append(rulesList);
     arch.append(rulesSection);
     const testsSection = element("div", "pocket-section");
     testsSection.append(element("h4", "", `ArchitectureTests · ${architectural.tests_path}`));
-    const testsList = element("div", "behavior-list");
+    const testsList = element("ul", "check-list");
     architectural.tests.forEach((test) => {
-      const row = element("article", "behavior-row");
-      row.append(element("h4", "", test.title));
-      const provenance = element("p", "provenance");
-      provenance.append(element("span", "", "Swift Testing · "), sourceLink(test.evidence));
-      row.append(provenance);
-      testsList.append(row);
+      testsList.append(checkItem([element("strong", "", test.title)], null, [sourceLink(test.evidence)]));
     });
     testsSection.append(testsList);
     arch.append(testsSection);
     const invariantsSection = element("div", "pocket-section");
     invariantsSection.append(element("h4", "", "System-map invariants · architecture/interplay/invariants.json"));
-    const invariantsList = element("div", "behavior-list");
+    const invariantsList = element("ul", "check-list");
     architectural.invariants.forEach((item) => {
-      const row = element("article", "behavior-row");
-      const headLine = element("div", "invariant-head");
-      headLine.append(
+      invariantsList.append(checkItem([
         element("span", `invariant-status ${item.status}`, item.status === "holds" ? "HOLDS" : "VIOLATED"),
-        element("strong", "", item.id),
+        element("code", "", item.id),
         element("span", "invariant-meta", item.kind.replace(/_/g, " "))
-      );
-      row.append(headLine);
-      if (item.why) row.append(element("p", "derivation", item.why));
-      invariantsList.append(row);
+      ], item.why ? element("p", "", item.why) : null, []));
     });
     invariantsSection.append(invariantsList);
     invariantsSection.append(element("p", "group-note", "Checked by scripts/build_architecture.py on every build; the full list with what each pins is on the System map."));
@@ -3212,20 +3208,15 @@
 
     // 3 · Static compiler checks: regenerate and compare.
     const staticGroup = behaviorGroup("Static compiler checks", `${ci.static_checks.length} checks that recompile a committed artifact from the tree and fail when the two differ, or run the compiler's own tests. They ask neither "does it work" nor "did a number move": they ask whether what is published still describes this source.`);
-    const staticList = element("div", "behavior-list");
+    const staticList = element("ul", "check-list");
     ci.static_checks.forEach((check) => {
-      const row = element("article", "behavior-row");
-      row.append(element("h4", "", check.name));
-      const meta = element("p", "behavior-meta");
       const job = gateJobById.get(check.job);
-      meta.textContent = job ? `${(gateWorkflowById.get(job.workflow) || {}).label || job.workflow} / ${job.name}` : check.job;
-      row.append(meta);
-      row.append(element("code", "gate-command", check.command));
-      const provenance = element("p", "provenance");
-      provenance.append(element("span", "", "Step · "), sourceLink(check.evidence));
-      (check.scripts || []).forEach((script) => provenance.append(element("span", "", " · "), sourceLink({ path: script, line: 1 })));
-      row.append(provenance);
-      staticList.append(row);
+      const body = element("div");
+      body.append(element("code", "gate-command", check.command));
+      staticList.append(checkItem([
+        element("strong", "", check.name),
+        element("span", "invariant-meta", job ? `${(gateWorkflowById.get(job.workflow) || {}).label || job.workflow} / ${job.name}` : check.job)
+      ], body, [sourceLink(check.evidence), ...(check.scripts || []).map((script) => sourceLink({ path: script, line: 1 }))]));
     });
     staticGroup.append(staticList);
     sections.push(staticGroup);
@@ -3299,7 +3290,40 @@
     document.getElementById(`${viewName}-view`).classList.add("active");
   }
 
+  // Light / dark. CSS tokens do almost all of it; the two exceptions are the
+  // active arrowhead marker (an SVG fill set at render time) and Mermaid, which
+  // bakes its theme into each rendered diagram, so open diagrams re-render.
+  function applyTheme(theme, persist = true) {
+    document.documentElement.dataset.theme = theme;
+    if (persist) { try { window.localStorage.setItem("portal.architecture.theme", theme); } catch (_error) { /* storage unavailable */ } }
+    const toggle = document.getElementById("theme-toggle");
+    if (toggle) {
+      const next = theme === "light" ? "dark" : "light";
+      toggle.setAttribute("aria-label", `Switch to ${next} mode`);
+      toggle.title = `Switch to ${next} mode`;
+      toggle.firstElementChild.textContent = theme === "light" ? "☀" : "☾";
+    }
+    const activeArrow = document.querySelector("#arrow-active path");
+    if (activeArrow) activeArrow.setAttribute("fill", getComputedStyle(document.documentElement).getPropertyValue("--edge-active").trim() || "#f2f2f4");
+    if (window.__mermaidInit) {
+      window.__mermaidInit(theme);
+      document.querySelectorAll(".flow-diagram[data-state='rendered'], .flow-diagram[data-state='failed']").forEach((block) => {
+        block.dataset.state = "pending";
+        block.textContent = block.dataset.source;
+      });
+      renderMermaidDiagrams();
+    }
+  }
+
+  function wireTheme() {
+    const toggle = document.getElementById("theme-toggle");
+    if (!toggle) return;
+    applyTheme(document.documentElement.dataset.theme === "light" ? "light" : "dark", false);
+    toggle.addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light"));
+  }
+
   function wireControls() {
+    wireTheme();
     document.getElementById("inventory-search").addEventListener("input", (event) => renderInventory(event.target.value));
     const gatesSearch = document.getElementById("gates-search");
     if (gatesSearch) gatesSearch.addEventListener("input", applyGateState);
