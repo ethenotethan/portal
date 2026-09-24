@@ -92,3 +92,13 @@ internal struct GatewayResumeParseTests {
         }
     }
 }
+
+@Suite("JSON-RPC value decoding")
+internal struct AnyCodableDecodingTests {
+    @Test("JSON null decodes as the explicit null case")
+    internal func nullDecodesExplicitly() throws {
+        let value = try JSONDecoder().decode(AnyCodable.self, from: Data("null".utf8))
+
+        #expect(value == .null)
+    }
+}
