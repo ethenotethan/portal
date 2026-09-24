@@ -5,6 +5,17 @@ import Foundation
 @Suite("Maintainer refs")
 internal struct MaintainerRefTests {
 
+    private func artifact(title: String = "", content: String) -> LivingArtifact {
+        LivingArtifact(
+            id: "artifact-id",
+            kind: "dataset",
+            title: title,
+            content: content,
+            updatedAt: Date(timeIntervalSince1970: 0),
+            updatedBy: "test"
+        )
+    }
+
     // MARK: - Parsing single refs
 
     @Test("Parses a cron ref")
@@ -47,6 +58,22 @@ internal struct MaintainerRefTests {
     internal func parseListEmpty() {
         #expect(MaintainerRef.parseList(from: #"{"id":"a"}"#).isEmpty)
         #expect(MaintainerRef.parseList(from: "# a markdown doc").isEmpty)
+    }
+
+    @Test("Living artifacts project their display name and maintainer capabilities")
+    internal func livingArtifactMaintainerProjection() {
+        let maintained = artifact(
+            title: "Issue tracker",
+            content: #"{"maintainers":["cron:j1"]}"#
+        )
+        #expect(maintained.displayName == "Issue tracker")
+        #expect(maintained.maintainerRefs == [.cron(jobID: "j1")])
+        #expect(maintained.supportsMaintainers)
+
+        let markdown = artifact(content: "# Notes")
+        #expect(markdown.displayName == "artifact-id")
+        #expect(markdown.maintainerRefs.isEmpty)
+        #expect(!markdown.supportsMaintainers)
     }
 
     // MARK: - Writing
