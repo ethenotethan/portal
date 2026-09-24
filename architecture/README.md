@@ -87,6 +87,10 @@ Beneath the circuit the gates are sorted by what they defend. **Ratchets** hold 
 
 The view does not read branch protection: a gate here is a job that runs on pull requests, not a proof that GitHub requires it. Nothing here proves a job ran or passed.
 
+## The model as a service standard
+
+The model this compiler emits is also what Portal and Harness exchange for any service. A service that conforms ships a compiler that writes `architecture/model/model.json` and a `--check` that fails on drift; a manifest under `~/.hermes/services/architecture/<id>.json` (a local checkout that is never pushed, or a GitHub repository at a ref) tells Harness where to read it. Harness snapshots the model per revision, runs the check on demand and serves it over `architecture.*`; the service appears on Portal's dataflow graph with its source files, and **View architecture** on the node opens the model in this very renderer. To make that possible the compiler also emits `Sources/Portal/Models/ArchitectureObservatoryAssets.swift`, the site's `index.html`, `app.js` and `styles.css` as Swift constants, so the in-app page and the published site are the same code; `--check` fails when they drift. Portal is the first registered service. Contract: `harness/docs/api/architecture.md`.
+
 ## Local development
 
 ```bash
