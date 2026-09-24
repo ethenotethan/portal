@@ -88,9 +88,9 @@ private struct KanbanCard: View {
         )
         // One popover for the whole board, not one per card. A per-card
         // `.popover` mounts an NSPopover for every rendered card, and the
-        // column `LazyVStack`s re-mount those as cards scroll in and out —
-        // enough to beachball an expanded board mid-scroll. Anchoring a single
-        // popover to the board keeps card realization cheap.
+        // columns (lazy stacks at the time) re-mounted those as cards scrolled
+        // in and out — enough to beachball an expanded board mid-scroll.
+        // Anchoring a single popover to the board keeps card realization cheap.
         .popover(isPresented: openTicketBinding, arrowEdge: .leading) {
             if let card = selectedCard {
                 ticketDetail(card)
@@ -131,7 +131,12 @@ private struct KanbanCard: View {
                     .foregroundStyle(Theme.tertiary)
                     .monospacedDigit()
             }
-            LazyVStack(alignment: .leading, spacing: 6) {
+            // Plain VStack: the board is a fixed HStack of columns with no
+            // scroll viewport, so a lazy column can never defer a card — it
+            // only measures at an unbounded height and re-arms layout through
+            // signalPrefetch → requestUpdate (see ModelCard.body). The
+            // collapsed-lane limit above is what bounds a large board.
+            VStack(alignment: .leading, spacing: 6) {
                 ForEach(visibleCards) { card in
                     cardView(card)
                 }

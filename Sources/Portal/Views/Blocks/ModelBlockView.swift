@@ -105,7 +105,16 @@ private struct ModelCard: View {
     }
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
+        // A plain VStack on purpose. This card is measured at an unbounded
+        // height — by the artifact pane's ScrollView and, in a transcript, by
+        // the chat list's own lazy stack. A LazyVStack asked for its size
+        // without a viewport enumerates every child, misses its estimates,
+        // and re-arms itself through signalPrefetch → NSHostingView
+        // .requestUpdate — a relayout loop at 100% CPU (the beachball
+        // #537's LazyVStack shipped; see ModelSurfaceRelayoutGuardTests and
+        // the sampled chain in CanvasRelayoutGuardTests). The card has a
+        // handful of views, so laziness buys nothing here anyway.
+        VStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
@@ -451,6 +460,9 @@ private struct ModelEntityTable: View {
     var body: some View {
         let widths = columnWidths
         let width = ModelTableLayout.tableWidth(widths: widths, showsActions: showsActions)
+        // Sorted once per body, not once per row: the ForEach below indexes
+        // into this, and `sortedItems` re-sorts the whole set on every access.
+        let items = sortedItems
         return ScrollView(.horizontal, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 0) {
                 Text(set.name)
@@ -460,9 +472,14 @@ private struct ModelEntityTable: View {
                     .padding(.vertical, 6)
                 headerRow(widths: widths)
                 Divider().overlay(Theme.border.opacity(0.4))
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(sortedItems.indices, id: \.self) { index in
-                        row(sortedItems[index], widths: widths)
+                // Rows are a plain VStack: this scroll view only scrolls
+                // horizontally, so every row has to be realized to know the
+                // table's height, and a LazyVStack here can never skip any.
+                // What it did instead was measure at an unbounded height and
+                // schedule another layout pass each time (see ModelCard.body).
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(items.indices, id: \.self) { index in
+                        row(items[index], widths: widths)
                         Divider().overlay(Theme.border.opacity(0.4))
                     }
                 }
