@@ -737,3 +737,53 @@ footer strong { color: var(--muted); }
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Extraction map: the compiler's projection over the tree as a treemap. */
+.extraction-workspace { min-height: 520px; }
+#extraction-treemap { display: block; width: 100%; height: auto; }
+.treemap-dir-rect { fill: none; stroke: var(--line); stroke-width: 1; }
+.treemap-dir-label { fill: var(--faint); font: 600 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+.treemap-cell { cursor: pointer; }
+.treemap-cell rect { fill: var(--accent); fill-opacity: var(--share-opacity, .12); stroke: var(--bg); stroke-width: 1; transition: fill-opacity .15s ease; }
+.treemap-cell.untouched rect { fill: url(#extraction-untouched); fill-opacity: 1; }
+.treemap-cell:hover rect, .treemap-cell.selected rect { stroke: var(--ink); stroke-width: 1.5; }
+.treemap-cell.dimmed { opacity: .18; }
+.treemap-cell text { fill: var(--ink); font: 9px var(--mono); pointer-events: none; }
+.treemap-cell.untouched text { fill: var(--muted); }
+.extraction-hatch { stroke: var(--muted); stroke-width: 1.4; opacity: .55; }
+.extraction-legend-swatch { width: 14px; height: 10px; border: 1px solid var(--line); background: var(--accent); opacity: var(--swatch-opacity, 1); }
+.extraction-legend-swatch.hatched { background: repeating-linear-gradient(135deg, var(--line-strong) 0 1px, transparent 1px 5px); opacity: 1; }
+.extraction-bar { display: inline-block; width: 120px; height: 6px; margin-right: 8px; vertical-align: middle; background: var(--line); border-radius: 2px; overflow: hidden; }
+.extraction-bar span { display: block; height: 100%; width: var(--share, 0%); background: var(--accent); }
+.gates-table td.declaration-passes { color: var(--faint); font: 9px var(--mono); }
+.gates-table tr.untouched-row td { color: var(--muted); }
+.gates-table .declaration-kind { display: inline-block; min-width: 64px; color: var(--faint); font: 9px var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+.untouched-dir { margin: 14px 0 0; }
+.untouched-dir h4 { margin: 0 0 6px; color: var(--faint); font: 600 9px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
+.untouched-dir ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.untouched-dir li small { color: var(--faint); font: 9px var(--mono); margin-left: 6px; }
+
+/* Provenance wiring: file schema on the left, map entities on the right. */
+.provenance-workspace { min-height: 360px; }
+#extraction-provenance { display: block; width: 100%; height: auto; }
+.prov-row { cursor: pointer; }
+.prov-row rect.hit { fill: transparent; }
+.prov-row:hover rect.hit, .prov-row.selected rect.hit { fill: var(--surface-hover); }
+.prov-row.selected text.label { fill: var(--ink); font-weight: 600; }
+.prov-row text { font: 11px var(--mono); fill: var(--muted); }
+.prov-row.dir text.label, .prov-row.kind text.label { fill: var(--ink); font-weight: 600; letter-spacing: .02em; }
+.prov-row text.count { fill: var(--faint); font-size: 9px; }
+.prov-row.untouched text.label { fill: var(--faint); }
+.prov-row .caret { fill: var(--faint); font-size: 9px; }
+.prov-row.dimmed, .prov-wire.dimmed { opacity: .12; }
+.prov-row.linked text.label { fill: var(--ink); }
+.prov-wire { fill: none; stroke: var(--wire-color, var(--edge-quiet)); stroke-opacity: .55; stroke-linecap: round; }
+.prov-wire:hover, .prov-wire.selected { stroke-opacity: 1; }
+.prov-column-title { fill: var(--faint); font: 600 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.prov-rule { fill: var(--line); }
+.provenance-legend-swatch { width: 18px; height: 3px; background: var(--legend-color); border-radius: 2px; }
+.inspector .origin-list { margin: 0; padding: 0; list-style: none; }
+.inspector .origin-list li { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.inspector .origin-list li:first-child { border-top: 0; }
+.inspector .origin-rule { color: var(--faint); font: 9px var(--mono); }
+.inspector .origin-rule::before { content: ""; display: inline-block; width: 8px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--wire-color, var(--edge-quiet)); border-radius: 2px; }

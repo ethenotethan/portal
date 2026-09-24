@@ -53,6 +53,7 @@ internal enum ArchitectureObservatoryAssets {
 
   <nav class="section-nav" aria-label="Architecture views">
     <button class="nav-item active" data-view="systemmap" type="button">System map</button>
+    <button class="nav-item" data-view="extraction" type="button">Extraction map</button>
     <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
     <button class="nav-item" data-view="gates" type="button">CI gates</button>
   </nav>
@@ -132,6 +133,48 @@ internal enum ArchitectureObservatoryAssets {
         <p class="invariants-lede" id="invariants-lede"></p>
         <ol class="invariants-list" id="invariants-list"></ol>
       </section>
+    </section>
+
+    <section class="view" id="extraction-view" aria-labelledby="extraction-title">
+      <div class="intro-row">
+        <div>
+          <p class="eyebrow">THE EXTRACTOR AS A PROJECTION</p>
+          <h2 id="extraction-title">Extraction map</h2>
+          <p class="lede">The system map is the output of a function over the source tree: each compiler pass reads every Swift file and emits what its grammar recognises. This page shows the projection itself. On the left is the implementation's file schema, the directories and files as they sit in the repository. On the right is every construction the map drew, grouped by kind. Each wire is one extraction: it runs from the file and line a rule fired on to the entity that rule produced, coloured by the family of the rule. Files no wire leaves were read by every pass and cited by none. Whatever the grammar does not know does not exist on the map, so those files are exactly the region the invariants do not cover.</p>
+        </div>
+        <div class="stats" id="extraction-stats" aria-label="Extraction statistics"></div>
+      </div>
+      <div class="authority-banner" role="note">Every wire is a <code>(file, line, rule)</code> the compiled model already carries, joined to the entity whose citation it is, so this page can never disagree with the map. Untouched is a fact about the extractor's grammar, not about the code. Citations written by a person (construct records, flows) are counted separately and never drawn as extraction.</div>
+      <div class="graph-toolbar" aria-label="Extraction map controls">
+        <label class="search-control">
+          <span class="sr-only">Search files, entities, or rules</span>
+          <input id="extraction-search" type="search" placeholder="Search files, entities, declarations, or rules…" autocomplete="off">
+        </label>
+        <button id="provenance-expand-all" class="quiet-button" type="button">Expand all</button>
+        <button id="provenance-collapse-all" class="quiet-button" type="button">Collapse all</button>
+        <button id="reset-extraction" class="quiet-button" type="button">Reset selection</button>
+      </div>
+      <div class="graph-workspace provenance-workspace" id="provenance-workspace">
+        <div class="graph-scroll" id="provenance-scroll">
+          <svg id="extraction-provenance" role="img" aria-label="The repository's file tree wired to every construction on the system map by the rule that extracted it"></svg>
+        </div>
+        <aside class="inspector" id="provenance-inspector" aria-live="polite" hidden></aside>
+      </div>
+      <div class="legend" id="provenance-legend" aria-label="Extraction rule families"></div>
+      <div class="behavior-content" id="extraction-coverage">
+        <section class="behavior-group">
+          <h3>Coverage by file</h3>
+          <p class="group-note">The same projection as area: every analysed file is a cell sized by its lines; the fill is the share of its declarations a mechanical pass cited; hatched cells were read and cited by nothing.</p>
+          <div class="graph-workspace extraction-workspace" id="extraction-workspace">
+            <div class="graph-scroll" id="extraction-scroll">
+              <svg id="extraction-treemap" role="img" aria-label="Every analysed Swift file sized by lines and shaded by how much of it the extractor cited"></svg>
+            </div>
+            <aside class="inspector" id="extraction-inspector" aria-live="polite" hidden></aside>
+          </div>
+          <div class="legend" id="extraction-legend" aria-label="Coverage legend"></div>
+        </section>
+      </div>
+      <div class="behavior-content" id="extraction-content"></div>
     </section>
 
     <section class="view" id="inventory-view" aria-labelledby="inventory-title">
@@ -239,6 +282,41 @@ internal enum ArchitectureObservatoryAssets {
   const gateJobById = new Map(ci.jobs.map((job) => [job.id, job]));
   const gateWorkflowById = new Map(ci.workflows.map((workflow) => [workflow.id, workflow]));
   let selectedGateId = null;
+  // Extraction map state (declared before the init sequence below runs renderExtraction()).
+  const extraction = model.extraction || { files: [], passes: [], summary: {} };
+  const extractionFileByPath = new Map(extraction.files.map((file) => [file.path, file]));
+  const extractionCells = new Map();
+  let selectedExtractionPath = null;
+  const TREEMAP_WIDTH = 1200;
+  const TREEMAP_HEIGHT = 640;
+  const TREEMAP_HEADER = 14;
+  const TREEMAP_PAD = 3;
+  const provenanceOpenDirs = new Set();
+  const provenanceOpenKinds = new Set();
+  let selectedProvenance = null;
+  let provenanceInitialised = false;
+  const PROVENANCE_KIND_ORDER = ["endpoint", "client", "caller", "hub", "provider", "owner", "seam", "subscriber", "resource", "section", "operation", "machine", "store", "artifact", "external"];
+  const PROVENANCE_KIND_LABELS = {
+    endpoint: "Endpoints (RPC namespaces)", client: "Client extensions", caller: "Calling surfaces", hub: "Interplay hub",
+    provider: "Config provider", owner: "Supporting owners", seam: "Backend seam", subscriber: "Event subscribers",
+    resource: "Stored resources", section: "Critical sections", operation: "Lifecycle operations", machine: "State machines",
+    store: "Data stores", artifact: "Persisted artifacts", external: "External systems"
+  };
+  const PROVENANCE_FAMILY_COLORS = { store: "#7ec8b0", behaviour: "#8b83ff", boundary: "#e0704f", wiring: "#d9a441", trigger: "#5aa9e6" };
+  const PROVENANCE_FAMILY_LABELS = { store: "store rules", behaviour: "behaviour rules", boundary: "boundary signatures", wiring: "map wiring", trigger: "triggers" };
+  const PROV = { width: 1200, rowH: 18, leftW: 440, rightX: 780, top: 26, indent: 14, pad: 12 };
+  const provenanceEntities = extraction.entities || [];
+  const provenanceEntityById = new Map(provenanceEntities.map((entity) => [entity.id, entity]));
+  // file path → [{entity, origin}], entity id → origins
+  const provenanceByFile = new Map();
+  provenanceEntities.forEach((entity) => {
+    entity.origins.forEach((origin) => {
+      if (!provenanceByFile.has(origin.path)) provenanceByFile.set(origin.path, []);
+      provenanceByFile.get(origin.path).push({ entity, origin });
+    });
+  });
+  let provenanceRows = { left: [], right: [] };
+  let provenanceWires = [];
   let gateLayout = null;
   // The transport is one in-memory construction with two legs: the request leg
   // (the transport core with its pool, lock and socket) and the push leg (the
@@ -498,6 +576,7 @@ internal enum ArchitectureObservatoryAssets {
   renderFlows();
   renderTimeline();
   renderInventory();
+  renderExtraction();
   renderGates();
   wireNavigation();
   wireControls();
@@ -3580,6 +3659,752 @@ internal enum ArchitectureObservatoryAssets {
     container.replaceChildren(...sections);
   }
 
+  // ── Extraction map ───────────────────────────────────────────────────────────
+  // The compiler as a projection: every analysed file as a treemap cell sized by
+  // lines and shaded by the share of its declarations a mechanical pass cited.
+  // Hatched cells were read and cited by nothing. Everything here is read from
+  // model.extraction, which the compiler derives from the citations the rest of
+  // the model already carries, so this page cannot disagree with the map.
+
+  // ── Provenance wiring ────────────────────────────────────────────────────────
+  // The file schema on the left, every construction the map drew on the right,
+  // one wire per (file, line, rule) the extractor fired. Directories and entity
+  // kinds start closed and open on click; wires bundle onto whatever is visible.
+
+  function provenanceDirs(tree) {
+    // Every directory path in the folded tree with its files, transitively.
+    const out = [];
+    (function visit(node, prefix, depth) {
+      const path = prefix ? `${prefix}/${node.name}` : node.name;
+      const files = [];
+      (function collect(inner) { inner.files.forEach((file) => files.push(file)); inner.dirs.forEach(collect); })(node);
+      out.push({ node, path, depth, files });
+      node.dirs.forEach((dir) => visit(dir, path, depth + 1));
+    })(tree, "", 0);
+    return out;
+  }
+
+  function buildProvenanceRows(query) {
+    const tree = extractionTree();
+    const left = [];
+    (function visit(node, prefix, depth) {
+      const path = prefix ? `${prefix}/${node.name}` : node.name;
+      const files = [];
+      (function collect(inner) { inner.files.forEach((file) => files.push(file)); inner.dirs.forEach(collect); })(node);
+      const wired = files.filter((file) => provenanceByFile.has(file.path)).length;
+      const open = provenanceOpenDirs.has(path);
+      left.push({ type: "dir", key: path, label: node.name || "repository", depth, open, files, wired, matches: !query || files.some((file) => provenanceFileMatches(file, query)) });
+      if (!open) return;
+      node.dirs.forEach((dir) => visit(dir, path, depth + 1));
+      node.files.slice().sort((a, b) => a.path.localeCompare(b.path)).forEach((file) => {
+        left.push({ type: "file", key: file.path, label: file.path.split("/").pop(), depth: depth + 1, file, wired: (provenanceByFile.get(file.path) || []).length, matches: !query || provenanceFileMatches(file, query) });
+      });
+    })(tree, "", 0);
+    const right = [];
+    PROVENANCE_KIND_ORDER.concat(provenanceEntities.map((entity) => entity.kind).filter((kind) => !PROVENANCE_KIND_ORDER.includes(kind)))
+      .filter((kind, index, all) => all.indexOf(kind) === index)
+      .forEach((kind) => {
+        const entities = provenanceEntities.filter((entity) => entity.kind === kind).sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
+        if (!entities.length) return;
+        const open = provenanceOpenKinds.has(kind);
+        right.push({ type: "kind", key: kind, label: PROVENANCE_KIND_LABELS[kind] || kind, kind, entities, open, matches: !query || entities.some((entity) => provenanceEntityMatches(entity, query)) });
+        if (open) entities.forEach((entity) => right.push({ type: "entity", key: entity.id, label: entity.label, entity, matches: !query || provenanceEntityMatches(entity, query) }));
+      });
+    return { left, right };
+  }
+
+  function provenanceFileMatches(file, query) {
+    if (file.path.toLowerCase().includes(query)) return true;
+    return (provenanceByFile.get(file.path) || []).some(({ entity, origin }) => entity.label.toLowerCase().includes(query) || origin.rule.toLowerCase().includes(query));
+  }
+
+  function provenanceEntityMatches(entity, query) {
+    return entity.label.toLowerCase().includes(query) || entity.kind.includes(query) || entity.origins.some((origin) => origin.rule.toLowerCase().includes(query) || origin.path.toLowerCase().includes(query));
+  }
+
+  function buildProvenanceWires(rows) {
+    // Each origin is a wire file → entity; bundle onto the visible row for each end.
+    const leftRowForFile = new Map();
+    let currentDirStack = [];
+    rows.left.forEach((row, index) => {
+      if (row.type === "dir") {
+        currentDirStack = currentDirStack.slice(0, row.depth);
+        currentDirStack[row.depth] = index;
+        if (!row.open) row.files.forEach((file) => leftRowForFile.set(file.path, index));
+      } else {
+        leftRowForFile.set(row.file.path, index);
+      }
+    });
+    const rightRowForEntity = new Map();
+    rows.right.forEach((row, index) => {
+      if (row.type === "kind" && !row.open) row.entities.forEach((entity) => rightRowForEntity.set(entity.id, index));
+      if (row.type === "entity") rightRowForEntity.set(row.entity.id, index);
+    });
+    const bundles = new Map();
+    provenanceEntities.forEach((entity) => {
+      const target = rightRowForEntity.get(entity.id);
+      if (target === undefined) return;
+      entity.origins.forEach((origin) => {
+        const source = leftRowForFile.get(origin.path);
+        if (source === undefined) return;
+        const key = `${source}→${target}`;
+        if (!bundles.has(key)) bundles.set(key, { source, target, count: 0, families: new Set(), files: new Set(), entities: new Set() });
+        const bundle = bundles.get(key);
+        bundle.count += 1;
+        bundle.families.add(origin.family);
+        bundle.files.add(origin.path);
+        bundle.entities.add(entity.id);
+      });
+    });
+    return [...bundles.values()].sort((a, b) => a.source - b.source || a.target - b.target);
+  }
+
+  function renderProvenance() {
+    const svg = document.getElementById("extraction-provenance");
+    if (!svg) return;
+    if (!provenanceInitialised) {
+      // The outermost shells start open so the first-level directories are the first thing seen.
+      provenanceDirs(extractionTree()).filter((dir) => dir.depth <= 1).forEach((dir) => provenanceOpenDirs.add(dir.path));
+      provenanceInitialised = true;
+    }
+    const search = document.getElementById("extraction-search");
+    const query = search ? search.value.trim().toLowerCase() : "";
+    provenanceRows = buildProvenanceRows(query);
+    provenanceWires = buildProvenanceWires(provenanceRows);
+    const rowsTall = Math.max(provenanceRows.left.length, provenanceRows.right.length, 4);
+    const height = PROV.top + rowsTall * PROV.rowH + PROV.pad;
+    svg.replaceChildren();
+    svg.setAttribute("viewBox", `0 0 ${PROV.width} ${height}`);
+    const titles = svgElement("g", {});
+    [["FILE SCHEMA · " + (extraction.summary.files || 0) + " files", 0], ["ENTITIES ON THE MAP · " + provenanceEntities.length, PROV.rightX]].forEach(([text, x]) => {
+      const label = svgElement("text", { class: "prov-column-title", x, y: 12 });
+      label.textContent = text;
+      titles.append(label);
+    });
+    svg.append(titles);
+    const wireLayer = svgElement("g", { class: "prov-wires" });
+    const rowY = (index) => PROV.top + index * PROV.rowH + PROV.rowH / 2;
+    provenanceWires.forEach((bundle) => {
+      const y1 = rowY(bundle.source);
+      const y2 = rowY(bundle.target);
+      const x1 = PROV.leftW + 6;
+      const x2 = PROV.rightX - 8;
+      const mid = (x1 + x2) / 2;
+      const path = svgElement("path", {
+        class: "prov-wire",
+        d: `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`,
+        "stroke-width": (1 + Math.log2(bundle.count)).toFixed(2),
+        "data-source": bundle.source, "data-target": bundle.target
+      });
+      const family = bundle.families.size === 1 ? [...bundle.families][0] : null;
+      if (family) path.style.setProperty("--wire-color", PROVENANCE_FAMILY_COLORS[family]);
+      const title = svgElement("title", {});
+      title.textContent = `${bundle.count} extraction(s) · ${bundle.files.size} file(s) → ${bundle.entities.size} entit(ies) · ${[...bundle.families].map((f) => PROVENANCE_FAMILY_LABELS[f]).join(", ")}`;
+      path.append(title);
+      wireLayer.append(path);
+    });
+    svg.append(wireLayer);
+    const rowLayer = svgElement("g", { class: "prov-rows" });
+    provenanceRows.left.forEach((row, index) => rowLayer.append(provenanceRowElement(row, index, "left")));
+    provenanceRows.right.forEach((row, index) => rowLayer.append(provenanceRowElement(row, index, "right")));
+    svg.append(rowLayer);
+    applyProvenanceState();
+  }
+
+  function provenanceRowElement(row, index, side) {
+    const y = PROV.top + index * PROV.rowH;
+    const x = side === "left" ? 0 : PROV.rightX;
+    const width = side === "left" ? PROV.leftW : PROV.width - PROV.rightX;
+    const classes = ["prov-row", row.type];
+    if (row.type === "file" && !row.wired) classes.push("untouched");
+    const group = svgElement("g", { class: classes.join(" "), "data-side": side, "data-key": row.key, tabindex: 0, role: "button" });
+    group.append(svgElement("rect", { class: "hit", x, y, width, height: PROV.rowH, rx: 2 }));
+    const indent = side === "left" ? row.depth * PROV.indent : (row.type === "entity" ? PROV.indent : 0);
+    if (row.type === "dir" || row.type === "kind") {
+      const caret = svgElement("text", { class: "caret", x: x + indent + 2, y: y + 12.5 });
+      caret.textContent = row.open ? "▾" : "▸";
+      group.append(caret);
+    }
+    const label = svgElement("text", { class: "label", x: x + indent + 12, y: y + 12.5 });
+    const room = Math.floor((width - indent - 70) / 6.6);
+    label.textContent = row.label.length > room ? row.label.slice(0, Math.max(3, room - 1)) + "…" : row.label;
+    group.append(label);
+    const count = svgElement("text", { class: "count", x: x + width - 4, y: y + 12.5, "text-anchor": "end" });
+    if (row.type === "dir") count.textContent = row.open ? "" : `${row.wired}/${row.files.length} files feed the map`;
+    else if (row.type === "file") count.textContent = row.wired ? `${row.wired} ↗` : `${row.file.declaration_count} decl · untouched`;
+    else if (row.type === "kind") count.textContent = row.open ? "" : `${row.entities.length}`;
+    else count.textContent = `${row.entity.origins.length} ↙`;
+    group.append(count);
+    const title = svgElement("title", {});
+    title.textContent = row.type === "file" ? row.file.path : row.type === "entity" ? `${row.entity.kind} · ${row.entity.id}` : row.key;
+    group.append(title);
+    const act = () => provenanceRowActivated(row);
+    group.addEventListener("click", act);
+    group.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); act(); }
+    });
+    return group;
+  }
+
+  function provenanceRowActivated(row) {
+    if (row.type === "dir") {
+      if (provenanceOpenDirs.has(row.key)) provenanceOpenDirs.delete(row.key); else provenanceOpenDirs.add(row.key);
+      renderProvenance();
+      return;
+    }
+    if (row.type === "kind") {
+      if (provenanceOpenKinds.has(row.key)) provenanceOpenKinds.delete(row.key); else provenanceOpenKinds.add(row.key);
+      renderProvenance();
+      return;
+    }
+    const next = { type: row.type, key: row.key };
+    selectedProvenance = selectedProvenance && selectedProvenance.key === next.key ? null : next;
+    renderProvenanceInspector(selectedProvenance);
+    applyProvenanceState();
+  }
+
+  function provenanceSelectionEndpoints() {
+    // Rows connected to the selection: files/entities on the other side of its wires.
+    if (!selectedProvenance) return null;
+    const files = new Set();
+    const entities = new Set();
+    if (selectedProvenance.type === "file") {
+      files.add(selectedProvenance.key);
+      (provenanceByFile.get(selectedProvenance.key) || []).forEach(({ entity }) => entities.add(entity.id));
+    } else {
+      entities.add(selectedProvenance.key);
+      const entity = provenanceEntityById.get(selectedProvenance.key);
+      if (entity) entity.origins.forEach((origin) => files.add(origin.path));
+    }
+    return { files, entities };
+  }
+
+  function applyProvenanceState() {
+    const svg = document.getElementById("extraction-provenance");
+    if (!svg) return;
+    const search = document.getElementById("extraction-search");
+    const query = search ? search.value.trim().toLowerCase() : "";
+    const linked = provenanceSelectionEndpoints();
+    const rowLinked = (row) => {
+      if (!linked) return false;
+      if (row.type === "file") return linked.files.has(row.key);
+      if (row.type === "dir") return row.files.some((file) => linked.files.has(file.path));
+      if (row.type === "entity") return linked.entities.has(row.key);
+      return row.entities.some((entity) => linked.entities.has(entity.id));
+    };
+    const visible = { left: [], right: [] };
+    svg.querySelectorAll(".prov-row").forEach((group) => {
+      const side = group.dataset.side;
+      const row = provenanceRows[side].find((candidate) => candidate.key === group.dataset.key);
+      if (!row) return;
+      const isSelected = Boolean(selectedProvenance) && selectedProvenance.key === row.key;
+      const isLinked = rowLinked(row);
+      group.classList.toggle("selected", isSelected);
+      group.classList.toggle("linked", isLinked && !isSelected);
+      group.classList.toggle("dimmed", (Boolean(query) && !row.matches) || (Boolean(linked) && !isSelected && !isLinked));
+      visible[side].push(row);
+    });
+    svg.querySelectorAll(".prov-wire").forEach((path) => {
+      const source = provenanceRows.left[Number(path.dataset.source)];
+      const target = provenanceRows.right[Number(path.dataset.target)];
+      const onSelection = linked && source && target && rowLinked(source) !== false && rowLinked(target) !== false && (rowLinked(source) || (selectedProvenance.key === source.key)) && (rowLinked(target) || selectedProvenance.key === target.key);
+      const matchesQuery = !query || ((source && source.matches) && (target && target.matches));
+      path.classList.toggle("selected", Boolean(onSelection));
+      path.classList.toggle("dimmed", !matchesQuery || (Boolean(linked) && !onSelection));
+    });
+  }
+
+  function renderProvenanceInspector(selection) {
+    const inspector = document.getElementById("provenance-inspector");
+    const workspace = document.getElementById("provenance-workspace");
+    if (!inspector) return;
+    if (!selection) {
+      inspector.hidden = true;
+      inspector.replaceChildren();
+      if (workspace) workspace.classList.remove("has-inspector");
+      return;
+    }
+    inspector.hidden = false;
+    if (workspace) workspace.classList.add("has-inspector");
+    const close = element("button", "inspector-close", "×");
+    close.type = "button";
+    close.setAttribute("aria-label", "Close inspector");
+    close.addEventListener("click", () => { selectedProvenance = null; renderProvenanceInspector(null); applyProvenanceState(); });
+    const originItem = (origin, primaryText, secondary) => {
+      const item = element("li");
+      const main = element("span", "");
+      main.append(primaryText);
+      if (secondary) main.append(document.createTextNode(" "), secondary);
+      const rule = element("span", "origin-rule", origin.rule + (origin.via ? " · via trigger" : ""));
+      rule.style.setProperty("--wire-color", PROVENANCE_FAMILY_COLORS[origin.family] || "");
+      item.append(main, rule);
+      return item;
+    };
+    if (selection.type === "file") {
+      const file = extractionFileByPath.get(selection.key);
+      const wires = (provenanceByFile.get(selection.key) || []).slice().sort((a, b) => a.origin.line - b.origin.line || a.entity.label.localeCompare(b.entity.label));
+      const heading = element("h3", "", selection.key.split("/").pop());
+      const path = element("p", "");
+      path.append(sourceLink({ path: selection.key, line: 1 }));
+      if (file && file.component) path.append(document.createTextNode(` · ${file.component} · ${file.line_count.toLocaleString()} lines`));
+      const badge = element("span", "inspector-badge", wires.length ? `${wires.length} EXTRACTION(S) LEAVE THIS FILE` : "UNTOUCHED");
+      const section = element("div", "inspector-section");
+      section.append(element("h4", "", "What the extractor produced from it"));
+      if (wires.length) {
+        const list = element("ul", "origin-list");
+        wires.forEach(({ entity, origin }) => {
+          const link = sourceLink({ path: origin.path, line: origin.line });
+          link.textContent = `:${origin.line}`;
+          const button = element("button", "gate-job", `${entity.kind} · ${entity.label}`);
+          button.type = "button";
+          button.addEventListener("click", () => { selectedProvenance = { type: "entity", key: entity.id }; provenanceOpenKinds.add(entity.kind); renderProvenance(); renderProvenanceInspector(selectedProvenance); });
+          list.append(originItem(origin, button, link));
+        });
+        section.append(list);
+      } else {
+        section.append(element("p", "", `Nothing. ${file ? file.declaration_count : 0} declaration(s) were read and no rule recognised any of them: the map and every invariant built on it say nothing about this file.`));
+      }
+      inspector.replaceChildren(close, badge, heading, path, section);
+      return;
+    }
+    const entity = provenanceEntityById.get(selection.key);
+    if (!entity) { inspector.hidden = true; return; }
+    const badge = element("span", "inspector-badge", (PROVENANCE_KIND_LABELS[entity.kind] || entity.kind).toUpperCase());
+    const heading = element("h3", "", entity.label);
+    const meta = element("p", "", entity.component ? `component ${entity.component} · ${entity.origins.length} origin(s)` : `${entity.origins.length} origin(s)`);
+    const section = element("div", "inspector-section");
+    section.append(element("h4", "", "Extracted from"));
+    const list = element("ul", "origin-list");
+    entity.origins.forEach((origin) => {
+      const link = sourceLink({ path: origin.path, line: origin.line });
+      list.append(originItem(origin, link));
+    });
+    section.append(list);
+    const actions = element("div", "inspector-section");
+    const show = element("button", "quiet-button", "Show on system map");
+    show.type = "button";
+    show.addEventListener("click", () => {
+      if (interplayNodeById.has(entity.id)) { activateView("systemmap"); selectInterplayNode(entity.id); }
+    });
+    actions.append(show);
+    inspector.replaceChildren(close, badge, heading, meta, section, actions);
+  }
+
+  function renderProvenanceLegend() {
+    const legend = document.getElementById("provenance-legend");
+    if (!legend) return;
+    const families = extraction.families || {};
+    legend.replaceChildren(...Object.keys(PROVENANCE_FAMILY_COLORS).filter((family) => families[family]).map((family) => {
+      const item = element("div", "legend-item");
+      const swatch = element("span", "provenance-legend-swatch");
+      swatch.style.setProperty("--legend-color", PROVENANCE_FAMILY_COLORS[family]);
+      item.append(swatch, element("span", "", PROVENANCE_FAMILY_LABELS[family]));
+      item.title = families[family];
+      return item;
+    }), (() => {
+      const item = element("div", "legend-item");
+      const swatch = element("span", "provenance-legend-swatch");
+      swatch.style.setProperty("--legend-color", "var(--edge-quiet)");
+      item.append(swatch, element("span", "", "mixed families · width grows with the number of extractions bundled"));
+      return item;
+    })());
+  }
+
+  function setProvenanceExpanded(expanded) {
+    provenanceOpenDirs.clear();
+    provenanceOpenKinds.clear();
+    if (expanded) {
+      provenanceDirs(extractionTree()).forEach((dir) => provenanceOpenDirs.add(dir.path));
+      PROVENANCE_KIND_ORDER.forEach((kind) => provenanceOpenKinds.add(kind));
+      provenanceEntities.forEach((entity) => provenanceOpenKinds.add(entity.kind));
+    }
+    renderProvenance();
+  }
+
+  function extractionTree() {
+    // Directory tree from repository paths, single-child chains folded into one label.
+    const root = { name: "", children: new Map(), files: [], lines: 0 };
+    extraction.files.forEach((file) => {
+      const parts = file.path.split("/");
+      let node = root;
+      parts.slice(0, -1).forEach((part) => {
+        if (!node.children.has(part)) node.children.set(part, { name: part, children: new Map(), files: [], lines: 0 });
+        node = node.children.get(part);
+      });
+      node.files.push(file);
+    });
+    function fold(node) {
+      let current = node;
+      const labels = [current.name];
+      while (current.children.size === 1 && current.files.length === 0) {
+        current = [...current.children.values()][0];
+        labels.push(current.name);
+      }
+      const folded = {
+        name: labels.filter(Boolean).join("/"),
+        dirs: [...current.children.values()].map(fold).sort((a, b) => b.lines - a.lines || a.name.localeCompare(b.name)),
+        files: current.files.slice().sort((a, b) => b.line_count - a.line_count || a.path.localeCompare(b.path)),
+        lines: 0
+      };
+      folded.lines = folded.dirs.reduce((sum, dir) => sum + dir.lines, 0) + folded.files.reduce((sum, file) => sum + file.line_count, 0);
+      return folded;
+    }
+    return fold(root);
+  }
+
+  function squarify(items, rect) {
+    // Bruls–Huizing–van Wijk squarified treemap: rows along the shorter side,
+    // each row grown while its worst aspect ratio keeps improving.
+    const total = items.reduce((sum, item) => sum + item.weight, 0);
+    if (total <= 0 || rect.w <= 0 || rect.h <= 0) return [];
+    const scale = (rect.w * rect.h) / total;
+    let remaining = items.map((item) => ({ item, area: item.weight * scale }));
+    let { x, y, w, h } = rect;
+    const placed = [];
+    const worst = (row, side, area) => {
+      const thickness = area / side;
+      return Math.max(...row.map((entry) => {
+        const length = entry.area / thickness;
+        return Math.max(length / thickness, thickness / length);
+      }));
+    };
+    while (remaining.length) {
+      const vertical = w >= h;
+      const side = vertical ? h : w;
+      let row = [remaining[0]];
+      let rowArea = remaining[0].area;
+      let ratio = worst(row, side, rowArea);
+      for (let index = 1; index < remaining.length; index += 1) {
+        const candidate = row.concat(remaining[index]);
+        const candidateArea = rowArea + remaining[index].area;
+        const candidateRatio = worst(candidate, side, candidateArea);
+        if (candidateRatio > ratio) break;
+        row = candidate;
+        rowArea = candidateArea;
+        ratio = candidateRatio;
+      }
+      const thickness = rowArea / side;
+      let offset = 0;
+      row.forEach((entry) => {
+        const length = entry.area / thickness;
+        placed.push(vertical
+          ? { item: entry.item, x, y: y + offset, w: thickness, h: length }
+          : { item: entry.item, x: x + offset, y, w: length, h: thickness });
+        offset += length;
+      });
+      if (vertical) { x += thickness; w -= thickness; } else { y += thickness; h -= thickness; }
+      remaining = remaining.slice(row.length);
+    }
+    return placed;
+  }
+
+  function extractionShare(file) {
+    return file.declaration_count ? file.mapped_declarations / file.declaration_count : (file.touched ? 1 : 0);
+  }
+
+  function layoutExtractionDirectory(node, rect, svg, depth) {
+    const inner = depth === 0
+      ? rect
+      : { x: rect.x + TREEMAP_PAD, y: rect.y + TREEMAP_HEADER, w: rect.w - 2 * TREEMAP_PAD, h: rect.h - TREEMAP_HEADER - TREEMAP_PAD };
+    if (depth > 0) {
+      svg.append(svgElement("rect", { class: "treemap-dir-rect", x: rect.x, y: rect.y, width: rect.w, height: rect.h }));
+      if (rect.w > 60 && rect.h > TREEMAP_HEADER) {
+        const label = svgElement("text", { class: "treemap-dir-label", x: rect.x + 4, y: rect.y + 10 });
+        label.textContent = node.name.length * 6 > rect.w - 8 ? node.name.slice(0, Math.max(3, Math.floor((rect.w - 8) / 6))) + "…" : node.name;
+        svg.append(label);
+      }
+    }
+    if (inner.w <= 0 || inner.h <= 0) return;
+    const items = [
+      ...node.dirs.map((dir) => ({ weight: dir.lines, dir })),
+      ...node.files.map((file) => ({ weight: file.line_count, file }))
+    ].filter((item) => item.weight > 0).sort((a, b) => b.weight - a.weight);
+    squarify(items, inner).forEach((placed) => {
+      if (placed.item.dir) {
+        layoutExtractionDirectory(placed.item.dir, placed, svg, depth + 1);
+        return;
+      }
+      const file = placed.item.file;
+      const cell = svgElement("g", { class: `treemap-cell${file.touched ? "" : " untouched"}`, "data-path": file.path, tabindex: 0, role: "button" });
+      cell.style.setProperty("--share-opacity", (0.16 + 0.74 * extractionShare(file)).toFixed(3));
+      cell.append(svgElement("rect", { x: placed.x, y: placed.y, width: Math.max(0, placed.w), height: Math.max(0, placed.h), rx: 1 }));
+      const title = svgElement("title", {});
+      const name = file.path.split("/").pop();
+      title.textContent = `${file.path} · ${file.line_count.toLocaleString()} lines · ${file.mapped_declarations}/${file.declaration_count} declarations mapped · ${file.passes.length} pass(es)`;
+      cell.append(title);
+      if (placed.w > 46 && placed.h > 16) {
+        const label = svgElement("text", { x: placed.x + 4, y: placed.y + 11 });
+        const fit = Math.max(1, Math.floor((placed.w - 8) / 5.6));
+        label.textContent = name.length > fit ? name.slice(0, Math.max(1, fit - 1)) + "…" : name;
+        cell.append(label);
+      }
+      cell.addEventListener("click", () => selectExtractionFile(file.path));
+      cell.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectExtractionFile(file.path); }
+      });
+      extractionCells.set(file.path, cell);
+      svg.append(cell);
+    });
+  }
+
+  function renderExtraction() {
+    const svg = document.getElementById("extraction-treemap");
+    if (!svg) return;
+    extractionCells.clear();
+    svg.replaceChildren();
+    svg.setAttribute("viewBox", `0 0 ${TREEMAP_WIDTH} ${TREEMAP_HEIGHT}`);
+    const defs = svgElement("defs", {});
+    const pattern = svgElement("pattern", { id: "extraction-untouched", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+    pattern.append(svgElement("line", { class: "extraction-hatch", x1: 0, y1: 0, x2: 0, y2: 6 }));
+    defs.append(pattern);
+    svg.append(defs);
+    if (!extraction.files.length) {
+      const empty = svgElement("text", { class: "treemap-dir-label", x: 12, y: 24 });
+      empty.textContent = "No analysed files in the model.";
+      svg.append(empty);
+    } else {
+      layoutExtractionDirectory(extractionTree(), { x: 0, y: 0, w: TREEMAP_WIDTH, h: TREEMAP_HEIGHT }, svg, 0);
+    }
+    renderProvenance();
+    renderProvenanceLegend();
+    renderProvenanceInspector(null);
+    renderExtractionStats();
+    renderExtractionLegend();
+    renderExtractionSections();
+    renderExtractionInspector(null);
+    applyExtractionState();
+  }
+
+  function renderExtractionStats() {
+    const container = document.getElementById("extraction-stats");
+    if (!container) return;
+    const summary = extraction.summary || {};
+    const types = summary.types || { total: 0, mapped: 0 };
+    const functions = summary.functions || { total: 0, mapped: 0 };
+    const values = [
+      [`${summary.touched_files || 0}/${summary.files || 0}`, "Files touched"],
+      [`${types.mapped}/${types.total}`, "Types mapped"],
+      [`${functions.mapped}/${functions.total}`, "Functions mapped"],
+      [`${summary.entities_with_origin || 0}/${summary.entities || 0}`, "Entities wired"],
+      [String(summary.passes || 0), "Passes"]
+    ];
+    container.replaceChildren(...values.map(([value, label]) => {
+      const item = element("div", "stat");
+      item.append(element("span", "stat-value", value), element("span", "stat-label", label));
+      return item;
+    }));
+  }
+
+  function renderExtractionLegend() {
+    const legend = document.getElementById("extraction-legend");
+    if (!legend) return;
+    const entries = [
+      ["all declarations cited", 0.9],
+      ["some declarations cited", 0.45],
+      ["file cited, no declaration placed", 0.16]
+    ].map(([label, opacity]) => {
+      const item = element("div", "legend-item");
+      const swatch = element("span", "extraction-legend-swatch");
+      swatch.style.setProperty("--swatch-opacity", String(opacity));
+      item.append(swatch, element("span", "", label));
+      return item;
+    });
+    const hatched = element("div", "legend-item");
+    hatched.append(element("span", "extraction-legend-swatch hatched"), element("span", "", "untouched: read, cited by nothing"));
+    legend.replaceChildren(...entries, hatched, element("div", "legend-item", "cell area = lines of source"));
+  }
+
+  function extractionMatches(file, query) {
+    if (!query) return true;
+    if (file.path.toLowerCase().includes(query)) return true;
+    if (file.passes.some((pass) => pass.toLowerCase().includes(query))) return true;
+    return file.declarations.some((declaration) => declaration.name.toLowerCase().includes(query));
+  }
+
+  function applyExtractionState() {
+    const search = document.getElementById("extraction-search");
+    const query = search ? search.value.trim().toLowerCase() : "";
+    extractionCells.forEach((cell, path) => {
+      const file = extractionFileByPath.get(path);
+      cell.classList.toggle("dimmed", Boolean(query) && !extractionMatches(file, query));
+      cell.classList.toggle("selected", path === selectedExtractionPath);
+    });
+    const list = document.getElementById("extraction-untouched");
+    if (list) renderUntouchedFiles(list, query);
+    renderProvenance();
+  }
+
+  function selectExtractionFile(path) {
+    selectedExtractionPath = selectedExtractionPath === path ? null : path;
+    renderExtractionInspector(selectedExtractionPath ? extractionFileByPath.get(selectedExtractionPath) : null);
+    applyExtractionState();
+  }
+
+  function renderExtractionInspector(file) {
+    const inspector = document.getElementById("extraction-inspector");
+    const workspace = document.getElementById("extraction-workspace");
+    if (!inspector) return;
+    if (!file) {
+      inspector.hidden = true;
+      inspector.replaceChildren();
+      if (workspace) workspace.classList.remove("has-inspector");
+      return;
+    }
+    inspector.hidden = false;
+    if (workspace) workspace.classList.add("has-inspector");
+    const close = element("button", "inspector-close", "×");
+    close.type = "button";
+    close.setAttribute("aria-label", "Close inspector");
+    close.addEventListener("click", () => selectExtractionFile(file.path));
+    const badge = element("span", "inspector-badge", file.touched ? "TOUCHED BY THE EXTRACTOR" : "UNTOUCHED");
+    const heading = element("h3", "", file.path.split("/").pop());
+    const path = element("p", "");
+    path.append(sourceLink({ path: file.path, line: 1 }));
+    if (file.component) path.append(document.createTextNode(` · ${file.component}`));
+    const metrics = element("div", "inspector-metrics");
+    [
+      [file.line_count.toLocaleString(), "lines"],
+      [`${file.mapped_declarations}/${file.declaration_count}`, "declarations mapped"],
+      [String(file.citations), "citations"]
+    ].forEach(([value, label]) => {
+      const metric = element("div", "inspector-metric");
+      metric.append(element("strong", "", value), element("span", "", label));
+      metrics.append(metric);
+    });
+    const passes = element("div", "inspector-section");
+    passes.append(element("h4", "", "Passes that cited this file"));
+    if (file.passes.length) {
+      const chips = element("div", "chip-list");
+      file.passes.forEach((pass) => chips.append(element("span", "chip", pass)));
+      passes.append(chips);
+    } else {
+      passes.append(element("p", "", "No mechanical pass cited this file. Its declarations are outside the extractor's grammar: the map says nothing about them, and no invariant covers them."));
+    }
+    if (file.semantic_citations) {
+      passes.append(element("p", "", `${file.semantic_citations} semantic citation(s) from construct records or flows point here; those are written by a person and do not count as extraction.`));
+    }
+    const declarations = element("div", "inspector-section");
+    declarations.append(element("h4", "", `Declarations (${file.declaration_count})`));
+    if (file.declarations.length) {
+      const table = element("table", "gates-table");
+      const head = element("thead");
+      const headRow = element("tr");
+      ["Declaration", "Line", "Cited by"].forEach((label) => headRow.append(element("th", "", label)));
+      head.append(headRow);
+      const body = element("tbody");
+      file.declarations.forEach((declaration) => {
+        const row = element("tr", declaration.passes.length ? "" : "untouched-row");
+        const name = element("td", "");
+        name.append(element("span", "declaration-kind", declaration.kind), element("span", "gate-name", declaration.name));
+        const line = element("td", "num");
+        line.append(sourceLink({ path: file.path, line: declaration.line }));
+        row.append(name, line, element("td", "declaration-passes", declaration.passes.length ? declaration.passes.join(", ") : "—"));
+        body.append(row);
+      });
+      table.append(head, body);
+      declarations.append(table);
+    } else {
+      declarations.append(element("p", "", "No type, extension or function with a body."));
+    }
+    inspector.replaceChildren(close, badge, heading, path, metrics, passes, declarations);
+  }
+
+  function extractionShareBar(mapped, total) {
+    const wrap = element("span", "extraction-bar");
+    const fill = element("span", "");
+    fill.style.setProperty("--share", `${total ? Math.round((mapped / total) * 100) : 0}%`);
+    wrap.append(fill);
+    return wrap;
+  }
+
+  function renderUntouchedFiles(container, query = "") {
+    const untouched = extraction.files.filter((file) => !file.touched && extractionMatches(file, query));
+    if (!untouched.length) {
+      container.replaceChildren(emptyState(query ? "No untouched file matches the search." : "Every analysed file was cited by at least one pass."));
+      return;
+    }
+    const byDirectory = new Map();
+    untouched.forEach((file) => {
+      const directory = file.path.split("/").slice(0, -1).join("/");
+      if (!byDirectory.has(directory)) byDirectory.set(directory, []);
+      byDirectory.get(directory).push(file);
+    });
+    container.replaceChildren(...[...byDirectory.keys()].sort().map((directory) => {
+      const group = element("div", "untouched-dir");
+      group.append(element("h4", "", `${directory} · ${byDirectory.get(directory).length}`));
+      const list = element("ul");
+      byDirectory.get(directory).forEach((file) => {
+        const item = element("li");
+        const link = sourceLink({ path: file.path, line: 1 });
+        link.textContent = file.path.split("/").pop();
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          selectedExtractionPath = null;
+          selectExtractionFile(file.path);
+          const cell = extractionCells.get(file.path);
+          if (cell && cell.scrollIntoView) cell.scrollIntoView({ block: "nearest" });
+        });
+        item.append(link, element("small", "", `${file.declaration_count} declaration(s) · ${file.line_count.toLocaleString()} lines`));
+        list.append(item);
+      });
+      group.append(list);
+      return group;
+    }));
+  }
+
+  function renderExtractionSections() {
+    const container = document.getElementById("extraction-content");
+    if (!container) return;
+    const summary = extraction.summary || {};
+    const byKind = summary.by_kind || {};
+    const constructs = behaviorGroup("By construct", "What exists in the tree against what the extractor placed. Reported by declaration kind, not as a file percentage: a count names what is missing, a percentage hides it.");
+    const kindTable = element("table", "gates-table");
+    const kindHead = element("thead");
+    const kindHeadRow = element("tr");
+    ["Kind", "Declared", "Mapped", "Unmapped", "Share"].forEach((label) => kindHeadRow.append(element("th", "", label)));
+    kindHead.append(kindHeadRow);
+    const kindBody = element("tbody");
+    Object.keys(byKind).sort((a, b) => byKind[b].total - byKind[a].total || a.localeCompare(b)).forEach((kind) => {
+      const row = element("tr");
+      const share = element("td", "");
+      share.append(extractionShareBar(byKind[kind].mapped, byKind[kind].total), document.createTextNode(`${byKind[kind].total ? Math.round((byKind[kind].mapped / byKind[kind].total) * 100) : 0}%`));
+      row.append(
+        element("td", "gate-name", kind),
+        element("td", "num", byKind[kind].total.toLocaleString()),
+        element("td", "num", byKind[kind].mapped.toLocaleString()),
+        element("td", "num", (byKind[kind].total - byKind[kind].mapped).toLocaleString()),
+        share
+      );
+      kindBody.append(row);
+    });
+    kindTable.append(kindHead, kindBody);
+    constructs.append(kindTable);
+
+    const passes = behaviorGroup("By pass", `${(extraction.passes || []).filter((pass) => pass.class === "mechanical").length} mechanical passes cited source. Each row is one rule of the extractor's grammar: what it recognises, how many files it fired in, and how many lines it cited.`);
+    const passTable = element("table", "gates-table");
+    const passHead = element("thead");
+    const passHeadRow = element("tr");
+    ["Pass", "Recognises", "Files", "Citations"].forEach((label) => passHeadRow.append(element("th", "", label)));
+    passHead.append(passHeadRow);
+    const passBody = element("tbody");
+    (extraction.passes || []).slice().sort((a, b) => (a.class === b.class ? b.citations - a.citations || a.id.localeCompare(b.id) : a.class === "mechanical" ? -1 : 1)).forEach((pass) => {
+      const row = element("tr", pass.class === "semantic" ? "untouched-row" : "");
+      const name = element("td", "");
+      name.append(element("span", "gate-name", pass.id), element("span", "gate-source", pass.class === "semantic" ? "semantic · written by a person, not extraction" : "mechanical"));
+      row.append(name, element("td", "", pass.description), element("td", "num", String(pass.files)), element("td", "num", String(pass.citations)));
+      passBody.append(row);
+    });
+    passTable.append(passHead, passBody);
+    passes.append(passTable);
+
+    const untouched = behaviorGroup("Untouched files", `${summary.untouched_files || 0} of ${summary.files || 0} analysed files were read by every pass and cited by none. They are assigned to a component and counted in the inventory; the map and the invariants say nothing about what is inside them.`);
+    const list = element("div", "");
+    list.id = "extraction-untouched";
+    untouched.append(list);
+    container.replaceChildren(constructs, passes, untouched);
+    renderUntouchedFiles(list);
+  }
+
   function renderInventory(query = "") {
     const normalized = query.trim().toLowerCase();
     const body = document.getElementById("inventory-body");
@@ -3686,6 +4511,23 @@ internal enum ArchitectureObservatoryAssets {
     document.getElementById("inventory-search").addEventListener("input", (event) => renderInventory(event.target.value));
     const gatesSearch = document.getElementById("gates-search");
     if (gatesSearch) gatesSearch.addEventListener("input", applyGateState);
+    const extractionSearch = document.getElementById("extraction-search");
+    if (extractionSearch) extractionSearch.addEventListener("input", applyExtractionState);
+    const resetExtraction = document.getElementById("reset-extraction");
+    if (resetExtraction) {
+      resetExtraction.addEventListener("click", () => {
+        selectedExtractionPath = null;
+        selectedProvenance = null;
+        if (extractionSearch) extractionSearch.value = "";
+        renderExtractionInspector(null);
+        renderProvenanceInspector(null);
+        applyExtractionState();
+      });
+    }
+    const expandProvenance = document.getElementById("provenance-expand-all");
+    if (expandProvenance) expandProvenance.addEventListener("click", () => setProvenanceExpanded(true));
+    const collapseProvenance = document.getElementById("provenance-collapse-all");
+    if (collapseProvenance) collapseProvenance.addEventListener("click", () => setProvenanceExpanded(false));
     const resetGates = document.getElementById("reset-gates");
     if (resetGates) {
       resetGates.addEventListener("click", () => {
@@ -4505,5 +5347,55 @@ footer strong { color: var(--muted); }
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Extraction map: the compiler's projection over the tree as a treemap. */
+.extraction-workspace { min-height: 520px; }
+#extraction-treemap { display: block; width: 100%; height: auto; }
+.treemap-dir-rect { fill: none; stroke: var(--line); stroke-width: 1; }
+.treemap-dir-label { fill: var(--faint); font: 600 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+.treemap-cell { cursor: pointer; }
+.treemap-cell rect { fill: var(--accent); fill-opacity: var(--share-opacity, .12); stroke: var(--bg); stroke-width: 1; transition: fill-opacity .15s ease; }
+.treemap-cell.untouched rect { fill: url(#extraction-untouched); fill-opacity: 1; }
+.treemap-cell:hover rect, .treemap-cell.selected rect { stroke: var(--ink); stroke-width: 1.5; }
+.treemap-cell.dimmed { opacity: .18; }
+.treemap-cell text { fill: var(--ink); font: 9px var(--mono); pointer-events: none; }
+.treemap-cell.untouched text { fill: var(--muted); }
+.extraction-hatch { stroke: var(--muted); stroke-width: 1.4; opacity: .55; }
+.extraction-legend-swatch { width: 14px; height: 10px; border: 1px solid var(--line); background: var(--accent); opacity: var(--swatch-opacity, 1); }
+.extraction-legend-swatch.hatched { background: repeating-linear-gradient(135deg, var(--line-strong) 0 1px, transparent 1px 5px); opacity: 1; }
+.extraction-bar { display: inline-block; width: 120px; height: 6px; margin-right: 8px; vertical-align: middle; background: var(--line); border-radius: 2px; overflow: hidden; }
+.extraction-bar span { display: block; height: 100%; width: var(--share, 0%); background: var(--accent); }
+.gates-table td.declaration-passes { color: var(--faint); font: 9px var(--mono); }
+.gates-table tr.untouched-row td { color: var(--muted); }
+.gates-table .declaration-kind { display: inline-block; min-width: 64px; color: var(--faint); font: 9px var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+.untouched-dir { margin: 14px 0 0; }
+.untouched-dir h4 { margin: 0 0 6px; color: var(--faint); font: 600 9px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
+.untouched-dir ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.untouched-dir li small { color: var(--faint); font: 9px var(--mono); margin-left: 6px; }
+
+/* Provenance wiring: file schema on the left, map entities on the right. */
+.provenance-workspace { min-height: 360px; }
+#extraction-provenance { display: block; width: 100%; height: auto; }
+.prov-row { cursor: pointer; }
+.prov-row rect.hit { fill: transparent; }
+.prov-row:hover rect.hit, .prov-row.selected rect.hit { fill: var(--surface-hover); }
+.prov-row.selected text.label { fill: var(--ink); font-weight: 600; }
+.prov-row text { font: 11px var(--mono); fill: var(--muted); }
+.prov-row.dir text.label, .prov-row.kind text.label { fill: var(--ink); font-weight: 600; letter-spacing: .02em; }
+.prov-row text.count { fill: var(--faint); font-size: 9px; }
+.prov-row.untouched text.label { fill: var(--faint); }
+.prov-row .caret { fill: var(--faint); font-size: 9px; }
+.prov-row.dimmed, .prov-wire.dimmed { opacity: .12; }
+.prov-row.linked text.label { fill: var(--ink); }
+.prov-wire { fill: none; stroke: var(--wire-color, var(--edge-quiet)); stroke-opacity: .55; stroke-linecap: round; }
+.prov-wire:hover, .prov-wire.selected { stroke-opacity: 1; }
+.prov-column-title { fill: var(--faint); font: 600 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.prov-rule { fill: var(--line); }
+.provenance-legend-swatch { width: 18px; height: 3px; background: var(--legend-color); border-radius: 2px; }
+.inspector .origin-list { margin: 0; padding: 0; list-style: none; }
+.inspector .origin-list li { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.inspector .origin-list li:first-child { border-top: 0; }
+.inspector .origin-rule { color: var(--faint); font: 9px var(--mono); }
+.inspector .origin-rule::before { content: ""; display: inline-block; width: 8px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--wire-color, var(--edge-quiet)); border-radius: 2px; }
 """#
 }

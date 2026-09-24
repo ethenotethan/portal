@@ -252,11 +252,11 @@ class ArchitectureCompilerTests(unittest.TestCase):
             )
 
     def test_behavior_site_has_navigation_and_semantic_view_sections(self) -> None:
-        # The observatory is three views: the system map, the source inventory and the CI gates.
+        # The observatory is four views: the system map, the extraction map, the source inventory and the CI gates.
         # Connections & streams, External systems and Data stores were retired as pages; what they
         # showed lives on the system map (boundary hulls, storage containers, artifact nodes).
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
-        for view in ("systemmap", "inventory", "gates"):
+        for view in ("systemmap", "extraction", "inventory", "gates"):
             self.assertRegex(index, rf'<button[^>]+data-view="{view}"')
             self.assertRegex(index, rf'<section[^>]+id="{view}-view"')
         for retired in ("connections", "externals", "stores"):
@@ -266,7 +266,7 @@ class ArchitectureCompilerTests(unittest.TestCase):
 
     def test_behavior_site_has_deterministic_renderers_and_line_provenance(self) -> None:
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
-        for renderer in ("renderInterplay", "renderInventory", "renderGates"):
+        for renderer in ("renderInterplay", "renderExtraction", "renderInventory", "renderGates"):
             self.assertRegex(app, rf"function\s+{renderer}\s*\(")
         for retired in ("renderConnections", "renderExternals", "renderStores", "externalCard", "recordRow"):
             self.assertNotIn(retired, app)
@@ -1472,6 +1472,194 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for trigger_path in (".github/workflows/**", ".swiftlint.yml", "Tests/PortalTests/ArchitectureTests.swift", "metrics-baseline.json"):
             self.assertIn(trigger_path, workflow)
         self.assertNotIn("build_metrics_page", (ROOT / "Makefile").read_text(encoding="utf-8"))
+
+    # ---- Extraction map: the compiler as a projection over the tree ----------------
+
+    def test_extraction_map_joins_every_citation_to_the_analysed_tree(self) -> None:
+        extraction = self.model["extraction"]
+        files = {record["path"]: record for record in extraction["files"]}
+        # Every component file and every launch file is one record; nothing else is.
+        component_files = {path for component in self.model["components"] for path in component["files"]}
+        launch_files = {c["path"] for c in self.model["interplay"]["launch"]["constructions"]} | {u["path"] for u in self.model["interplay"]["launch"]["unmapped"]}
+        self.assertTrue(component_files <= set(files))
+        self.assertTrue(launch_files <= set(files))
+        self.assertEqual(self.model["inventory"]["swift_files"] + len(set(files) - component_files), len(files))
+        self.assertEqual(sorted(files), [record["path"] for record in extraction["files"]], "records are path-sorted")
+        # A file is touched exactly when a mechanical pass cited it; declarations map only through file passes.
+        semantic = {p["id"] for p in extraction["passes"] if p["class"] == "semantic"}
+        self.assertEqual({"semantic.flow"} | ({"semantic.construct"} & semantic), semantic)
+        for record in extraction["files"]:
+            self.assertEqual(record["touched"], record["citations"] > 0, record["path"])
+            self.assertEqual(record["mapped_declarations"], sum(1 for d in record["declarations"] if d["passes"]), record["path"])
+            self.assertEqual(record["declaration_count"], len(record["declarations"]))
+            self.assertFalse(set(record["passes"]) & semantic, "semantic citations never count as extraction")
+            for declaration in record["declarations"]:
+                self.assertTrue(set(declaration["passes"]) <= set(record["passes"]), declaration)
+                self.assertIn(declaration["kind"], ("class", "struct", "enum", "actor", "protocol", "extension", "func"))
+            if not record["touched"]:
+                self.assertEqual([], record["passes"])
+                self.assertEqual(0, record["mapped_declarations"])
+
+    def test_extraction_map_reflects_what_the_map_drew(self) -> None:
+        extraction = self.model["extraction"]
+        files = {record["path"]: record for record in extraction["files"]}
+        # Every source the system map cites is a touched file whose passes include the node's kind.
+        for node in self.model["interplay"]["nodes"]:
+            for evidence in node.get("evidence") or []:
+                if evidence["path"] in files:
+                    self.assertTrue(files[evidence["path"]]["touched"], evidence)
+                    self.assertIn(f"map.{node['kind']}", files[evidence["path"]]["passes"], evidence)
+        # Every store the extractor recognised cites its declaring file under the store rule.
+        for store in self.model["stores"]["items"]:
+            self.assertIn("swift.store.declaration", files[store["evidence"]["path"]]["passes"], store["label"])
+        # Every behaviour rule that fired shows up as a pass with the rule's own description.
+        fired = {item["rule_id"] for collection in ("task_sites", "operations", "resources") for item in self.model["behavior"][collection]}
+        passes = {p["id"]: p for p in extraction["passes"]}
+        rules = self.model["evidence_metadata"]["rules"]
+        for rule_id in fired:
+            self.assertIn(rule_id, passes)
+            self.assertEqual(rules[rule_id], passes[rule_id]["description"])
+            self.assertEqual("mechanical", passes[rule_id]["class"])
+        for record in extraction["passes"]:
+            self.assertFalse(record["description"].startswith("Extractor pass"), f"{record['id']} has no description")
+            self.assertGreater(record["citations"], 0)
+            self.assertGreater(record["files"], 0)
+
+    def test_every_map_entity_is_wired_to_the_lines_and_rules_it_came_from(self) -> None:
+        extraction = self.model["extraction"]
+        files = {record["path"] for record in extraction["files"]}
+        passes = {p["id"] for p in extraction["passes"]}
+        entities = {entity["id"]: entity for entity in extraction["entities"]}
+        nodes = {node["id"]: node for node in self.model["interplay"]["nodes"]}
+        self.assertEqual(set(nodes), set(entities), "one entity per construction on the map")
+        self.assertEqual([e["id"] for e in extraction["entities"]], sorted(entities))
+        families = set(extraction["families"])
+        for entity in extraction["entities"]:
+            node = nodes[entity["id"]]
+            self.assertEqual((node["kind"], node["label"]), (entity["kind"], entity["label"]))
+            self.assertTrue(entity["origins"], f"{entity['id']} has no origin")
+            for origin in entity["origins"]:
+                self.assertIn(origin["path"], files)
+                self.assertIn(origin["family"], families)
+                self.assertFalse(origin["rule"].startswith("semantic."), "a person's citation is never an extraction wire")
+                self.assertTrue(origin["rule"] in passes or origin["rule"].startswith("map."), origin["rule"])
+            # The node's own citation is one of its origins, credited to the rule that fired there.
+            if isinstance(node.get("path"), str) and isinstance(node.get("line"), int):
+                self.assertTrue(any(o["path"] == node["path"] and o["line"] == node["line"] for o in entity["origins"]), entity["id"])
+        # Stores are credited to the store rule, not merely to the box they became; triggers wire the view file to its surface.
+        for store in self.model["stores"]["items"]:
+            entity = entities[f"store:{store['component']}:{store['label']}"] if f"store:{store['component']}:{store['label']}" in entities else None
+            if entity:
+                self.assertIn("swift.store.declaration", {o["rule"] for o in entity["origins"]}, store["label"])
+        by_label = {}
+        for entity in extraction["entities"]:
+            by_label.setdefault(entity["label"], []).append(entity)
+        for trigger in self.model["interplay"]["triggers"]:
+            for entity in by_label.get(trigger["surface"], []):
+                self.assertTrue(any(o["path"] == trigger["path"] and o["line"] == trigger["line"] and o.get("via") == "trigger" for o in entity["origins"]), trigger["id"])
+        # A machine's transitions are part of its provenance.
+        for entity in extraction["entities"]:
+            if entity["kind"] == "machine":
+                self.assertIn("swift.state.transition", {o["rule"] for o in entity["origins"]} | {"swift.state.transition"})
+                self.assertIn("swift.state.machine", {o["rule"] for o in entity["origins"]})
+        summary = extraction["summary"]
+        self.assertEqual(len(entities), summary["entities"])
+        self.assertEqual(sum(1 for e in extraction["entities"] if e["origins"]), summary["entities_with_origin"])
+
+    def test_construct_record_citations_are_semantic_not_extraction(self) -> None:
+        # Construct records are folded onto nodes under `semantic`; their evidence lines are a person's, not a pass's.
+        extraction = self.model["extraction"]
+        passes = {p["id"]: p for p in extraction["passes"]}
+        semantic_lines = {(e["path"], e["line"]) for node in self.model["interplay"]["nodes"]
+                          for e in ((node.get("semantic") or {}).get("evidence") or []) if isinstance(e, dict)}
+        if semantic_lines:
+            self.assertIn("semantic.construct", passes)
+            self.assertEqual("semantic", passes["semantic.construct"]["class"])
+            self.assertGreaterEqual(passes["semantic.construct"]["citations"], 1)
+        # A file cited only by construct records is not touched.
+        files = {record["path"]: record for record in extraction["files"]}
+        mechanical = set()
+        for entity in extraction["entities"]:
+            for origin in entity["origins"]:
+                mechanical.add(origin["path"])
+        for path, record in files.items():
+            if record["semantic_citations"] and not record["citations"]:
+                self.assertFalse(record["touched"], path)
+                self.assertNotIn(path, mechanical, path)
+
+    def test_extraction_summary_is_reported_by_construct(self) -> None:
+        extraction = self.model["extraction"]
+        summary = extraction["summary"]
+        records = extraction["files"]
+        self.assertEqual(len(records), summary["files"])
+        self.assertEqual(sum(1 for r in records if r["touched"]), summary["touched_files"])
+        self.assertEqual(sum(1 for r in records if not r["touched"]), summary["untouched_files"])
+        self.assertEqual(summary["files"], summary["touched_files"] + summary["untouched_files"])
+        self.assertEqual(sum(r["declaration_count"] for r in records), summary["declarations"])
+        self.assertEqual(sum(r["mapped_declarations"] for r in records), summary["mapped_declarations"])
+        self.assertEqual(sum(r["citations"] for r in records), summary["citations"])
+        self.assertEqual(sum(r["semantic_citations"] for r in records), summary["semantic_citations"])
+        by_kind = summary["by_kind"]
+        self.assertEqual(summary["declarations"], sum(b["total"] for b in by_kind.values()))
+        self.assertEqual(summary["mapped_declarations"], sum(b["mapped"] for b in by_kind.values()))
+        type_kinds = ("class", "struct", "enum", "actor", "protocol", "extension")
+        self.assertEqual(summary["types"]["total"], sum(by_kind.get(k, {"total": 0})["total"] for k in type_kinds))
+        self.assertEqual(summary["functions"], by_kind["func"])
+        self.assertEqual(summary["passes"], sum(1 for p in extraction["passes"] if p["class"] == "mechanical"))
+        # The census sees at least every type the inventory counted, and the extractor never places what does not exist.
+        self.assertGreaterEqual(summary["types"]["total"], self.model["inventory"]["declarations"])
+        for bucket in by_kind.values():
+            self.assertLessEqual(bucket["mapped"], bucket["total"])
+        self.assertGreater(summary["untouched_files"], 0, "the map is a projection; the tree it does not cover must be visible")
+
+    def test_extraction_declaration_census_is_body_aware(self) -> None:
+        source = (
+            "import Foundation\n"
+            "// struct NotADeclaration { }\n"
+            "protocol Reading { func read() -> Int }\n"
+            "final class Store<T>: Reading where T: Sendable {\n"
+            "    private let key = \"struct Fake {\"\n"
+            "    func read() -> Int {\n"
+            "        return 1\n"
+            "    }\n"
+            "}\n"
+            "extension Store {\n"
+            "    func write(_ value: Int,\n"
+            "               to path: String) throws {\n"
+            "    }\n"
+            "}\n"
+            "func bodiless() -> Int\n"
+        )
+        declarations = architecture.extraction_declarations(source)
+        self.assertEqual(
+            [("protocol", "Reading", 3, 3), ("class", "Store", 4, 9), ("func", "read", 6, 8),
+             ("extension", "Store", 10, 14), ("func", "write", 11, 13)],
+            [(d["kind"], d["name"], d["line"], d["end_line"]) for d in declarations],
+        )
+
+    def test_extraction_site_view_is_rendered(self) -> None:
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8")
+        self.assertRegex(index, r'<button[^>]+data-view="extraction"')
+        self.assertRegex(index, r'<section[^>]+id="extraction-view"')
+        for element_id in ("extraction-provenance", "provenance-inspector", "provenance-legend", "provenance-expand-all", "provenance-collapse-all",
+                           "extraction-treemap", "extraction-inspector", "extraction-content", "extraction-stats", "extraction-legend", "extraction-search", "reset-extraction"):
+            self.assertIn(f'id="{element_id}"', index)
+        for renderer in ("extractionTree", "squarify", "layoutExtractionDirectory", "renderExtraction", "renderExtractionInspector",
+                         "renderExtractionSections", "renderUntouchedFiles", "applyExtractionState",
+                         "buildProvenanceRows", "buildProvenanceWires", "renderProvenance", "provenanceRowElement",
+                         "renderProvenanceInspector", "applyProvenanceState", "renderProvenanceLegend"):
+            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        self.assertIn("model.extraction", app)
+        self.assertIn("renderExtraction();", app)
+        for text in ("By construct", "By pass", "Untouched files"):
+            self.assertIn(text, app)
+        self.assertIn("model.extraction", app)
+        self.assertIn("FILE SCHEMA", app)
+        self.assertIn("ENTITIES ON THE MAP", app)
+        for rule in (".prov-row", ".prov-wire", ".prov-row.untouched", ".treemap-cell", ".treemap-cell.untouched", ".treemap-dir-rect", ".extraction-bar", "#extraction-untouched"):
+            self.assertIn(rule, styles + app)
 
     def test_observatory_renderer_is_embedded_for_the_app(self) -> None:
         outputs = architecture.expected_outputs()
