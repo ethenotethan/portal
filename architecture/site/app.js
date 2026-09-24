@@ -149,6 +149,22 @@
   })();
   if (TL) TL.go(TL.last);
   const expandedOwners = new Set(); // owners whose pool/lock/socket/sections are shown
+  // Every hull on the map (the application, each page, the shared core, the
+  // in-memory constructions, each boundary box, the gateway and storage
+  // containers) starts collapsed to a labelled box; the reader opens what they
+  // need. "*" means everything is open. ?expand=all|id,id overrides the saved set.
+  const HULL_KEY = "portal.architecture.expandedHulls";
+  const expandedHulls = new Set((() => {
+    const wanted = new URLSearchParams(window.location.search).get("expand");
+    if (wanted === "all") return ["*"];
+    if (wanted) return wanted.split(",").filter(Boolean);
+    try { const saved = JSON.parse(window.localStorage.getItem(HULL_KEY) || "[]"); return Array.isArray(saved) ? saved : []; } catch (_error) { return []; }
+  })());
+  function hullExpanded(id) { return expandedHulls.has("*") || expandedHulls.has(id); }
+  function saveHulls() { try { window.localStorage.setItem(HULL_KEY, JSON.stringify(Array.from(expandedHulls))); } catch (_error) { /* storage unavailable */ } }
+  let hullIndex = null; // built on first render: group of every node, its containers, its boundary
+  const COLLAPSED_BOX = { w: 252, h: 64 }; // the box a closed hull is drawn as
+  let hullRepOf = new Map(); // node id → the collapsed hull standing in for it, this render
   // A resource/operation inherits its colour from the owning type's role, so the
   // free-form graph still reads as "this pool belongs to a transport" without any
   // column to say so.
@@ -365,6 +381,81 @@
   function isBusSpine(node) {
     return node.kind === "resource" && node.sub_kind === "event_bus";
   }
+
+  // ---- Collapsible hulls --------------------------------------------------------
+  // A node's chain is the list of hulls around it, outermost first: a code node sits
+  // in the application, then its page (or the shared core / in-memory hull), then
+  // possibly an expanded owner; an endpoint sits in the gateway container; an
+  // external sits in its boundary box, an artifact in its storage container too.
+  // The first collapsed hull in the chain hides the node and stands in for it.
+  function buildHullIndex() {
+    const group = assignInterplayGroups(drawNodes, drawEdges);
+    const boundaryOfSystem = new Map();
+    (interplay.boundary_groups || []).forEach((boundary) => boundary.members.forEach((member) => boundaryOfSystem.set(member, boundary.id)));
+    const barOfMember = new Map();
+    drawNodes.filter((node) => node.kind !== "transport" && isInterplayBar(node)).forEach((bar) => containerMemberIds(bar).forEach((id) => barOfMember.set(id, bar.id)));
+    const ownerOfMember = new Map();
+    drawNodes.filter(isTransportContainer).forEach((owner) => ownerMemberIds(owner).forEach((id) => ownerOfMember.set(id, owner.id)));
+    const chains = new Map();
+    const counts = new Map();
+    const groupsPresent = new Set();
+    drawNodes.forEach((node) => {
+      if (node.kind === "operation") return;
+      const g = group.get(node.id);
+      const chain = [];
+      if (g === INTERPLAY_EXTERNAL_GROUP) {
+        const systemId = node.kind === "external" ? node.id : node.kind === "artifact" ? `external:${node.system_id}` : barOfMember.get(node.id) || null;
+        const boundary = systemId ? boundaryOfSystem.get(systemId) : null;
+        if (boundary) chain.push({ id: `hull:boundary:${boundary}` });
+        if (barOfMember.has(node.id)) chain.push({ id: barOfMember.get(node.id) });
+      } else {
+        groupsPresent.add(g);
+        chain.push({ id: "hull:app" });
+        chain.push({ id: `hull:group:${g}` });
+        if (ownerOfMember.has(node.id)) chain.push({ id: ownerOfMember.get(node.id), owner: true });
+      }
+      chains.set(node.id, chain);
+      if (!node.hist) chain.forEach((entry) => counts.set(entry.id, (counts.get(entry.id) || 0) + 1));
+    });
+    const bars = drawNodes.filter((node) => node.kind !== "transport" && isInterplayBar(node)).map((node) => node.id);
+    const all = ["hull:app", ...Array.from(groupsPresent).map((g) => `hull:group:${g}`),
+      ...(interplay.boundary_groups || []).map((boundary) => `hull:boundary:${boundary.id}`), ...bars];
+    return { group, chains, counts, groupsPresent, all };
+  }
+  function hullIndexOf() { if (!hullIndex) hullIndex = buildHullIndex(); return hullIndex; }
+  function hullCollapsed(entry) { return entry.owner ? !expandedOwners.has(entry.id) : !hullExpanded(entry.id); }
+  function hullRepFor(nodeId) {
+    const chain = hullIndexOf().chains.get(nodeId) || [];
+    const collapsed = chain.find(hullCollapsed);
+    return collapsed ? collapsed.id : null;
+  }
+  function toggleHull(id) {
+    if (expandedHulls.has("*")) { expandedHulls.delete("*"); hullIndexOf().all.forEach((hull) => expandedHulls.add(hull)); }
+    if (expandedHulls.has(id)) expandedHulls.delete(id); else expandedHulls.add(id);
+    saveHulls();
+    renderInterplay();
+  }
+  function expandAllHulls() { expandedHulls.clear(); expandedHulls.add("*"); saveHulls(); renderInterplay(); }
+  function collapseAllHulls() { expandedHulls.clear(); expandedOwners.clear(); saveHulls(); renderInterplay(); }
+  // Open every hull around a node so it can be seen and selected.
+  function revealNode(nodeId) {
+    const chain = hullIndexOf().chains.get(nodeId) || [];
+    let changed = false;
+    chain.forEach((entry) => {
+      if (!hullCollapsed(entry)) return;
+      if (entry.owner) expandedOwners.add(entry.id); else expandedHulls.add(entry.id);
+      changed = true;
+    });
+    if (changed) { saveHulls(); renderInterplay(); }
+    return changed;
+  }
+  function hullKicker(box) {
+    if (box.kind === "app") return "APPLICATION";
+    if (box.kind === "boundary") return "BOUNDARY";
+    if (box.label === INTERPLAY_SHARED_GROUP) return "SHARED CORE";
+    if (box.label === INTERPLAY_MEMORY_GROUP) return "IN-MEMORY";
+    return "PAGE";
+  }
   function isPushEdge(edge) {
     return ["notifies", "provides", "publish", "declares", "replays-into"].includes(edge.relation);
   }
@@ -483,9 +574,10 @@
     return group;
   }
 
-  function layoutInterplayGrouped(nodes, edges) {
+  function layoutInterplayGrouped(nodes, edges, hulls = { appCollapsed: false, collapsedGroups: new Set(), collapsedBoundaries: new Set(), groupsPresent: new Set(), counts: new Map() }) {
     const size = new Map(nodes.map((node) => [node.id, interplayNodeSize(node)]));
     const group = assignInterplayGroups(nodes, edges);
+    const collapsedGroupBox = (g) => ({ w: COLLAPSED_BOX.w, h: COLLAPSED_BOX.h, place: new Map(), containers: [], collapsed: true });
     const kindRank = (node) => {
       const role = interplayNodeRole(node);
       if (role === "caller") return 0;
@@ -502,7 +594,11 @@
     const byGroup = new Map();
     // Every declared page is a zone, even one that owns no interplay construct
     // exclusively: the breakdown is the navigation, not just what happened to land.
-    interplayPages.forEach((page) => byGroup.set(page.label, []));
+    if (!hulls.appCollapsed) {
+      interplayPages.forEach((page) => byGroup.set(page.label, []));
+      // A collapsed group has no visible node to place it by; it still gets its box.
+      hulls.groupsPresent.forEach((g) => { if (!byGroup.has(g)) byGroup.set(g, []); });
+    }
     nodes.forEach((node) => {
       const g = group.get(node.id);
       if (!byGroup.has(g)) byGroup.set(g, []);
@@ -580,10 +676,20 @@
         const members = list
           .filter((node) => containedBy.get(node.id) === bar.id)
           .sort((a, b) => (a.label || "").localeCompare(b.label || "") || a.id.localeCompare(b.id));
+        const kind = bar.kind === "transport" ? "transport" : isStorageContainer(bar) ? "storage" : "gateway";
+        if (!members.length && bar.kind !== "transport") {
+          // Closed: a box the size of its label, with the count of what it hides.
+          const labelWidth = Math.max(220, Math.min(320, ((bar.label) || "").length * 7.6 + 90));
+          const bottom = top + COLLAPSED_BOX.h;
+          containers.push({ nodeId: bar.id, top, bottom, left: PAD, right: PAD + labelWidth + 12, kind, collapsed: true, count: hulls.counts.get(bar.id) || 0 });
+          maxRight = Math.max(maxRight, PAD + labelWidth + 12);
+          y = bottom + GAP;
+          return;
+        }
         const inner = grid(members, PAD + INSET, top + HEADER_H + GAP, cols);
         const nested = expandOwners(members, PAD + INSET, inner.bottom, cols);
         const bottom = Math.max(inner.bottom, nested.bottom) + INSET;
-        containers.push({ nodeId: bar.id, top, bottom, left: PAD, right: null, kind: bar.kind === "transport" ? "transport" : isStorageContainer(bar) ? "storage" : "gateway" });
+        containers.push({ nodeId: bar.id, top, bottom, left: PAD, right: null, kind, count: hulls.counts.get(bar.id) || 0 });
         maxRight = Math.max(maxRight, inner.right + INSET, nested.right + INSET);
         y = bottom + GAP;
       });
@@ -613,7 +719,7 @@
     byGroup.forEach((list, g) => {
       const cols = (g === INTERPLAY_SHARED_GROUP || g === INTERPLAY_EXTERNAL_GROUP || g === INTERPLAY_MEMORY_GROUP)
         ? 6 : Math.max(2, Math.min(4, Math.ceil(Math.sqrt(list.length))));
-      laid.set(g, layoutGroup(list, cols));
+      laid.set(g, g !== INTERPLAY_EXTERNAL_GROUP && hulls.collapsedGroups.has(g) ? collapsedGroupBox(g) : layoutGroup(list, cols));
     });
 
     // Radial layout: the in-memory constructions sit in the centre with the shared
@@ -643,7 +749,7 @@
     const groupBoxes = [];
     const pushPage = (g, x, y) => {
       const box = laid.get(g);
-      groupBoxes.push({ label: g, x, y, w: box.w, h: box.h, place: box.place, containers: box.containers });
+      groupBoxes.push({ label: g, x, y, w: box.w, h: box.h, place: box.place, containers: box.containers, collapsed: Boolean(box.collapsed), hullId: `hull:group:${g}`, count: hulls.counts.get(`hull:group:${g}`) || 0 });
     };
     let cursor = (totalW - rowW(ring.top)) / 2;
     ring.top.forEach((g) => { pushPage(g, cursor, 0); cursor += laid.get(g).w + BOX_GAP; });
@@ -653,11 +759,11 @@
     const centerX = leftW + (leftW ? RING_GAP : 0);
     let centerY = midY + (middleH - centerH) / 2;
     if (memory) {
-      groupBoxes.push({ label: INTERPLAY_MEMORY_GROUP, kind: "memory", x: centerX + (centerW - memory.w) / 2, y: centerY, w: memory.w, h: memory.h, place: memory.place, containers: memory.containers });
+      groupBoxes.push({ label: INTERPLAY_MEMORY_GROUP, kind: "memory", x: centerX + (centerW - memory.w) / 2, y: centerY, w: memory.w, h: memory.h, place: memory.place, containers: memory.containers, collapsed: Boolean(memory.collapsed), hullId: `hull:group:${INTERPLAY_MEMORY_GROUP}`, count: hulls.counts.get(`hull:group:${INTERPLAY_MEMORY_GROUP}`) || 0 });
       centerY += memory.h + BOX_GAP;
     }
     if (shared) {
-      groupBoxes.push({ label: INTERPLAY_SHARED_GROUP, x: centerX + (centerW - shared.w) / 2, y: centerY, w: shared.w, h: shared.h, place: shared.place, containers: shared.containers });
+      groupBoxes.push({ label: INTERPLAY_SHARED_GROUP, x: centerX + (centerW - shared.w) / 2, y: centerY, w: shared.w, h: shared.h, place: shared.place, containers: shared.containers, collapsed: Boolean(shared.collapsed), hullId: `hull:group:${INTERPLAY_SHARED_GROUP}`, count: hulls.counts.get(`hull:group:${INTERPLAY_SHARED_GROUP}`) || 0 });
     }
     cursor = midY + (middleH - colH(ring.right)) / 2;
     ring.right.forEach((g) => { pushPage(g, centerX + centerW + RING_GAP, cursor); cursor += laid.get(g).h + BOX_GAP; });
@@ -670,13 +776,17 @@
     const APP_PAD = 26;
     const APP_HEADER = 22;
     let appBox = null;
-    if (groupBoxes.length) {
+    if (hulls.appCollapsed) {
+      // The whole application as one box: what everything outside it wires into.
+      appBox = { label: INTERPLAY_APP_GROUP, kind: "app", collapsed: true, hullId: "hull:app", count: hulls.counts.get("hull:app") || 0, x: 0, y: 0, w: 360, h: 88, place: new Map() };
+      groupBoxes.unshift(appBox);
+    } else if (groupBoxes.length) {
       const minX = Math.min(...groupBoxes.map((box) => box.x));
       const minY = Math.min(...groupBoxes.map((box) => box.y));
       const maxX = Math.max(...groupBoxes.map((box) => box.x + box.w));
       const maxY = Math.max(...groupBoxes.map((box) => box.y + box.h));
       appBox = {
-        label: INTERPLAY_APP_GROUP, kind: "app",
+        label: INTERPLAY_APP_GROUP, kind: "app", hullId: "hull:app", count: hulls.counts.get("hull:app") || 0,
         x: minX - APP_PAD, y: minY - APP_PAD - APP_HEADER,
         w: maxX - minX + APP_PAD * 2, h: maxY - minY + APP_PAD * 2 + APP_HEADER,
         place: new Map()
@@ -696,7 +806,7 @@
     // level with the nodes it links to, on the side those nodes lean toward.
     const externalNodes = byGroup.get(INTERPLAY_EXTERNAL_GROUP) || [];
     const anchor = appBox || { x: 0, y: 0, w: targetWidth, h: rowH(ring.top) + middleH + rowH(ring.bottom) };
-    const gatewayMembers = externalNodes.filter((node) => isInterplayBar(node) || interplayNodeRole(node) === "endpoint");
+    const gatewayMembers = externalNodes.filter((node) => isGatewayContainer(node) || interplayNodeRole(node) === "endpoint");
     if (gatewayMembers.length) {
       const block = layoutGroup(gatewayMembers, 6);
       const box = {
@@ -716,16 +826,17 @@
     (interplay.boundary_groups || []).forEach((boundary) => {
       const members = externalNodes.filter((node) => boundary.members.includes(node.id) ||
         (node.kind === "artifact" && boundary.members.includes(`external:${node.system_id}`)));
-      if (!members.length) return;
+      const collapsed = hulls.collapsedBoundaries.has(boundary.id);
+      if (!members.length && !collapsed) return;
       members.forEach((node) => grouped.add(node.id));
-      const block = layoutGroup(members, 3);
+      const block = collapsed ? { w: COLLAPSED_BOX.w, h: COLLAPSED_BOX.h, place: new Map(), containers: [] } : layoutGroup(members, 3);
       const linked = edges
         .filter((edge) => members.some((node) => node.id === edge.source || node.id === edge.target))
         .map((edge) => positions.get(members.some((node) => node.id === edge.source) ? edge.target : edge.source))
         .filter(Boolean);
-      const meanX = linked.length ? linked.reduce((sum, point) => sum + point.x, 0) / linked.length : anchor.x + anchor.w;
+      const meanX = linked.length ? linked.reduce((sum, point) => sum + point.x, 0) / linked.length : anchor.x;
       const side = meanX < anchor.x + anchor.w / 2 ? "left" : "right";
-      boundaryBoxes[side].push({ label: boundary.label, kind: "boundary", boundaryId: boundary.id, w: block.w, h: block.h, place: block.place, containers: block.containers });
+      boundaryBoxes[side].push({ label: boundary.label, kind: "boundary", boundaryId: boundary.id, w: block.w, h: block.h, place: block.place, containers: block.containers, collapsed, hullId: `hull:boundary:${boundary.id}`, count: hulls.counts.get(`hull:boundary:${boundary.id}`) || 0 });
     });
     Object.entries(boundaryBoxes).forEach(([side, boxes]) => {
       const totalH = boxes.reduce((sum, box) => sum + box.h, 0) + Math.max(0, boxes.length - 1) * BOX_GAP;
@@ -766,8 +877,10 @@
 
     positions.groupBoxes = groupBoxes.map((box) => ({
       label: box.label, kind: box.kind || "group", x: box.x, y: box.y, w: box.w, h: box.h,
+      collapsed: Boolean(box.collapsed), hullId: box.hullId || null, count: box.count || 0,
       containers: (box.containers || []).map((container) => ({
-        nodeId: container.nodeId, kind: container.kind, x: box.x + container.x, y: box.y + container.y, w: container.w, h: container.h
+        nodeId: container.nodeId, kind: container.kind, collapsed: Boolean(container.collapsed), count: container.count || 0,
+        x: box.x + container.x, y: box.y + container.y, w: container.w, h: container.h
       }))
     }));
     return positions;
@@ -792,17 +905,29 @@
 
     // Lifecycle operations are actions, not constructions: they are not drawn as
     // boxes. They stay in the model and are listed on their owner's inspector.
+    // …and a node inside a collapsed hull is not drawn: the hull stands in for it.
+    const index = hullIndexOf();
     const hidden = new Set();
+    const repOf = new Map();
     drawNodes.forEach((node) => {
-      if (isTransportContainer(node) && !expandedOwners.has(node.id)) ownerMemberIds(node).forEach((id) => hidden.add(id));
+      const rep = hullRepFor(node.id);
+      if (rep) { hidden.add(node.id); repOf.set(node.id, rep); }
     });
+    hullRepOf = repOf;
+    const hulls = {
+      appCollapsed: !hullExpanded("hull:app"),
+      collapsedGroups: new Set(Array.from(index.groupsPresent).filter((g) => !hullExpanded(`hull:group:${g}`))),
+      collapsedBoundaries: new Set((interplay.boundary_groups || []).map((b) => b.id).filter((id) => !hullExpanded(`hull:boundary:${id}`))),
+      groupsPresent: index.groupsPresent,
+      counts: index.counts
+    };
     // The union of the head revision and every historical point: one layout for
     // the whole walk. Historical-only nodes are drawn absent until the slider moves.
     const drawable = drawNodes.filter((node) => node.kind !== "operation" && !hidden.has(node.id));
 
     // Position every drawn node with the deterministic page layout, then
     // translate the whole graph so its top-left corner sits at the margin.
-    const layout = layoutInterplayGrouped(drawable, drawEdges);
+    const layout = layoutInterplayGrouped(drawable, drawEdges, hulls);
     const groupBoxes = layout.groupBoxes || [];
     let minX = Infinity;
     let minY = Infinity;
@@ -840,6 +965,8 @@
       box.x += shiftX;
       box.y += shiftY;
       (box.containers || []).forEach((container) => { container.x += shiftX; container.y += shiftY; });
+      // A collapsed hull is an edge endpoint: the wiring of everything inside it.
+      if (box.collapsed && box.hullId) interplayPositions.set(box.hullId, { x: box.x, y: box.y, width: box.w, height: box.h, hull: true });
     });
     const width = Math.ceil(maxX - minX + margin * 2);
     const height = Math.ceil(maxY - minY + margin * 2);
@@ -863,6 +990,25 @@
       const appHull = box.kind === "app";
       const memoryHull = box.kind === "memory";
       const boundaryHull = box.kind === "boundary";
+      if (box.collapsed) {
+        // A closed hull: one box standing for everything inside it. Click to open.
+        const hull = svgElement("g", {
+          class: `interplay-hull collapsed${appHull ? " app" : ""}${boundaryHull ? " boundary" : ""}`,
+          "data-hull": box.hullId, tabindex: 0, role: "button",
+          "aria-label": `${box.label}: ${box.count} constructions, collapsed. Activate to expand.`
+        });
+        hull.append(svgElement("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 10, ry: 10, class: "interplay-hull-rect" }));
+        const kicker = svgElement("text", { x: box.x + 16, y: box.y + 20, class: "hull-kicker" });
+        kicker.textContent = hullKicker(box);
+        const title = svgElement("text", { x: box.x + 16, y: box.y + 39, class: "hull-title" });
+        title.textContent = box.label;
+        const meta = svgElement("text", { x: box.x + 16, y: box.y + 54, class: "hull-meta" });
+        meta.textContent = `${box.count} construction${box.count === 1 ? "" : "s"}`;
+        hull.append(kicker, title, meta);
+        wirePress(hull, () => toggleHull(box.hullId));
+        groupLayer.append(hull);
+        return;
+      }
       if (box.kind !== "free") {
         const hull = svgElement("g", {
           class: `interplay-group${shared ? " shared" : ""}${appHull ? " app" : ""}${memoryHull ? " memory" : ""}${boundaryHull ? " boundary" : ""}`,
@@ -880,9 +1026,15 @@
         const label = svgElement("text", {
           x: box.x + 18,
           y: box.y + 20,
-          class: "interplay-group-label"
+          class: `interplay-group-label${box.hullId ? " clickable" : ""}`
         });
-        label.textContent = box.label;
+        label.textContent = box.hullId ? `▾ ${box.label}` : box.label;
+        if (box.hullId) {
+          const note = svgElement("title", {});
+          note.textContent = `Collapse ${box.label}`;
+          label.append(note);
+          wirePress(label, () => toggleHull(box.hullId));
+        }
         hull.append(rect, label);
         groupLayer.append(hull);
       }
@@ -890,11 +1042,16 @@
       // hull and enclosing every namespace box the gateway serves. Its label is the
       // gateway node itself, rendered in the top-left corner.
       (box.containers || []).forEach((container) => {
-        const boundary = svgElement("g", { class: `interplay-group ${container.kind}`, "data-container": container.nodeId });
+        const boundary = svgElement("g", { class: `interplay-group ${container.kind}${container.collapsed ? " collapsed" : ""}`, "data-container": container.nodeId });
         boundary.append(svgElement("rect", {
           x: container.x, y: container.y, width: container.w, height: container.h,
           rx: 12, ry: 12, class: "interplay-group-rect"
         }));
+        if (container.collapsed) {
+          const meta = svgElement("text", { x: container.x + 16, y: container.y + container.h - 11, class: "hull-meta" });
+          meta.textContent = `${container.count} inside`;
+          boundary.append(meta);
+        }
         groupLayer.append(boundary);
       });
     });
@@ -924,6 +1081,48 @@
     const edgeGroup = svgElement("g", { class: "edges" });
     const labelGroup = svgElement("g", { class: "edge-labels" });
     drawTriggerEdges(edgeGroup, groupBoxes);
+    // Wiring into or out of a collapsed hull is bundled: one edge per (hull, hull)
+    // or (hull, node) pair, labelled with how many relationships it carries.
+    const bundles = new Map();
+    drawEdges.forEach((edge) => {
+      const targetNode = interplayNodeById.get(edge.target);
+      if (isContainmentEdge(edge, targetNode)) return; // drawn as containment
+      if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return;
+      if (["implements", "invokes", "extends"].includes(edge.relation)) return;
+      const repSource = repOf.get(edge.source) || edge.source;
+      const repTarget = repOf.get(edge.target) || edge.target;
+      if (repSource === repTarget) return; // internal to one collapsed hull
+      if (repSource === edge.source && repTarget === edge.target) return; // drawn as itself below
+      if (!interplayPositions.has(repSource) || !interplayPositions.has(repTarget)) return;
+      const key = `${repSource}|${repTarget}`;
+      if (!bundles.has(key)) bundles.set(key, { source: repSource, target: repTarget, count: 0, relations: new Set(), hist: true });
+      const bundle = bundles.get(key);
+      bundle.count += 1;
+      bundle.relations.add(edge.relation);
+      if (!edge.hist) bundle.hist = false;
+    });
+    bundles.forEach((bundle) => {
+      const source = interplayPositions.get(bundle.source);
+      const target = interplayPositions.get(bundle.target);
+      const path = svgElement("path", {
+        d: interplayLinkPath(source, target),
+        class: "interplay-edge bundle",
+        "marker-end": "url(#arrow-quiet)",
+        "data-source": bundle.source, "data-target": bundle.target, "data-relation": "bundle",
+        "data-hist": bundle.hist ? "true" : "false",
+        style: `stroke-width:${Math.min(4, 1 + Math.log2(bundle.count)).toFixed(2)}`
+      });
+      const title = svgElement("title", {});
+      title.textContent = `${bundle.count} relationship${bundle.count === 1 ? "" : "s"}: ${Array.from(bundle.relations).sort().join(", ")}`;
+      path.append(title);
+      edgeGroup.append(path);
+      const mid = interplayLinkMidpoint(source, target);
+      if (bundle.count > 1) {
+        const label = svgElement("text", { x: mid.x.toFixed(1), y: mid.y.toFixed(1), class: "interplay-bundle-label", "text-anchor": "middle" });
+        label.textContent = String(bundle.count);
+        labelGroup.append(label);
+      }
+    });
     drawEdges.forEach((edge) => {
       const source = interplayPositions.get(edge.source);
       const target = interplayPositions.get(edge.target);
@@ -1021,19 +1220,26 @@
         note.textContent = `${node.label} · present at an earlier commit, not in the head revision`;
         group.append(note);
       } else if (isContainer) {
-        group.addEventListener("click", (event) => {
-          event.stopPropagation();
+        // A gateway or storage container opens and closes on press, and is selected.
+        wirePress(group, () => {
+          if (node.kind !== "transport") {
+            if (expandedHulls.has("*")) { expandedHulls.delete("*"); hullIndexOf().all.forEach((hull) => expandedHulls.add(hull)); }
+            if (expandedHulls.has(node.id)) expandedHulls.delete(node.id); else expandedHulls.add(node.id);
+            saveHulls();
+            selectedInterplayId = node.id;
+            renderInterplay();
+            return;
+          }
           selectInterplayNode(node.id);
-        });
+        }, { keyboard: false });
       } else if (isTransportContainer(node)) {
-        // Collapsed by default; a click expands the owner's resources and sections.
-        group.addEventListener("click", (event) => {
-          event.stopPropagation();
+        // Collapsed by default; a press expands the owner's resources and sections.
+        wirePress(group, () => {
           if (expandedOwners.has(node.id)) expandedOwners.delete(node.id); else expandedOwners.add(node.id);
           selectedInterplayId = node.id;
           renderInterplay();
           renderInterplayInspector(node);
-        });
+        }, { keyboard: false });
       } else {
         wireInterplayNodeDrag(svg, group, node.id);
       }
@@ -1089,6 +1295,30 @@
       const target = interplayPositions.get(path.dataset.target);
       if (source && target) path.setAttribute("d", interplayLinkPath(source, target));
     });
+  }
+
+  function wirePress(element, handler, { keyboard = true } = {}) {
+    let startX = 0;
+    let startY = 0;
+    let pressed = false;
+    element.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.stopPropagation(); // keep the background pan handler from capturing the pointer
+      pressed = true;
+      startX = event.clientX;
+      startY = event.clientY;
+    });
+    element.addEventListener("pointerup", (event) => {
+      if (!pressed) return;
+      pressed = false;
+      if (Math.abs(event.clientX - startX) < 4 && Math.abs(event.clientY - startY) < 4) { event.stopPropagation(); handler(event); }
+    });
+    element.addEventListener("pointercancel", () => { pressed = false; });
+    if (keyboard) {
+      element.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handler(event); }
+      });
+    }
   }
 
   function wireInterplayNodeDrag(svg, group, nodeId) {
@@ -1346,7 +1576,10 @@
     }
     grouped.forEach((entry) => {
       const box = boxByLabel.get(entry.page);
-      const target = interplayPositions.get(entry.targetId);
+      const rep = hullRepOf.get(entry.targetId) || entry.targetId;
+      if (box && box.collapsed) return; // a closed page draws no first hops
+      if (rep === `hull:group:${entry.page}`) return; // the surface is inside this very page
+      const target = interplayPositions.get(rep);
       if (!box || !target) return;
       const source = { x: box.x + 18, y: box.y + 22, width: 1, height: 1 };
       const hkey = `page:${pageIdByLabel.get(entry.page)}|${historyKeyOf(interplayNodeById.get(entry.targetId))}|triggers`;
@@ -1644,6 +1877,7 @@
   function traceFlow(id) {
     const flow = flowById.get(id);
     if (!flow) return;
+    if (!expandedHulls.has("*")) { expandedHulls.clear(); expandedHulls.add("*"); saveHulls(); renderInterplay(); }
     selectedFlowId = id;
     selectedInterplayId = null;
     renderFlowInspector(flow);
@@ -1874,6 +2108,7 @@
   function selectInterplayNode(nodeId) {
     selectedInterplayId = nodeId;
     selectedFlowId = null;
+    if (!interplayPositions.has(nodeId)) revealNode(nodeId);
     renderInterplayInspector(interplayNodeById.get(nodeId));
     applyInterplayState();
   }
@@ -3448,6 +3683,7 @@
         renderFlows();
         if (interplaySearch) interplaySearch.value = "";
         if (TL) { timelinePlay(false); TL.disengage(); timelineSync(); } // back to the head revision
+        collapseAllHulls(); // back to the shells, which re-renders
         fitInterplayView(); // reset the pan/zoom window back to the whole graph too
         applyInterplayState();
       });
@@ -3472,6 +3708,10 @@
     }
     const interplayFullscreen = document.getElementById("interplay-fullscreen");
     if (interplayFullscreen) interplayFullscreen.addEventListener("click", toggleInterplayFullscreen);
+    const expandAll = document.getElementById("interplay-expand-all");
+    if (expandAll) expandAll.addEventListener("click", expandAllHulls);
+    const collapseAll = document.getElementById("interplay-collapse-all");
+    if (collapseAll) collapseAll.addEventListener("click", collapseAllHulls);
     wireTimeline();
     // Re-fit when entering/leaving fullscreen so the graph fills the new frame.
     document.addEventListener("fullscreenchange", () => {
