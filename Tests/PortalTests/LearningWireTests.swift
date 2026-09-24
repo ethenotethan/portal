@@ -163,6 +163,32 @@ internal struct LearningWireTests {
         #expect(deck.srsStates["junk"] == nil)
     }
 
+    @Test("a minimal card and SRS record preserve domain defaults")
+    internal func minimalCardAndSRSDefaults() throws {
+        let wire = LearningDeckWire(
+            id: "dk-minimal",
+            topic: "Defaults",
+            rev: 1,
+            cards: [[
+                "id": AnyCodable("c-1"),
+                "front": AnyCodable("front"),
+                "back": AnyCodable("fallback explanation"),
+            ]],
+            srs: ["c-1": .dictionary([:])]
+        )
+
+        let deck = LearningWire.deck(from: wire)
+        let card = try #require(deck.cards.first)
+        let state = try #require(deck.srsStates[card.id])
+
+        #expect(card.explanation == card.back)
+        #expect(state.interval == 0)
+        #expect(state.easeFactor == SRSEngine.defaultEaseFactor)
+        #expect(state.repetitions == 0)
+        #expect(state.lastQuality == 0)
+        #expect(state.reviewCount == 0)
+    }
+
     @Test("wireCard and wireSRSState carry optionals only when present")
     internal func domainToWireOptionals() {
         let bare = Flashcard(front: "f", back: "b", explanation: "")
