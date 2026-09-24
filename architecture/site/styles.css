@@ -26,6 +26,7 @@
   --doc-ink: #c6c3be;
   --warning-ink: #d8d3ca;
   --edge-active: #f2f2f4;
+  --edge-quiet: #5a585d;
   --lane-fill: rgba(242, 240, 235, .025);
   --glow-a: rgba(139, 131, 255, .16);
   --glow-b: rgba(92, 168, 216, .11);
@@ -48,6 +49,7 @@ html[data-theme="light"] {
   --doc-ink: #3a3937;
   --warning-ink: #4a4640;
   --edge-active: #1a1a1c;
+  --edge-quiet: #b4b0a8;
   --lane-fill: rgba(26, 26, 28, .03);
   --glow-a: rgba(139, 131, 255, .14);
   --glow-b: rgba(92, 168, 216, .1);
@@ -58,41 +60,14 @@ html { background: var(--bg); scroll-behavior: smooth; }
 body {
   margin: 0;
   min-width: 320px;
-  /* Base colour lives on <html>; body keeps only the grid lines over a
-     transparent base so the fixed ambient glow can sit between them. */
-  background:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
-    transparent;
-  background-size: 32px 32px;
+  background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Soft accent bloom anchored top-right, slowly breathing — the same ambient
-   flourish as the product site, sharing its tokens. Fixed and behind content;
-   purely decorative. */
-.ambient-glow {
-  position: fixed;
-  z-index: -1;
-  top: -18%;
-  right: -8%;
-  width: min(760px, 68%);
-  height: 78vh;
-  background:
-    radial-gradient(closest-side, var(--glow-a), transparent 70%),
-    radial-gradient(closest-side, var(--glow-b), transparent 72%);
-  background-position: 28% 22%, 82% 64%;
-  background-repeat: no-repeat;
-  filter: blur(20px);
-  pointer-events: none;
-  animation: ambientDrift 20s ease-in-out infinite alternate;
-}
-@keyframes ambientDrift {
-  from { transform: translate3d(0, 0, 0) scale(1); opacity: .8; }
-  to   { transform: translate3d(-3%, 2%, 0) scale(1.06); opacity: 1; }
-}
+/* An engineering surface: flat colour, no bloom, no texture, no motion. */
+.ambient-glow { display: none; }
 button, input, select { font: inherit; }
 a { color: inherit; }
 
@@ -120,25 +95,24 @@ a { color: inherit; }
 }
 
 .topbar {
-  min-height: 88px;
-  padding: 18px clamp(20px, 4vw, 64px);
+  min-height: 60px;
+  padding: 10px clamp(20px, 4vw, 64px);
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--line);
-  background: var(--veil);
-  backdrop-filter: blur(16px);
+  background: var(--bg);
 }
 .brand { display: flex; align-items: center; gap: 14px; }
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--line-strong);
+  border-radius: 4px;
   color: var(--ink);
-  font: 700 19px var(--mono);
-  transform: rotate(-2deg);
+  font: 700 15px var(--mono);
 }
 .eyebrow {
   margin: 0 0 6px;
@@ -171,12 +145,7 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   border-radius: 50%;
   background: var(--foundation);
   box-shadow: 0 0 0 4px rgba(112,185,141,.12);
-  animation: statusPulse 2.6s ease-out infinite;
 }
-@keyframes statusPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(112,185,141,.5); }
-  70%  { box-shadow: 0 0 0 7px rgba(112,185,141,0); }
-  100% { box-shadow: 0 0 0 0 rgba(112,185,141,0); }
 }
 
 .section-nav {
@@ -187,8 +156,7 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   gap: 2px;
   padding: 0 clamp(20px, 4vw, 64px);
   border-bottom: 1px solid var(--line);
-  background: var(--veil);
-  backdrop-filter: blur(16px);
+  background: var(--bg);
 }
 .nav-item {
   min-height: 48px;
@@ -201,36 +169,29 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   font: 600 12px var(--mono);
 }
 .nav-item:hover { color: var(--ink); }
-.nav-item.active { border-bottom-color: var(--accent); color: var(--ink); }
+.nav-item.active { border-bottom-color: var(--ink); color: var(--ink); }
 .nav-item:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 main { min-height: 75vh; }
-.view { display: none; padding: 48px clamp(20px, 4vw, 64px) 72px; }
+.view { display: none; padding: 28px clamp(20px, 4vw, 64px) 56px; }
 .view.active { display: block; }
 .intro-row {
   display: flex;
   justify-content: space-between;
   align-items: end;
   gap: 40px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 .intro-row.compact { align-items: start; }
-h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; letter-spacing: -.055em; }
-/* View titles pick up the same accent gradient as the product site's hero. */
-.intro-row h2 {
-  background: linear-gradient(96deg, var(--ink) 28%, var(--accent) 78%, var(--integration) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.lede { max-width: 720px; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.65; }
+h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em; }
+.lede { max-width: 900px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 
 .stats { display: flex; gap: 28px; flex-shrink: 0; }
 .stat { min-width: 86px; }
-.stat-value { display: block; font: 500 26px/1 var(--mono); letter-spacing: -.06em; }
+.stat-value { display: block; font: 500 20px/1 var(--mono); letter-spacing: -.02em; }
 .stat-label { display: block; margin-top: 7px; color: var(--faint); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
 
 .graph-toolbar, .inventory-toolbar {
@@ -323,20 +284,29 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 /* Edge relation names appear only on highlighted edges. */
 .interplay-edge-label { display: none; fill: var(--ink); font: 600 9px var(--mono); letter-spacing: .04em; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; text-anchor: middle; }
 .interplay-edge-label.active { display: block; }
-.interplay-edge.active { marker-end: url(#arrow-active); }
 #interplay-workspace:fullscreen #interplay-scroll { min-height: 0; }
 #interplay-workspace:fullscreen #interplay-graph { height: 100%; }
-.interplay-edge { fill: none; stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-.interplay-edge.structure { stroke: var(--line-strong); opacity: .5; }
-.interplay-edge.lifecycle { stroke: #55545a; stroke-dasharray: 3 5; opacity: .4; }
-.interplay-edge.interplay { stroke: var(--accent); opacity: .8; stroke-width: 1.75; }
-/* A product surface invoking a queried namespace — the caller perspective. */
-.interplay-edge.usage { stroke: #7ec8b0; stroke-dasharray: 5 4; opacity: .55; }
-/* A node crossing an external boundary — gateway, runtime, platform store. */
-.interplay-edge.boundary { stroke: #e0704f; stroke-dasharray: 2 4; opacity: .7; }
-/* The push leg: the transport feeds the bus, the bus taps every subscriber. */
-.interplay-edge.push { stroke: #d16f86; stroke-dasharray: 4 3; opacity: .7; }
-.interplay-edge.push.feed { stroke-dasharray: none; stroke-width: 2.25; opacity: .9; }
+/* Edges are quiet by default: one stroke and one arrowhead for every relationship,
+   so zoomed out the map reads as shape, not as seven colours of wiring. The dash
+   pattern still hints at the kind; selecting a node lights its edges; the legend's
+   "Colour edges by relationship" switch (`.edges-coloured` on the svg) restores the
+   per-kind palette for readers who want it. */
+.interplay-edge { fill: none; stroke: var(--edge-quiet); stroke-width: 1; opacity: .38; vector-effect: non-scaling-stroke; marker-end: url(#arrow-quiet); }
+.interplay-edge.structure { opacity: .3; }
+.interplay-edge.lifecycle { stroke-dasharray: 3 5; }
+.interplay-edge.usage { stroke-dasharray: 5 4; }
+.interplay-edge.boundary { stroke-dasharray: 2 4; }
+.interplay-edge.push { stroke-dasharray: 4 3; }
+.interplay-edge.push.feed { stroke-dasharray: none; stroke-width: 1.5; }
+.interplay-edge.trigger { stroke-dasharray: 1 3; }
+.edges-coloured .interplay-edge.structure { stroke: var(--line-strong); opacity: .5; marker-end: url(#arrow-structure); }
+.edges-coloured .interplay-edge.lifecycle { stroke: #55545a; opacity: .4; marker-end: url(#arrow-lifecycle); }
+.edges-coloured .interplay-edge.interplay { stroke: var(--accent); opacity: .8; stroke-width: 1.75; marker-end: url(#arrow-interplay); }
+.edges-coloured .interplay-edge.usage { stroke: #7ec8b0; opacity: .55; marker-end: url(#arrow-usage); }
+.edges-coloured .interplay-edge.boundary { stroke: #e0704f; opacity: .7; marker-end: url(#arrow-boundary); }
+.edges-coloured .interplay-edge.push { stroke: #d16f86; opacity: .7; marker-end: url(#arrow-push); }
+.edges-coloured .interplay-edge.push.feed { stroke-width: 2.25; opacity: .9; }
+.edges-coloured .interplay-edge.trigger { stroke: #9fd18b; opacity: .5; marker-end: url(#arrow-trigger); }
 /* Feature-module hulls: each product feature is a bounded, labelled region; the
    shared core is drawn a touch warmer so it reads as the factored-out backbone. */
 .interplay-group-rect { fill: rgba(126, 200, 176, .05); stroke: var(--line); stroke-width: 1; }
@@ -346,8 +316,8 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 /* The application boundary: the outermost hull around every code group. */
 .interplay-group.app .interplay-group-rect { fill: rgba(139, 131, 255, .03); stroke: var(--line-strong); stroke-width: 1.25; stroke-dasharray: none; }
 .interplay-group.app .interplay-group-label { opacity: .9; fill: var(--muted); }
-.interplay-edge.active { stroke: var(--ink); opacity: .95; stroke-width: 2.25; }
-.interplay-edge.dimmed { opacity: .07; }
+.interplay-edge.active, .edges-coloured .interplay-edge.active { stroke: var(--ink); opacity: .95; stroke-width: 2.25; marker-end: url(#arrow-active); }
+.interplay-edge.dimmed, .edges-coloured .interplay-edge.dimmed { opacity: .07; }
 .interplay-node { cursor: grab; transition: opacity .18s ease; }
 .interplay-node.dragging { cursor: grabbing; }
 .interplay-node rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; }
@@ -361,7 +331,6 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-node rect.machine { fill: var(--bg); stroke-dasharray: 2 2; }
 .inspector .flow-diagram { margin: 8px 0; }
 /* The first hop: a page's views driving a surface. */
-.interplay-edge.trigger { stroke: #9fd18b; stroke-dasharray: 1 3; opacity: .5; }
 /* The gateway drawn as a bus bar the endpoint boxes sit on. */
 .interplay-node rect.pipe { fill: rgba(224, 112, 79, .07); stroke: #e0704f; stroke-width: 1.5; stroke-dasharray: none; }
 .interplay-node[data-pipe="true"] .node-title { font: 700 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
@@ -378,10 +347,37 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 }
 .legend-toggle::after { content: "▾"; font-size: 10px; opacity: .7; }
 .legend-overlay.collapsed .legend-toggle::after { content: "▸"; }
+.legend-switch { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font: 10px var(--mono); cursor: pointer; }
+.legend-switch input { margin: 0; accent-color: var(--accent); }
+.legend-edges { display: grid; grid-template-columns: auto auto; gap: 5px 14px; margin-top: 8px; font-size: 9px; }
+.legend-edges .legend-swatch { height: 0; border-top: 2px dashed var(--legend-color); background: none; }
+.legend-edges .legend-swatch.solid { border-top-style: solid; }
 .legend-items { display: grid; grid-template-columns: auto auto; gap: 5px 14px; margin-top: 8px; padding: 0; font-size: 9px; }
 .legend-overlay.collapsed .legend-items { display: none; }
 /* A gateway boundary hull: same schema as the group hulls, nested in External systems. */
 .interplay-group.gateway .interplay-group-rect { fill: rgba(224, 112, 79, .05); stroke: #e0704f; stroke-width: 1.25; stroke-dasharray: 2 4; }
+/* A storage system holding the artifacts its stores write, and the declared boundary
+   boxes (platform storage, on-device inference) beside the application. */
+.interplay-group.storage .interplay-group-rect { fill: rgba(217, 164, 65, .05); stroke: #d9a441; stroke-width: 1.25; stroke-dasharray: 2 4; }
+.interplay-group.boundary .interplay-group-rect { fill: rgba(224, 112, 79, .03); stroke: #e0704f; stroke-width: 1.25; stroke-dasharray: 6 4; }
+.interplay-group.boundary .interplay-group-label { fill: #e0704f; opacity: .85; }
+.interplay-node rect.artifact { fill: var(--bg); stroke-dasharray: 1 3; }
+/* Collapsed hulls: one box standing for everything inside; bundled wiring between them. */
+.interplay-hull { cursor: pointer; }
+.interplay-hull-rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.25; }
+.interplay-hull:hover .interplay-hull-rect, .interplay-hull:focus .interplay-hull-rect { fill: var(--surface-hover); stroke: var(--ink); }
+.interplay-hull.app .interplay-hull-rect { fill: rgba(139, 131, 255, .06); stroke: var(--line-strong); stroke-width: 1.5; }
+.interplay-hull.boundary .interplay-hull-rect { fill: rgba(224, 112, 79, .05); stroke: #e0704f; stroke-dasharray: 6 4; }
+.interplay-hull .hull-kicker { fill: var(--faint); font: 700 9px var(--mono); letter-spacing: .14em; }
+.interplay-hull .hull-title { fill: var(--ink); font: 600 14px var(--sans); }
+.interplay-hull .hull-meta { fill: var(--muted); font: 10px var(--mono); }
+.interplay-group-label.clickable { cursor: pointer; }
+.interplay-group-label.clickable:hover { fill: var(--ink); opacity: 1; }
+.interplay-edge.bundle { stroke: var(--edge-quiet); opacity: .7; stroke-dasharray: none; }
+.interplay-bundle-label { fill: var(--muted); font: 700 10px var(--mono); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+.interplay-edge.bundle.active { stroke: var(--ink); opacity: 1; }
+.interplay-edge.bundle.dimmed { opacity: .1; }
+.interplay-node[data-kind="artifact"] .node-title { font: 600 11px var(--mono); }
 .interplay-node rect.hull-label { fill: transparent; stroke: none; }
 .interplay-group.transport .interplay-group-rect { fill: rgba(92, 168, 216, .05); stroke: #5ca8d8; stroke-width: 1.25; stroke-dasharray: none; }
 .interplay-group.owner .interplay-group-rect { fill: rgba(92, 168, 216, .04); stroke: #5ca8d8; stroke-width: 1; stroke-dasharray: 3 3; }
@@ -463,7 +459,7 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-node.hist { cursor: default; }
 .interplay-node.ghost { opacity: .8; }
 .interplay-node.ghost rect { stroke: #d9a441; stroke-dasharray: 4 4; }
-.interplay-edge.ghost { stroke: #d9a441; stroke-dasharray: 4 4; opacity: .85; marker-end: url(#arrow-ghost); }
+.interplay-edge.ghost, .edges-coloured .interplay-edge.ghost { stroke: #d9a441; stroke-dasharray: 4 4; opacity: .85; marker-end: url(#arrow-ghost); }
 .graph-scroll.travelling .interplay-group.app .interplay-group-rect { stroke: #d9a441; }
 .timeline-overlay {
   position: absolute; left: 14px; bottom: 14px; z-index: 2;
@@ -518,7 +514,7 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 }
 .inspector-empty { max-width: 680px; color: var(--muted); }
 .inspector-index { display: block; margin-bottom: 32px; color: var(--line-strong); font: 32px var(--mono); }
-.inspector h3 { margin: 0 0 12px; font-size: 24px; letter-spacing: -.03em; }
+.inspector h3 { margin: 0 0 10px; font-size: 18px; letter-spacing: -.01em; }
 .inspector p { color: var(--muted); font-size: 13px; line-height: 1.6; }
 .inspector-badge { display: inline-block; margin-bottom: 16px; color: var(--component-color); font: 600 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
 .inspector-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 22px 0; background: var(--line); border: 1px solid var(--line); }
@@ -555,12 +551,12 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .behavior-content { display: grid; gap: 18px; }
 .behavior-group {
   min-width: 0;
-  padding: clamp(18px, 3vw, 28px);
+  padding: clamp(16px, 2.5vw, 22px);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 4px;
   background: var(--surface);
 }
-.behavior-group > h3 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
+.behavior-group > h3 { margin: 0; font-size: 16px; letter-spacing: -.01em; }
 .group-note, .derivation, .empty-state {
   margin: 8px 0 0;
   color: var(--faint);
@@ -608,8 +604,8 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .document-link:hover { background: var(--surface); color: var(--ink); }
 .document-link.active { border-left-color: var(--accent); background: var(--surface); color: var(--ink); }
 .document { min-width: 0; padding: 40px clamp(22px, 5vw, 64px); border: 1px solid var(--line); background: var(--surface); }
-.document h1 { margin: 0 0 32px; font-size: clamp(30px, 5vw, 52px); line-height: 1; letter-spacing: -.05em; }
-.document h2 { margin: 44px 0 14px; font-size: 22px; line-height: 1.15; letter-spacing: -.025em; }
+.document h1 { margin: 0 0 24px; font-size: 26px; line-height: 1.15; letter-spacing: -.02em; }
+.document h2 { margin: 36px 0 12px; font-size: 18px; line-height: 1.2; letter-spacing: -.01em; }
 .document h3 { margin: 28px 0 10px; font-size: 16px; }
 .document p, .document li { max-width: 70ch; color: var(--doc-ink); font-size: 15px; line-height: 1.75; }
 .document code { padding: 2px 5px; background: var(--bg); color: var(--code-ink); border-radius: 3px; font: 12px var(--mono); }
@@ -731,18 +727,6 @@ footer strong { color: var(--muted); }
   .behavior-list { grid-template-columns: 1fr; }
   .behavior-group { padding: 18px; }
   footer { flex-direction: column; }
-}
-
-/* When a view becomes active its content rises in with a light stagger. Driven
-   by the class toggle app.js already does, so it re-plays on every tab switch
-   and never leaves anything hidden (no persisted opacity:0 state). */
-.view.active > * { animation: viewIn .5s cubic-bezier(.22, 1, .36, 1) backwards; }
-.view.active > *:nth-child(2) { animation-delay: 60ms; }
-.view.active > *:nth-child(3) { animation-delay: 120ms; }
-.view.active > *:nth-child(n+4) { animation-delay: 160ms; }
-@keyframes viewIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

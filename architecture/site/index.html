@@ -19,7 +19,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="ambient-glow" aria-hidden="true"></div>
   <a class="skip-link" href="#main">Skip to architecture</a>
   <header class="topbar">
     <div class="brand">
@@ -66,10 +65,12 @@
           <span class="sr-only">Search system map nodes</span>
           <input id="interplay-search" type="search" placeholder="Search pages, owners, endpoints, resources, or engines…" autocomplete="off">
         </label>
+        <button id="interplay-expand-all" class="quiet-button" type="button">Expand all</button>
+        <button id="interplay-collapse-all" class="quiet-button" type="button">Collapse all</button>
         <button id="interplay-fullscreen" class="quiet-button" type="button">Full screen</button>
         <button id="reset-interplay" class="quiet-button" type="button">Reset view</button>
       </div>
-      <p class="graph-hint" aria-hidden="true">Drag the canvas to pan · scroll to zoom · drag a node to reposition it · click a node for its metadata</p>
+      <p class="graph-hint" aria-hidden="true">Click a box to expand it, its label to collapse it · drag the canvas to pan · scroll to zoom · click a node for its metadata</p>
       <div class="graph-workspace" id="interplay-workspace">
         <div class="graph-scroll" id="interplay-scroll">
           <svg id="interplay-graph" role="img" aria-label="Portal connection-pool and on-device-model interplay graph"></svg>
