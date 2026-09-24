@@ -178,6 +178,11 @@ struct ChartSpecTests {
         let bins = ChartDistribution.bins(for: [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], count: 5)
         #expect(bins.count == 5)
         #expect(bins.map(\.count).reduce(0, +) == 10)
+        // Swift Charts keys each bar by its lower edge and plots it at the
+        // center of the interval, so both presentation projections are part of
+        // the binning contract rather than incidental view arithmetic.
+        #expect(bins[0].id == bins[0].lowerBound)
+        #expect(bins[0].midpoint == 1)
         // Top edge value (10) lands in the last bin, not out of range.
         #expect(bins.last?.count ?? 0 > 0)
 
@@ -239,6 +244,7 @@ struct WaterfallTests {
         ]
         let segments = ChartWaterfall.segments(for: points)
         #expect(segments[0].start == 0 && segments[0].end == 500)
+        #expect(segments[0].id == "Revenue")
         #expect(segments[1].start == 500 && segments[1].end == 320)   // fall
         #expect(!segments[1].isRise)
         #expect(segments[2].isTotal && segments[2].start == 0 && segments[2].end == 320)
