@@ -259,6 +259,7 @@
   const repositoryBase = `https://github.com/${model.repository}/blob/main/`;
   let selectedInterplayId = null;
   let selectedFlowId = null; // a traced system flow: its steps light up like a selection's path
+  const openFlows = new Set(); // flows the reader has expanded; survives the re-render tracing causes
   const flows = interplay.flows || [];
   const flowById = new Map(flows.map((flow) => [flow.id, flow]));
   // Journey tables live up here because renderFlows() runs during init.
@@ -1664,7 +1665,11 @@
   async function renderMermaidDiagrams() {
     const mermaid = window.__mermaid;
     if (!mermaid) return;
-    const blocks = Array.from(document.querySelectorAll(".flow-diagram[data-state='pending']"));
+    // Only blocks the reader can see: a diagram inside a collapsed flow waits for
+    // its expansion (the toggle handler calls back here), so the page never pays
+    // for diagrams nobody opened.
+    const blocks = Array.from(document.querySelectorAll(".flow-diagram[data-state='pending']"))
+      .filter((block) => { const details = block.closest("details"); return !details || details.open; });
     for (const block of blocks) {
       block.dataset.state = "rendering";
       try {
@@ -1708,18 +1713,29 @@
       }
       section.append(element("h4", "journey-title", title));
       list.forEach((flow) => {
-        const article = element("article", `flow${flow.id === selectedFlowId ? " tracing" : ""}`);
+        // Collapsed by default: the header and one-line summary are the disclosure;
+        // the diagram and the numbered procedure render on first expansion.
+        const article = element("details", `flow${flow.id === selectedFlowId ? " tracing" : ""}`);
         article.id = `flow-${flow.id}`;
+        article.open = openFlows.has(flow.id) || flow.id === selectedFlowId;
+        const disclosure = element("summary", "flow-disclosure");
         const head = element("div", "flow-head");
         head.append(element("h5", "", flow.title));
         if (flow.interaction) head.append(element("span", "flow-interaction", flow.interaction));
         if (flow.status !== "traceable") head.append(element("span", "invariant-status violated", "BROKEN"));
-        article.append(head, element("p", "flow-summary", flow.summary));
+        head.append(element("span", "flow-steps-count", `${flow.steps.length} steps`));
+        disclosure.append(head, element("p", "flow-summary", flow.summary));
+        article.append(disclosure);
+        const body = element("div", "flow-body");
+        article.append(body);
+        article.addEventListener("toggle", () => {
+          if (article.open) { openFlows.add(flow.id); renderMermaidDiagrams(); } else openFlows.delete(flow.id);
+        });
         const diagram = element("div", "flow-diagram");
         diagram.dataset.source = flowMermaid(flow);
         diagram.dataset.state = "pending";
         diagram.textContent = diagram.dataset.source;
-        article.append(diagram);
+        body.append(diagram);
         // The same steps as a numbered procedure: who does what to whom, and what it
         // means for the user. Numbers match the diagram's.
         const trigger = flow.trigger ? triggers.find((t) => t.id === flow.trigger) : null;
@@ -1738,8 +1754,8 @@
           if (step.note) li.append(element("span", "step-note", step.note));
           procedure.append(li);
         });
-        article.append(procedure);
-        if (flow.outcome) article.append(element("p", "flow-outcome", `Outcome: ${flow.outcome}`));
+        body.append(procedure);
+        if (flow.outcome) body.append(element("p", "flow-outcome", `Outcome: ${flow.outcome}`));
         const meta = element("p", "flow-meta");
         meta.append(document.createTextNode(`${flow.steps.length} steps · written by ${flow.model} at ${String(flow.source_revision).slice(0, 9)} · `));
         const trace = document.createElement("a");
@@ -1748,7 +1764,7 @@
         trace.textContent = flow.id === selectedFlowId ? "stop tracing on the map" : "trace on the map";
         trace.addEventListener("click", (event) => { event.preventDefault(); if (flow.id === selectedFlowId) clearFlow(); else traceFlow(flow.id); });
         meta.append(trace);
-        article.append(meta);
+        body.append(meta);
         section.append(article);
       });
       sections.push(section);
