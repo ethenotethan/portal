@@ -1447,9 +1447,12 @@ class ArchitectureCompilerTests(unittest.TestCase):
         # The standalone metrics page is gone; the product site points at the tab.
         self.assertFalse((ROOT / "site/metrics.html").exists())
         self.assertFalse((ROOT / "scripts/build_metrics_page.py").exists())
+        # The product site says Overview and Features; the gates are reached only
+        # through the observatory.
         product = (ROOT / "site/index.html").read_text(encoding="utf-8")
         self.assertNotIn("metrics.html", product)
-        self.assertIn('href="architecture/#gates"', product)
+        self.assertNotIn("#gates", product)
+        self.assertIn('href="architecture/"', product)
         workflow = (ROOT / ".github/workflows/architecture-pages.yml").read_text(encoding="utf-8")
         self.assertNotIn("build_metrics_page", workflow)
         for trigger_path in (".github/workflows/**", ".swiftlint.yml", "Tests/PortalTests/ArchitectureTests.swift", "metrics-baseline.json"):

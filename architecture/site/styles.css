@@ -60,41 +60,14 @@ html { background: var(--bg); scroll-behavior: smooth; }
 body {
   margin: 0;
   min-width: 320px;
-  /* Base colour lives on <html>; body keeps only the grid lines over a
-     transparent base so the fixed ambient glow can sit between them. */
-  background:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
-    transparent;
-  background-size: 32px 32px;
+  background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Soft accent bloom anchored top-right, slowly breathing — the same ambient
-   flourish as the product site, sharing its tokens. Fixed and behind content;
-   purely decorative. */
-.ambient-glow {
-  position: fixed;
-  z-index: -1;
-  top: -18%;
-  right: -8%;
-  width: min(760px, 68%);
-  height: 78vh;
-  background:
-    radial-gradient(closest-side, var(--glow-a), transparent 70%),
-    radial-gradient(closest-side, var(--glow-b), transparent 72%);
-  background-position: 28% 22%, 82% 64%;
-  background-repeat: no-repeat;
-  filter: blur(20px);
-  pointer-events: none;
-  animation: ambientDrift 20s ease-in-out infinite alternate;
-}
-@keyframes ambientDrift {
-  from { transform: translate3d(0, 0, 0) scale(1); opacity: .8; }
-  to   { transform: translate3d(-3%, 2%, 0) scale(1.06); opacity: 1; }
-}
+/* An engineering surface: flat colour, no bloom, no texture, no motion. */
+.ambient-glow { display: none; }
 button, input, select { font: inherit; }
 a { color: inherit; }
 
@@ -122,25 +95,24 @@ a { color: inherit; }
 }
 
 .topbar {
-  min-height: 88px;
-  padding: 18px clamp(20px, 4vw, 64px);
+  min-height: 60px;
+  padding: 10px clamp(20px, 4vw, 64px);
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--line);
-  background: var(--veil);
-  backdrop-filter: blur(16px);
+  background: var(--bg);
 }
 .brand { display: flex; align-items: center; gap: 14px; }
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--line-strong);
+  border-radius: 4px;
   color: var(--ink);
-  font: 700 19px var(--mono);
-  transform: rotate(-2deg);
+  font: 700 15px var(--mono);
 }
 .eyebrow {
   margin: 0 0 6px;
@@ -173,12 +145,7 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   border-radius: 50%;
   background: var(--foundation);
   box-shadow: 0 0 0 4px rgba(112,185,141,.12);
-  animation: statusPulse 2.6s ease-out infinite;
 }
-@keyframes statusPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(112,185,141,.5); }
-  70%  { box-shadow: 0 0 0 7px rgba(112,185,141,0); }
-  100% { box-shadow: 0 0 0 0 rgba(112,185,141,0); }
 }
 
 .section-nav {
@@ -189,8 +156,7 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   gap: 2px;
   padding: 0 clamp(20px, 4vw, 64px);
   border-bottom: 1px solid var(--line);
-  background: var(--veil);
-  backdrop-filter: blur(16px);
+  background: var(--bg);
 }
 .nav-item {
   min-height: 48px;
@@ -203,36 +169,29 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   font: 600 12px var(--mono);
 }
 .nav-item:hover { color: var(--ink); }
-.nav-item.active { border-bottom-color: var(--accent); color: var(--ink); }
+.nav-item.active { border-bottom-color: var(--ink); color: var(--ink); }
 .nav-item:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 main { min-height: 75vh; }
-.view { display: none; padding: 48px clamp(20px, 4vw, 64px) 72px; }
+.view { display: none; padding: 28px clamp(20px, 4vw, 64px) 56px; }
 .view.active { display: block; }
 .intro-row {
   display: flex;
   justify-content: space-between;
   align-items: end;
   gap: 40px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 .intro-row.compact { align-items: start; }
-h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; letter-spacing: -.055em; }
-/* View titles pick up the same accent gradient as the product site's hero. */
-.intro-row h2 {
-  background: linear-gradient(96deg, var(--ink) 28%, var(--accent) 78%, var(--integration) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.lede { max-width: 720px; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.65; }
+h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em; }
+.lede { max-width: 900px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 
 .stats { display: flex; gap: 28px; flex-shrink: 0; }
 .stat { min-width: 86px; }
-.stat-value { display: block; font: 500 26px/1 var(--mono); letter-spacing: -.06em; }
+.stat-value { display: block; font: 500 20px/1 var(--mono); letter-spacing: -.02em; }
 .stat-label { display: block; margin-top: 7px; color: var(--faint); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
 
 .graph-toolbar, .inventory-toolbar {
@@ -540,7 +499,7 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 }
 .inspector-empty { max-width: 680px; color: var(--muted); }
 .inspector-index { display: block; margin-bottom: 32px; color: var(--line-strong); font: 32px var(--mono); }
-.inspector h3 { margin: 0 0 12px; font-size: 24px; letter-spacing: -.03em; }
+.inspector h3 { margin: 0 0 10px; font-size: 18px; letter-spacing: -.01em; }
 .inspector p { color: var(--muted); font-size: 13px; line-height: 1.6; }
 .inspector-badge { display: inline-block; margin-bottom: 16px; color: var(--component-color); font: 600 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
 .inspector-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 22px 0; background: var(--line); border: 1px solid var(--line); }
@@ -577,12 +536,12 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .behavior-content { display: grid; gap: 18px; }
 .behavior-group {
   min-width: 0;
-  padding: clamp(18px, 3vw, 28px);
+  padding: clamp(16px, 2.5vw, 22px);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 4px;
   background: var(--surface);
 }
-.behavior-group > h3 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
+.behavior-group > h3 { margin: 0; font-size: 16px; letter-spacing: -.01em; }
 .group-note, .derivation, .empty-state {
   margin: 8px 0 0;
   color: var(--faint);
@@ -630,8 +589,8 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .document-link:hover { background: var(--surface); color: var(--ink); }
 .document-link.active { border-left-color: var(--accent); background: var(--surface); color: var(--ink); }
 .document { min-width: 0; padding: 40px clamp(22px, 5vw, 64px); border: 1px solid var(--line); background: var(--surface); }
-.document h1 { margin: 0 0 32px; font-size: clamp(30px, 5vw, 52px); line-height: 1; letter-spacing: -.05em; }
-.document h2 { margin: 44px 0 14px; font-size: 22px; line-height: 1.15; letter-spacing: -.025em; }
+.document h1 { margin: 0 0 24px; font-size: 26px; line-height: 1.15; letter-spacing: -.02em; }
+.document h2 { margin: 36px 0 12px; font-size: 18px; line-height: 1.2; letter-spacing: -.01em; }
 .document h3 { margin: 28px 0 10px; font-size: 16px; }
 .document p, .document li { max-width: 70ch; color: var(--doc-ink); font-size: 15px; line-height: 1.75; }
 .document code { padding: 2px 5px; background: var(--bg); color: var(--code-ink); border-radius: 3px; font: 12px var(--mono); }
@@ -753,18 +712,6 @@ footer strong { color: var(--muted); }
   .behavior-list { grid-template-columns: 1fr; }
   .behavior-group { padding: 18px; }
   footer { flex-direction: column; }
-}
-
-/* When a view becomes active its content rises in with a light stagger. Driven
-   by the class toggle app.js already does, so it re-plays on every tab switch
-   and never leaves anything hidden (no persisted opacity:0 state). */
-.view.active > * { animation: viewIn .5s cubic-bezier(.22, 1, .36, 1) backwards; }
-.view.active > *:nth-child(2) { animation-delay: 60ms; }
-.view.active > *:nth-child(3) { animation-delay: 120ms; }
-.view.active > *:nth-child(n+4) { animation-delay: 160ms; }
-@keyframes viewIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
