@@ -8984,6 +8984,2295 @@
       }
     ]
   },
+  "ci": {
+    "architectural": {
+      "invariants": [
+        {
+          "id": "single-transport",
+          "kind": "single_transport",
+          "status": "holds",
+          "why": "One WebSocket JSON-RPC client is shared by every page. A second transport, or a rename, must be declared here deliberately rather than absorbed by the graph."
+        },
+        {
+          "id": "surfaces-hold-core",
+          "kind": "surfaces_hold_transport",
+          "status": "holds",
+          "why": "Every calling surface competes for the same pool and socket. A surface that reaches the gateway some other way breaks the concurrent-access picture the graph draws."
+        },
+        {
+          "id": "pool-guarded",
+          "kind": "pool_guarded_by_lock",
+          "status": "holds",
+          "why": "The pool is the transport's only shared mutable state: every mutation happens under the lock, continuations resume and frames are written outside it. The critical-section assembly assumes exactly this shape."
+        },
+        {
+          "id": "pool-lifecycle-observed",
+          "kind": "pool_lifecycle_observed",
+          "status": "holds",
+          "why": "If the register, resolve or remove rules stop matching the source, the pool must fail the build rather than look idle."
+        },
+        {
+          "id": "operations-scoped",
+          "kind": "operations_resolve_scope",
+          "status": "holds",
+          "why": "Sections are assembled per enclosing function; an operation with no resolved scope would silently drop out of its section."
+        },
+        {
+          "id": "endpoints-dispatched",
+          "kind": "endpoints_dispatched_by_transport",
+          "status": "holds",
+          "why": "Every namespace box is dispatched by a transport core; a namespace reached any other way is a new construction, not a variant of this one."
+        },
+        {
+          "id": "stores-mapped",
+          "kind": "stores_mapped",
+          "status": "holds",
+          "why": "Every store the extractor recognises is a construction on the map, so the Data stores view and the System map can never disagree about what holds state."
+        },
+        {
+          "id": "triggers-observed",
+          "kind": "triggers_observed",
+          "status": "holds",
+          "why": "Every page's views drive at least one surface through an observed action or lifecycle hook. SwiftUI has many ways to attach an action; if a refactor hides them from the rules, the first hop must fail loudly rather than vanish."
+        },
+        {
+          "id": "launch-zoned",
+          "kind": "launch_zoned",
+          "status": "holds",
+          "why": "The App entry points construct the objects that exist before any page: the settings object reads the keychain in its initialiser and is what the transport connects with. A store read only at launch belongs to the launch zone, not to the shared core; if the @StateObject or init rules stop matching, launch must fail loudly rather than dissolve into shared."
+        },
+        {
+          "id": "machines-complete",
+          "kind": "machines_complete",
+          "status": "holds",
+          "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
+        },
+        {
+          "id": "flows-traceable",
+          "kind": "flows_traceable",
+          "status": "holds",
+          "why": "A system flow is a path over edges the map draws, never a diagram beside it. When the construction changes under a flow, the flow must be updated in the same change rather than quietly describing wiring that no longer exists."
+        },
+        {
+          "id": "pages-populated",
+          "kind": "pages_populated",
+          "status": "holds",
+          "why": "Every declared page owns at least one construct. An empty page means its roots or ownership declarations have drifted from the source."
+        }
+      ],
+      "lint_config": ".swiftlint.yml",
+      "lint_rules": [
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 143,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 0,
+          "id": "no_nslog",
+          "included": [],
+          "message": "Use Logger from os.log instead of NSLog",
+          "severity": "warning"
+        },
+        {
+          "baselined": 133,
+          "evidence": {
+            "line": 148,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 0,
+          "id": "no_swallowed_try",
+          "included": [
+            ".*/Sources/.*\\.swift"
+          ],
+          "message": "Don't swallow errors with `try?` — it discards the error and yields nil with no log or branch. Use do/catch to handle it, or `try` to propagate.",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 164,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 1,
+          "id": "no_print",
+          "included": [
+            ".*/Sources/.*\\.swift"
+          ],
+          "message": "Use Logger from os.log instead of print(); print goes to stdout with no level or subsystem and can't be filtered in Console or silenced in release.",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 177,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 4,
+          "id": "no_direct_client_in_views",
+          "included": [
+            ".*/Views/.*\\.swift"
+          ],
+          "message": "Views must not call the raw GatewayClient; go through a ViewModel or accept an AgentBackend (see PR #190 — hardwired views broke Centaur sessions).",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 192,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 1,
+          "id": "no_swiftui_in_services",
+          "included": [
+            ".*/Services/.*\\.swift"
+          ],
+          "message": "Services are the platform-agnostic layer — no SwiftUI. Use Foundation/Combine; presentation concerns belong in Views or ViewModels.",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 203,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 28,
+          "id": "no_new_singletons",
+          "included": [],
+          "message": "No new singletons — `.shared` is invisible coupling that can't be swapped in tests. Inject the dependency through an initializer or the environment instead.",
+          "severity": "warning"
+        },
+        {
+          "baselined": 3,
+          "evidence": {
+            "line": 258,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 1,
+          "id": "no_sync_io_on_main",
+          "included": [
+            ".*/Views/.*\\.swift",
+            ".*/ViewModels/.*\\.swift"
+          ],
+          "message": "Synchronous file I/O on the main thread causes a beachball — read files in Task.detached (or a background actor) and await the result. See the main-thread hang watchdog in architecture-rules.md for the detection story.",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 281,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 1,
+          "id": "no_raw_error_assignment",
+          "included": [
+            ".*/ViewModels/.*\\.swift"
+          ],
+          "message": "Route user-facing errors through an error-mapping helper; raw strings become red banners (advisory warnings must not look like failures — see #191/#192).",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 298,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 0,
+          "id": "no_withanimation_in_onreceive",
+          "included": [
+            ".*/Views/.*\\.swift"
+          ],
+          "message": "Don't wrap a timer .onReceive's state write in withAnimation — it queues an animation transaction every tick and beachballs during streaming (#252). Assign plainly (the redraw is the animation) and gate the timer to idle.",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 313,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 1,
+          "id": "no_heavy_work_in_view_body",
+          "included": [
+            ".*/Views/.*\\.swift"
+          ],
+          "message": "Heavy pure work (parse/extract/build/link/compose/highlight) in a computed view property re-runs every render and stalls the main thread (#210/#217). Memoize via RenderMemo, or compute once in init — not per body evaluation.",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 341,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 0,
+          "id": "no_observable_observableobject",
+          "included": [],
+          "message": "Don't combine @Observable with ObservableObject — they register two separate observation mechanisms and can double-notify or miss updates. Remove ObservableObject and migrate callers to @Bindable / @Observable access (#262).",
+          "severity": "error"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 356,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 2,
+          "id": "no_dispatch_main_in_viewmodels",
+          "included": [
+            ".*/ViewModels/.*\\.swift"
+          ],
+          "message": "Don't use DispatchQueue.main inside a @MainActor ViewModel — the hop escapes actor ownership tracking. Call directly, or use Task { @MainActor in } / Task.sleep for deferred work (#262).",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 380,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 0,
+          "id": "no_ordering_comparison_on_generation",
+          "included": [
+            ".*/(ViewModels|Services)/.*\\.swift"
+          ],
+          "message": "Compare a generation counter with == / != , not ordering (<, <=, >, >=). A generation is an identity token for \"is this completion stale?\", not a monotonic version — ordering comparisons admit stale results the == guard drops. (Version-number last-writer-wins, à la ArtifactStore.rev, is a different idiom — use a field named `rev`/`version`, not `generation`.)",
+          "severity": "warning"
+        },
+        {
+          "baselined": 0,
+          "evidence": {
+            "line": 403,
+            "path": ".swiftlint.yml"
+          },
+          "excluded_count": 3,
+          "id": "no_mainactor_missing_on_observableobject",
+          "included": [],
+          "message": "ObservableObject classes must be @MainActor — SwiftUI observes objectWillChange on the main thread; a mutation from any other context is an unsynchronized write. Add @MainActor to the class declaration (#262).",
+          "severity": "warning"
+        }
+      ],
+      "runs_in": [
+        "tests/swift-lint",
+        "tests/swift-test",
+        "architecture-pages/validate"
+      ],
+      "tests": [
+        {
+          "evidence": {
+            "line": 49,
+            "path": "Tests/PortalTests/ArchitectureTests.swift"
+          },
+          "title": "Services do not import SwiftUI (except the allowlist)"
+        },
+        {
+          "evidence": {
+            "line": 82,
+            "path": "Tests/PortalTests/ArchitectureTests.swift"
+          },
+          "title": "ViewModels do not construct View types"
+        },
+        {
+          "evidence": {
+            "line": 139,
+            "path": "Tests/PortalTests/ArchitectureTests.swift"
+          },
+          "title": "Generation counters that are bumped are also compared (drop-stale guard)"
+        },
+        {
+          "evidence": {
+            "line": 209,
+            "path": "Tests/PortalTests/ArchitectureTests.swift"
+          },
+          "title": "Utils/ does not exist — Utilities/ is the one helpers directory"
+        },
+        {
+          "evidence": {
+            "line": 230,
+            "path": "Tests/PortalTests/ArchitectureTests.swift"
+          },
+          "title": "Every GatewayEvent wire type appears in docs/rpc-reference.md"
+        },
+        {
+          "evidence": {
+            "line": 297,
+            "path": "Tests/PortalTests/ArchitectureTests.swift"
+          },
+          "title": "monospaced text re-asserts itself against the app-wide typeface"
+        },
+        {
+          "evidence": {
+            "line": 337,
+            "path": "Tests/PortalTests/ArchitectureTests.swift"
+          },
+          "title": "the container-level monospaced allowlist has no stale entries"
+        }
+      ],
+      "tests_path": "Tests/PortalTests/ArchitectureTests.swift"
+    },
+    "edges": [
+      {
+        "kind": "artifact",
+        "label": "metric-snapshots",
+        "source": "ratchet/measure",
+        "target": "ratchet/coverage"
+      },
+      {
+        "kind": "artifact",
+        "label": "metric-snapshots",
+        "source": "ratchet/measure",
+        "target": "ratchet/warnings"
+      },
+      {
+        "kind": "gates",
+        "source": "architecture-pages/validate",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "build/build",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/coverage",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/dead-code",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/measure",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/performance",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/quality",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/security",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/skipped-tests",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/warnings",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "tests/hang-gate",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "tests/ios-smoke",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "tests/swift-lint",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "tests/swift-test",
+        "target": "merge:main"
+      },
+      {
+        "kind": "needs",
+        "source": "architecture-pages/validate",
+        "target": "architecture-pages/deploy"
+      },
+      {
+        "kind": "needs",
+        "source": "ratchet/measure",
+        "target": "ratchet/coverage"
+      },
+      {
+        "kind": "needs",
+        "source": "ratchet/measure",
+        "target": "ratchet/warnings"
+      },
+      {
+        "kind": "release",
+        "source": "merge:main",
+        "target": "architecture-pages/deploy"
+      },
+      {
+        "kind": "release",
+        "source": "merge:main",
+        "target": "testflight/testflight"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "architecture-pages/validate"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "build/build"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "ratchet/dead-code"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "ratchet/measure"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "ratchet/performance"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "ratchet/quality"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "ratchet/security"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "ratchet/skipped-tests"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "tests/hang-gate"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "tests/ios-smoke"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "tests/swift-lint"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "tests/swift-test"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:workflow_dispatch",
+        "target": "architecture-maintenance/maintain"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:workflow_dispatch",
+        "target": "snapshot-record/record"
+      }
+    ],
+    "families": {
+      "behavior": {
+        "question": "Does it work?"
+      },
+      "build": {
+        "question": "Does it build on every platform?"
+      },
+      "maintenance": {
+        "question": "Manual upkeep of committed artifacts."
+      },
+      "posture": {
+        "question": "Did a tracked metric get worse?"
+      },
+      "publication": {
+        "question": "Do the generated artifacts match the tree, and does the site deploy?"
+      },
+      "release": {
+        "question": "Can a signed build ship?"
+      }
+    },
+    "jobs": [
+      {
+        "artifacts_in": [],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 21,
+          "path": ".github/workflows/architecture-maintenance.yml"
+        },
+        "family": "maintenance",
+        "id": "architecture-maintenance/maintain",
+        "key": "maintain",
+        "name": "Propose architecture update",
+        "needs": [],
+        "pins": [],
+        "role": "manual",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/architecture_agent.py",
+          "scripts/build_architecture.py",
+          "scripts/test_architecture.py"
+        ],
+        "step_count": 6,
+        "steps": [
+          {
+            "line": 25,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "python3 scripts/build_architecture.py",
+            "command_lines": 1,
+            "line": 29,
+            "name": "Compile deterministic architecture model",
+            "scripts": [
+              "scripts/build_architecture.py"
+            ]
+          },
+          {
+            "command": "exit 0",
+            "command_lines": 13,
+            "line": 32,
+            "name": "Run constrained semantic maintainer",
+            "scripts": [
+              "scripts/architecture_agent.py"
+            ]
+          },
+          {
+            "command": "python3 scripts/build_architecture.py",
+            "command_lines": 1,
+            "line": 56,
+            "name": "Rebuild site with validated semantic records",
+            "scripts": [
+              "scripts/build_architecture.py"
+            ]
+          },
+          {
+            "command": "python3 scripts/build_architecture.py --check",
+            "command_lines": 3,
+            "line": 59,
+            "name": "Validate proposed architecture",
+            "scripts": [
+              "scripts/build_architecture.py",
+              "scripts/test_architecture.py"
+            ]
+          },
+          {
+            "line": 65,
+            "name": "Open or update architecture pull request",
+            "uses": "peter-evans/create-pull-request@v7"
+          }
+        ],
+        "workflow": "architecture-maintenance"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "pages-site"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 47,
+          "path": ".github/workflows/architecture-pages.yml"
+        },
+        "family": "publication",
+        "id": "architecture-pages/validate",
+        "key": "validate",
+        "name": "Validate model and site",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/build_architecture.py",
+          "scripts/check_site_assets.py",
+          "scripts/test_architecture.py"
+        ],
+        "step_count": 7,
+        "steps": [
+          {
+            "line": 51,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "python3 scripts/build_architecture.py --check",
+            "command_lines": 1,
+            "line": 53,
+            "name": "Verify generated architecture is current",
+            "scripts": [
+              "scripts/build_architecture.py"
+            ]
+          },
+          {
+            "command": "python3 -m unittest scripts/test_architecture.py",
+            "command_lines": 1,
+            "line": 56,
+            "name": "Test architecture compiler",
+            "scripts": [
+              "scripts/test_architecture.py"
+            ]
+          },
+          {
+            "command": "node --check architecture/site/app.js",
+            "command_lines": 1,
+            "line": 59,
+            "name": "Check browser JavaScript"
+          },
+          {
+            "command": "python3 scripts/check_site_assets.py",
+            "command_lines": 1,
+            "line": 64,
+            "name": "Check product site asset references",
+            "scripts": [
+              "scripts/check_site_assets.py"
+            ]
+          },
+          {
+            "command": "cp -R site/. _site/",
+            "command_lines": 4,
+            "line": 70,
+            "name": "Assemble Pages tree"
+          },
+          {
+            "line": 77,
+            "name": "Upload validated site",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "architecture-pages"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [],
+        "condition": "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'",
+        "evidence": {
+          "line": 85,
+          "path": ".github/workflows/architecture-pages.yml"
+        },
+        "family": "publication",
+        "id": "architecture-pages/deploy",
+        "key": "deploy",
+        "name": "Deploy GitHub Pages",
+        "needs": [
+          "architecture-pages/validate"
+        ],
+        "pins": [],
+        "role": "post-merge",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/build_architecture_history.py"
+        ],
+        "step_count": 8,
+        "steps": [
+          {
+            "line": 95,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "line": 103,
+            "name": "Restore architecture history",
+            "uses": "actions/cache/restore@v4"
+          },
+          {
+            "command": "python3 scripts/build_architecture_history.py --ref \"$GITHUB_SHA\" --jobs 4 --quiet",
+            "command_lines": 1,
+            "line": 112,
+            "name": "Derive architecture history",
+            "scripts": [
+              "scripts/build_architecture_history.py"
+            ]
+          },
+          {
+            "condition": "steps.history-cache.outputs.cache-hit != 'true'",
+            "line": 115,
+            "name": "Save architecture history",
+            "uses": "actions/cache/save@v4"
+          },
+          {
+            "command": "cp -R site/. _site/",
+            "command_lines": 4,
+            "line": 122,
+            "name": "Assemble Pages tree"
+          },
+          {
+            "line": 129,
+            "name": "Configure GitHub Pages",
+            "uses": "actions/configure-pages@v5"
+          },
+          {
+            "line": 132,
+            "name": "Upload Pages artifact",
+            "uses": "actions/upload-pages-artifact@v3"
+          },
+          {
+            "line": 137,
+            "name": "Deploy Pages site",
+            "uses": "actions/deploy-pages@v4"
+          }
+        ],
+        "workflow": "architecture-pages"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "ios-ui-smoke-artifacts"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 14,
+          "path": ".github/workflows/build.yml"
+        },
+        "family": "build",
+        "id": "build/build",
+        "key": "build",
+        "name": "build",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "macos-15",
+        "scripts": [],
+        "step_count": 8,
+        "steps": [
+          {
+            "line": 17,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "brew install xcodegen",
+            "command_lines": 1,
+            "line": 19,
+            "name": "Install xcodegen"
+          },
+          {
+            "command": "xcodegen generate",
+            "command_lines": 1,
+            "line": 22,
+            "name": "Generate Xcode project"
+          },
+          {
+            "command": "SIM_ID=$(xcrun simctl list devices available | grep -oE 'iPhone [0-9].*\\([0-9A-F-]{36}\\)' | grep -oE '[0-9A-F-]{36}' | tail -1)",
+            "command_lines": 6,
+            "line": 25,
+            "name": "Select an available iPhone simulator"
+          },
+          {
+            "command": "xcodebuild build",
+            "command_lines": 7,
+            "line": 37,
+            "name": "Build macOS"
+          },
+          {
+            "command": "xcodebuild build",
+            "command_lines": 8,
+            "line": 47,
+            "name": "Build iOS Simulator"
+          },
+          {
+            "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
+            "command_lines": 12,
+            "line": 58,
+            "name": "Run offline iOS Simulator UI smoke test"
+          },
+          {
+            "condition": "always()",
+            "line": 75,
+            "name": "Upload iOS UI test artifacts",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "build"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "gitleaks-report"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 34,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/security",
+        "key": "security",
+        "name": "Security",
+        "needs": [],
+        "pins": [
+          {
+            "name": "GITLEAKS_VERSION",
+            "value": "8.30.1"
+          }
+        ],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/check-secret-baseline-growth.py"
+        ],
+        "step_count": 6,
+        "steps": [
+          {
+            "line": 40,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "curl -fsSL -o gitleaks.tar.gz",
+            "command_lines": 5,
+            "line": 44,
+            "name": "Install gitleaks"
+          },
+          {
+            "command": "gitleaks version",
+            "command_lines": 1,
+            "line": 60,
+            "name": "Verify gitleaks version"
+          },
+          {
+            "command": "gitleaks dir . --config .gitleaks.toml",
+            "command_lines": 4,
+            "line": 63,
+            "name": "Scan working tree for secrets"
+          },
+          {
+            "command": "python3 scripts/check-secret-baseline-growth.py \"$BASE\"",
+            "command_lines": 2,
+            "condition": "always()",
+            "line": 75,
+            "name": "Check the secret ignore-list did not grow",
+            "scripts": [
+              "scripts/check-secret-baseline-growth.py"
+            ]
+          },
+          {
+            "condition": "always()",
+            "line": 84,
+            "name": "Upload gitleaks report",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "metric-snapshots"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 100,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/measure",
+        "key": "measure",
+        "name": "Measure (build + test)",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "macos-26",
+        "scripts": [
+          "scripts/collect-coverage.py",
+          "scripts/collect-warnings.py"
+        ],
+        "step_count": 4,
+        "steps": [
+          {
+            "line": 104,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "swift build --build-tests 2>&1 | tee build.log",
+            "command_lines": 3,
+            "line": 113,
+            "name": "Build and capture warnings",
+            "scripts": [
+              "scripts/collect-warnings.py"
+            ]
+          },
+          {
+            "command": "swift test --enable-code-coverage 2>&1 | tail -5",
+            "command_lines": 7,
+            "line": 119,
+            "name": "Test with coverage and capture snapshot",
+            "scripts": [
+              "scripts/collect-coverage.py"
+            ]
+          },
+          {
+            "line": 131,
+            "name": "Publish metric snapshots",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [
+          "metric-snapshots"
+        ],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 146,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/warnings",
+        "key": "warnings",
+        "name": "Warnings",
+        "needs": [
+          "ratchet/measure"
+        ],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/check-metrics-ratchet.py"
+        ],
+        "step_count": 3,
+        "steps": [
+          {
+            "line": 153,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "line": 157,
+            "name": "Download metric snapshots",
+            "uses": "actions/download-artifact@v4"
+          },
+          {
+            "command": "python3 scripts/check-metrics-ratchet.py --warnings warnings.json --base \"$BASE\"",
+            "command_lines": 2,
+            "line": 162,
+            "name": "Ratchet compiler warnings against base",
+            "scripts": [
+              "scripts/check-metrics-ratchet.py"
+            ]
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [
+          "metric-snapshots"
+        ],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 171,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/coverage",
+        "key": "coverage",
+        "name": "Coverage",
+        "needs": [
+          "ratchet/measure"
+        ],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/check-metrics-ratchet.py"
+        ],
+        "step_count": 3,
+        "steps": [
+          {
+            "line": 176,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "line": 180,
+            "name": "Download metric snapshots",
+            "uses": "actions/download-artifact@v4"
+          },
+          {
+            "command": "python3 scripts/check-metrics-ratchet.py --coverage coverage.json --base \"$BASE\"",
+            "command_lines": 2,
+            "line": 185,
+            "name": "Ratchet test coverage against base",
+            "scripts": [
+              "scripts/check-metrics-ratchet.py"
+            ]
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 194,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/skipped-tests",
+        "key": "skipped-tests",
+        "name": "Skipped Tests",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/check-metrics-ratchet.py",
+          "scripts/collect-skipped-tests.py"
+        ],
+        "step_count": 3,
+        "steps": [
+          {
+            "line": 198,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "python3 scripts/collect-skipped-tests.py Tests --root \"$PWD\" --json skipped.json",
+            "command_lines": 1,
+            "line": 202,
+            "name": "Capture skipped-test snapshot",
+            "scripts": [
+              "scripts/collect-skipped-tests.py"
+            ]
+          },
+          {
+            "command": "python3 scripts/check-metrics-ratchet.py --skipped skipped.json --base \"$BASE\"",
+            "command_lines": 2,
+            "line": 205,
+            "name": "Ratchet skipped tests against base",
+            "scripts": [
+              "scripts/check-metrics-ratchet.py"
+            ]
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "deadcode-snapshot"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 214,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/dead-code",
+        "key": "dead-code",
+        "name": "Dead Code",
+        "needs": [],
+        "pins": [
+          {
+            "name": "PERIPHERY_VERSION",
+            "value": "3.8.0"
+          }
+        ],
+        "role": "gate",
+        "runs_on": "macos-26",
+        "scripts": [
+          "scripts/check-metrics-ratchet.py",
+          "scripts/collect-deadcode.py"
+        ],
+        "step_count": 8,
+        "steps": [
+          {
+            "line": 218,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "curl -fsSL -o periphery.zip",
+            "command_lines": 4,
+            "line": 222,
+            "name": "Install Periphery"
+          },
+          {
+            "command": "periphery version",
+            "command_lines": 1,
+            "line": 231,
+            "name": "Verify Periphery version"
+          },
+          {
+            "command": "brew install xcodegen",
+            "command_lines": 1,
+            "line": 240,
+            "name": "Install xcodegen"
+          },
+          {
+            "command": "xcodegen generate",
+            "command_lines": 1,
+            "line": 243,
+            "name": "Generate Xcode project"
+          },
+          {
+            "command": "periphery scan --project Portal.xcodeproj --schemes Portal",
+            "command_lines": 4,
+            "line": 246,
+            "name": "Capture dead-code snapshot",
+            "scripts": [
+              "scripts/collect-deadcode.py"
+            ]
+          },
+          {
+            "command": "python3 scripts/check-metrics-ratchet.py --deadcode deadcode.json --base \"$BASE\"",
+            "command_lines": 2,
+            "line": 257,
+            "name": "Ratchet dead code against base",
+            "scripts": [
+              "scripts/check-metrics-ratchet.py"
+            ]
+          },
+          {
+            "condition": "always()",
+            "line": 262,
+            "name": "Upload dead-code snapshot",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "perf-counts"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 286,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/performance",
+        "key": "performance",
+        "name": "Performance",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "macos-26",
+        "scripts": [
+          "scripts/check-perf-ratchet.py"
+        ],
+        "step_count": 4,
+        "steps": [
+          {
+            "line": 292,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests",
+            "command_lines": 2,
+            "line": 296,
+            "name": "Run the instrumented perf harness"
+          },
+          {
+            "command": "python3 scripts/check-perf-ratchet.py perf-counts.json --base \"$BASE\"",
+            "command_lines": 2,
+            "line": 305,
+            "name": "Ratchet algorithmic op counts against base",
+            "scripts": [
+              "scripts/check-perf-ratchet.py"
+            ]
+          },
+          {
+            "condition": "always()",
+            "line": 310,
+            "name": "Upload perf snapshot",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 329,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/quality",
+        "key": "quality",
+        "name": "Quality",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/check-baseline-growth.py"
+        ],
+        "step_count": 2,
+        "steps": [
+          {
+            "line": 336,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "python3 scripts/check-baseline-growth.py \"$BASE\"",
+            "command_lines": 2,
+            "line": 340,
+            "name": "Check the lint baseline did not grow",
+            "scripts": [
+              "scripts/check-baseline-growth.py"
+            ]
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "snapshot-goldens"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 32,
+          "path": ".github/workflows/snapshot-record.yml"
+        },
+        "family": "maintenance",
+        "id": "snapshot-record/record",
+        "key": "record",
+        "name": "Record snapshot goldens",
+        "needs": [],
+        "pins": [],
+        "role": "manual",
+        "runs_on": "macos-26",
+        "scripts": [],
+        "step_count": 5,
+        "steps": [
+          {
+            "line": 39,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "swift test --disable-sandbox",
+            "command_lines": 1,
+            "line": 45,
+            "name": "Render and write goldens"
+          },
+          {
+            "command": "git status --porcelain Tests/PortalTests/__Snapshots__",
+            "command_lines": 1,
+            "line": 53,
+            "name": "Show what changed"
+          },
+          {
+            "command": "exit 0",
+            "command_lines": 11,
+            "condition": "${{ inputs.commit }}",
+            "line": 56,
+            "name": "Commit goldens"
+          },
+          {
+            "condition": "always()",
+            "line": 72,
+            "name": "Upload goldens as artifact",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "snapshot-record"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "Portal-iOS.ipa"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 19,
+          "path": ".github/workflows/testflight.yml"
+        },
+        "family": "release",
+        "id": "testflight/testflight",
+        "key": "testflight",
+        "name": "Archive & Upload to TestFlight",
+        "needs": [],
+        "pins": [],
+        "role": "post-merge",
+        "runs_on": "macos-26",
+        "scripts": [
+          ".github/scripts/distribute_testflight.rb"
+        ],
+        "step_count": 13,
+        "steps": [
+          {
+            "line": 24,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "brew install xcodegen",
+            "command_lines": 1,
+            "line": 26,
+            "name": "Install xcodegen"
+          },
+          {
+            "command": "xcodegen generate",
+            "command_lines": 1,
+            "line": 29,
+            "name": "Generate Xcode project"
+          },
+          {
+            "line": 33,
+            "name": "Install Apple Distribution Certificate",
+            "uses": "apple-actions/import-codesign-certs@v2"
+          },
+          {
+            "command": "~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8",
+            "command_lines": 3,
+            "line": 47,
+            "name": "Write App Store Connect API Key"
+          },
+          {
+            "command": "rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts",
+            "command_lines": 1,
+            "line": 53,
+            "name": "Clear SwiftPM Artifact Cache"
+          },
+          {
+            "command": "xcodebuild archive",
+            "command_lines": 14,
+            "line": 57,
+            "name": "Archive iOS App"
+          },
+          {
+            "command": "cat > build/ExportOptions.plist << PLIST",
+            "command_lines": 21,
+            "line": 75,
+            "name": "Create ExportOptions.plist"
+          },
+          {
+            "command": "xcodebuild -exportArchive",
+            "command_lines": 8,
+            "line": 99,
+            "name": "Export IPA"
+          },
+          {
+            "command": "CURRENT_BUILD=$(ruby .github/scripts/distribute_testflight.rb --print-latest-build)",
+            "command_lines": 3,
+            "condition": "${{ github.event.inputs.upload != 'false' }}",
+            "line": 111,
+            "name": "Find Current TestFlight Build",
+            "scripts": [
+              ".github/scripts/distribute_testflight.rb"
+            ]
+          },
+          {
+            "command": "~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8",
+            "command_lines": 8,
+            "condition": "${{ github.event.inputs.upload != 'false' }}",
+            "line": 123,
+            "name": "Upload to TestFlight"
+          },
+          {
+            "command": "ruby .github/scripts/distribute_testflight.rb",
+            "command_lines": 1,
+            "condition": "${{ github.event.inputs.upload != 'false' }}",
+            "line": 140,
+            "name": "Assign Build to TestFlight Groups",
+            "scripts": [
+              ".github/scripts/distribute_testflight.rb"
+            ]
+          },
+          {
+            "line": 155,
+            "name": "Upload IPA as Artifact",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "testflight"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "Portal-macOS.app"
+        ],
+        "condition": "false",
+        "evidence": {
+          "line": 163,
+          "path": ".github/workflows/testflight.yml"
+        },
+        "family": "release",
+        "id": "testflight/notarize-macos",
+        "key": "notarize-macos",
+        "name": "Notarize macOS App",
+        "needs": [],
+        "pins": [],
+        "role": "disabled",
+        "runs_on": "macos-26",
+        "scripts": [],
+        "step_count": 8,
+        "steps": [
+          {
+            "line": 169,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "brew install xcodegen",
+            "command_lines": 1,
+            "line": 171,
+            "name": "Install xcodegen"
+          },
+          {
+            "command": "xcodegen generate",
+            "command_lines": 1,
+            "line": 174,
+            "name": "Generate Xcode project"
+          },
+          {
+            "line": 177,
+            "name": "Install Apple Distribution Certificate",
+            "uses": "apple-actions/import-codesign-certs@v2"
+          },
+          {
+            "command": "xcodebuild archive",
+            "command_lines": 10,
+            "line": 183,
+            "name": "Archive macOS App"
+          },
+          {
+            "command": "cat > build/ExportOptions-macOS.plist << PLIST",
+            "command_lines": 19,
+            "line": 196,
+            "name": "Export macOS App"
+          },
+          {
+            "command": "ditto -c -k --keepParent",
+            "command_lines": 11,
+            "line": 219,
+            "name": "Notarize"
+          },
+          {
+            "line": 240,
+            "name": "Upload macOS App as Artifact",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "testflight"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 31,
+          "path": ".github/workflows/tests.yml"
+        },
+        "family": "behavior",
+        "id": "tests/swift-lint",
+        "key": "swift-lint",
+        "name": "SwiftLint",
+        "needs": [],
+        "pins": [
+          {
+            "name": "SWIFTLINT_VERSION",
+            "value": "0.65.0"
+          }
+        ],
+        "role": "gate",
+        "runs_on": "macos-14",
+        "scripts": [],
+        "step_count": 4,
+        "steps": [
+          {
+            "line": 35,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "curl -fsSL -o swiftlint.zip",
+            "command_lines": 4,
+            "line": 37,
+            "name": "Install SwiftLint"
+          },
+          {
+            "command": "swiftlint version",
+            "command_lines": 1,
+            "line": 54,
+            "name": "Verify SwiftLint version"
+          },
+          {
+            "command": "swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging",
+            "command_lines": 1,
+            "line": 57,
+            "name": "Run SwiftLint"
+          }
+        ],
+        "workflow": "tests"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "swift-test-log"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 67,
+          "path": ".github/workflows/tests.yml"
+        },
+        "family": "behavior",
+        "id": "tests/swift-test",
+        "key": "swift-test",
+        "name": "Swift package tests",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "macos-26",
+        "scripts": [],
+        "step_count": 3,
+        "steps": [
+          {
+            "line": 71,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "swift test --disable-sandbox 2>&1 | tee swift-test.log",
+            "command_lines": 2,
+            "line": 73,
+            "name": "Run Swift unit tests"
+          },
+          {
+            "condition": "always()",
+            "line": 78,
+            "name": "Upload Swift test log",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "tests"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "ios-simulator-test-artifacts"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 90,
+          "path": ".github/workflows/tests.yml"
+        },
+        "family": "behavior",
+        "id": "tests/ios-smoke",
+        "key": "ios-smoke",
+        "name": "iOS simulator smoke tests",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "macos-15",
+        "scripts": [],
+        "step_count": 13,
+        "steps": [
+          {
+            "line": 99,
+            "name": "Checkout Portal",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "line": 104,
+            "name": "Checkout Hermes Agent",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "brew install xcodegen",
+            "command_lines": 1,
+            "line": 110,
+            "name": "Install build tools"
+          },
+          {
+            "command": "python3.11 -m venv .venv",
+            "command_lines": 4,
+            "line": 114,
+            "name": "Set up Hermes Agent"
+          },
+          {
+            "command": "cat > \"$HERMES_HOME/config.yaml\" <<'YAML'",
+            "command_lines": 37,
+            "line": 122,
+            "name": "Start local Hermes API server"
+          },
+          {
+            "command": "xcodegen generate",
+            "command_lines": 1,
+            "line": 176,
+            "name": "Generate Xcode project"
+          },
+          {
+            "command": "SIM_ID=$(xcrun simctl list devices available | grep -oE 'iPhone [0-9].*\\([0-9A-F-]{36}\\)' | grep -oE '[0-9A-F-]{36}' | tail -1)",
+            "command_lines": 6,
+            "line": 180,
+            "name": "Select an available iPhone simulator"
+          },
+          {
+            "command": "xcodebuild build",
+            "command_lines": 8,
+            "line": 192,
+            "name": "Build iOS Simulator app"
+          },
+          {
+            "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
+            "command_lines": 12,
+            "line": 204,
+            "name": "Run offline onboarding smoke test"
+          },
+          {
+            "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
+            "command_lines": 13,
+            "condition": "always()",
+            "line": 222,
+            "name": "Run local-Hermes gateway smoke test"
+          },
+          {
+            "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
+            "command_lines": 17,
+            "condition": "always()",
+            "line": 246,
+            "name": "Run E2E integration tests"
+          },
+          {
+            "condition": "always()",
+            "line": 274,
+            "name": "Upload iOS simulator test artifacts",
+            "uses": "actions/upload-artifact@v4"
+          },
+          {
+            "command": "kill \"$(cat \"$RUNNER_TEMP/hermes-api-server.pid\")\" 2>/dev/null || true",
+            "command_lines": 3,
+            "condition": "always()",
+            "line": 291,
+            "name": "Stop local Hermes API server"
+          }
+        ],
+        "workflow": "tests"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [
+          "macos-hang-gate-artifacts"
+        ],
+        "condition": null,
+        "evidence": {
+          "line": 303,
+          "path": ".github/workflows/tests.yml"
+        },
+        "family": "behavior",
+        "id": "tests/hang-gate",
+        "key": "hang-gate",
+        "name": "macOS main-thread hang gate",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "macos-15",
+        "scripts": [],
+        "step_count": 6,
+        "steps": [
+          {
+            "line": 308,
+            "name": "Checkout",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "brew install xcodegen",
+            "command_lines": 1,
+            "line": 311,
+            "name": "Install build tools"
+          },
+          {
+            "command": "xcodegen generate",
+            "command_lines": 1,
+            "line": 314,
+            "name": "Generate Xcode project"
+          },
+          {
+            "command": "xcodebuild test",
+            "command_lines": 10,
+            "line": 317,
+            "name": "Run macOS hang gate (--hang-fatal)"
+          },
+          {
+            "command": "tail -60 \"$LOG\" || true",
+            "command_lines": 10,
+            "condition": "always()",
+            "line": 333,
+            "name": "Assert the hang test actually executed"
+          },
+          {
+            "condition": "always()",
+            "line": 347,
+            "name": "Upload hang-gate artifacts",
+            "uses": "actions/upload-artifact@v4"
+          }
+        ],
+        "workflow": "tests"
+      }
+    ],
+    "limitations": [
+      "Workflow structure is read from the YAML in .github/workflows; it does not prove a job ran, passed, or is required by branch protection.",
+      "A job is drawn as a pull-request gate when its workflow listens to pull_request and its condition does not exclude that event; GitHub's required-checks list is repository configuration and is not read here.",
+      "Ratchet values are the committed baselines CI compares against, not a fresh measurement of this tree."
+    ],
+    "merge": {
+      "id": "merge:main",
+      "inputs": [
+        "architecture-pages/validate",
+        "build/build",
+        "ratchet/coverage",
+        "ratchet/dead-code",
+        "ratchet/measure",
+        "ratchet/performance",
+        "ratchet/quality",
+        "ratchet/security",
+        "ratchet/skipped-tests",
+        "ratchet/warnings",
+        "tests/hang-gate",
+        "tests/ios-smoke",
+        "tests/swift-lint",
+        "tests/swift-test"
+      ],
+      "label": "Merge to main"
+    },
+    "ratchets": [
+      {
+        "current": {
+          "counts": {},
+          "kind": "count",
+          "sites": 0,
+          "total": 0
+        },
+        "floor": "No category exceeds base.",
+        "id": "warnings",
+        "job": "ratchet/warnings",
+        "measures": "Swift compiler warning sites, per category. The build is the source of truth; the baseline freezes pre-existing debt.",
+        "patch": "No warning on a line the PR added.",
+        "source": {
+          "key": "warnings",
+          "kind": "metrics",
+          "path": "metrics-baseline.json"
+        },
+        "source_path": "metrics-baseline.json",
+        "title": "Compiler warnings"
+      },
+      {
+        "current": {
+          "count": 27577,
+          "covered": 12967,
+          "kind": "coverage",
+          "layers": {
+            "Models": {
+              "count": 8265,
+              "covered": 5975,
+              "percent": 72.29
+            },
+            "Services": {
+              "count": 10540,
+              "covered": 3597,
+              "percent": 34.13
+            },
+            "Utilities": {
+              "count": 1478,
+              "covered": 425,
+              "percent": 28.76
+            },
+            "ViewModels": {
+              "count": 7294,
+              "covered": 2970,
+              "percent": 40.72
+            }
+          },
+          "percent": 47.02,
+          "uncovered_files": 116
+        },
+        "floor": "Aggregate drops at most 0.5 pt vs base.",
+        "id": "coverage",
+        "job": "ratchet/coverage",
+        "measures": "Line coverage from swift test over the testable layers only (Models, Services, Utilities, ViewModels). Views are excluded: the unit suite cannot reach them.",
+        "patch": "At least 80% of added executable lines covered; skipped under 10 lines.",
+        "source": {
+          "key": "coverage",
+          "kind": "metrics",
+          "path": "metrics-baseline.json"
+        },
+        "source_path": "metrics-baseline.json",
+        "title": "Test coverage"
+      },
+      {
+        "current": {
+          "counts": {},
+          "kind": "count",
+          "sites": 0,
+          "total": 0
+        },
+        "floor": "Count at most base.",
+        "id": "skipped",
+        "job": "ratchet/skipped-tests",
+        "measures": "Disabled, conditionally enabled, known-issue or XCTest-skipped tests: coverage that never runs.",
+        "patch": "No new skip on an added line.",
+        "source": {
+          "key": "skipped",
+          "kind": "metrics",
+          "path": "metrics-baseline.json"
+        },
+        "source_path": "metrics-baseline.json",
+        "title": "Skipped tests"
+      },
+      {
+        "current": {
+          "counts": {
+            "assignOnlyProperty": 147,
+            "redundantConformance": 6,
+            "redundantProtocol": 2,
+            "redundantPublicAccessibility": 4,
+            "unused": 324
+          },
+          "kind": "count",
+          "sites": 477,
+          "total": 483
+        },
+        "floor": "No category exceeds base.",
+        "id": "deadcode",
+        "job": "ratchet/dead-code",
+        "measures": "Unused declarations from Periphery: unreferenced symbols, assign-only properties, redundant protocols, conformances and accessibility.",
+        "patch": "No finding on a line the PR added.",
+        "source": {
+          "key": "deadcode",
+          "kind": "metrics",
+          "path": "metrics-baseline.json"
+        },
+        "source_path": "metrics-baseline.json",
+        "title": "Dead code"
+      },
+      {
+        "current": {
+          "counts": {
+            "graph.forceSim": 202020,
+            "sankey.pack": 24,
+            "sankey.relax": 66
+          },
+          "kind": "counters"
+        },
+        "floor": "Every counter at most base; the ceiling is read from base via git show.",
+        "id": "perf",
+        "job": "ratchet/performance",
+        "measures": "Algorithmic operation counts (not time) for the hot pure layout paths over fixed fixtures under -DPERF_COUNTERS. Deterministic on any machine.",
+        "patch": null,
+        "source": {
+          "kind": "perf",
+          "path": "perf-baseline.json"
+        },
+        "source_path": "perf-baseline.json",
+        "title": "Performance op-counts"
+      },
+      {
+        "current": {
+          "counts": {
+            "discouraged_optional_boolean": 7,
+            "explicit_acl": 2744,
+            "force_cast": 8,
+            "force_try": 6,
+            "force_unwrapping": 98,
+            "implicitly_unwrapped_optional": 8,
+            "no_swallowed_try": 133,
+            "no_sync_io_on_main": 3
+          },
+          "kind": "count",
+          "sites": 3007,
+          "total": 3007
+        },
+        "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
+        "id": "lint",
+        "job": "ratchet/quality",
+        "measures": "Pre-existing SwiftLint debt frozen per rule via swiftlint --baseline. The run itself is a Tests job; this ratchet is the lock on growing the baseline to silence a new violation.",
+        "patch": null,
+        "source": {
+          "kind": "swiftlint_baseline",
+          "path": ".swiftlint-baseline"
+        },
+        "source_path": ".swiftlint-baseline",
+        "title": "Lint baseline"
+      },
+      {
+        "current": {
+          "counts": {},
+          "kind": "count",
+          "sites": 0,
+          "total": 0
+        },
+        "floor": "Count may not grow silently; each addition is justified in the PR.",
+        "id": "secrets",
+        "job": "ratchet/security",
+        "measures": "Accepted gitleaks fingerprints: matches reviewed and judged not to be real secrets. The scan itself runs in the same job.",
+        "patch": null,
+        "source": {
+          "kind": "gitleaks_ignore",
+          "path": ".gitleaksignore"
+        },
+        "source_path": ".gitleaksignore",
+        "title": "Secret ignore-list"
+      }
+    ],
+    "static_checks": [
+      {
+        "command": "python3 scripts/build_architecture.py --check",
+        "evidence": {
+          "line": 53,
+          "path": ".github/workflows/architecture-pages.yml"
+        },
+        "job": "architecture-pages/validate",
+        "name": "Verify generated architecture is current",
+        "scripts": [
+          "scripts/build_architecture.py"
+        ]
+      },
+      {
+        "command": "python3 -m unittest scripts/test_architecture.py",
+        "evidence": {
+          "line": 56,
+          "path": ".github/workflows/architecture-pages.yml"
+        },
+        "job": "architecture-pages/validate",
+        "name": "Test architecture compiler",
+        "scripts": [
+          "scripts/test_architecture.py"
+        ]
+      },
+      {
+        "command": "node --check architecture/site/app.js",
+        "evidence": {
+          "line": 59,
+          "path": ".github/workflows/architecture-pages.yml"
+        },
+        "job": "architecture-pages/validate",
+        "name": "Check browser JavaScript",
+        "scripts": []
+      },
+      {
+        "command": "python3 scripts/check_site_assets.py",
+        "evidence": {
+          "line": 64,
+          "path": ".github/workflows/architecture-pages.yml"
+        },
+        "job": "architecture-pages/validate",
+        "name": "Check product site asset references",
+        "scripts": [
+          "scripts/check_site_assets.py"
+        ]
+      }
+    ],
+    "summary": {
+      "architecture_tests": 7,
+      "gates": 14,
+      "invariants": 12,
+      "jobs": 19,
+      "lint_rules": 14,
+      "ratchets": 7,
+      "static_checks": 4,
+      "workflows": 7
+    },
+    "triggers": [
+      {
+        "event": "pull_request",
+        "id": "trigger:pull_request",
+        "workflows": [
+          "architecture-pages",
+          "build",
+          "ratchet",
+          "tests"
+        ]
+      },
+      {
+        "event": "push",
+        "id": "trigger:push",
+        "workflows": [
+          "architecture-pages",
+          "build",
+          "ratchet",
+          "testflight",
+          "tests"
+        ]
+      },
+      {
+        "event": "workflow_dispatch",
+        "id": "trigger:workflow_dispatch",
+        "workflows": [
+          "architecture-maintenance",
+          "architecture-pages",
+          "snapshot-record",
+          "testflight",
+          "tests"
+        ]
+      }
+    ],
+    "workflows": [
+      {
+        "events": [
+          "workflow_dispatch"
+        ],
+        "family": "maintenance",
+        "id": "architecture-maintenance",
+        "jobs": [
+          "architecture-maintenance/maintain"
+        ],
+        "label": "Architecture Maintenance",
+        "name": "Architecture Maintenance (Manual Fallback)",
+        "path": ".github/workflows/architecture-maintenance.yml",
+        "question": "Manual fallback that refreshes deterministic evidence and proposes semantic summaries as a pull request.",
+        "triggers": [
+          {
+            "event": "workflow_dispatch",
+            "inputs": [
+              "full_reconciliation"
+            ]
+          }
+        ]
+      },
+      {
+        "events": [
+          "pull_request",
+          "push",
+          "workflow_dispatch"
+        ],
+        "family": "publication",
+        "id": "architecture-pages",
+        "jobs": [
+          "architecture-pages/validate",
+          "architecture-pages/deploy"
+        ],
+        "label": "Pages",
+        "name": "Pages",
+        "path": ".github/workflows/architecture-pages.yml",
+        "question": "Do the committed architecture model and site match what the compiler produces from this tree?",
+        "triggers": [
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "pull_request",
+            "paths": [
+              "site/**",
+              "architecture/**",
+              "scripts/build_architecture.py",
+              "scripts/build_architecture_history.py",
+              "scripts/architecture_agent.py",
+              "scripts/test_architecture.py",
+              ".github/workflows/**",
+              ".swiftlint.yml",
+              "Tests/PortalTests/ArchitectureTests.swift",
+              "metrics-baseline.json",
+              "perf-baseline.json",
+              ".swiftlint-baseline",
+              ".gitleaksignore"
+            ]
+          },
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "push",
+            "paths": [
+              "site/**",
+              "architecture/**",
+              "scripts/build_architecture.py",
+              "scripts/build_architecture_history.py",
+              "scripts/test_architecture.py",
+              ".github/workflows/**",
+              ".swiftlint.yml",
+              "Tests/PortalTests/ArchitectureTests.swift",
+              "metrics-baseline.json",
+              "perf-baseline.json",
+              ".swiftlint-baseline",
+              ".gitleaksignore"
+            ]
+          },
+          {
+            "event": "workflow_dispatch"
+          }
+        ]
+      },
+      {
+        "events": [
+          "pull_request",
+          "push"
+        ],
+        "family": "build",
+        "id": "build",
+        "jobs": [
+          "build/build"
+        ],
+        "label": "Build",
+        "name": "Build",
+        "path": ".github/workflows/build.yml",
+        "question": "Do the macOS and iOS apps build from the generated project, and does the offline UI smoke test pass?",
+        "triggers": [
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "pull_request"
+          },
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "push"
+          }
+        ]
+      },
+      {
+        "events": [
+          "pull_request",
+          "push"
+        ],
+        "family": "posture",
+        "id": "ratchet",
+        "jobs": [
+          "ratchet/security",
+          "ratchet/measure",
+          "ratchet/warnings",
+          "ratchet/coverage",
+          "ratchet/skipped-tests",
+          "ratchet/dead-code",
+          "ratchet/performance",
+          "ratchet/quality"
+        ],
+        "label": "Ratchet",
+        "name": "Ratchet",
+        "path": ".github/workflows/ratchet.yml",
+        "question": "Did a tracked metric get worse? Each job compares the tree against a committed baseline.",
+        "triggers": [
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "pull_request"
+          },
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "push"
+          }
+        ]
+      },
+      {
+        "events": [
+          "workflow_dispatch"
+        ],
+        "family": "maintenance",
+        "id": "snapshot-record",
+        "jobs": [
+          "snapshot-record/record"
+        ],
+        "label": "Snapshot Record",
+        "name": "Snapshot Record",
+        "path": ".github/workflows/snapshot-record.yml",
+        "question": "Re-record the View-snapshot goldens on the CI runner image the verify job uses.",
+        "triggers": [
+          {
+            "event": "workflow_dispatch",
+            "inputs": [
+              "commit"
+            ]
+          }
+        ]
+      },
+      {
+        "events": [
+          "push",
+          "workflow_dispatch"
+        ],
+        "family": "release",
+        "id": "testflight",
+        "jobs": [
+          "testflight/testflight",
+          "testflight/notarize-macos"
+        ],
+        "label": "TestFlight",
+        "name": "TestFlight",
+        "path": ".github/workflows/testflight.yml",
+        "question": "Can a signed iOS build be archived and uploaded after a merge or tag?",
+        "triggers": [
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "push",
+            "tags": [
+              "v*"
+            ]
+          },
+          {
+            "event": "workflow_dispatch",
+            "inputs": [
+              "upload"
+            ]
+          }
+        ]
+      },
+      {
+        "events": [
+          "pull_request",
+          "push",
+          "workflow_dispatch"
+        ],
+        "family": "behavior",
+        "id": "tests",
+        "jobs": [
+          "tests/swift-lint",
+          "tests/swift-test",
+          "tests/ios-smoke",
+          "tests/hang-gate"
+        ],
+        "label": "Tests",
+        "name": "Tests",
+        "path": ".github/workflows/tests.yml",
+        "question": "Does it work? Each job runs and passes or fails on behavior.",
+        "triggers": [
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "pull_request"
+          },
+          {
+            "branches": [
+              "main"
+            ],
+            "event": "push"
+          },
+          {
+            "event": "workflow_dispatch"
+          }
+        ]
+      }
+    ]
+  },
   "components": [
     {
       "declaration_count": 18,

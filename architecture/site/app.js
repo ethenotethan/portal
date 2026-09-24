@@ -14,6 +14,22 @@
   const operations = behavior.operations || [];
   const pockets = behavior.pockets || [];
   const interplay = model.interplay || { nodes: [], edges: [], clusters: [] };
+  const ci = model.ci || { workflows: [], jobs: [], edges: [], triggers: [], merge: { inputs: [] }, ratchets: [], architectural: { lint_rules: [], tests: [], invariants: [], runs_in: [] }, static_checks: [], summary: {} };
+  // CI gate tables live up here too: renderGates() runs during init.
+  const GATE_FAMILY_COLORS = {
+    behavior: "#70b98d", posture: "#e7a84b", build: "#5ca8d8", publication: "#8b83ff",
+    release: "#d16f86", maintenance: "#8d8a88", trigger: "#8b83ff", merge: "#70b98d"
+  };
+  const GATE_FAMILY_LABELS = {
+    behavior: "Tests · does it work?", posture: "Ratchet · did a metric get worse?", build: "Build · does it build?",
+    publication: "Pages · do generated artifacts match?", release: "Release · after merge", maintenance: "Maintenance · by hand"
+  };
+  const GATE_FAMILY_ORDER = ["behavior", "posture", "build", "publication", "release", "maintenance"];
+  const GATE = { nodeW: 200, nodeH: 56, colGap: 84, rowGap: 16, lanePadX: 22, lanePadY: 18, laneHead: 34, laneGap: 22, triggerW: 154, mergeW: 118 };
+  const gateJobById = new Map(ci.jobs.map((job) => [job.id, job]));
+  const gateWorkflowById = new Map(ci.workflows.map((workflow) => [workflow.id, workflow]));
+  let selectedGateId = null;
+  let gateLayout = null;
   // The transport is one in-memory construction with two legs: the request leg
   // (the transport core with its pool, lock and socket) and the push leg (the
   // event stream). It is drawn as a container holding both; the core is collapsed
@@ -265,6 +281,7 @@
   renderExternals();
   renderStores();
   renderInventory();
+  renderGates();
   wireNavigation();
   wireControls();
 
@@ -2594,6 +2611,612 @@
     container.replaceChildren(...sections);
   }
 
+  // ── CI gates ──────────────────────────────────────────────────────────────
+  // The pipeline as a circuit. A pull request is the input signal; every job
+  // that runs on pull requests is a gate the signal must pass; `needs` and
+  // artifact hand-offs are wires between gates; all of them feed one AND gate,
+  // the merge. What runs only after a merge sits downstream of that gate; what
+  // runs by hand sits in its own band. Layout is a fixed-column circuit: each
+  // workflow is a lane, depth in its `needs` graph is the column.
+
+  function gateDepth(job, seen = new Set()) {
+    if (!job.needs.length) return 0;
+    if (seen.has(job.id)) return 0;
+    seen.add(job.id);
+    return 1 + Math.max(...job.needs.map((id) => (gateJobById.has(id) ? gateDepth(gateJobById.get(id), seen) : 0)));
+  }
+
+  function gateFamilyRank(family) {
+    const index = GATE_FAMILY_ORDER.indexOf(family);
+    return index === -1 ? GATE_FAMILY_ORDER.length : index;
+  }
+
+  function layoutGates() {
+    const nodes = new Map();
+    const lanes = [];
+    const wires = [];
+    const roleOf = (job) => job.role;
+    const gateWorkflows = ci.workflows
+      .filter((workflow) => workflow.jobs.some((id) => roleOf(gateJobById.get(id)) === "gate"))
+      .sort((left, right) => gateFamilyRank(left.family) - gateFamilyRank(right.family) || left.name.localeCompare(right.name));
+    const jobsX0 = 24 + GATE.triggerW + GATE.colGap;
+    let maxDepth = 0;
+    let y = 16;
+    const bandTop = y;
+    gateWorkflows.forEach((workflow) => {
+      const jobs = workflow.jobs.map((id) => gateJobById.get(id)).filter((job) => roleOf(job) === "gate");
+      const byDepth = new Map();
+      jobs.forEach((job) => {
+        const depth = gateDepth(job);
+        maxDepth = Math.max(maxDepth, depth);
+        if (!byDepth.has(depth)) byDepth.set(depth, []);
+        byDepth.get(depth).push(job);
+      });
+      const rows = Math.max(...[...byDepth.values()].map((list) => list.length));
+      const laneH = GATE.laneHead + GATE.lanePadY + rows * GATE.nodeH + (rows - 1) * GATE.rowGap + GATE.lanePadY;
+      const lane = { id: workflow.id, label: `${workflow.label} · ${workflow.name}`, question: workflow.question, family: workflow.family, x: jobsX0 - GATE.lanePadX, y, h: laneH, kind: "gate", rail: y + laneH - 10 };
+      lanes.push(lane);
+      byDepth.forEach((list, depth) => {
+        list.forEach((job, row) => {
+          nodes.set(job.id, {
+            id: job.id, kind: "job", job, family: workflow.family,
+            x: jobsX0 + depth * (GATE.nodeW + GATE.colGap), y: y + GATE.laneHead + GATE.lanePadY + row * (GATE.nodeH + GATE.rowGap),
+            w: GATE.nodeW, h: GATE.nodeH
+          });
+        });
+      });
+      y += laneH + GATE.laneGap;
+    });
+    const bandBottom = y - GATE.laneGap;
+    const laneRight = jobsX0 + (maxDepth + 1) * (GATE.nodeW + GATE.colGap) - GATE.colGap + GATE.lanePadX;
+    lanes.forEach((lane) => { lane.w = laneRight - lane.x; });
+    const bandMid = (bandTop + bandBottom) / 2;
+    // The pull-request trigger, centred on the gate band.
+    nodes.set("trigger:pull_request", { id: "trigger:pull_request", kind: "trigger", family: "trigger", label: "pull_request → main", x: 24, y: bandMid - 27, w: GATE.triggerW, h: 54 });
+    // The merge: one AND gate, one input pin per gate job.
+    const inputs = ci.merge.inputs.filter((id) => nodes.has(id));
+    const mergeH = Math.max(88, inputs.length * 13 + 26);
+    const mergeX = laneRight + GATE.colGap + 26;
+    const merge = { id: "merge:main", kind: "merge", family: "merge", label: "Mergeable → main", x: mergeX, y: bandMid - mergeH / 2, w: GATE.mergeW, h: mergeH, inputs };
+    nodes.set(merge.id, merge);
+    // After the merge: post-merge jobs, split above and below the AND gate so the
+    // `needs` wire from a gate to a post-merge job can pass the gate cleanly.
+    const postJobs = ci.jobs.filter((job) => job.role === "post-merge" || job.role === "disabled");
+    const postX = mergeX + GATE.mergeW + GATE.colGap + 10;
+    const above = postJobs.filter((job) => job.needs.length);
+    const below = postJobs.filter((job) => !job.needs.length);
+    above.forEach((job, index) => {
+      nodes.set(job.id, { id: job.id, kind: "job", job, family: job.family, x: postX, y: merge.y - 26 - (above.length - index) * (GATE.nodeH + GATE.rowGap), w: GATE.nodeW, h: GATE.nodeH });
+    });
+    below.forEach((job, index) => {
+      nodes.set(job.id, { id: job.id, kind: "job", job, family: job.family, x: postX, y: merge.y + mergeH + 26 + index * (GATE.nodeH + GATE.rowGap), w: GATE.nodeW, h: GATE.nodeH });
+    });
+    if (postJobs.length) {
+      const ys = postJobs.map((job) => nodes.get(job.id)).flatMap((node) => [node.y, node.y + node.h]);
+      const top = Math.min(...ys, merge.y) - GATE.laneHead - 6;
+      const bottom = Math.max(...ys, merge.y + merge.h) + GATE.lanePadY;
+      lanes.push({ id: "after-merge", label: "After the merge", question: "Push to main or a tag; never a pull request.", family: "release", kind: "after-merge", x: postX - GATE.lanePadX, y: top, w: GATE.nodeW + GATE.lanePadX * 2, h: bottom - top });
+    }
+    // Manual band: workflow_dispatch → jobs no event fires.
+    const manualJobs = ci.jobs.filter((job) => job.role === "manual");
+    let manualBottom = bandBottom;
+    if (manualJobs.length) {
+      const top = Math.max(bandBottom, ...lanes.map((lane) => lane.y + lane.h)) + GATE.laneGap + 8;
+      const laneH = GATE.laneHead + GATE.lanePadY + manualJobs.length * GATE.nodeH + (manualJobs.length - 1) * GATE.rowGap + GATE.lanePadY;
+      lanes.push({ id: "manual", label: "Manual", question: "Dispatched from the Actions tab; nothing in the pipeline waits on these.", family: "maintenance", kind: "manual", x: jobsX0 - GATE.lanePadX, y: top, w: laneRight - (jobsX0 - GATE.lanePadX), h: laneH });
+      manualJobs.forEach((job, index) => {
+        nodes.set(job.id, { id: job.id, kind: "job", job, family: job.family, x: jobsX0, y: top + GATE.laneHead + GATE.lanePadY + index * (GATE.nodeH + GATE.rowGap), w: GATE.nodeW, h: GATE.nodeH });
+      });
+      nodes.set("trigger:workflow_dispatch", { id: "trigger:workflow_dispatch", kind: "trigger", family: "trigger", label: "workflow_dispatch", x: 24, y: top + laneH / 2 - 27, w: GATE.triggerW, h: 54 });
+      manualBottom = top + laneH;
+    }
+    // Wires. Every wire is an orthogonal path from a source pin to a target pin.
+    const trunkPR = 24 + GATE.triggerW + GATE.colGap / 2;
+    const trunkMerge = mergeX - GATE.colGap / 2 - 6;
+    const pinY = new Map();
+    inputs.forEach((id, index) => pinY.set(id, merge.y + 13 + index * ((mergeH - 26) / Math.max(1, inputs.length - 1) || 0)));
+    ci.edges.forEach((edge) => {
+      const source = nodes.get(edge.source);
+      const target = nodes.get(edge.target);
+      if (!source || !target) return;
+      const sy = source.y + source.h / 2;
+      const ty = target.y + target.h / 2;
+      let d;
+      if (edge.kind === "trigger") {
+        d = `M ${source.x + source.w} ${sy} H ${trunkPR} V ${ty} H ${target.x}`;
+        if (edge.source === "trigger:workflow_dispatch") d = `M ${source.x + source.w} ${sy} H ${trunkPR} V ${ty} H ${target.x}`;
+      } else if (edge.kind === "gates") {
+        const lane = lanes.find((item) => item.id === source.job.workflow);
+        const gapX = source.x + source.w + 24;
+        const railY = lane ? lane.rail : sy;
+        d = `M ${source.x + source.w} ${sy} H ${gapX} V ${railY} H ${trunkMerge} V ${pinY.get(edge.source) ?? ty} H ${target.x}`;
+      } else if (edge.kind === "release") {
+        const outX = source.x + source.w + 34;
+        d = `M ${source.x + source.w} ${sy} H ${outX} V ${ty} H ${target.x}`;
+      } else {
+        const gapX = source.x + source.w + (edge.kind === "artifact" ? 40 : 24);
+        const offset = edge.kind === "artifact" ? 9 : 0;
+        d = `M ${source.x + source.w} ${sy + offset} H ${gapX} V ${ty + offset} H ${target.x}`;
+      }
+      // An artifact label sits above its dashed wire in the gap before the consumer;
+      // it is drawn only while a connected gate is selected (the inspector lists it too).
+      const gapX = source.x + source.w + 40;
+      wires.push({ ...edge, d, labelAt: edge.kind === "artifact" ? { x: (gapX + target.x) / 2, y: ty + 9 - 4 } : null });
+    });
+    const width = Math.max(...[...nodes.values()].map((node) => node.x + node.w), ...lanes.map((lane) => lane.x + lane.w)) + 24;
+    const height = Math.max(manualBottom, ...lanes.map((lane) => lane.y + lane.h)) + 24;
+    return { nodes, lanes, wires, width, height, pinY };
+  }
+
+  function renderGates() {
+    const svg = document.getElementById("gates-graph");
+    if (!svg) return;
+    if (!ci.jobs.length) {
+      svg.replaceChildren();
+      const content = document.getElementById("gates-content");
+      if (content) content.replaceChildren(emptyState("No workflows were read from .github/workflows."));
+      return;
+    }
+    gateLayout = layoutGates();
+    const { nodes, lanes, wires, width, height } = gateLayout;
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("width", String(width));
+    svg.setAttribute("height", String(height));
+    svg.replaceChildren();
+    const laneGroup = svgElement("g", { class: "gate-lanes" });
+    lanes.forEach((lane) => {
+      const group = svgElement("g", { class: `gate-lane ${lane.kind}` });
+      group.append(svgElement("rect", { class: `gate-lane-rect ${lane.kind}`, x: lane.x, y: lane.y, width: lane.w, height: lane.h, rx: 10 }));
+      const label = svgElement("text", { class: "gate-lane-label", x: lane.x + 14, y: lane.y + 16, fill: GATE_FAMILY_COLORS[lane.family] || "" });
+      label.textContent = lane.label;
+      const question = svgElement("text", { class: "gate-lane-question", x: lane.x + 14, y: lane.y + 29 });
+      question.textContent = lane.question;
+      group.append(label, question);
+      laneGroup.append(group);
+    });
+    const wireGroup = svgElement("g", { class: "gate-wires" });
+    wires.forEach((wire) => {
+      const path = svgElement("path", { class: `gate-wire ${wire.kind}`, d: wire.d, "data-source": wire.source, "data-target": wire.target });
+      wireGroup.append(path);
+      if (wire.labelAt) {
+        const text = svgElement("text", { class: "gate-wire-label", x: wire.labelAt.x, y: wire.labelAt.y, "text-anchor": "middle", "data-source": wire.source, "data-target": wire.target });
+        text.textContent = wire.label;
+        wireGroup.append(text);
+      }
+    });
+    const nodeGroup = svgElement("g", { class: "gate-nodes" });
+    nodes.forEach((node) => nodeGroup.append(gateNodeElement(node)));
+    svg.append(laneGroup, wireGroup, nodeGroup);
+    renderGateStats();
+    renderGateLegend();
+    renderGateSections();
+    applyGateState();
+  }
+
+  function gateNodeElement(node) {
+    const color = GATE_FAMILY_COLORS[node.family] || GATE_FAMILY_COLORS.maintenance;
+    const classes = ["gate-node", node.kind];
+    if (node.kind === "job" && node.job.role === "disabled") classes.push("disabled");
+    const group = svgElement("g", { class: classes.join(" "), transform: `translate(${node.x} ${node.y})`, tabindex: 0, role: "button", "data-gate": node.id, style: `--node-color:${color}` });
+    if (node.kind === "merge") {
+      const flat = node.w * 0.46;
+      const r = node.h / 2;
+      group.append(svgElement("path", { class: "gate-body", d: `M 0 0 H ${flat} A ${r} ${r} 0 0 1 ${flat} ${node.h} H 0 Z` }));
+      node.inputs.forEach((id) => {
+        const y = gateLayout.pinY.get(id) - node.y;
+        group.append(svgElement("line", { class: "gate-pin", x1: -8, y1: y, x2: 0, y2: y }));
+      });
+      group.append(svgElement("line", { class: "gate-pin", x1: flat + r, y1: r, x2: flat + r + 12, y2: r }));
+      const and = svgElement("text", { class: "gate-and", x: flat * 0.55, y: r - 4, "text-anchor": "middle" });
+      and.textContent = "AND";
+      const title = svgElement("text", { class: "gate-title", x: flat * 0.55, y: r + 12, "text-anchor": "middle" });
+      title.textContent = `${node.inputs.length} gates`;
+      const meta = svgElement("text", { class: "gate-meta", x: flat * 0.55, y: r + 25, "text-anchor": "middle" });
+      meta.textContent = "→ main";
+      group.append(and, title, meta);
+      group.setAttribute("aria-label", `${node.label}: ${node.inputs.length} gates must pass`);
+    } else if (node.kind === "trigger") {
+      group.append(svgElement("rect", { class: "gate-body", x: 0, y: 0, width: node.w, height: node.h, rx: 27 }));
+      group.append(svgElement("line", { class: "gate-pin", x1: node.w, y1: node.h / 2, x2: node.w + 10, y2: node.h / 2 }));
+      const kicker = svgElement("text", { class: "gate-kicker", x: 18, y: 20 });
+      kicker.textContent = "TRIGGER";
+      const title = svgElement("text", { class: "gate-title", x: 18, y: 38 });
+      title.textContent = node.label;
+      group.append(kicker, title);
+      group.setAttribute("aria-label", `Trigger ${node.label}`);
+    } else {
+      const job = node.job;
+      group.append(svgElement("rect", { class: "gate-body", x: 0, y: 0, width: node.w, height: node.h, rx: 7 }));
+      group.append(svgElement("line", { class: "gate-pin", x1: -10, y1: node.h / 2, x2: 0, y2: node.h / 2 }));
+      group.append(svgElement("line", { class: "gate-pin", x1: node.w, y1: node.h / 2, x2: node.w + 10, y2: node.h / 2 }));
+      if (job.condition) {
+        // A conditional gate: the output carries an `if`, drawn as a diamond on the pin.
+        group.append(svgElement("path", { class: "gate-condition", d: `M ${node.w + 10} ${node.h / 2 - 5} l 5 5 l -5 5 l -5 -5 Z` }));
+      }
+      const kickerParts = [(gateWorkflowById.get(job.workflow) || {}).label || job.workflow];
+      if (job.needs.length > 1) kickerParts.push("AND");
+      if (job.role === "disabled") kickerParts.push("DISABLED");
+      if (job.condition && job.role !== "disabled") kickerParts.push("IF");
+      const kicker = svgElement("text", { class: "gate-kicker", x: 14, y: 17 });
+      kicker.textContent = kickerParts.join(" · ").toUpperCase();
+      const title = svgElement("text", { class: "gate-title", x: 14, y: 34 });
+      title.textContent = job.name.length > 30 ? `${job.name.slice(0, 29)}…` : job.name;
+      const meta = svgElement("text", { class: "gate-meta", x: 14, y: 48 });
+      meta.textContent = [job.runs_on, `${job.step_count} steps`, job.pins.length ? `pinned ${job.pins.map((pin) => pin.value).join(", ")}` : null].filter(Boolean).join(" · ");
+      group.append(kicker, title, meta);
+      group.setAttribute("aria-label", `${job.name}, ${job.role} in ${job.workflow}`);
+    }
+    group.addEventListener("click", () => selectGate(node.id));
+    group.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectGate(node.id); }
+    });
+    return group;
+  }
+
+  function selectGate(nodeId) {
+    selectedGateId = selectedGateId === nodeId ? null : nodeId;
+    applyGateState();
+    renderGateInspector(selectedGateId ? gateLayout.nodes.get(selectedGateId) : null);
+  }
+
+  function gateMatchesQuery(node, query) {
+    if (!query) return true;
+    const haystack = node.kind === "job"
+      ? [node.job.id, node.job.name, node.job.workflow, node.job.runs_on, ...node.job.scripts, ...node.job.artifacts_out, ...node.job.artifacts_in, ...node.job.steps.map((step) => step.name)].join(" ")
+      : node.label || node.id;
+    return haystack.toLowerCase().includes(query);
+  }
+
+  function applyGateState() {
+    const svg = document.getElementById("gates-graph");
+    if (!svg || !gateLayout) return;
+    const query = (document.getElementById("gates-search")?.value || "").trim().toLowerCase();
+    const connected = new Set();
+    if (selectedGateId) {
+      connected.add(selectedGateId);
+      gateLayout.wires.forEach((wire) => {
+        if (wire.source === selectedGateId) connected.add(wire.target);
+        if (wire.target === selectedGateId) connected.add(wire.source);
+      });
+    }
+    svg.querySelectorAll(".gate-node").forEach((element) => {
+      const id = element.dataset.gate;
+      const node = gateLayout.nodes.get(id);
+      const matches = gateMatchesQuery(node, query);
+      element.classList.toggle("selected", id === selectedGateId);
+      element.classList.toggle("dimmed", (selectedGateId && !connected.has(id)) || (query && !matches));
+    });
+    svg.querySelectorAll(".gate-wire, .gate-wire-label").forEach((element) => {
+      const touches = element.dataset.source === selectedGateId || element.dataset.target === selectedGateId;
+      element.classList.toggle("active", Boolean(selectedGateId) && touches);
+      element.classList.toggle("dimmed", Boolean(selectedGateId) && !touches);
+    });
+  }
+
+  function gateJobButton(jobId, label = jobId) {
+    const button = element("button", "gate-job", label);
+    button.type = "button";
+    button.addEventListener("click", () => {
+      if (!gateLayout || !gateLayout.nodes.has(jobId)) return;
+      selectedGateId = jobId;
+      applyGateState();
+      renderGateInspector(gateLayout.nodes.get(jobId));
+      document.getElementById("gates-workspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return button;
+  }
+
+  function renderGateInspector(node) {
+    const inspector = document.getElementById("gates-inspector");
+    if (!inspector) return;
+    if (!node) {
+      inspector.hidden = true;
+      inspector.replaceChildren();
+      return;
+    }
+    inspector.hidden = false;
+    const color = GATE_FAMILY_COLORS[node.family] || GATE_FAMILY_COLORS.maintenance;
+    const badge = element("span", "inspector-badge");
+    badge.style.setProperty("--component-color", color);
+    const sections = [];
+    if (node.kind === "merge") {
+      badge.textContent = "merge · AND";
+      sections.push(element("h3", "", node.label));
+      sections.push(element("p", "", `${node.inputs.length} jobs run on every pull request. All of them must pass for the change to be mergeable; a red gate anywhere holds the signal. GitHub's required-checks list is repository configuration and is not read here, so this is the set of gates that run, not a proof of which are required.`));
+      const section = element("div", "inspector-section");
+      section.append(element("h4", "", "Inputs"));
+      const chips = element("div", "chip-list");
+      node.inputs.forEach((id) => chips.append(gateJobButton(id, (gateJobById.get(id) || {}).name || id)));
+      section.append(chips);
+      sections.push(section);
+    } else if (node.kind === "trigger") {
+      badge.textContent = "trigger";
+      sections.push(element("h3", "", node.label));
+      const trigger = ci.triggers.find((item) => item.id === node.id);
+      sections.push(element("p", "", node.id === "trigger:pull_request"
+        ? "A pull request against main is the input signal. Every workflow listening to pull_request starts its root jobs; a job whose condition excludes pull requests is drawn after the merge instead."
+        : "Started by hand from the Actions tab. Nothing in the pipeline waits on these jobs, so they are drawn in their own band."));
+      if (trigger) {
+        const section = element("div", "inspector-section");
+        section.append(element("h4", "", "Workflows listening"));
+        const chips = element("div", "chip-list");
+        trigger.workflows.forEach((id) => chips.append(element("span", "chip", (gateWorkflowById.get(id) || {}).name || id)));
+        section.append(chips);
+        sections.push(section);
+      }
+    } else {
+      const job = node.job;
+      const workflow = gateWorkflowById.get(job.workflow) || {};
+      badge.textContent = `${workflow.label || job.workflow} · ${job.role}`;
+      sections.push(element("h3", "", job.name));
+      sections.push(element("p", "", [
+        `${workflow.name || job.workflow} / ${job.key}`,
+        job.runs_on ? `runs on ${job.runs_on}` : null,
+        job.role === "gate" ? "runs on pull requests and gates the merge" : job.role === "post-merge" ? "runs after a merge (or tag); never on a pull request" : job.role === "manual" ? "runs only when dispatched" : "disabled: its condition is `false`"
+      ].filter(Boolean).join(" · ")));
+      if (job.condition) sections.push(element("p", "derivation", `if: ${job.condition}`));
+      const metrics = element("div", "inspector-metrics");
+      [[job.step_count, "steps"], [job.needs.length, "needs"], [job.artifacts_out.length + job.artifacts_in.length, "artifacts"]].forEach(([value, label]) => {
+        const metric = element("div", "inspector-metric");
+        metric.append(element("strong", "", String(value)), element("span", "", label));
+        metrics.append(metric);
+      });
+      sections.push(metrics);
+      const declared = ci.ratchets.filter((ratchet) => ratchet.job === job.id);
+      if (declared.length) {
+        const section = element("div", "inspector-section");
+        section.append(element("h4", "", "Declared ratchets"));
+        declared.forEach((ratchet) => {
+          const row = element("div", "relationship");
+          row.append(element("strong", "", ratchet.title), element("span", "", `${ratchet.source_path} · ${ratchet.floor}`));
+          section.append(row);
+        });
+        sections.push(section);
+      }
+      if (ci.architectural.runs_in.includes(job.id)) {
+        const section = element("div", "inspector-section");
+        section.append(element("h4", "", "Architectural checks"));
+        section.append(element("p", "", job.id === "tests/swift-lint"
+          ? `${ci.architectural.lint_rules.length} custom SwiftLint rules run here under --strict against the frozen baseline.`
+          : job.id === "tests/swift-test"
+            ? `${ci.architectural.tests.length} ArchitectureTests run inside this suite.`
+            : `${ci.architectural.invariants.length} System-map invariants are checked by the architecture compiler here.`));
+        sections.push(section);
+      }
+      if (job.needs.length || job.artifacts_in.length || job.artifacts_out.length) {
+        const section = element("div", "inspector-section");
+        section.append(element("h4", "", "Wiring"));
+        const chips = element("div", "chip-list");
+        job.needs.forEach((id) => chips.append(gateJobButton(id, `needs ${(gateJobById.get(id) || {}).name || id}`)));
+        job.artifacts_in.forEach((name) => chips.append(element("span", "chip", `downloads ${name}`)));
+        job.artifacts_out.forEach((name) => chips.append(element("span", "chip", `uploads ${name}`)));
+        section.append(chips);
+        sections.push(section);
+      }
+      if (job.pins.length) {
+        const section = element("div", "inspector-section");
+        section.append(element("h4", "", "Pinned tools"));
+        const chips = element("div", "chip-list");
+        job.pins.forEach((pin) => chips.append(element("span", "chip", `${pin.name} = ${pin.value}`)));
+        section.append(chips);
+        section.append(element("p", "derivation", "A pinned version keeps the baseline honest: a newer tool detects more and would fail CI on debt the baseline never recorded."));
+        sections.push(section);
+      }
+      const steps = element("div", "inspector-section");
+      steps.append(element("h4", "", "Steps"));
+      const list = element("ol", "inspector-steps");
+      job.steps.forEach((step) => {
+        const item = document.createElement("li");
+        item.append(element("span", "step-path", step.name));
+        if (step.condition) item.append(element("span", "step-note", `if: ${step.condition}`));
+        if (step.uses) item.append(element("span", "step-note", `uses ${step.uses}`));
+        if (step.command) item.append(element("code", "step-command", step.command_lines > 1 ? `${step.command}  … (${step.command_lines} lines)` : step.command));
+        (step.scripts || []).forEach((script) => {
+          const note = element("span", "step-note");
+          note.append(sourceLink({ path: script, line: 1 }));
+          item.append(note);
+        });
+        list.append(item);
+      });
+      steps.append(list);
+      sections.push(steps);
+      const source = element("div", "inspector-section");
+      source.append(element("h4", "", "Source"));
+      const provenance = element("p", "provenance");
+      provenance.append(element("span", "", "Workflow · "), sourceLink(job.evidence));
+      source.append(provenance);
+      sections.push(source);
+    }
+    inspector.replaceChildren(badge, ...sections);
+  }
+
+  function renderGateStats() {
+    const container = document.getElementById("gates-stats");
+    if (!container) return;
+    const summary = ci.summary || {};
+    const values = [
+      [String(summary.workflows || 0), "Workflows"],
+      [String(summary.gates || 0), "PR gates"],
+      [String(summary.ratchets || 0), "Ratchets"],
+      [String((summary.lint_rules || 0) + (summary.architecture_tests || 0) + (summary.invariants || 0)), "Arch. checks"],
+      [String(summary.static_checks || 0), "Static checks"]
+    ];
+    container.replaceChildren(...values.map(([value, label]) => {
+      const item = element("div", "stat");
+      item.append(element("span", "stat-value", value), element("span", "stat-label", label));
+      return item;
+    }));
+  }
+
+  function renderGateLegend() {
+    const legend = document.getElementById("gates-legend");
+    if (!legend) return;
+    const families = GATE_FAMILY_ORDER.filter((family) => ci.workflows.some((workflow) => workflow.family === family));
+    legend.replaceChildren(...families.map((family) => {
+      const item = element("div", "legend-item");
+      const swatch = element("span", "legend-swatch");
+      swatch.style.setProperty("--legend-color", GATE_FAMILY_COLORS[family]);
+      item.append(swatch, element("span", "", GATE_FAMILY_LABELS[family] || family));
+      return item;
+    }), ...[["needs / artifact wire", "#7ec8b0"], ["gate → merge", GATE_FAMILY_COLORS.merge], ["after merge", GATE_FAMILY_COLORS.release]].map(([label, color]) => {
+      const item = element("div", "legend-item");
+      const swatch = element("span", "legend-swatch");
+      swatch.style.setProperty("--legend-color", color);
+      item.append(swatch, element("span", "", label));
+      return item;
+    }));
+  }
+
+  function formatGateCurrent(ratchet) {
+    const current = ratchet.current || {};
+    if (current.kind === "coverage") return `${Number(current.percent).toFixed(2)}% (${Number(current.covered).toLocaleString()} / ${Number(current.count).toLocaleString()})`;
+    if (current.kind === "counters") return `${Object.keys(current.counts || {}).length} counters`;
+    if (current.kind === "count") {
+      const categories = Object.keys(current.counts || {}).length;
+      return categories ? `${Number(current.total).toLocaleString()} in ${categories} ${ratchet.id === "lint" ? "rules" : "kinds"}` : Number(current.total).toLocaleString();
+    }
+    return "—";
+  }
+
+  function gateBreakdown(ratchet) {
+    const current = ratchet.current || {};
+    let pairs = [];
+    if (current.kind === "coverage") pairs = Object.entries(current.layers || {}).map(([layer, item]) => [layer, `${Number(item.percent).toFixed(1)}%`]);
+    else if (current.counts) pairs = Object.entries(current.counts).sort((left, right) => right[1] - left[1]).map(([key, value]) => [key, Number(value).toLocaleString()]);
+    if (!pairs.length) return null;
+    const details = document.createElement("details");
+    details.append(element("summary", "", current.kind === "coverage" ? "by layer" : "breakdown"));
+    const list = element("ul", "breakdown");
+    pairs.forEach(([key, value]) => {
+      const item = document.createElement("li");
+      item.append(element("span", "", key), element("span", "", value));
+      list.append(item);
+    });
+    details.append(list);
+    return details;
+  }
+
+  function renderGateSections() {
+    const container = document.getElementById("gates-content");
+    if (!container) return;
+    const sections = [];
+
+    // 1 · Ratchets: metric floors read from the committed baselines.
+    const ratchets = behaviorGroup("Ratchets", `${ci.ratchets.length} metric gates. Each compares the tree against a committed baseline: a FLOOR the whole tree may not fall below (relative to the base branch) and, where a metric is attributable to lines, a PATCH rule the change's added lines must meet. Baselines move to record improvement, never to admit a regression; the values here are what CI compares against, not a fresh measurement.`);
+    const table = element("table", "gates-table");
+    const head = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Gate", "CI check", "Current", "Floor (whole tree vs base)", "Patch (added lines)"].forEach((label) => headRow.append(element("th", "", label)));
+    head.append(headRow);
+    const body = document.createElement("tbody");
+    ci.ratchets.forEach((ratchet) => {
+      const row = document.createElement("tr");
+      const gateCell = document.createElement("td");
+      gateCell.append(element("span", "gate-name", ratchet.title), element("span", "gate-source", ratchet.source_path));
+      gateCell.append(element("p", "derivation", ratchet.measures));
+      const breakdown = gateBreakdown(ratchet);
+      if (breakdown) gateCell.append(breakdown);
+      const jobCell = document.createElement("td");
+      const job = gateJobById.get(ratchet.job);
+      jobCell.append(gateJobButton(ratchet.job, job ? `${(gateWorkflowById.get(job.workflow) || {}).label || job.workflow} / ${job.name}` : ratchet.job));
+      if (job) jobCell.append(element("span", "gate-source", job.scripts.join(", ") || job.runs_on));
+      const currentCell = element("td", "num", formatGateCurrent(ratchet));
+      const floorCell = element("td", "", ratchet.floor);
+      const patchCell = element("td", ratchet.patch ? "" : "floor-only", ratchet.patch || "floor-only");
+      row.append(gateCell, jobCell, currentCell, floorCell, patchCell);
+      body.append(row);
+    });
+    table.append(head, body);
+    ratchets.append(table);
+    sections.push(ratchets);
+
+    // 2 · Architectural checks: rules about the shape of the code.
+    const architectural = ci.architectural;
+    const arch = behaviorGroup("Architectural checks", `${architectural.lint_rules.length} custom SwiftLint rules, ${architectural.tests.length} ArchitectureTests and ${architectural.invariants.length} System-map invariants. These do not track a number; they pin a shape (layer direction, no new singletons, one transport) and fail on the first violation. Grandfathered violations are frozen in the lint baseline, which the Quality ratchet keeps from growing.`);
+    const runsIn = element("div", "gate-runs-in");
+    runsIn.append(element("span", "group-note", "Runs in"));
+    architectural.runs_in.forEach((id) => {
+      const job = gateJobById.get(id);
+      runsIn.append(gateJobButton(id, job ? `${(gateWorkflowById.get(job.workflow) || {}).label || job.workflow} / ${job.name}` : id));
+    });
+    arch.append(runsIn);
+    const rulesSection = element("div", "pocket-section");
+    rulesSection.append(element("h4", "", `SwiftLint custom rules · ${architectural.lint_config}`));
+    const rulesList = element("div", "behavior-list");
+    architectural.lint_rules.forEach((rule) => {
+      const row = element("article", "behavior-row");
+      const grid = element("div", "gate-rule");
+      grid.append(element("code", "", rule.id));
+      const flags = element("div", "gate-rule-flags");
+      flags.append(element("span", "chip", rule.severity));
+      if (rule.baselined) flags.append(element("span", "chip", `${rule.baselined.toLocaleString()} baselined`));
+      if (rule.excluded_count) flags.append(element("span", "chip", `${rule.excluded_count} grandfathered file(s)`));
+      grid.append(flags);
+      if (rule.message) grid.append(element("p", "", rule.message));
+      row.append(grid);
+      const provenance = element("p", "provenance");
+      provenance.append(element("span", "", "Rule · "), sourceLink(rule.evidence));
+      row.append(provenance);
+      rulesList.append(row);
+    });
+    rulesSection.append(rulesList);
+    arch.append(rulesSection);
+    const testsSection = element("div", "pocket-section");
+    testsSection.append(element("h4", "", `ArchitectureTests · ${architectural.tests_path}`));
+    const testsList = element("div", "behavior-list");
+    architectural.tests.forEach((test) => {
+      const row = element("article", "behavior-row");
+      row.append(element("h4", "", test.title));
+      const provenance = element("p", "provenance");
+      provenance.append(element("span", "", "Swift Testing · "), sourceLink(test.evidence));
+      row.append(provenance);
+      testsList.append(row);
+    });
+    testsSection.append(testsList);
+    arch.append(testsSection);
+    const invariantsSection = element("div", "pocket-section");
+    invariantsSection.append(element("h4", "", "System-map invariants · architecture/interplay/invariants.json"));
+    const invariantsList = element("div", "behavior-list");
+    architectural.invariants.forEach((item) => {
+      const row = element("article", "behavior-row");
+      const headLine = element("div", "invariant-head");
+      headLine.append(
+        element("span", `invariant-status ${item.status}`, item.status === "holds" ? "HOLDS" : "VIOLATED"),
+        element("strong", "", item.id),
+        element("span", "invariant-meta", item.kind.replace(/_/g, " "))
+      );
+      row.append(headLine);
+      if (item.why) row.append(element("p", "derivation", item.why));
+      invariantsList.append(row);
+    });
+    invariantsSection.append(invariantsList);
+    invariantsSection.append(element("p", "group-note", "Checked by scripts/build_architecture.py on every build; the full list with what each pins is on the System map."));
+    arch.append(invariantsSection);
+    sections.push(arch);
+
+    // 3 · Static compiler checks: regenerate and compare.
+    const staticGroup = behaviorGroup("Static compiler checks", `${ci.static_checks.length} checks that recompile a committed artifact from the tree and fail when the two differ, or run the compiler's own tests. They ask neither "does it work" nor "did a number move": they ask whether what is published still describes this source.`);
+    const staticList = element("div", "behavior-list");
+    ci.static_checks.forEach((check) => {
+      const row = element("article", "behavior-row");
+      row.append(element("h4", "", check.name));
+      const meta = element("p", "behavior-meta");
+      const job = gateJobById.get(check.job);
+      meta.textContent = job ? `${(gateWorkflowById.get(job.workflow) || {}).label || job.workflow} / ${job.name}` : check.job;
+      row.append(meta);
+      row.append(element("code", "gate-command", check.command));
+      const provenance = element("p", "provenance");
+      provenance.append(element("span", "", "Step · "), sourceLink(check.evidence));
+      (check.scripts || []).forEach((script) => provenance.append(element("span", "", " · "), sourceLink({ path: script, line: 1 })));
+      row.append(provenance);
+      staticList.append(row);
+    });
+    staticGroup.append(staticList);
+    sections.push(staticGroup);
+
+    container.replaceChildren(...sections);
+  }
+
   function renderInventory(query = "") {
     const normalized = query.trim().toLowerCase();
     const body = document.getElementById("inventory-body");
@@ -2662,6 +3285,17 @@
 
   function wireControls() {
     document.getElementById("inventory-search").addEventListener("input", (event) => renderInventory(event.target.value));
+    const gatesSearch = document.getElementById("gates-search");
+    if (gatesSearch) gatesSearch.addEventListener("input", applyGateState);
+    const resetGates = document.getElementById("reset-gates");
+    if (resetGates) {
+      resetGates.addEventListener("click", () => {
+        selectedGateId = null;
+        if (gatesSearch) gatesSearch.value = "";
+        renderGateInspector(null);
+        applyGateState();
+      });
+    }
     const interplaySearch = document.getElementById("interplay-search");
     if (interplaySearch) interplaySearch.addEventListener("input", applyInterplayState);
     const resetInterplay = document.getElementById("reset-interplay");

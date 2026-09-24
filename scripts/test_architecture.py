@@ -1173,5 +1173,226 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn("fetch-depth: 0", workflow)
 
 
+    # ---- CI gates: the pipeline as a circuit ---------------------------------
+
+    def test_yaml_subset_parser_matches_reference_semantics(self) -> None:
+        text = (
+            "name: Demo\n"
+            "on:\n"
+            "  push:\n"
+            "    branches: [main]\n"
+            "  workflow_dispatch:\n"
+            "jobs:\n"
+            "  one:\n"
+            "    name: \"First: job\"  # trailing comment\n"
+            "    runs-on: ubuntu-latest\n"
+            "    env:\n"
+            "      TOOL_VERSION: 1.2.3\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4\n"
+            "        with:\n"
+            "          fetch-depth: 0\n"
+            "      - name: Run\n"
+            "        run: |\n"
+            "          set -o pipefail\n"
+            "          # a comment inside the block\n"
+            "\n"
+            "          python3 scripts/demo.py --check\n"
+            "      - name: Folded\n"
+            "        run: >-\n"
+            "          one\n"
+            "          two\n"
+            "  two:\n"
+            "    needs: one\n"
+            "    if: github.event_name != 'pull_request'\n"
+            "    steps: []\n"
+        )
+        document = architecture.parse_yaml_subset(text)
+        self.assertEqual("Demo", document["name"])
+        self.assertEqual({"push": {"branches": ["main"]}, "workflow_dispatch": None}, {k: (dict(v) if isinstance(v, dict) else v) for k, v in document["on"].items()})
+        job = document["jobs"]["one"]
+        self.assertEqual("First: job", job["name"])
+        self.assertEqual("1.2.3", job["env"]["TOOL_VERSION"], "scalars stay strings")
+        self.assertEqual("0", job["steps"][0]["with"]["fetch-depth"])
+        self.assertEqual("set -o pipefail\n# a comment inside the block\n\npython3 scripts/demo.py --check\n", job["steps"][1]["run"])
+        self.assertEqual("one two", job["steps"][2]["run"])
+        self.assertEqual("one", document["jobs"]["two"]["needs"])
+        self.assertEqual([], document["jobs"]["two"]["steps"])
+        # Line provenance: the job keys remember where they were declared.
+        self.assertEqual(7, document["jobs"].lines["one"])
+        self.assertEqual(26, document["jobs"].lines["two"])
+        self.assertEqual("python3 scripts/demo.py --check", architecture._first_command_line(job["steps"][1]["run"]))
+        with self.assertRaises(architecture.YamlSubsetError):
+            architecture.parse_yaml_subset("a:\n\tb: 1\n")
+
+    def test_yaml_subset_parser_agrees_with_pyyaml_on_the_real_files(self) -> None:
+        try:
+            import yaml  # type: ignore
+        except ImportError:  # pragma: no cover - PyYAML is optional locally
+            self.skipTest("PyYAML not installed")
+
+        def normalize(value):
+            if isinstance(value, dict):
+                return {("on" if key is True else str(key)): normalize(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [normalize(item) for item in value]
+            if value is None:
+                return None
+            if isinstance(value, bool):
+                return "true" if value else "false"
+            return str(value)
+
+        for path in sorted((ROOT / ".github/workflows").glob("*.yml")) + [ROOT / ".swiftlint.yml"]:
+            text = path.read_text(encoding="utf-8")
+            mine = normalize(json.loads(json.dumps(architecture.parse_yaml_subset(text))))
+            self.assertEqual(normalize(yaml.safe_load(text)), mine, f"{path.name} parses differently")
+
+    def test_ci_plane_reads_every_workflow_and_wires_the_pipeline(self) -> None:
+        ci = self.model["ci"]
+        files = sorted(path.stem for path in (ROOT / ".github/workflows").glob("*.yml"))
+        self.assertEqual(files, sorted(workflow["id"] for workflow in ci["workflows"]))
+        jobs = {job["id"]: job for job in ci["jobs"]}
+        self.assertEqual(ci["summary"]["jobs"], len(jobs))
+        # Every workflow carries its declared family; every job its provenance line.
+        for workflow in ci["workflows"]:
+            self.assertIn(workflow["family"], architecture.CI_FAMILIES)
+            self.assertTrue(workflow["label"] and workflow["question"])
+        for job in jobs.values():
+            self.assertTrue(job["evidence"]["path"].startswith(".github/workflows/"))
+            self.assertGreater(job["evidence"]["line"], 1)
+            self.assertIn(job["role"], {"gate", "post-merge", "manual", "disabled"})
+            for dependency in job["needs"]:
+                self.assertIn(dependency, jobs)
+        # The shared measurement feeds both posture jobs by `needs` and by artifact.
+        relations = {(edge["kind"], edge["source"], edge["target"]) for edge in ci["edges"]}
+        self.assertIn(("needs", "ratchet/measure", "ratchet/warnings"), relations)
+        self.assertIn(("artifact", "ratchet/measure", "ratchet/coverage"), relations)
+        self.assertEqual("metric-snapshots", next(e["label"] for e in ci["edges"] if e["kind"] == "artifact" and e["target"] == "ratchet/coverage"))
+        # Every gate feeds the merge; the deploy is after it, still needing validate.
+        gates = {job["id"] for job in jobs.values() if job["role"] == "gate"}
+        self.assertEqual(gates, set(ci["merge"]["inputs"]))
+        self.assertTrue(all(("gates", gate, "merge:main") in relations for gate in gates))
+        self.assertEqual("post-merge", jobs["architecture-pages/deploy"]["role"])
+        self.assertIn(("release", "merge:main", "architecture-pages/deploy"), relations)
+        self.assertIn(("needs", "architecture-pages/validate", "architecture-pages/deploy"), relations)
+        self.assertEqual("manual", jobs["snapshot-record/record"]["role"])
+        self.assertIn(("trigger", "trigger:workflow_dispatch", "snapshot-record/record"), relations)
+        self.assertEqual("disabled", jobs["testflight/notarize-macos"]["role"])
+        # Root gates are fired by the pull request; nothing with `needs` is.
+        for job in jobs.values():
+            fired = ("trigger", "trigger:pull_request", job["id"]) in relations
+            self.assertEqual(fired, job["role"] == "gate" and not job["needs"], job["id"])
+        # Pins are versions interpolated into a download URL, not every *_VERSION.
+        self.assertEqual([{"name": "SWIFTLINT_VERSION", "value": "0.65.0"}], jobs["tests/swift-lint"]["pins"])
+        self.assertEqual([], jobs["testflight/testflight"]["pins"], "APP_VERSION is not a tool pin")
+        self.assertIn("scripts/check-metrics-ratchet.py", jobs["ratchet/warnings"]["scripts"])
+        self.assertTrue(all(step["command"] and not step["command"].startswith("set ") for job in jobs.values() for step in job["steps"] if "command" in step))
+        self.assertEqual(ci["limitations"], architecture.CI_LIMITATIONS)
+
+    def test_ci_ratchets_read_their_baselines_and_cover_every_posture_job(self) -> None:
+        ci = self.model["ci"]
+        jobs = {job["id"]: job for job in ci["jobs"]}
+        metrics = json.loads((ROOT / "metrics-baseline.json").read_text(encoding="utf-8"))
+        perf = json.loads((ROOT / "perf-baseline.json").read_text(encoding="utf-8"))
+        lint = json.loads((ROOT / ".swiftlint-baseline").read_text(encoding="utf-8"))
+        by_id = {ratchet["id"]: ratchet for ratchet in ci["ratchets"]}
+        self.assertEqual(metrics["coverage"]["testable_pct"], by_id["coverage"]["current"]["percent"])
+        self.assertEqual(metrics["warnings"]["total"], by_id["warnings"]["current"]["total"])
+        self.assertEqual(metrics["deadcode"]["counts"], by_id["deadcode"]["current"]["counts"])
+        self.assertEqual(perf["counts"], by_id["perf"]["current"]["counts"])
+        self.assertEqual(len(lint), by_id["lint"]["current"]["total"])
+        self.assertIsNone(by_id["perf"]["patch"], "op counts are floor-only")
+        self.assertTrue(by_id["coverage"]["patch"])
+        for ratchet in ci["ratchets"]:
+            self.assertIn(ratchet["job"], jobs)
+            self.assertEqual("posture", jobs[ratchet["job"]]["family"])
+            self.assertTrue(ratchet["source_path"] and (ROOT / ratchet["source_path"]).is_file())
+        # One concern per job: every posture job is a declared ratchet or a shared measurement.
+        declared = {ratchet["job"] for ratchet in ci["ratchets"]}
+        needed = {dependency for job in jobs.values() for dependency in job["needs"]}
+        for job in jobs.values():
+            if job["family"] == "posture":
+                self.assertTrue(job["id"] in declared or job["id"] in needed, job["id"])
+        # ...and the compiler refuses an undeclared one.
+        config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
+        config["ci"]["ratchets"] = [r for r in config["ci"]["ratchets"] if r["id"] != "warnings"]
+        with self.assertRaisesRegex(architecture.ArchitectureError, "ratchet/warnings is a posture job that no ratchet declares"):
+            architecture.build_ci_model(config, self.model["interplay"])
+        config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
+        config["ci"]["ratchets"][0]["job"] = "ratchet/nope"
+        with self.assertRaisesRegex(architecture.ArchitectureError, "names job ratchet/nope"):
+            architecture.build_ci_model(config, self.model["interplay"])
+        config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
+        config["ci"]["workflows"]["extra"] = {"family": "build", "label": "Extra"}
+        with self.assertRaisesRegex(architecture.ArchitectureError, "extra"):
+            architecture.build_ci_model(config, self.model["interplay"])
+        config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
+        del config["ci"]["workflows"]["build"]
+        with self.assertRaisesRegex(architecture.ArchitectureError, "build.yml has no entry"):
+            architecture.build_ci_model(config, self.model["interplay"])
+
+    def test_ci_architectural_and_static_checks_are_extracted_with_provenance(self) -> None:
+        ci = self.model["ci"]
+        architectural = ci["architectural"]
+        lint_text = (ROOT / ".swiftlint.yml").read_text(encoding="utf-8")
+        rule_ids = {rule["id"] for rule in architectural["lint_rules"]}
+        for expected in ("no_direct_client_in_views", "no_new_singletons", "no_swiftui_in_services", "no_ordering_comparison_on_generation"):
+            self.assertIn(expected, rule_ids)
+        for rule in architectural["lint_rules"]:
+            self.assertEqual(".swiftlint.yml", rule["evidence"]["path"])
+            self.assertIn(f"  {rule['id']}:", lint_text.splitlines()[rule["evidence"]["line"] - 1])
+            self.assertIn(rule["severity"], {"warning", "error"})
+        swallowed = next(rule for rule in architectural["lint_rules"] if rule["id"] == "no_swallowed_try")
+        self.assertGreater(swallowed["baselined"], 0)
+        self.assertNotIn("\n", swallowed["message"], "folded messages are one line")
+        tests_text = (ROOT / "Tests/PortalTests/ArchitectureTests.swift").read_text(encoding="utf-8")
+        self.assertEqual(tests_text.count("@Test("), len(architectural["tests"]))
+        for test in architectural["tests"]:
+            self.assertIn("@Test(", tests_text.splitlines()[test["evidence"]["line"] - 1])
+        self.assertEqual([i["id"] for i in self.model["interplay"]["invariants"]], [i["id"] for i in architectural["invariants"]])
+        self.assertTrue(all(job in {j["id"] for j in ci["jobs"]} for job in architectural["runs_in"]))
+        # Static checks: the validate job's script and --check steps, and nothing else.
+        names = [check["name"] for check in ci["static_checks"]]
+        self.assertIn("Verify generated architecture is current", names)
+        self.assertIn("Test architecture compiler", names)
+        self.assertIn("Check browser JavaScript", names)
+        self.assertNotIn("Assemble Pages tree", names)
+        self.assertNotIn("Upload validated site", names)
+        for check in ci["static_checks"]:
+            self.assertEqual("architecture-pages/validate", check["job"])
+            self.assertTrue(check["scripts"] or "--check" in check["command"])
+            self.assertEqual(".github/workflows/architecture-pages.yml", check["evidence"]["path"])
+
+    def test_ci_gates_view_is_rendered_by_the_site(self) -> None:
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8")
+        self.assertRegex(index, r'<button[^>]+data-view="gates"')
+        self.assertRegex(index, r'<section[^>]+id="gates-view"')
+        for element_id in ("gates-graph", "gates-inspector", "gates-content", "gates-stats", "gates-legend", "gates-search", "reset-gates"):
+            self.assertIn(f'id="{element_id}"', index)
+        for renderer in ("layoutGates", "renderGates", "gateNodeElement", "renderGateInspector", "renderGateSections", "applyGateState", "renderGateLegend"):
+            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        self.assertIn("model.ci", app)
+        self.assertIn('"merge:main"', app)
+        self.assertIn("Ratchets", app)
+        self.assertIn("Architectural checks", app)
+        self.assertIn("Static compiler checks", app)
+        self.assertIn("renderGates();", app)
+        for rule in (".gate-node", ".gate-wire", ".gate-lane-rect", ".gates-table", ".gate-command"):
+            self.assertIn(rule, styles)
+        # The standalone metrics page is gone; the product site points at the tab.
+        self.assertFalse((ROOT / "site/metrics.html").exists())
+        self.assertFalse((ROOT / "scripts/build_metrics_page.py").exists())
+        product = (ROOT / "site/index.html").read_text(encoding="utf-8")
+        self.assertNotIn("metrics.html", product)
+        self.assertIn('href="architecture/#gates"', product)
+        workflow = (ROOT / ".github/workflows/architecture-pages.yml").read_text(encoding="utf-8")
+        self.assertNotIn("build_metrics_page", workflow)
+        for trigger_path in (".github/workflows/**", ".swiftlint.yml", "Tests/PortalTests/ArchitectureTests.swift", "metrics-baseline.json"):
+            self.assertIn(trigger_path, workflow)
+        self.assertNotIn("build_metrics_page", (ROOT / "Makefile").read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

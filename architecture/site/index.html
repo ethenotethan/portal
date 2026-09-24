@@ -36,6 +36,7 @@
     <button class="nav-item" data-view="externals" type="button">External systems</button>
     <button class="nav-item" data-view="stores" type="button">Data stores</button>
     <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
+    <button class="nav-item" data-view="gates" type="button">CI gates</button>
   </nav>
 
   <main id="main">
@@ -166,6 +167,34 @@
           <tbody id="inventory-body"></tbody>
         </table>
       </div>
+    </section>
+
+    <section class="view" id="gates-view" aria-labelledby="gates-title">
+      <div class="intro-row">
+        <div>
+          <p class="eyebrow">DETERMINISTIC PIPELINE MODEL</p>
+          <h2 id="gates-title">CI gates</h2>
+          <p class="lede">Every GitHub Actions job drawn as a logic gate: a pull request is the input signal, each job either passes it or blocks it, <code>needs</code> and artifact hand-offs are the wires between jobs, and every gate that runs on pull requests feeds one AND gate, the merge. What runs only after a merge or by hand sits downstream. Beneath the circuit, the gates are sorted by what they defend: ratchets that hold a metric floor, architectural checks that pin the shape of the code, and static compiler checks that fail on drift between the tree and its generated artifacts.</p>
+        </div>
+        <div class="stats" id="gates-stats" aria-label="Pipeline statistics"></div>
+      </div>
+      <div class="authority-banner" role="note">Jobs, <code>needs</code>, artifacts and triggers are read from <code>.github/workflows</code>; the family of each workflow and what each ratchet measures are declared in <code>architecture/config.json</code>; the numbers are the committed baselines CI compares against. The diagram does not read branch protection: a gate here is a job that runs on pull requests, not a proof that GitHub requires it.</div>
+      <div class="graph-toolbar" aria-label="CI gate controls">
+        <label class="search-control">
+          <span class="sr-only">Search CI jobs</span>
+          <input id="gates-search" type="search" placeholder="Search workflows, jobs, scripts, or artifacts…" autocomplete="off">
+        </label>
+        <button id="reset-gates" class="quiet-button" type="button">Reset selection</button>
+      </div>
+      <p class="graph-hint" aria-hidden="true">Click a gate for its steps, scripts, pins and artifacts · every gate links to its line in the workflow file</p>
+      <div class="graph-workspace gates-workspace" id="gates-workspace">
+        <div class="graph-scroll" id="gates-scroll">
+          <svg id="gates-graph" role="img" aria-label="Portal CI pipeline drawn as logic gates"></svg>
+        </div>
+        <aside class="inspector" id="gates-inspector" aria-live="polite" hidden></aside>
+      </div>
+      <div class="legend" id="gates-legend" aria-label="CI gate families"></div>
+      <div class="behavior-content" id="gates-content"></div>
     </section>
   </main>
 

@@ -566,6 +566,65 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .document ul, .document ol { padding-left: 22px; }
 .document .authority-note { margin-bottom: 28px; color: var(--faint); font: 9px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
 
+/* CI gates: the pipeline as a circuit. Jobs are gate bodies, wires are the
+   `needs`/artifact hand-offs, the merge is one AND gate every PR gate feeds. */
+.gates-workspace { min-height: 420px; }
+#gates-graph { display: block; }
+.gate-lane-rect { fill: rgba(242, 240, 235, .025); stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+.gate-lane-rect.after-merge { stroke-dasharray: none; fill: rgba(209, 111, 134, .04); }
+.gate-lane-rect.manual { fill: rgba(141, 138, 136, .05); }
+.gate-lane-label { fill: var(--faint); font: 700 10px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+.gate-lane-question { fill: var(--faint); font: 10px var(--sans); opacity: .85; }
+.gate-wire { fill: none; stroke: var(--line-strong); stroke-width: 1.5; opacity: .75; transition: opacity .18s ease; }
+.gate-wire.artifact { stroke: #7ec8b0; stroke-dasharray: 5 4; }
+.gate-wire.trigger { stroke: var(--accent); opacity: .7; }
+.gate-wire.gates { stroke: var(--foundation); opacity: .55; }
+.gate-wire.release { stroke: #d16f86; opacity: .75; }
+.gate-wire.active { stroke: var(--ink); opacity: 1; stroke-width: 2.25; }
+.gate-wire.dimmed { opacity: .08; }
+.gate-wire-label { fill: #7ec8b0; font: 8px var(--mono); opacity: 0; transition: opacity .18s ease; }
+.gate-wire-label.active { opacity: 1; }
+.gate-node { cursor: pointer; transition: opacity .18s ease; }
+.gate-node rect.gate-body { fill: var(--surface); stroke: var(--node-color); stroke-width: 1.25; }
+.gate-node:hover rect.gate-body, .gate-node:focus rect.gate-body { fill: var(--surface-hover); }
+.gate-node.selected rect.gate-body { stroke-width: 2.5; }
+.gate-node.dimmed { opacity: .18; }
+.gate-node.disabled { opacity: .45; }
+.gate-node.disabled rect.gate-body { stroke-dasharray: 4 3; }
+.gate-node .gate-kicker { fill: var(--node-color); font: 700 8px var(--mono); letter-spacing: .14em; }
+.gate-node .gate-title { fill: var(--ink); font: 600 12px var(--sans); }
+.gate-node .gate-meta { fill: var(--faint); font: 9px var(--mono); }
+.gate-node .gate-pin { stroke: var(--node-color); stroke-width: 1.5; }
+.gate-node .gate-condition { fill: var(--bg); stroke: var(--node-color); stroke-width: 1.25; }
+.gate-node.trigger rect.gate-body { fill: rgba(139, 131, 255, .08); rx: 27; }
+.gate-node.merge path.gate-body { fill: rgba(112, 185, 141, .1); stroke: var(--node-color); stroke-width: 1.75; }
+.gate-node.merge .gate-and { fill: var(--node-color); font: 700 12px var(--mono); letter-spacing: .12em; }
+.gate-node.merge .gate-title { font-size: 11px; }
+.gates-table { width: 100%; margin-top: 18px; border-collapse: collapse; background: var(--bg); }
+.gates-table th { padding: 10px 12px; color: var(--faint); text-align: left; font: 9px var(--mono); text-transform: uppercase; letter-spacing: .12em; border-bottom: 1px solid var(--line); }
+.gates-table td { padding: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.5; vertical-align: top; }
+.gates-table td.num { font: 600 13px var(--mono); color: var(--ink); white-space: nowrap; }
+.gates-table .gate-name { color: var(--ink); font-weight: 600; }
+.gates-table .gate-source { display: block; margin-top: 3px; color: var(--faint); font: 9px var(--mono); }
+.gates-table .gate-job { display: inline-block; margin-top: 6px; padding: 0; border: 0; background: none; color: var(--integration); font: 10px var(--mono); cursor: pointer; text-align: left; }
+.gates-table .gate-job:hover { text-decoration: underline; color: var(--ink); }
+.gates-table .floor-only { color: var(--faint); font-style: italic; }
+.gates-table details { margin-top: 6px; }
+.gates-table summary { cursor: pointer; color: var(--faint); font: 9px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.gates-table .breakdown { margin: 6px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 18px; font: 10px/1.7 var(--mono); }
+.gates-table .breakdown li { display: flex; justify-content: space-between; gap: 10px; break-inside: avoid; }
+.gates-table .breakdown li span:last-child { color: var(--ink); }
+.gate-rule { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; }
+.gate-rule code { color: var(--ink); font: 600 11px var(--mono); }
+.gate-rule .gate-rule-flags { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.gate-rule p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.gate-runs-in { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+.gate-runs-in button { padding: 4px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); color: var(--integration); font: 9px var(--mono); cursor: pointer; }
+.gate-runs-in button:hover { color: var(--ink); border-color: var(--line-strong); }
+.gate-command { display: block; margin: 6px 0 0; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; color: #d5d0ff; font: 10px/1.5 var(--mono); overflow-wrap: anywhere; }
+.inspector-steps .step-command { display: block; color: #d5d0ff; font: 10px var(--mono); overflow-wrap: anywhere; }
+@media (max-width: 620px) { .gates-table .breakdown { columns: 1; } }
+
 .inventory-table-wrap { overflow: auto; border: 1px solid var(--line); }
 .inventory-table { width: 100%; border-collapse: collapse; background: var(--surface); }
 .inventory-table th { position: sticky; top: 0; padding: 12px 16px; background: var(--bg); color: var(--faint); text-align: left; font: 9px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
