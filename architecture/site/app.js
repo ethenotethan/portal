@@ -275,6 +275,7 @@
 
   document.getElementById("source-hash").textContent = model.source_tree_sha256.slice(0, 9);
   renderInterplay();
+  setEdgesColoured(edgesColoured());
   renderInvariants();
   renderFlows();
   renderTimeline();
@@ -863,7 +864,8 @@
     const MARKER_COLORS = {
       structure: "#8a8a92", lifecycle: "#55545a", interplay: "#8b83ff", usage: "#7ec8b0",
       push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", ghost: "#d9a441",
-      active: getComputedStyle(document.documentElement).getPropertyValue("--edge-active").trim() || "#f2f2f4"
+      active: getComputedStyle(document.documentElement).getPropertyValue("--edge-active").trim() || "#f2f2f4",
+      quiet: getComputedStyle(document.documentElement).getPropertyValue("--edge-quiet").trim() || "#5a585d"
     };
     Object.entries(MARKER_COLORS).forEach(([name, color]) => {
       const marker = svgElement("marker", {
@@ -1414,25 +1416,45 @@
       item.append(swatch, document.createTextNode(INTERPLAY_ROLE_LABELS[role]));
       return item;
     });
-    // The three edge classes read differently in a free-form graph, so name them.
+    // Edges: quiet by default (one stroke, dashes hint the kind); the switch below
+    // restores the per-relationship palette. The swatches follow whichever is on.
+    const coloured = edgesColoured();
     const edgeClasses = [
-      ["interplay", "var(--accent)", "Interplay wiring"],
-      ["usage", "#7ec8b0", "Surface calls a client file · holds the core"],
-      ["push", "#d16f86", "Push leg: event fan-out"],
-      ["trigger", "#9fd18b", "Page triggers a surface (user action / lifecycle)"],
-      ["boundary", "#e0704f", "Crosses an external boundary"],
-      ["lifecycle", "#55545a", "Lifecycle"],
-      ["structure", "var(--line-strong)", "Structure"]
+      ["interplay", "var(--accent)", "Interplay wiring", true],
+      ["usage", "#7ec8b0", "Surface calls a client file · holds the core", false],
+      ["push", "#d16f86", "Push leg: event fan-out", false],
+      ["trigger", "#9fd18b", "Page triggers a surface (user action / lifecycle)", false],
+      ["boundary", "#e0704f", "Crosses an external boundary", false],
+      ["lifecycle", "#55545a", "Lifecycle", false],
+      ["structure", "var(--line-strong)", "Structure", true]
     ];
-    edgeClasses.forEach(([klass, color, label]) => {
+    const edges = element("div", "legend-edges");
+    edgeClasses.forEach(([klass, color, label, solid]) => {
       if (!interplay.edges.some((edge) => edge.class === klass)) return;
       const item = element("div", "legend-item");
-      const swatch = element("span", "legend-swatch");
-      swatch.style.setProperty("--legend-color", color);
+      const swatch = element("span", `legend-swatch${solid ? " solid" : ""}`);
+      swatch.style.setProperty("--legend-color", coloured ? color : "var(--edge-quiet)");
       item.append(swatch, document.createTextNode(label));
-      items.push(item);
+      edges.append(item);
     });
-    legend.replaceChildren(...items);
+    const switchRow = element("label", "legend-switch");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.id = "edge-colour-toggle";
+    input.checked = coloured;
+    input.addEventListener("change", () => { setEdgesColoured(input.checked); renderInterplayLegend(); });
+    switchRow.append(input, document.createTextNode("Colour edges by relationship"));
+    legend.replaceChildren(...items, switchRow, edges);
+  }
+
+  const EDGE_COLOUR_KEY = "portal.architecture.edgesColoured";
+  function edgesColoured() {
+    try { return window.localStorage.getItem(EDGE_COLOUR_KEY) === "1"; } catch (_error) { return false; }
+  }
+  function setEdgesColoured(on) {
+    try { window.localStorage.setItem(EDGE_COLOUR_KEY, on ? "1" : "0"); } catch (_error) { /* storage unavailable */ }
+    const svg = document.getElementById("interplay-graph");
+    if (svg) svg.classList.toggle("edges-coloured", on);
   }
 
   // ---- Semantic enrichment: described constructs and system flows ---------------
@@ -3303,8 +3325,11 @@
       toggle.title = `Switch to ${next} mode`;
       toggle.firstElementChild.textContent = theme === "light" ? "☀" : "☾";
     }
+    const rootStyle = getComputedStyle(document.documentElement);
     const activeArrow = document.querySelector("#arrow-active path");
-    if (activeArrow) activeArrow.setAttribute("fill", getComputedStyle(document.documentElement).getPropertyValue("--edge-active").trim() || "#f2f2f4");
+    if (activeArrow) activeArrow.setAttribute("fill", rootStyle.getPropertyValue("--edge-active").trim() || "#f2f2f4");
+    const quietArrow = document.querySelector("#arrow-quiet path");
+    if (quietArrow) quietArrow.setAttribute("fill", rootStyle.getPropertyValue("--edge-quiet").trim() || "#5a585d");
     if (window.__mermaidInit) {
       window.__mermaidInit(theme);
       document.querySelectorAll(".flow-diagram[data-state='rendered'], .flow-diagram[data-state='failed']").forEach((block) => {

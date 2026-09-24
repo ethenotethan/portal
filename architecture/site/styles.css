@@ -26,6 +26,7 @@
   --doc-ink: #c6c3be;
   --warning-ink: #d8d3ca;
   --edge-active: #f2f2f4;
+  --edge-quiet: #5a585d;
   --lane-fill: rgba(242, 240, 235, .025);
   --glow-a: rgba(139, 131, 255, .16);
   --glow-b: rgba(92, 168, 216, .11);
@@ -48,6 +49,7 @@ html[data-theme="light"] {
   --doc-ink: #3a3937;
   --warning-ink: #4a4640;
   --edge-active: #1a1a1c;
+  --edge-quiet: #b4b0a8;
   --lane-fill: rgba(26, 26, 28, .03);
   --glow-a: rgba(139, 131, 255, .14);
   --glow-b: rgba(92, 168, 216, .1);
@@ -323,20 +325,29 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 /* Edge relation names appear only on highlighted edges. */
 .interplay-edge-label { display: none; fill: var(--ink); font: 600 9px var(--mono); letter-spacing: .04em; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; text-anchor: middle; }
 .interplay-edge-label.active { display: block; }
-.interplay-edge.active { marker-end: url(#arrow-active); }
 #interplay-workspace:fullscreen #interplay-scroll { min-height: 0; }
 #interplay-workspace:fullscreen #interplay-graph { height: 100%; }
-.interplay-edge { fill: none; stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-.interplay-edge.structure { stroke: var(--line-strong); opacity: .5; }
-.interplay-edge.lifecycle { stroke: #55545a; stroke-dasharray: 3 5; opacity: .4; }
-.interplay-edge.interplay { stroke: var(--accent); opacity: .8; stroke-width: 1.75; }
-/* A product surface invoking a queried namespace — the caller perspective. */
-.interplay-edge.usage { stroke: #7ec8b0; stroke-dasharray: 5 4; opacity: .55; }
-/* A node crossing an external boundary — gateway, runtime, platform store. */
-.interplay-edge.boundary { stroke: #e0704f; stroke-dasharray: 2 4; opacity: .7; }
-/* The push leg: the transport feeds the bus, the bus taps every subscriber. */
-.interplay-edge.push { stroke: #d16f86; stroke-dasharray: 4 3; opacity: .7; }
-.interplay-edge.push.feed { stroke-dasharray: none; stroke-width: 2.25; opacity: .9; }
+/* Edges are quiet by default: one stroke and one arrowhead for every relationship,
+   so zoomed out the map reads as shape, not as seven colours of wiring. The dash
+   pattern still hints at the kind; selecting a node lights its edges; the legend's
+   "Colour edges by relationship" switch (`.edges-coloured` on the svg) restores the
+   per-kind palette for readers who want it. */
+.interplay-edge { fill: none; stroke: var(--edge-quiet); stroke-width: 1; opacity: .38; vector-effect: non-scaling-stroke; marker-end: url(#arrow-quiet); }
+.interplay-edge.structure { opacity: .3; }
+.interplay-edge.lifecycle { stroke-dasharray: 3 5; }
+.interplay-edge.usage { stroke-dasharray: 5 4; }
+.interplay-edge.boundary { stroke-dasharray: 2 4; }
+.interplay-edge.push { stroke-dasharray: 4 3; }
+.interplay-edge.push.feed { stroke-dasharray: none; stroke-width: 1.5; }
+.interplay-edge.trigger { stroke-dasharray: 1 3; }
+.edges-coloured .interplay-edge.structure { stroke: var(--line-strong); opacity: .5; marker-end: url(#arrow-structure); }
+.edges-coloured .interplay-edge.lifecycle { stroke: #55545a; opacity: .4; marker-end: url(#arrow-lifecycle); }
+.edges-coloured .interplay-edge.interplay { stroke: var(--accent); opacity: .8; stroke-width: 1.75; marker-end: url(#arrow-interplay); }
+.edges-coloured .interplay-edge.usage { stroke: #7ec8b0; opacity: .55; marker-end: url(#arrow-usage); }
+.edges-coloured .interplay-edge.boundary { stroke: #e0704f; opacity: .7; marker-end: url(#arrow-boundary); }
+.edges-coloured .interplay-edge.push { stroke: #d16f86; opacity: .7; marker-end: url(#arrow-push); }
+.edges-coloured .interplay-edge.push.feed { stroke-width: 2.25; opacity: .9; }
+.edges-coloured .interplay-edge.trigger { stroke: #9fd18b; opacity: .5; marker-end: url(#arrow-trigger); }
 /* Feature-module hulls: each product feature is a bounded, labelled region; the
    shared core is drawn a touch warmer so it reads as the factored-out backbone. */
 .interplay-group-rect { fill: rgba(126, 200, 176, .05); stroke: var(--line); stroke-width: 1; }
@@ -346,8 +357,8 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 /* The application boundary: the outermost hull around every code group. */
 .interplay-group.app .interplay-group-rect { fill: rgba(139, 131, 255, .03); stroke: var(--line-strong); stroke-width: 1.25; stroke-dasharray: none; }
 .interplay-group.app .interplay-group-label { opacity: .9; fill: var(--muted); }
-.interplay-edge.active { stroke: var(--ink); opacity: .95; stroke-width: 2.25; }
-.interplay-edge.dimmed { opacity: .07; }
+.interplay-edge.active, .edges-coloured .interplay-edge.active { stroke: var(--ink); opacity: .95; stroke-width: 2.25; marker-end: url(#arrow-active); }
+.interplay-edge.dimmed, .edges-coloured .interplay-edge.dimmed { opacity: .07; }
 .interplay-node { cursor: grab; transition: opacity .18s ease; }
 .interplay-node.dragging { cursor: grabbing; }
 .interplay-node rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; }
@@ -361,7 +372,6 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-node rect.machine { fill: var(--bg); stroke-dasharray: 2 2; }
 .inspector .flow-diagram { margin: 8px 0; }
 /* The first hop: a page's views driving a surface. */
-.interplay-edge.trigger { stroke: #9fd18b; stroke-dasharray: 1 3; opacity: .5; }
 /* The gateway drawn as a bus bar the endpoint boxes sit on. */
 .interplay-node rect.pipe { fill: rgba(224, 112, 79, .07); stroke: #e0704f; stroke-width: 1.5; stroke-dasharray: none; }
 .interplay-node[data-pipe="true"] .node-title { font: 700 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
@@ -378,6 +388,11 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 }
 .legend-toggle::after { content: "▾"; font-size: 10px; opacity: .7; }
 .legend-overlay.collapsed .legend-toggle::after { content: "▸"; }
+.legend-switch { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font: 10px var(--mono); cursor: pointer; }
+.legend-switch input { margin: 0; accent-color: var(--accent); }
+.legend-edges { display: grid; grid-template-columns: auto auto; gap: 5px 14px; margin-top: 8px; font-size: 9px; }
+.legend-edges .legend-swatch { height: 0; border-top: 2px dashed var(--legend-color); background: none; }
+.legend-edges .legend-swatch.solid { border-top-style: solid; }
 .legend-items { display: grid; grid-template-columns: auto auto; gap: 5px 14px; margin-top: 8px; padding: 0; font-size: 9px; }
 .legend-overlay.collapsed .legend-items { display: none; }
 /* A gateway boundary hull: same schema as the group hulls, nested in External systems. */
@@ -463,7 +478,7 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-node.hist { cursor: default; }
 .interplay-node.ghost { opacity: .8; }
 .interplay-node.ghost rect { stroke: #d9a441; stroke-dasharray: 4 4; }
-.interplay-edge.ghost { stroke: #d9a441; stroke-dasharray: 4 4; opacity: .85; marker-end: url(#arrow-ghost); }
+.interplay-edge.ghost, .edges-coloured .interplay-edge.ghost { stroke: #d9a441; stroke-dasharray: 4 4; opacity: .85; marker-end: url(#arrow-ghost); }
 .graph-scroll.travelling .interplay-group.app .interplay-group-rect { stroke: #d9a441; }
 .timeline-overlay {
   position: absolute; left: 14px; bottom: 14px; z-index: 2;
