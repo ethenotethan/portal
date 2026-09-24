@@ -43,6 +43,23 @@ internal struct GatewayCapabilitiesTests {
         #expect(capabilities.capabilityNames.contains("acp.image.prompts"))
     }
 
+    @Test("reads versions nested inside the capability container")
+    internal func parsesNestedVersions() {
+        let capabilities = GatewayCapabilities.from(
+            value: .dictionary([
+                "capabilities": .dictionary([
+                    "gatewayVersion": .string("2.4.1"),
+                    "agentVersion": .string("3.7.0"),
+                ]),
+            ]),
+            method: "gateway.capabilities"
+        )
+
+        #expect(capabilities.gatewayVersion == "2.4.1")
+        #expect(capabilities.agentVersion == "3.7.0")
+        #expect(capabilities.versionDisplay == "2.4.1")
+    }
+
     @Test("scalar version responses preserve their reporting source")
     internal func parsesScalarVersions() {
         let gateway = GatewayCapabilities.from(
