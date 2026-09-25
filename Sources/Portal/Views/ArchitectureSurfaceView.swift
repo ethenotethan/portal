@@ -35,6 +35,11 @@ internal struct ArchitectureSurfaceView: View {
         #endif
         .background(Theme.background)
         .task(id: request.revision) { await model.load() }
+        .task(id: model.revision) {
+            // Switching stored revisions from the Revisions tab reloads the document.
+            guard model.phase == .loaded || model.phase == .failed else { return }
+            await model.load()
+        }
         .sheet(item: $presentedCodeGraph) { codeGraph in
             CodeGraphSurfaceView(request: codeGraph, client: client)
         }
@@ -69,6 +74,9 @@ internal struct ArchitectureSurfaceView: View {
                 }
             }
             Spacer()
+            if model.isViewingOlderRevision, let document = model.document {
+                revisionBadge(document)
+            }
             if let check = model.document?.check {
                 checkBadge(check)
             }
@@ -97,6 +105,23 @@ internal struct ArchitectureSurfaceView: View {
         let invariants = "\(document.summary.invariantsHolding)/\(document.summary.invariantsTotal) invariants hold"
         let gates = document.summary.gates > 0 ? " · \(document.summary.gates) PR gates" : ""
         return "\(document.shortRevision) · \(document.service.origin) · \(document.summary.components) components · \(invariants)\(gates)"
+    }
+
+    /// The header's notice while an older stored revision is on screen.
+    private func revisionBadge(_ document: ArchitectureModelDocument) -> some View {
+        HStack(spacing: 8) {
+            Text("Viewing revision \(document.shortRevision) · not latest")
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .monospaced()
+                .foregroundStyle(Theme.warning)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Theme.warning.opacity(0.14), in: Capsule())
+                .help(document.storedAt.map { "Stored \($0)" } ?? "A stored snapshot, not the current model")
+            Button("Back to latest") { Task { await model.load(revision: nil) } }
+                .portalButton(prominent: false, size: .small)
+                .accessibilityIdentifier("architecture.back-to-latest")
+        }
     }
 
     private func checkBadge(_ check: ArchitectureCheckResult) -> some View {
@@ -188,6 +213,10 @@ internal struct ArchitectureSurfaceView: View {
             ArchitectureGatesSectionView(document: document)
         case .inventory:
             ArchitectureInventorySectionView(document: document)
+        case .logs:
+            ArchitectureLogsSectionView(service: request.service, sinks: document.service.logs, reader: client)
+        case .revisions:
+            ArchitectureRevisionsSectionView(service: request.service, reader: client, surface: model)
         }
     }
 

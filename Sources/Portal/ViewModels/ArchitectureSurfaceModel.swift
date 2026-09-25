@@ -1,12 +1,18 @@
 import Foundation
 import Combine
 
-/// The two calls the architecture surface makes. A protocol so the view model
-/// never names the concrete client and a test can hand it a stub.
+/// The calls the architecture surface makes. A protocol so the view models
+/// never name the concrete client and a test can hand them a stub.
 @MainActor
 internal protocol ArchitectureReading: AnyObject {
     func architectureDescribe(service: String, revision: String?) async throws -> ArchitectureModelDocument
     func architectureCheck(service: String) async throws -> ArchitectureCheckResult
+    func architectureLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail
+    func architectureLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState
+    func architectureHistory(service: String, limit: Int?) async throws -> ArchitectureRevisionHistory
+    func architectureDiff(service: String, from: String?, to: String?) async throws -> ArchitectureRevisionDiff
+    /// Global gateway events, for surfaces that follow `architecture.log`.
+    var architectureEvents: AnyPublisher<GatewayEvent, Never> { get }
 }
 
 /// Drives the architecture surface for one service: fetches the model
@@ -27,9 +33,10 @@ internal final class ArchitectureSurfaceModel: ObservableObject {
     @Published internal private(set) var isChecking = false
     @Published internal private(set) var checkMessage: String?
 
-    private let reader: any ArchitectureReading
-    private let service: String
-    private let revision: String?
+    internal let reader: any ArchitectureReading
+    internal let service: String
+    /// The stored revision being viewed, or nil for the latest.
+    @Published internal private(set) var revision: String?
     /// Drop-stale guard: a slow older load must not overwrite a newer one.
     private var loadGeneration = 0
 
@@ -37,6 +44,11 @@ internal final class ArchitectureSurfaceModel: ObservableObject {
         self.service = service
         self.revision = revision
         self.reader = reader
+    }
+
+    /// Whether the surface shows an older stored revision rather than the latest.
+    internal var isViewingOlderRevision: Bool {
+        revision != nil || document?.isLatest == false
     }
 
     /// Whether the surface can run the service's check from here: a local
@@ -61,6 +73,13 @@ internal final class ArchitectureSurfaceModel: ObservableObject {
             errorMessage = Self.friendly(error)
             phase = .failed
         }
+    }
+
+    /// Show the model at a stored revision (from the Revisions tab), or the
+    /// latest again with nil.
+    internal func load(revision: String?) async {
+        self.revision = revision
+        await load()
     }
 
     internal func runCheck() async {
