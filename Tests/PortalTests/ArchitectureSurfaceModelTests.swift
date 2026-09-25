@@ -75,6 +75,20 @@ internal struct ArchitectureSurfaceModelTests {
         #expect(model.errorMessage == nil)
     }
 
+    @Test("a non-conforming model refused by the gateway (4033) fails with the gateway's words")
+    internal func nonConformingRefusal() async {
+        let reader = StubArchitectureReader()
+        reader.describeError = GatewayError.rpcError(JSONRPCError(
+            code: 4033,
+            message: "model at /x does not conform to hermes.architecture v1.0: extraction.entities: construction 'store:a' has no provenance"
+        ))
+        let model = ArchitectureSurfaceModel(service: "arch:x", reader: reader)
+        await model.load()
+        #expect(model.phase == .failed)
+        #expect(model.errorMessage?.contains("does not conform to hermes.architecture v1.0") == true)
+        #expect(model.errorMessage?.contains("has no provenance") == true)
+    }
+
     @Test("only a local service with a declared check can be checked from here")
     internal func checkAvailability() async {
         let reader = StubArchitectureReader()

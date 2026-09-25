@@ -1661,6 +1661,84 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for rule in (".prov-row", ".prov-wire", ".prov-row.untouched", ".treemap-cell", ".treemap-cell.untouched", ".treemap-dir-rect", ".extraction-bar", "#extraction-untouched"):
             self.assertIn(rule, styles + app)
 
+    # ---- The hermes.architecture contract -------------------------------------------
+
+    def test_contract_model_conforms_and_inventory_speaks_both_names(self) -> None:
+        contract = architecture.load_contract()
+        self.assertEqual([], contract.validate_document(self.model))
+        self.assertEqual(contract.CONTRACT_MAJOR, contract.parse_version(self.model)[0])
+        inventory = self.model["inventory"]
+        self.assertEqual(inventory["swift_files"], inventory["files"])
+        self.assertEqual(inventory["swift_lines"], inventory["lines"])
+        # Every required section the contract names is a section the model carries.
+        for section in contract.REQUIRED_SECTIONS:
+            self.assertIn(section, self.model)
+
+    def test_contract_violation_fails_the_compile_in_strict_mode_and_is_skipped_by_the_history_walk(self) -> None:
+        broken = json.loads(json.dumps(self.model))
+        del broken["extraction"]["entities"][0]
+        broken["ci"]["merge"]["inputs"].append("ghost")
+        with self.assertRaises(architecture.ArchitectureError) as raised:
+            architecture.validate_contract(broken)
+        message = str(raised.exception)
+        self.assertIn("does not conform to hermes.architecture v1.0", message)
+        self.assertIn("has no provenance", message)
+        self.assertIn("ghost", message)
+        # The history walk compiles a deliberately partial shape (no CI plane): the
+        # contract gates published documents, so a lenient compile neither fails
+        # nor records a gap for it — otherwise the walk's head could never equal the model.
+        architecture.FIDELITY.clear()
+        architecture.LENIENT = True
+        try:
+            self.assertIsNone(architecture.validate_contract(broken))
+            self.assertNotIn("contract", architecture.FIDELITY)
+        finally:
+            architecture.LENIENT = False
+            architecture.FIDELITY.clear()
+        self.assertIsNone(architecture.validate_contract(self.model))
+
+    def test_contract_pins_match_and_a_tampered_copy_is_caught(self) -> None:
+        import importlib.util as util
+        import shutil
+        import tempfile
+
+        spec = util.spec_from_file_location("check_contract_pins", ROOT / "scripts/check-contract-pins.py")
+        assert spec is not None and spec.loader is not None
+        pins = util.module_from_spec(spec)
+        spec.loader.exec_module(pins)
+        self.assertEqual([], pins.evaluate(ROOT))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shutil.copytree(ROOT / "architecture/contract", root / "architecture/contract")
+            (root / "architecture/model").mkdir(parents=True)
+            shutil.copy(ROOT / "architecture/model/model.json", root / "architecture/model/model.json")
+            self.assertEqual([], pins.evaluate(root))
+            module = root / "architecture/contract/architecture_contract.py"
+            module.write_text(module.read_text(encoding="utf-8") + "\n# tampered\n", encoding="utf-8")
+            problems = pins.evaluate(root)
+            self.assertTrue(any("architecture_contract.py: sha256" in p for p in problems), problems)
+            shutil.copy(ROOT / "architecture/contract/architecture_contract.py", module)
+            schema = root / "architecture/contract/architecture-document-v1.schema.json"
+            schema.write_text("{}\n", encoding="utf-8")
+            problems = pins.evaluate(root)
+            self.assertTrue(any("does not match the pin" in p and "schema.json" in p for p in problems), problems)
+            self.assertTrue(any("not the module's own schema export" in p for p in problems), problems)
+            shutil.copy(ROOT / "architecture/contract/architecture-document-v1.schema.json", schema)
+            model = json.loads((root / "architecture/model/model.json").read_text(encoding="utf-8"))
+            model["ci"]["merge"]["inputs"] = []
+            (root / "architecture/model/model.json").write_text(json.dumps(model), encoding="utf-8")
+            problems = pins.evaluate(root)
+            self.assertTrue(any("model.json" in p and "merge" in p for p in problems), problems)
+            (root / "architecture/contract/pins.json").unlink()
+            self.assertEqual(["architecture/contract/pins.json: missing"], pins.evaluate(root))
+
+    def test_contract_pin_check_is_a_static_check_gate(self) -> None:
+        checks = {check["command"] for check in self.model["ci"]["static_checks"]}
+        self.assertIn("python3 scripts/check-contract-pins.py", checks)
+        self.assertTrue(any("scripts/check-contract-pins.py" in check["scripts"] for check in self.model["ci"]["static_checks"]))
+        makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+        self.assertIn("python3 scripts/check-contract-pins.py", makefile)
+
     def test_observatory_renderer_is_embedded_for_the_app(self) -> None:
         outputs = architecture.expected_outputs()
         swift = outputs[architecture.OBSERVATORY_ASSETS_PATH]

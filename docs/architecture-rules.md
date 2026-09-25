@@ -108,6 +108,7 @@ floor that its baseline can't be *grown* to silence one is a ratchet
 | `Ratchet / Performance` | Ratchet | Algorithmic work | `perf-baseline.json` | `check-perf-ratchet.py` |
 | `Ratchet / Quality` | Ratchet | Lint debt (baseline only shrinks) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
 | `Ratchet / Constraints` | Ratchet | The declarations behind every other gate may only tighten | `invariants.json`, `config.json`, `.swiftlint.yml`, `ArchitectureTests.swift`, specifications, gate scripts, `CODEOWNERS`, the gate workflows — as they exist on base | `check-constraint-growth.py` |
+| `Pages / Validate model and site` (contract pins) | Static | The vendored hermes.architecture contract matches its pin and the committed model conforms | `architecture/contract/pins.json` | `check-contract-pins.py` |
 
 Within `ratchet.yml`, Warnings and Coverage both need a from-scratch compile (+
 tests for coverage), so a single `Measure (build + test)` job builds ONCE and
@@ -171,6 +172,22 @@ baseline. Two defences, one mechanical and one human:
   changes; the mechanical half does not depend on it.
 
 The rest of this section details each posture's benchmark.
+
+### The architecture contract (why the contract pin check exists)
+
+The architecture model Portal ships (`architecture/model/model.json`) is served by
+Harness to every client over `architecture.describe` and rendered natively in
+Portal. Its shape is a contract, **hermes.architecture v1**, vendored at
+`architecture/contract/` from Harness and pinned by digest. Three things keep it
+honest: the compiler validates its own output on every build (a non-conforming
+model cannot be written or accepted by `--check`); `scripts/check-contract-pins.py`
+fails the `Validate model and site` job when the vendored copy or its schema
+export drifts from `pins.json`, when the export is not the module's own, or when
+the committed model does not conform; and the Constraints ratchet guards the
+check script. A contract change is made in Harness and vendored here with a pin
+bump in the same PR — never one side alone. Required sections (`components`,
+`interplay`, `extraction`, `ci`, `inventory`, `evidence_metadata`) are what
+makes a service conforming; the gateway refuses anything less with error 4033.
 
 ## The metric ratchet (self-improving benchmarks)
 

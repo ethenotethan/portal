@@ -150,16 +150,29 @@ internal struct ArchitectureModelSummary: Hashable {
 internal struct ArchitectureContractRef: Hashable {
     internal let name: String
     internal let version: String
+    internal let major: Int
+    internal let minor: Int
+    internal let schemaDigest: String?
 
-    internal static let unknown = ArchitectureContractRef(name: "hermes.architecture", version: "")
+    internal static let unknown = ArchitectureContractRef(name: "hermes.architecture", version: "", major: 0, minor: 0, schemaDigest: nil)
 
-    internal var major: Int {
-        Int(version.split(separator: ".").first.map(String.init) ?? "") ?? 0
-    }
+    /// Whether the gateway said which contract it validated against.
+    internal var isKnown: Bool { major > 0 }
+
+    /// `hermes.architecture v1.0`, or `unvalidated` for an older gateway.
+    internal var caption: String { isKnown ? "\(name) v\(version)" : "unvalidated (gateway predates the contract)" }
 
     internal static func decodeGatewayValue(_ value: AnyCodable?) -> ArchitectureContractRef {
         guard let d = value?.dictionaryValue, let name = d["name"]?.stringValue else { return .unknown }
-        return ArchitectureContractRef(name: name, version: d["version"]?.stringValue ?? "")
+        let version = d["version"]?.stringValue ?? ""
+        let parts = version.split(separator: ".").map { Int($0) ?? 0 }
+        return ArchitectureContractRef(
+            name: name,
+            version: version,
+            major: d["major"]?.intValue ?? parts.first ?? 0,
+            minor: d["minor"]?.intValue ?? (parts.count > 1 ? parts[1] : 0),
+            schemaDigest: d["schema_digest"]?.stringValue
+        )
     }
 }
 
@@ -241,6 +254,7 @@ internal struct ArchitectureModelDocument: Hashable {
         lines.append("\(title) · schema \(summary.schemaVersion.isEmpty ? "?" : summary.schemaVersion)")
         lines.append("\(service.modelPath) at \(revision) (\(source))")
         if let storedAt { lines.append("stored \(storedAt)") }
+        lines.append("contract \(contract.caption)")
         return lines.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
