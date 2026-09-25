@@ -114,7 +114,10 @@ jobs:
       - name: Set up Hermes Agent
         working-directory: hermes-agent
         run: |
-          python3.11 -m venv .venv
+          # Hermes Agent supports Python 3.14 at runtime. Its older-Python
+          # metadata is intentionally dependency-free so existing installs can
+          # reach the updater, and therefore is not a runnable gateway env.
+          python3.14 -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
           python -m pip install -e '.[messaging,cron]'
