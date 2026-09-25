@@ -5095,18 +5095,26 @@ def load_contract() -> Any:
 
 
 def validate_contract(model: dict[str, Any]) -> None:
-    """Fail the build (or, in the history walk, record the gap) when the model
-    does not conform to the contract."""
+    """Fail the build when the model does not conform to the contract.
+
+    Strict mode only. The history walk (LENIENT) compiles a deliberately partial
+    shape — no CI plane, curated files from today over an old tree — that is
+    not a published document; the contract gates what `make architecture`
+    writes and `--check` accepts, and the gateway re-validates what it serves.
+    """
+    if LENIENT:
+        return
+    if not CONTRACT_PATH.is_file():
+        raise ArchitectureError(f"contract module missing at {relative(CONTRACT_PATH)}")
     contract = load_contract()
     problems = contract.validate_document(model)
     if not problems:
         return
     shown = problems[:20]
     more = f" (+{len(problems) - len(shown)} more)" if len(problems) > len(shown) else ""
-    gate(
-        "contract",
+    raise ArchitectureError(
         f"model does not conform to {contract.CONTRACT_NAME} v{contract.CONTRACT_VERSION}: "
-        + "; ".join(shown) + more,
+        + "; ".join(shown) + more
     )
 
 

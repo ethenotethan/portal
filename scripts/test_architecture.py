@@ -1674,7 +1674,7 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for section in contract.REQUIRED_SECTIONS:
             self.assertIn(section, self.model)
 
-    def test_contract_violation_fails_the_compile_in_strict_mode_and_is_recorded_leniently(self) -> None:
+    def test_contract_violation_fails_the_compile_in_strict_mode_and_is_skipped_by_the_history_walk(self) -> None:
         broken = json.loads(json.dumps(self.model))
         del broken["extraction"]["entities"][0]
         broken["ci"]["merge"]["inputs"].append("ghost")
@@ -1684,11 +1684,14 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn("does not conform to hermes.architecture v1.0", message)
         self.assertIn("has no provenance", message)
         self.assertIn("ghost", message)
+        # The history walk compiles a deliberately partial shape (no CI plane): the
+        # contract gates published documents, so a lenient compile neither fails
+        # nor records a gap for it — otherwise the walk's head could never equal the model.
         architecture.FIDELITY.clear()
         architecture.LENIENT = True
         try:
-            architecture.validate_contract(broken)
-            self.assertEqual(1, len(architecture.FIDELITY["contract"]))
+            self.assertIsNone(architecture.validate_contract(broken))
+            self.assertNotIn("contract", architecture.FIDELITY)
         finally:
             architecture.LENIENT = False
             architecture.FIDELITY.clear()
