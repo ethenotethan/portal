@@ -6237,11 +6237,11 @@
         "enclosing_type": "ArchitectureSurfaceView",
         "evidence": {
           "excerpt": "Button(model.isChecking ? \"Checking…\" : \"Run check\") { Task { await model.runCheck() } }",
-          "line": 58,
+          "line": 57,
           "path": "Sources/Portal/Views/ArchitectureSurfaceView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-888937d138ef",
+        "id": "task-site-195e6bc11ec3",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6253,11 +6253,11 @@
         "enclosing_type": "ArchitectureSurfaceView",
         "evidence": {
           "excerpt": "Button(\"Try Again\") { Task { await model.load() } }",
-          "line": 111,
+          "line": 110,
           "path": "Sources/Portal/Views/ArchitectureSurfaceView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-68163f55328c",
+        "id": "task-site-b1a9c756ebce",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9097,7 +9097,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 148,
+            "line": 147,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9109,7 +9109,7 @@
         {
           "baselined": 133,
           "evidence": {
-            "line": 153,
+            "line": 152,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9123,7 +9123,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 169,
+            "line": 168,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9137,7 +9137,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 182,
+            "line": 181,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 4,
@@ -9151,7 +9151,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 197,
+            "line": 196,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9165,7 +9165,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 208,
+            "line": 207,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 28,
@@ -9177,7 +9177,7 @@
         {
           "baselined": 3,
           "evidence": {
-            "line": 263,
+            "line": 262,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9192,7 +9192,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 286,
+            "line": 285,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9206,7 +9206,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 303,
+            "line": 302,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9220,7 +9220,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 318,
+            "line": 317,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9234,7 +9234,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 346,
+            "line": 345,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9246,7 +9246,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 361,
+            "line": 360,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 2,
@@ -9260,7 +9260,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 385,
+            "line": 384,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9274,7 +9274,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 408,
+            "line": 407,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 3,
@@ -12318,7 +12318,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 6610,
+      "line_count": 6603,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -12752,7 +12752,7 @@
       }
     },
     {
-      "declaration_count": 342,
+      "declaration_count": 340,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -12810,8 +12810,6 @@
         "ArchitectureModelDocument",
         "ArchitectureModelSummary",
         "ArchitectureNodeKind",
-        "ArchitectureObservatoryAssets",
-        "ArchitecturePanelPage",
         "ArchitectureRatchet",
         "ArchitectureRatchetEntry",
         "ArchitectureRequest",
@@ -13099,7 +13097,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 94,
+      "file_count": 92,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -13110,8 +13108,6 @@
         "Sources/Portal/Models/ArchitectureGatesDocument.swift",
         "Sources/Portal/Models/ArchitectureInventoryDocument.swift",
         "Sources/Portal/Models/ArchitectureModelDocument.swift",
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
-        "Sources/Portal/Models/ArchitecturePanelPage.swift",
         "Sources/Portal/Models/ArchitectureSystemMapDocument.swift",
         "Sources/Portal/Models/ArtifactQueries.swift",
         "Sources/Portal/Models/BlueprintSpec.swift",
@@ -13199,7 +13195,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 23451,
+      "line_count": 17994,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13405,7 +13401,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 10339,
+      "line_count": 10343,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14752,7 +14748,6 @@
       "authority": "observed",
       "description": "References 3 declaration(s) owned by app-shell.",
       "evidence": [
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ButtonTheme.swift",
         "Sources/Portal/Models/CelebrationPreferences.swift",
         "Sources/Portal/Models/ToolbarIconTheme.swift"
@@ -14765,7 +14760,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 7
+      "weight": 6
     },
     {
       "authority": "observed",
@@ -14814,7 +14809,6 @@
       "description": "References 6 declaration(s) owned by backend-contract.",
       "evidence": [
         "Sources/Portal/Models/ApprovalQueue.swift",
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ChatMessage.swift",
         "Sources/Portal/Models/DomainProtocols.swift"
       ],
@@ -14829,7 +14823,7 @@
       ],
       "target": "backend-contract",
       "type": "references",
-      "weight": 10
+      "weight": 9
     },
     {
       "authority": "observed",
@@ -14906,7 +14900,6 @@
       "authority": "observed",
       "description": "References 12 declaration(s) owned by local-services.",
       "evidence": [
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ArtifactQueries.swift",
         "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
@@ -14917,7 +14910,8 @@
         "Sources/Portal/Models/LocalDiscussion.swift",
         "Sources/Portal/Models/LocalDiscussionBriefing.swift",
         "Sources/Portal/Models/Quiz/FlashcardModels.swift",
-        "Sources/Portal/Models/SavedGateway.swift"
+        "Sources/Portal/Models/SavedGateway.swift",
+        "Sources/Portal/Models/SentenceChunker.swift"
       ],
       "source": "domain-models",
       "symbols": [
@@ -14936,7 +14930,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 27
+      "weight": 26
     },
     {
       "authority": "observed",
@@ -15477,7 +15471,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 89 declaration(s) owned by domain-models.",
+      "description": "References 88 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/ArchitectureExtractionLayout.swift",
@@ -15509,7 +15503,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 112
+      "weight": 111
     },
     {
       "authority": "observed",
@@ -16015,7 +16009,6 @@
       "authority": "observed",
       "description": "References 7 declaration(s) owned by chat-ui.",
       "evidence": [
-        "Sources/Portal/Views/ArchitectureSurfaceView.swift",
         "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
@@ -16036,7 +16029,7 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 15
+      "weight": 14
     },
     {
       "authority": "observed",
@@ -25538,68 +25531,6 @@
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/ArchitectureModelDocument.swift",
-        "semantic_citations": 0,
-        "touched": false
-      },
-      {
-        "citations": 0,
-        "component": "domain-models",
-        "declaration_count": 1,
-        "declarations": [
-          {
-            "kind": "enum",
-            "line": 9,
-            "name": "ArchitectureObservatoryAssets",
-            "passes": []
-          }
-        ],
-        "line_count": 5401,
-        "mapped_declarations": 0,
-        "passes": [],
-        "path": "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
-        "semantic_citations": 0,
-        "touched": false
-      },
-      {
-        "citations": 0,
-        "component": "domain-models",
-        "declaration_count": 5,
-        "declarations": [
-          {
-            "kind": "enum",
-            "line": 13,
-            "name": "ArchitecturePanelPage",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 19,
-            "name": "html",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 28,
-            "name": "html",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 45,
-            "name": "scriptSafe",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 52,
-            "name": "baseURL",
-            "passes": []
-          }
-        ],
-        "line_count": 56,
-        "mapped_declarations": 0,
-        "passes": [],
-        "path": "Sources/Portal/Models/ArchitecturePanelPage.swift",
         "semantic_citations": 0,
         "touched": false
       },
@@ -39794,36 +39725,36 @@
           },
           {
             "kind": "func",
-            "line": 55,
+            "line": 49,
             "name": "load",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 73,
+            "line": 66,
             "name": "runCheck",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 88,
+            "line": 81,
             "name": "checkSummary",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 100,
+            "line": 93,
             "name": "seconds",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 107,
+            "line": 100,
             "name": "friendly",
             "passes": []
           }
         ],
-        "line_count": 113,
+        "line_count": 106,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/ViewModels/ArchitectureSurfaceModel.swift",
@@ -44676,12 +44607,12 @@
           },
           {
             "kind": "func",
-            "line": 46,
+            "line": 42,
             "name": "available",
             "passes": []
           }
         ],
-        "line_count": 52,
+        "line_count": 45,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/Architecture/ArchitectureSurfaceTab.swift",
@@ -44830,11 +44761,11 @@
       {
         "citations": 2,
         "component": "shared-ui",
-        "declaration_count": 5,
+        "declaration_count": 6,
         "declarations": [
           {
             "kind": "struct",
-            "line": 9,
+            "line": 8,
             "name": "ArchitectureSurfaceView",
             "passes": [
               "swift.task.structured"
@@ -44842,30 +44773,36 @@
           },
           {
             "kind": "func",
-            "line": 78,
+            "line": 77,
             "name": "checkBadge",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 120,
+            "line": 121,
             "name": "loadedContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 143,
+            "line": 135,
+            "name": "tabbedContent",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 156,
             "name": "sectionContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 158,
+            "line": 169,
             "name": "stateMessage",
             "passes": []
           }
         ],
-        "line_count": 185,
+        "line_count": 196,
         "mapped_declarations": 1,
         "passes": [
           "swift.task.structured"
@@ -58472,7 +58409,7 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 289
+          "total": 287
         },
         "extension": {
           "mapped": 18,
@@ -58480,7 +58417,7 @@
         },
         "func": {
           "mapped": 402,
-          "total": 3030
+          "total": 3027
         },
         "protocol": {
           "mapped": 1,
@@ -58492,13 +58429,13 @@
         }
       },
       "citations": 1208,
-      "declarations": 4376,
+      "declarations": 4371,
       "entities": 155,
       "entities_with_origin": 155,
-      "files": 393,
+      "files": 391,
       "functions": {
         "mapped": 402,
-        "total": 3030
+        "total": 3027
       },
       "mapped_declarations": 594,
       "passes": 50,
@@ -58506,9 +58443,9 @@
       "touched_files": 150,
       "types": {
         "mapped": 192,
-        "total": 1346
+        "total": 1344
       },
-      "untouched_files": 243
+      "untouched_files": 241
     }
   },
   "interplay": {
@@ -74132,7 +74069,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 133
+        "type_count": 131
       },
       {
         "components": [],
@@ -78045,12 +77982,12 @@
     "unattributed_triggers": 447
   },
   "inventory": {
-    "assigned_files": 391,
-    "declarations": 1212,
-    "files": 391,
-    "lines": 119950,
-    "swift_files": 391,
-    "swift_lines": 119950,
+    "assigned_files": 389,
+    "declarations": 1210,
+    "files": 389,
+    "lines": 114490,
+    "swift_files": 389,
+    "swift_lines": 114490,
     "unassigned_files": []
   },
   "layers": [
@@ -78082,7 +78019,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "f12b7440a7aa71a1033ef5c3207cc1ac2ab0bdcdfbf6fd9ab1845495667e1a16",
+  "source_tree_sha256": "fd6c3dc0cbed1db5ec4a6998e9687752c4189eaa7734d2fd21edd6085d7a069e",
   "stores": {
     "by_persistence": {
       "defaults": 6,

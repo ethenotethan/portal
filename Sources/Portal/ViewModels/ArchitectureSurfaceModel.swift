@@ -10,8 +10,8 @@ internal protocol ArchitectureReading: AnyObject {
 }
 
 /// Drives the architecture surface for one service: fetches the model
-/// (`architecture.describe`), assembles the observatory page around it, and
-/// runs the service's own `--check` on request (`architecture.check`).
+/// (`architecture.describe`) for the native section renderers, and runs the
+/// service's own `--check` on request (`architecture.check`).
 @MainActor
 internal final class ArchitectureSurfaceModel: ObservableObject {
     internal enum Phase: Equatable {
@@ -23,7 +23,6 @@ internal final class ArchitectureSurfaceModel: ObservableObject {
 
     @Published internal private(set) var phase: Phase = .idle
     @Published internal private(set) var document: ArchitectureModelDocument?
-    @Published internal private(set) var pageHTML = ""
     @Published internal private(set) var errorMessage: String?
     @Published internal private(set) var isChecking = false
     @Published internal private(set) var checkMessage: String?
@@ -38,11 +37,6 @@ internal final class ArchitectureSurfaceModel: ObservableObject {
         self.service = service
         self.revision = revision
         self.reader = reader
-    }
-
-    /// The base URL the page's relative links resolve against.
-    internal var baseURL: URL? {
-        ArchitecturePanelPage.baseURL(repository: document?.service.repository)
     }
 
     /// Whether the surface can run the service's check from here: a local
@@ -61,7 +55,6 @@ internal final class ArchitectureSurfaceModel: ObservableObject {
             let fetched = try await reader.architectureDescribe(service: service, revision: revision)
             guard generation == loadGeneration else { return }
             document = fetched
-            pageHTML = ArchitecturePanelPage.html(modelJSON: fetched.modelJSON)
             phase = .loaded
         } catch {
             guard generation == loadGeneration else { return }
