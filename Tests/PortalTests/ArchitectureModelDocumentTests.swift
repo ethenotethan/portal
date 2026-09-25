@@ -99,6 +99,22 @@ internal struct ArchitectureModelDocumentTests {
         #expect(conforming.model.dictionaryValue?["title"]?.stringValue == "Portal Architecture")
     }
 
+    @Test("an architecture request carries the service's code graph and turns it into a code-graph request")
+    internal func requestCarriesCodeGraph() {
+        let plain = ArchitectureRequest(service: "arch:portal", label: "Portal", revision: "abc")
+        #expect(plain.codeGraph == nil)
+        #expect(plain.codeGraphRequest == nil)
+        #expect(plain.id == "arch:portal")
+        let withGraph = ArchitectureRequest(
+            service: "launchd:demo", label: "Demo", revision: "abc",
+            codeGraph: CronServiceCodeGraphRef(ref: "launchd:demo", digest: "d1")
+        )
+        let request = withGraph.codeGraphRequest
+        #expect(request?.service == "launchd:demo")
+        #expect(request?.label == "Demo")
+        #expect(request?.digest == "d1")
+    }
+
     @Test("a GitHub service names its repository and ref as the origin; a digest revision stays whole")
     internal func githubOrigin() throws {
         let json = """

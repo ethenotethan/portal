@@ -293,10 +293,25 @@ internal struct ArchitectureModelDocument: Hashable {
 
 /// A request to present a service's architecture model, handed from a graph
 /// node (the inline dock or the expanded inspector) to the surface that shows it.
+/// Carries the service's code-graph reference when it has one, so the surface
+/// can offer the code graph from inside the architecture artifact.
 internal struct ArchitectureRequest: Identifiable, Hashable {
     internal let service: String
     internal let label: String
     internal let revision: String
+    internal let codeGraph: CronServiceCodeGraphRef?
+
+    internal init(service: String, label: String, revision: String, codeGraph: CronServiceCodeGraphRef? = nil) {
+        self.service = service
+        self.label = label
+        self.revision = revision
+        self.codeGraph = codeGraph
+    }
 
     internal var id: String { service }
+
+    /// The code-graph request for this service, when the node advertised one.
+    internal var codeGraphRequest: CodeGraphRequest? {
+        codeGraph.map { CodeGraphRequest(service: $0.ref, label: label, digest: $0.digest) }
+    }
 }

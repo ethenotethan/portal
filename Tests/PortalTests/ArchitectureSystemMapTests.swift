@@ -194,6 +194,39 @@ internal struct ArchitectureSystemMapDocumentTests {
 
 @Suite("Architecture system map — hull tree")
 internal struct ArchitectureHullTreeTests {
+    @Test("the application hull is named after the model's title; pages and clusters keep their own labels")
+    internal func applicationLabelFollowsTheTitle() throws {
+        let value = try JSONDecoder().decode(AnyCodable.self, from: Data(fixtureJSON.utf8))
+        let section = try #require(value.dictionaryValue)
+        let camera = ArchitectureHullTree.build(from: ArchitectureSystemMapDocument.decode(section, title: "Home Awareness Camera Service"))
+        #expect(camera.hull("hull:application")?.label == "Home Awareness Camera Service")
+        #expect(camera.hull("hull:page:chat")?.label == "Main chat view")
+        #expect(camera.hull("hull:page:shared")?.label == "Shared core")
+        #expect(camera.hull("hull:cluster:c-gw")?.label == "GatewayClient")
+        #expect(camera.hull("hull:boundary:platform-storage")?.label == "Platform storage")
+        #expect(camera.hull("hull:gateway:external:harness-gateway")?.label == "Harness gateway")
+        // A section decoded on its own has no title: the hull says "Application", never "Portal".
+        let bare = ArchitectureHullTree.build(from: ArchitectureSystemMapDocument.decode(section))
+        #expect(bare.hull("hull:application")?.label == "Application")
+        #expect(ArchitectureSystemMapDocument.decode(section, title: "   ").applicationLabel == "Application")
+        // No hull label anywhere is hard-coded to Portal.
+        let labels = camera.hulls.values.map(\.label)
+        #expect(!labels.contains { $0.localizedCaseInsensitiveContains("portal") })
+    }
+
+    @Test("decoding from a whole document takes the model's title for the application hull")
+    internal func titleFromDocument() throws {
+        let envelope = """
+        {"service": {"id": "arch:cam", "label": "Camera", "description": "", "source": "local", "model_path": "m.json", "check_configured": false},
+         "revision": "r1", "source": "local", "summary": {"title": "Camera Service Architecture"},
+         "model": {"schema_version": "1.0.0", "title": "Camera Service Architecture", "interplay": \(fixtureJSON)}}
+        """
+        let document = try ArchitectureModelDocument.decodeGatewayValue(try JSONDecoder().decode(AnyCodable.self, from: Data(envelope.utf8)))
+        let map = try #require(ArchitectureSystemMapDocument.decode(document: document))
+        #expect(map.title == "Camera Service Architecture")
+        #expect(ArchitectureHullTree.build(from: map).hull("hull:application")?.label == "Camera Service Architecture")
+    }
+
     @Test("places every construction in exactly one hull path and orders the roots")
     internal func buildsTree() throws {
         let map = try decodeFixture()

@@ -8,12 +8,20 @@ import SwiftUI
 @MainActor
 internal struct ArchitectureSurfaceView: View {
     private let request: ArchitectureRequest
+    private let client: GatewayClient
+    /// How Done closes the surface when it is hosted as a layer rather than a
+    /// presentation (the environment's dismiss does nothing there).
+    private let onDismiss: (() -> Void)?
     @StateObject private var model: ArchitectureSurfaceModel
     @State private var tab: ArchitectureSurfaceTab = .systemMap
+    /// The service's code graph, presented over the surface from its header.
+    @State private var presentedCodeGraph: CodeGraphRequest?
     @Environment(\.dismiss) private var dismiss
 
-    internal init(request: ArchitectureRequest, client: GatewayClient) {
+    internal init(request: ArchitectureRequest, client: GatewayClient, onDismiss: (() -> Void)? = nil) {
         self.request = request
+        self.client = client
+        self.onDismiss = onDismiss
         _model = StateObject(wrappedValue: ArchitectureSurfaceModel(service: request.service, reader: client))
     }
 
@@ -28,6 +36,17 @@ internal struct ArchitectureSurfaceView: View {
         #endif
         .background(Theme.background)
         .task(id: request.revision) { await model.load() }
+        .sheet(item: $presentedCodeGraph) { codeGraph in
+            CodeGraphSurfaceView(request: codeGraph, client: client)
+        }
+    }
+
+    private func close() {
+        if let onDismiss {
+            onDismiss()
+        } else {
+            dismiss()
+        }
     }
 
     private var header: some View {
@@ -60,7 +79,13 @@ internal struct ArchitectureSurfaceView: View {
                     .disabled(model.isChecking)
                     .help("Run the service's own --check in its checkout")
             }
-            Button("Done") { dismiss() }
+            if let codeGraph = request.codeGraphRequest {
+                Button("Code graph") { presentedCodeGraph = codeGraph }
+                    .portalButton(prominent: false, size: .small)
+                    .help("Open this service's code knowledge graph: modules, symbols and their relationships")
+                    .accessibilityIdentifier("architecture.code-graph")
+            }
+            Button("Done") { close() }
                 .portalButton(prominent: true, size: .small)
         }
         .padding(.horizontal, 16)
