@@ -145,9 +145,9 @@ Architecture Observatory's own renderer (`ArchitecturePanelPage`). Contract:
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `architecture.describe` | `service` (graph id `arch:<id>`), `revision?` | `{service, revision, source, stored_at, summary, check, model}` — the current model, read now and snapshotted, or a stored revision. **4029** missing service, **4030** unknown, **4032** model missing/invalid, **4404** no such revision |
+| `architecture.describe` | `service` (graph id `arch:<id>`), `revision?` | `{service, revision, source, stored_at, summary, check, contract, model}` — the current model, read now and snapshotted, or a stored revision; `contract` is `{name, version, major, minor, schema_digest}` of the hermes.architecture contract the gateway validated the model against (vendored in Portal at `architecture/contract/`). **4029** missing service, **4030** unknown, **4032** model missing/invalid, **4033** model does not conform to the contract (message lists the problems), **4404** no such revision |
 | `architecture.check` | `service` | Runs the manifest's `check` in the service root (local only) → `{service, check: {status: passed\|failed\|unavailable, exit_code?, output?, reason?, revision, checked_at, duration_s}}` |
-| `architecture.list` | — | Every manifest service with its `status` (the node annotation) — not called by Portal yet |
+| `architecture.list` | — | Every manifest service with its `status` (the node annotation, which now also carries `conforming` and `contract`) — not called by Portal yet |
 | `architecture.history` | `service` | Stored revisions (genesis first) and recorded check runs — not called by Portal yet |
 
 `cron.graph` service nodes declared by a manifest carry an `architecture`

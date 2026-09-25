@@ -1,14 +1,15 @@
 import SwiftUI
 
-/// A service's architecture model, presented natively: the Architecture
-/// Observatory renderer (system map, invariants, data stores, externals, CI
-/// gates) hosting the model the gateway returned for that service, with the
-/// revision, the invariant tally and the last `--check` in the header. Opened
-/// from a service node on the dataflow graph.
+/// A service's architecture model, presented natively: one tab per contract
+/// section (system map, extraction map, CI gates, inventory) rendered from the
+/// decoded document, plus the Architecture Observatory web renderer over the
+/// same document, with the revision, the invariant tally and the last `--check`
+/// in the header. Opened from a service node on the dataflow graph.
 @MainActor
 internal struct ArchitectureSurfaceView: View {
     private let request: ArchitectureRequest
     @StateObject private var model: ArchitectureSurfaceModel
+    @State private var tab: ArchitectureSurfaceTab = .systemMap
     @Environment(\.dismiss) private var dismiss
 
     internal init(request: ArchitectureRequest, client: GatewayClient) {
@@ -97,8 +98,9 @@ internal struct ArchitectureSurfaceView: View {
                 showsProgress: true
             )
         case .loaded:
-            InlineHTMLView(html: model.pageHTML, baseURL: model.baseURL)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if let document = model.document {
+                loadedContent(document)
+            }
         case .failed:
             VStack(spacing: 14) {
                 stateMessage(
@@ -109,6 +111,47 @@ internal struct ArchitectureSurfaceView: View {
                 Button("Try Again") { Task { await model.load() } }
                     .portalButton(prominent: false, size: .small)
             }
+        }
+    }
+
+    /// The tab strip over the section the tab renders. Only tabs whose section
+    /// the document carries are offered; a selection that vanished with a
+    /// reload falls back to the first available tab.
+    private func loadedContent(_ document: ArchitectureModelDocument) -> some View {
+        let tabs = ArchitectureSurfaceTab.available(for: document)
+        let current = tabs.contains(tab) ? tab : (tabs.first ?? .web)
+        return VStack(spacing: 0) {
+            HStack {
+                ThemedSegmentedControl(selection: $tab, options: tabs, label: { $0.title }, icon: { $0.icon })
+                Spacer()
+                if !document.missingRequiredSections.isEmpty {
+                    Text("Non-conforming: missing \(document.missingRequiredSections.map(\.rawValue).joined(separator: ", "))")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.warning)
+                        .help("The hermes.architecture contract requires these sections; the gateway served the document unvalidated.")
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            Divider().background(Theme.border)
+            sectionContent(current, document: document)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private func sectionContent(_ tab: ArchitectureSurfaceTab, document: ArchitectureModelDocument) -> some View {
+        switch tab {
+        case .systemMap:
+            ArchitectureSystemMapSectionView(document: document)
+        case .extraction:
+            ArchitectureExtractionSectionView(document: document)
+        case .gates:
+            ArchitectureGatesSectionView(document: document)
+        case .inventory:
+            ArchitectureInventorySectionView(document: document)
+        case .web:
+            InlineHTMLView(html: model.pageHTML, baseURL: model.baseURL)
         }
     }
 

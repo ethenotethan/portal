@@ -150,6 +150,38 @@ internal struct CronServiceArchitectureRef: Hashable, Codable {
     internal let revision: String
     internal let checkStatus: String?
     internal let snapshots: Int
+    /// Whether the model conforms to the hermes.architecture contract the
+    /// gateway validates against; `.unknown` from a gateway that predates it.
+    internal var conformance: CronServiceArchitectureConformance = .unknown
+    /// The contract version the gateway validated against (`1.0`), when it said.
+    internal var contractVersion: String? = nil // swiftlint:disable:this implicit_optional_initialization
+
+    internal init(ref: String, source: String, revision: String, checkStatus: String?, snapshots: Int,
+                  conformance: CronServiceArchitectureConformance = .unknown, contractVersion: String? = nil) {
+        self.ref = ref
+        self.source = source
+        self.revision = revision
+        self.checkStatus = checkStatus
+        self.snapshots = snapshots
+        self.conformance = conformance
+        self.contractVersion = contractVersion
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case ref, source, revision, checkStatus, snapshots, conformance, contractVersion
+    }
+
+    internal init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ref = try container.decode(String.self, forKey: .ref)
+        source = try container.decode(String.self, forKey: .source)
+        revision = try container.decode(String.self, forKey: .revision)
+        checkStatus = try container.decodeIfPresent(String.self, forKey: .checkStatus)
+        snapshots = try container.decode(Int.self, forKey: .snapshots)
+        // Older local snapshots predate the contract: absent means unknown, not an error.
+        conformance = try container.decodeIfPresent(CronServiceArchitectureConformance.self, forKey: .conformance) ?? .unknown
+        contractVersion = try container.decodeIfPresent(String.self, forKey: .contractVersion)
+    }
 
     internal static func decodeGatewayValue(_ value: AnyCodable) -> CronServiceArchitectureRef? {
         guard let d = value.dictionaryValue, let ref = d["ref"]?.stringValue, !ref.isEmpty else { return nil }
@@ -158,8 +190,26 @@ internal struct CronServiceArchitectureRef: Hashable, Codable {
             source: d["source"]?.stringValue ?? "local",
             revision: d["revision"]?.stringValue ?? "",
             checkStatus: d["check"]?.dictionaryValue?["status"]?.stringValue,
-            snapshots: d["snapshots"]?.intValue ?? 0
+            snapshots: d["snapshots"]?.intValue ?? 0,
+            conformance: CronServiceArchitectureConformance(gatewayValue: d["conforming"]),
+            contractVersion: d["contract"]?.dictionaryValue?["version"]?.stringValue
         )
+    }
+}
+
+/// What the gateway said about a model against the hermes.architecture contract.
+internal enum CronServiceArchitectureConformance: String, Hashable, Codable {
+    /// The gateway predates the contract, or did not say.
+    case unknown
+    case conforming
+    case nonConforming
+
+    internal init(gatewayValue: AnyCodable?) {
+        switch gatewayValue?.boolValue {
+        case .some(true): self = .conforming
+        case .some(false): self = .nonConforming
+        case .none: self = .unknown
+        }
     }
 }
 

@@ -99,6 +99,18 @@ The view does not read branch protection: a gate here is a job that runs on pull
 
 The model this compiler emits is also what Portal and Harness exchange for any service. A service that conforms ships a compiler that writes `architecture/model/model.json` and a `--check` that fails on drift; a manifest under `~/.hermes/services/architecture/<id>.json` (a local checkout that is never pushed, or a GitHub repository at a ref) tells Harness where to read it. Harness snapshots the model per revision, runs the check on demand and serves it over `architecture.*`; the service appears on Portal's dataflow graph with its source files, and **View architecture** on the node opens the model in this very renderer. To make that possible the compiler also emits `Sources/Portal/Models/ArchitectureObservatoryAssets.swift`, the site's `index.html`, `app.js` and `styles.css` as Swift constants, so the in-app page and the published site are the same code; `--check` fails when they drift. Portal is the first registered service. Contract: `harness/docs/api/architecture.md`.
 
+## The contract (`hermes.architecture` v1)
+
+The model is not "whatever `app.js` happens to read". It conforms to the **hermes.architecture** contract, the document contract between every architecture compiler, the Harness gateway that validates and serves documents (`architecture.describe`), and every renderer of them (Portal natively, this observatory on the web). The contract lives in `architecture/contract/`:
+
+- `architecture_contract.py` — the contract as code: the schema (a dependency-free JSON Schema subset) plus the cross-reference rules (unique ids; edges end on nodes; flow steps end on the map; every construction on the map has an extraction provenance and vice versa; origins cite analysed files and declared passes; gate wiring references jobs, triggers or the merge gate; the merge gate has at least one input). It is **vendored byte-for-byte** from Harness (`tui_gateway/architecture_contract.py`).
+- `architecture-document-v1.schema.json` — the module's own JSON Schema export, for tooling and readers.
+- `pins.json` — the sha256 of both, pinned.
+
+**Required sections** are `components`, `interplay` (the system map), `extraction` (where every construction came from), `ci` (the gates that defend the model), `inventory` and `evidence_metadata`. A service either proves where its map came from and what defends it, or it is not a conforming service; there is no tier that gets the map without the evidence. `stores`, `externals`, `layers`, `edges` and `behavior` are optional. `schema_version` is the contract version: major 1 is what every consumer speaks, minors add optional fields, unknown fields are ignored.
+
+Three gates hold the contract in this repository. The compiler validates its own output as the last step of every compile, so `make architecture` refuses to write a non-conforming model and `--check` refuses to accept one (the history walk's `--snapshot` shapes are not documents and are not gated). `scripts/check-contract-pins.py` (a static check in the `Validate model and site` job) fails when the vendored module or its export drifts from the pin, when the export is not the module's own, or when the committed model does not conform. And the constraint ratchet guards the check script itself. Changing the contract is a lock-step act: vendor the new copy and bump the pin here in the same PR that changes it in Harness, so the gateway and its clients never speak different versions unknowingly.
+
 ## Local development
 
 ```bash

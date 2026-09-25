@@ -56,6 +56,49 @@ internal struct ArchitectureModelDocumentTests {
         #expect(reparsed?["schema_version"] as? String == "1.0.0")
     }
 
+    @Test("carries the contract the gateway validated against and the sections the model has")
+    internal func contractAndSections() throws {
+        let document = try ArchitectureModelDocument.decodeGatewayValue(try decode(full))
+        // No contract in the envelope: an older gateway; the document is treated as unvalidated 1.x.
+        #expect(document.contract == .unknown)
+        #expect(document.contract.major == 0)
+        #expect(document.sections == [.components])
+        #expect(document.has(.components))
+        #expect(!document.has(.ci))
+        #expect(document.missingRequiredSections == [.interplay, .extraction, .ci, .inventory])
+        #expect(document.section(.components) == nil, "components is an array, not a dictionary section")
+        let withContract = full.replacingOccurrences(
+            of: "\"revision\":",
+            with: "\"contract\": {\"name\": \"hermes.architecture\", \"version\": \"1.0\"}, \"revision\":"
+        ).replacingOccurrences(
+            of: "\"components\": [{\"id\": \"a\"}],",
+            with: "\"components\": [{\"id\": \"a\"}], \"interplay\": {\"nodes\": []}, \"extraction\": {\"files\": []}, "
+                + "\"ci\": {\"jobs\": []}, \"inventory\": {\"files\": 1}, \"stores\": {\"items\": []},"
+        )
+        let conforming = try ArchitectureModelDocument.decodeGatewayValue(try decode(withContract))
+        #expect(conforming.contract.name == "hermes.architecture")
+        #expect(conforming.contract.version == "1.0")
+        #expect(conforming.contract.major == 1, "major parsed from the version when the envelope omits it")
+        #expect(conforming.contract.minor == 0)
+        #expect(conforming.contract.schemaDigest == nil)
+        #expect(conforming.contract.isKnown)
+        #expect(conforming.contract.caption == "hermes.architecture v1.0")
+        #expect(conforming.tooltip.contains("contract hermes.architecture v1.0"))
+        #expect(document.tooltip.contains("contract unvalidated"))
+        let explicit = ArchitectureContractRef.decodeGatewayValue(try decode(
+            "{\"name\": \"hermes.architecture\", \"version\": \"1.2\", \"major\": 1, \"minor\": 2, \"schema_digest\": \"abc\"}"
+        ))
+        #expect(explicit.major == 1)
+        #expect(explicit.minor == 2)
+        #expect(explicit.schemaDigest == "abc")
+        let nameless = ArchitectureContractRef.decodeGatewayValue(try decode("{\"version\": \"1.0\"}"))
+        #expect(nameless == .unknown, "a contract needs a name")
+        #expect(conforming.sections == [.components, .interplay, .extraction, .ci, .inventory, .stores])
+        #expect(conforming.missingRequiredSections.isEmpty)
+        #expect(conforming.section(.ci)?["jobs"]?.arrayValue?.isEmpty == true)
+        #expect(conforming.model.dictionaryValue?["title"]?.stringValue == "Portal Architecture")
+    }
+
     @Test("a GitHub service names its repository and ref as the origin; a digest revision stays whole")
     internal func githubOrigin() throws {
         let json = """
@@ -105,7 +148,8 @@ internal struct ArchitectureModelDocumentTests {
     internal func tooltips() throws {
         let document = try ArchitectureModelDocument.decodeGatewayValue(try decode(full))
         let expectedTooltip = "Native client.\nPortal Architecture · schema 1.0.0\n"
-            + "architecture/model/model.json at 62911e4f1c2d3a4b5c6d7e8f9a0b1c2d3e4f5a6b (local)\nstored 2026-09-24T09:00:00+00:00"
+            + "architecture/model/model.json at 62911e4f1c2d3a4b5c6d7e8f9a0b1c2d3e4f5a6b (local)\nstored 2026-09-24T09:00:00+00:00\n"
+            + "contract unvalidated (gateway predates the contract)"
         #expect(document.tooltip == expectedTooltip)
         let expectedDetail = "31 components · 401 files · 108000 lines · 240 nodes · 900 edges · 42 flows · "
             + "11/12 invariants (violated: pool-guarded) · 21 stores · 13 externals · 14 gates · 7 ratchets · 7 workflows"
@@ -117,9 +161,10 @@ internal struct ArchitectureModelDocumentTests {
         let empty = ArchitectureModelDocument(
             service: ArchitectureServiceRef(id: "arch:x", label: "X", description: "", source: "github", root: nil, repository: "o/r", ref: "main",
                                             modelPath: "m.json", checkConfigured: false),
-            revision: "v1", source: "github", storedAt: nil, summary: .empty, check: nil, modelJSON: "{}"
+            revision: "v1", source: "github", storedAt: nil, summary: .empty, check: nil, contract: .unknown,
+            model: .dictionary([:]), modelJSON: "{}"
         )
-        #expect(empty.tooltip == "architecture model · schema ?\nm.json at v1 (github)")
+        #expect(empty.tooltip == "architecture model · schema ?\nm.json at v1 (github)\ncontract unvalidated (gateway predates the contract)")
         #expect(ArchitectureModelSummary.empty.detailLine.hasPrefix("0 components · 0 files"))
     }
 

@@ -123,6 +123,7 @@ architecture:
 # Deterministic architecture validation used by CI and maintenance PRs.
 architecture-check:
 	python3 scripts/build_architecture.py --check
+	python3 scripts/check-contract-pins.py
 	python3 -m unittest scripts/test_architecture.py
 	node --check architecture/site/app.js
 

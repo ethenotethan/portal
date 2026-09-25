@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import fnmatch
 import hashlib
 import json
@@ -5071,6 +5072,52 @@ def build_extraction_map(files: list[dict[str, Any]], model_parts: dict[str, Any
     }
 
 
+# ── The hermes.architecture contract ─────────────────────────────────────────
+#
+# The finished model must conform to the contract Harness validates against
+# and every renderer decodes (architecture/contract/, vendored byte-for-byte
+# from Harness and pinned by digest; scripts/check-contract-pins.py holds the
+# pin). Validating here means a non-conforming model never reaches the tree:
+# `make architecture` refuses to write it and `--check` refuses to accept it.
+
+CONTRACT_PATH = ROOT / "architecture" / "contract" / "architecture_contract.py"
+
+
+def load_contract() -> Any:
+    """The vendored contract module, imported from its file so the compiler
+    needs no package layout and both repositories run the identical code."""
+    spec = importlib.util.spec_from_file_location("architecture_contract", CONTRACT_PATH)
+    if spec is None or spec.loader is None:
+        raise ArchitectureError(f"contract module missing at {relative(CONTRACT_PATH)}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def validate_contract(model: dict[str, Any]) -> None:
+    """Fail the build when the model does not conform to the contract.
+
+    Strict mode only. The history walk (LENIENT) compiles a deliberately partial
+    shape — no CI plane, curated files from today over an old tree — that is
+    not a published document; the contract gates what `make architecture`
+    writes and `--check` accepts, and the gateway re-validates what it serves.
+    """
+    if LENIENT:
+        return
+    if not CONTRACT_PATH.is_file():
+        raise ArchitectureError(f"contract module missing at {relative(CONTRACT_PATH)}")
+    contract = load_contract()
+    problems = contract.validate_document(model)
+    if not problems:
+        return
+    shown = problems[:20]
+    more = f" (+{len(problems) - len(shown)} more)" if len(problems) > len(shown) else ""
+    raise ArchitectureError(
+        f"model does not conform to {contract.CONTRACT_NAME} v{contract.CONTRACT_VERSION}: "
+        + "; ".join(shown) + more
+    )
+
+
 def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     config = load_json(CONFIG_PATH)
     validate_config(config)
@@ -5166,6 +5213,10 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
         "components": components,
         "edges": specified_edges + reference_edges,
         "inventory": {
+            # `files`/`lines` are the contract's names; `swift_*` stay for the site
+            # and the gateway summary, which predate the contract.
+            "files": len(files),
+            "lines": sum(item["line_count"] for item in files),
             "swift_files": len(files),
             "swift_lines": sum(item["line_count"] for item in files),
             "declarations": sum(len(item["declarations"]) for item in files),
@@ -5173,6 +5224,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
             "unassigned_files": unassigned,
         },
     }
+    validate_contract(model)
     site_data = {"model": model}
     return model, site_data
 
