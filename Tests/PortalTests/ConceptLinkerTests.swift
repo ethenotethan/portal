@@ -148,6 +148,23 @@ internal struct ConceptLinkerTests {
         #expect(tokens.contains("refactoring"))
     }
 
+    @Test("short snake-case and dotted identifiers remain salient compounds")
+    internal func salientTokensKeepShortCompounds() {
+        let node = ThoughtGraphNode(
+            id: "r1",
+            name: "reasoning",
+            context: "Compare a_b with x.y and abc",
+            isComplete: true,
+            startedAt: Date()
+        )
+
+        let tokens = ConceptLinker.salientTokens(in: node)
+
+        #expect(tokens.contains("a_b"))
+        #expect(tokens.contains("x.y"))
+        #expect(!tokens.contains("abc"))
+    }
+
     @Test("salientTokens includes concepts carried only by the node summary")
     internal func salientTokensFromSummary() {
         let node = ThoughtGraphNode(
