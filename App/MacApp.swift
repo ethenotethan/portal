@@ -18,6 +18,7 @@ struct PortalAppMac: App {
         configurePortalMacApplication()
         requestPortalNotificationAuthorization()
         startPortalPerfInstrumentation()
+        startPortalLogMirror()
     }
 
     var body: some Scene {

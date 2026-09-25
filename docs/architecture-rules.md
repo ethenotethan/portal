@@ -189,6 +189,20 @@ bump in the same PR — never one side alone. Required sections (`components`,
 `interplay`, `extraction`, `ci`, `inventory`, `evidence_metadata`) are what
 makes a service conforming; the gateway refuses anything less with error 4033.
 
+**Log capture.** The standard also requires a local service to declare where its
+logs land (a `logs` sink in the manifest under `~/.hermes/services/architecture/`),
+and Harness reads only those declared sinks over `architecture.logs`. Portal's
+declared sink is `~/Library/Logs/Portal/portal.log`. Portal itself logs through
+`os.Logger`, which only the unified log receives, so `UnifiedLogMirror`
+(`Sources/Portal/Services/`) makes the file real: started at launch beside the
+perf instrumentation, it reads this process's own unified-log entries for the
+`com.ethenotethan.Portal` subsystem every two seconds on its own actor, appends
+them as `ISO8601 [level] Category: message` lines (message line breaks escaped),
+rotates once at 8 MiB (`portal.log.1` keeps the previous generation), and fails
+open with a logged, backed-off retry. It never touches the main actor, and no
+call site changes: whatever a `Logger` writes is what the sink holds. On iOS the
+same mirror writes the sandbox's own `Library/Logs/Portal/portal.log`.
+
 ## The metric ratchet (self-improving benchmarks)
 
 The lint baseline is one instance of a general pattern — a **ratchet**: a

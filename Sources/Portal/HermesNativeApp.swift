@@ -22,6 +22,31 @@ func startPortalPerfInstrumentation() {
     PerfInstrumentation.bootstrap()
 }
 
+/// The unified-log mirror that makes Portal's declared architecture log sink
+/// (`~/Library/Logs/Portal/portal.log`; on iOS the sandbox's own
+/// `Library/Logs/Portal/portal.log`) real. One per process, started at launch
+/// beside the perf instrumentation.
+@MainActor
+private let portalLogMirror: UnifiedLogMirror = {
+    #if os(macOS)
+    // The store refuses the process scope on some hosts; the `log stream` tool
+    // then reads on the app's behalf.
+    let reader: any UnifiedLogReading = SwitchingLogReader(primary: OSLogStoreReader(), fallback: LogStreamProcessReader())
+    #else
+    let reader: any UnifiedLogReading = OSLogStoreReader()
+    #endif
+    return UnifiedLogMirror(reader: reader, appender: LogFileAppender(fileURL: UnifiedLogMirror.defaultLogURL()))
+}()
+
+/// Begins mirroring this process's unified log into the declared sink. All of
+/// the work happens on the mirror actor, never on the main actor.
+@MainActor
+internal func startPortalLogMirror() {
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    let mirror = portalLogMirror
+    Task { await mirror.start(appVersion: version) }
+}
+
 #if os(macOS)
 import AppKit
 
