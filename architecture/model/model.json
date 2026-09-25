@@ -10697,7 +10697,7 @@
             "name": "Install build tools"
           },
           {
-            "command": "python3.11 -m venv .venv",
+            "command": "python3.14 -m venv .venv",
             "command_lines": 4,
             "line": 114,
             "name": "Set up Hermes Agent"
@@ -10705,50 +10705,50 @@
           {
             "command": "cat > \"$HERMES_HOME/config.yaml\" <<'YAML'",
             "command_lines": 37,
-            "line": 122,
+            "line": 125,
             "name": "Start local Hermes API server"
           },
           {
             "command": "xcodegen generate",
             "command_lines": 1,
-            "line": 176,
+            "line": 179,
             "name": "Generate Xcode project"
           },
           {
             "command": "SIM_ID=$(xcrun simctl list devices available | grep -oE 'iPhone [0-9].*\\([0-9A-F-]{36}\\)' | grep -oE '[0-9A-F-]{36}' | tail -1)",
             "command_lines": 6,
-            "line": 180,
+            "line": 183,
             "name": "Select an available iPhone simulator"
           },
           {
             "command": "xcodebuild build",
             "command_lines": 8,
-            "line": 192,
+            "line": 195,
             "name": "Build iOS Simulator app"
           },
           {
             "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
             "command_lines": 12,
-            "line": 204,
+            "line": 207,
             "name": "Run offline onboarding smoke test"
           },
           {
             "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
             "command_lines": 13,
             "condition": "always()",
-            "line": 222,
+            "line": 225,
             "name": "Run local-Hermes gateway smoke test"
           },
           {
             "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
             "command_lines": 17,
             "condition": "always()",
-            "line": 246,
+            "line": 249,
             "name": "Run E2E integration tests"
           },
           {
             "condition": "always()",
-            "line": 274,
+            "line": 277,
             "name": "Upload iOS simulator test artifacts",
             "uses": "actions/upload-artifact@v4"
           },
@@ -10756,7 +10756,7 @@
             "command": "kill \"$(cat \"$RUNNER_TEMP/hermes-api-server.pid\")\" 2>/dev/null || true",
             "command_lines": 3,
             "condition": "always()",
-            "line": 291,
+            "line": 294,
             "name": "Stop local Hermes API server"
           }
         ],
@@ -10769,7 +10769,7 @@
         ],
         "condition": null,
         "evidence": {
-          "line": 303,
+          "line": 306,
           "path": ".github/workflows/tests.yml"
         },
         "family": "behavior",
@@ -10784,38 +10784,38 @@
         "step_count": 6,
         "steps": [
           {
-            "line": 308,
+            "line": 311,
             "name": "Checkout",
             "uses": "actions/checkout@v4"
           },
           {
             "command": "brew install xcodegen",
             "command_lines": 1,
-            "line": 311,
+            "line": 314,
             "name": "Install build tools"
           },
           {
             "command": "xcodegen generate",
             "command_lines": 1,
-            "line": 314,
+            "line": 317,
             "name": "Generate Xcode project"
           },
           {
             "command": "xcodebuild test",
             "command_lines": 10,
-            "line": 317,
+            "line": 320,
             "name": "Run macOS hang gate (--hang-fatal)"
           },
           {
             "command": "tail -60 \"$LOG\" || true",
             "command_lines": 10,
             "condition": "always()",
-            "line": 333,
+            "line": 336,
             "name": "Assert the hang test actually executed"
           },
           {
             "condition": "always()",
-            "line": 347,
+            "line": 350,
             "name": "Upload hang-gate artifacts",
             "uses": "actions/upload-artifact@v4"
           }
@@ -75698,7 +75698,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "95037f304753fcc820aba63aeda9b6382f12b728adf98a9a45a08833b1858918",
+  "source_tree_sha256": "7f3e163fde0f749b95d2c590f31ce30e8a4d03dd5efdfa659def40a906b046bc",
   "stores": {
     "by_persistence": {
       "defaults": 6,

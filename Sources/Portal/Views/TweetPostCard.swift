@@ -172,7 +172,7 @@ internal struct TweetPostCard: View {
     private func mediaThumb(_ url: URL, size: CGFloat) -> some View {
         AsyncImage(url: url) { phase in
             if let image = phase.image {
-                image.resizable().aspectRatio(contentMode: .fill)
+                image.resizable().scaledToFill()
             } else {
                 ZStack {
                     Theme.surfaceHover
@@ -230,7 +230,7 @@ internal struct TweetPostCard: View {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
+                        image.resizable().scaledToFill()
                     default:
                         monogram
                     }
