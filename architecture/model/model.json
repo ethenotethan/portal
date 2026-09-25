@@ -6237,11 +6237,11 @@
         "enclosing_type": "ArchitectureSurfaceView",
         "evidence": {
           "excerpt": "Button(model.isChecking ? \"Checking…\" : \"Run check\") { Task { await model.runCheck() } }",
-          "line": 57,
+          "line": 58,
           "path": "Sources/Portal/Views/ArchitectureSurfaceView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-195e6bc11ec3",
+        "id": "task-site-888937d138ef",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6253,11 +6253,11 @@
         "enclosing_type": "ArchitectureSurfaceView",
         "evidence": {
           "excerpt": "Button(\"Try Again\") { Task { await model.load() } }",
-          "line": 109,
+          "line": 111,
           "path": "Sources/Portal/Views/ArchitectureSurfaceView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0bbed283bc68",
+        "id": "task-site-68163f55328c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -12682,7 +12682,7 @@
       }
     },
     {
-      "declaration_count": 290,
+      "declaration_count": 292,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -12696,11 +12696,13 @@
         "AppFontTheme",
         "ApprovalQueue",
         "ArchitectureCheckResult",
+        "ArchitectureContractRef",
         "ArchitectureModelDocument",
         "ArchitectureModelSummary",
         "ArchitectureObservatoryAssets",
         "ArchitecturePanelPage",
         "ArchitectureRequest",
+        "ArchitectureSection",
         "ArchitectureServiceRef",
         "ArtifactGateway",
         "ArtifactMerge",
@@ -13073,7 +13075,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 21885,
+      "line_count": 21945,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13117,11 +13119,17 @@
       }
     },
     {
-      "declaration_count": 90,
+      "declaration_count": 96,
       "declarations": [
         "AppFontSettingsSection",
         "ApprovalBanner",
+        "ArchitectureExtractionSectionView",
+        "ArchitectureGatesSectionView",
+        "ArchitectureInventorySectionView",
+        "ArchitectureSectionPlaceholder",
+        "ArchitectureSurfaceTab",
         "ArchitectureSurfaceView",
+        "ArchitectureSystemMapSectionView",
         "AsyncDelegationBatchView",
         "ButtonThemeSettingsSection",
         "CFAuthView",
@@ -13212,10 +13220,16 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 40,
+      "file_count": 46,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureExtractionSectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureInventorySectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureSectionPlaceholder.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureSurfaceTab.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
         "Sources/Portal/Views/ArchitectureSurfaceView.swift",
         "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/ButtonThemeSettingsSection.swift",
@@ -13258,7 +13272,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 7889,
+      "line_count": 8075,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -15830,6 +15844,7 @@
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureSectionPlaceholder.swift",
         "Sources/Portal/Views/ArchitectureSurfaceView.swift",
         "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/ButtonThemeSettingsSection.swift",
@@ -15838,8 +15853,7 @@
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GatewayAvatarPicker.swift",
         "Sources/Portal/Views/GatewayDebugPanelView.swift",
-        "Sources/Portal/Views/GatewayRestartSection.swift",
-        "Sources/Portal/Views/GitHubLinkCard.swift"
+        "Sources/Portal/Views/GatewayRestartSection.swift"
       ],
       "source": "shared-ui",
       "symbols": [
@@ -15850,7 +15864,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 36
+      "weight": 37
     },
     {
       "authority": "observed",
@@ -15919,39 +15933,39 @@
     },
     {
       "authority": "observed",
-      "description": "References 43 declaration(s) owned by domain-models.",
+      "description": "References 45 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureExtractionSectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureInventorySectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureSectionPlaceholder.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureSurfaceTab.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
         "Sources/Portal/Views/ArchitectureSurfaceView.swift",
         "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/ButtonThemeSettingsSection.swift",
-        "Sources/Portal/Views/CFAuthView.swift",
-        "Sources/Portal/Views/CelebrationOverlay.swift",
-        "Sources/Portal/Views/CelebrationSettingsSection.swift",
-        "Sources/Portal/Views/CelebrationStage.swift",
-        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
-        "Sources/Portal/Views/ExportPrimitives.swift",
-        "Sources/Portal/Views/GatewayAvatarPicker.swift"
+        "Sources/Portal/Views/CFAuthView.swift"
       ],
       "source": "shared-ui",
       "symbols": [
         "AppFontTheme",
         "ApprovalQueue",
         "ArchitectureCheckResult",
+        "ArchitectureModelDocument",
         "ArchitectureRequest",
+        "ArchitectureSection",
         "AvatarState",
         "ButtonTheme",
         "Card",
         "CelebrationBeat",
         "CelebrationIntensity",
-        "CelebrationPreferences",
-        "CelebrationSound",
-        "CelebrationStyle"
+        "CelebrationPreferences"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 81
+      "weight": 89
     },
     {
       "authority": "observed",
@@ -24778,7 +24792,7 @@
       {
         "citations": 0,
         "component": "domain-models",
-        "declaration_count": 9,
+        "declaration_count": 14,
         "declarations": [
           {
             "kind": "struct",
@@ -24819,23 +24833,53 @@
           {
             "kind": "struct",
             "line": 150,
+            "name": "ArchitectureContractRef",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 160,
+            "name": "decodeGatewayValue",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 169,
+            "name": "ArchitectureSection",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 185,
             "name": "ArchitectureModelDocument",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 175,
+            "line": 208,
+            "name": "has",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 213,
+            "name": "section",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 233,
             "name": "decodeGatewayValue",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 202,
+            "line": 262,
             "name": "ArchitectureRequest",
             "passes": []
           }
         ],
-        "line_count": 208,
+        "line_count": 268,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/ArchitectureModelDocument.swift",
@@ -42458,9 +42502,129 @@
         "touched": true
       },
       {
+        "citations": 0,
+        "component": "shared-ui",
+        "declaration_count": 1,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 5,
+            "name": "ArchitectureExtractionSectionView",
+            "passes": []
+          }
+        ],
+        "line_count": 15,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/Architecture/ArchitectureExtractionSectionView.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "shared-ui",
+        "declaration_count": 1,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 5,
+            "name": "ArchitectureGatesSectionView",
+            "passes": []
+          }
+        ],
+        "line_count": 15,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "shared-ui",
+        "declaration_count": 1,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 5,
+            "name": "ArchitectureInventorySectionView",
+            "passes": []
+          }
+        ],
+        "line_count": 15,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/Architecture/ArchitectureInventorySectionView.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "shared-ui",
+        "declaration_count": 1,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 6,
+            "name": "ArchitectureSectionPlaceholder",
+            "passes": []
+          }
+        ],
+        "line_count": 31,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/Architecture/ArchitectureSectionPlaceholder.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "shared-ui",
+        "declaration_count": 2,
+        "declarations": [
+          {
+            "kind": "enum",
+            "line": 6,
+            "name": "ArchitectureSurfaceTab",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 46,
+            "name": "available",
+            "passes": []
+          }
+        ],
+        "line_count": 52,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/Architecture/ArchitectureSurfaceTab.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "shared-ui",
+        "declaration_count": 1,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 5,
+            "name": "ArchitectureSystemMapSectionView",
+            "passes": []
+          }
+        ],
+        "line_count": 15,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
         "citations": 2,
         "component": "shared-ui",
-        "declaration_count": 3,
+        "declaration_count": 5,
         "declarations": [
           {
             "kind": "struct",
@@ -42472,18 +42636,30 @@
           },
           {
             "kind": "func",
-            "line": 77,
+            "line": 78,
             "name": "checkBadge",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 115,
+            "line": 120,
+            "name": "loadedContent",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 143,
+            "name": "sectionContent",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 158,
             "name": "stateMessage",
             "passes": []
           }
         ],
-        "line_count": 142,
+        "line_count": 185,
         "mapped_declarations": 1,
         "passes": [
           "swift.task.structured"
@@ -56090,7 +56266,7 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 265
+          "total": 267
         },
         "extension": {
           "mapped": 18,
@@ -56098,7 +56274,7 @@
         },
         "func": {
           "mapped": 402,
-          "total": 2811
+          "total": 2817
         },
         "protocol": {
           "mapped": 1,
@@ -56106,17 +56282,17 @@
         },
         "struct": {
           "mapped": 94,
-          "total": 724
+          "total": 730
         }
       },
       "citations": 1208,
-      "declarations": 4047,
+      "declarations": 4061,
       "entities": 155,
       "entities_with_origin": 155,
-      "files": 375,
+      "files": 381,
       "functions": {
         "mapped": 402,
-        "total": 2811
+        "total": 2817
       },
       "mapped_declarations": 594,
       "passes": 50,
@@ -56124,9 +56300,9 @@
       "touched_files": 150,
       "types": {
         "mapped": 192,
-        "total": 1236
+        "total": 1244
       },
-      "untouched_files": 225
+      "untouched_files": 231
     }
   },
   "interplay": {
@@ -71750,7 +71926,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 90
+        "type_count": 98
       },
       {
         "components": [],
@@ -75663,10 +75839,10 @@
     "unattributed_triggers": 447
   },
   "inventory": {
-    "assigned_files": 373,
-    "declarations": 1104,
-    "swift_files": 373,
-    "swift_lines": 114103,
+    "assigned_files": 379,
+    "declarations": 1112,
+    "swift_files": 379,
+    "swift_lines": 114349,
     "unassigned_files": []
   },
   "layers": [
@@ -75698,7 +75874,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "528bdcd903e3e19b207343b39032a6eb9758bc5ed1aa6a8271c7d72e6f43c5b0",
+  "source_tree_sha256": "a37bc94179e1c8d3cf412f23d548fde9bd3ba3d18c81fb4b81cc2461e2730372",
   "stores": {
     "by_persistence": {
       "defaults": 6,

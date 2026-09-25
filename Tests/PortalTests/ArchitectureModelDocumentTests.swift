@@ -56,6 +56,35 @@ internal struct ArchitectureModelDocumentTests {
         #expect(reparsed?["schema_version"] as? String == "1.0.0")
     }
 
+    @Test("carries the contract the gateway validated against and the sections the model has")
+    internal func contractAndSections() throws {
+        let document = try ArchitectureModelDocument.decodeGatewayValue(try decode(full))
+        // No contract in the envelope: an older gateway; the document is treated as unvalidated 1.x.
+        #expect(document.contract == .unknown)
+        #expect(document.contract.major == 0)
+        #expect(document.sections == [.components])
+        #expect(document.has(.components))
+        #expect(!document.has(.ci))
+        #expect(document.missingRequiredSections == [.interplay, .extraction, .ci, .inventory])
+        #expect(document.section(.components) == nil, "components is an array, not a dictionary section")
+        let withContract = full.replacingOccurrences(
+            of: "\"revision\":",
+            with: "\"contract\": {\"name\": \"hermes.architecture\", \"version\": \"1.0\"}, \"revision\":"
+        ).replacingOccurrences(
+            of: "\"components\": [{\"id\": \"a\"}],",
+            with: "\"components\": [{\"id\": \"a\"}], \"interplay\": {\"nodes\": []}, \"extraction\": {\"files\": []}, "
+                + "\"ci\": {\"jobs\": []}, \"inventory\": {\"files\": 1}, \"stores\": {\"items\": []},"
+        )
+        let conforming = try ArchitectureModelDocument.decodeGatewayValue(try decode(withContract))
+        #expect(conforming.contract.name == "hermes.architecture")
+        #expect(conforming.contract.version == "1.0")
+        #expect(conforming.contract.major == 1)
+        #expect(conforming.sections == [.components, .interplay, .extraction, .ci, .inventory, .stores])
+        #expect(conforming.missingRequiredSections.isEmpty)
+        #expect(conforming.section(.ci)?["jobs"]?.arrayValue?.isEmpty == true)
+        #expect(conforming.model.dictionaryValue?["title"]?.stringValue == "Portal Architecture")
+    }
+
     @Test("a GitHub service names its repository and ref as the origin; a digest revision stays whole")
     internal func githubOrigin() throws {
         let json = """
@@ -117,7 +146,8 @@ internal struct ArchitectureModelDocumentTests {
         let empty = ArchitectureModelDocument(
             service: ArchitectureServiceRef(id: "arch:x", label: "X", description: "", source: "github", root: nil, repository: "o/r", ref: "main",
                                             modelPath: "m.json", checkConfigured: false),
-            revision: "v1", source: "github", storedAt: nil, summary: .empty, check: nil, modelJSON: "{}"
+            revision: "v1", source: "github", storedAt: nil, summary: .empty, check: nil, contract: .unknown,
+            model: .dictionary([:]), modelJSON: "{}"
         )
         #expect(empty.tooltip == "architecture model · schema ?\nm.json at v1 (github)")
         #expect(ArchitectureModelSummary.empty.detailLine.hasPrefix("0 components · 0 files"))

@@ -37,7 +37,8 @@ internal struct ArchitectureSurfaceModelTests {
                 modelPath: "architecture/model/model.json", checkConfigured: checkConfigured
             ),
             revision: "abc", source: local ? "local" : "github", storedAt: nil,
-            summary: .empty, check: nil, modelJSON: "{\"schema_version\":\"1.0.0\"}"
+            summary: .empty, check: nil, contract: .unknown, model: .dictionary(["schema_version": .string("1.0.0")]),
+            modelJSON: "{\"schema_version\":\"1.0.0\"}"
         )
     }
 
