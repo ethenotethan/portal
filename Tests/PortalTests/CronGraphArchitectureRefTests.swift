@@ -44,6 +44,30 @@ internal struct CronGraphArchitectureRefTests {
         #expect(minimal.revision.isEmpty)
         #expect(minimal.checkStatus == nil)
         #expect(minimal.snapshots == 0)
+        #expect(minimal.conformance == .unknown, "a gateway that predates the contract says nothing about conformance")
+        #expect(minimal.contractVersion == nil)
+    }
+
+    @Test("a contract-aware gateway reports conformance and the contract version on the annotation")
+    internal func contractFields() throws {
+        let annotated = try #require(CronServiceArchitectureRef.decodeGatewayValue(try decode(
+            "{\"ref\": \"arch:x\", \"conforming\": false, \"contract\": {\"name\": \"hermes.architecture\", \"version\": \"1.0\"}}"
+        )))
+        #expect(annotated.conformance == .nonConforming)
+        #expect(annotated.contractVersion == "1.0")
+        let data = try JSONEncoder().encode(annotated)
+        let restored = try JSONDecoder().decode(CronServiceArchitectureRef.self, from: data)
+        #expect(restored.conformance == .nonConforming)
+        #expect(restored.contractVersion == "1.0")
+        let good = try #require(CronServiceArchitectureRef.decodeGatewayValue(try decode("{\"ref\": \"arch:y\", \"conforming\": true}")))
+        #expect(good.conformance == .conforming)
+        #expect(good.contractVersion == nil)
+        // A snapshot written before the field existed decodes as unknown.
+        let legacy = try JSONDecoder().decode(
+            CronServiceArchitectureRef.self,
+            from: Data("{\"ref\": \"arch:z\", \"source\": \"local\", \"revision\": \"r\", \"snapshots\": 1}".utf8)
+        )
+        #expect(legacy.conformance == .unknown)
     }
 
     @Test("the annotation survives the local snapshot round trip and is absent from older snapshots")
