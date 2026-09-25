@@ -2973,11 +2973,11 @@
         "enclosing_type": "DelegationBatchHistoryStore",
         "evidence": {
           "excerpt": "saveTask = Task { @MainActor in",
-          "line": 92,
+          "line": 88,
           "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ba9710ace777",
+        "id": "task-site-a9037457afb8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -2989,11 +2989,11 @@
         "enclosing_type": "DelegationBatchHistoryStore",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 108,
+          "line": 104,
           "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-54db76352daa",
+        "id": "task-site-442b06b8643e",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -13199,7 +13199,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 23451,
+      "line_count": 23447,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -27897,7 +27897,7 @@
       {
         "citations": 18,
         "component": "domain-models",
-        "declaration_count": 10,
+        "declaration_count": 9,
         "declarations": [
           {
             "kind": "class",
@@ -27931,19 +27931,13 @@
           },
           {
             "kind": "func",
-            "line": 73,
-            "name": "allRecordsSorted",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 79,
+            "line": 75,
             "name": "trim",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 90,
+            "line": 86,
             "name": "deferSave",
             "passes": [
               "swift.task.structured"
@@ -27951,7 +27945,7 @@
           },
           {
             "kind": "func",
-            "line": 104,
+            "line": 100,
             "name": "performSave",
             "passes": [
               "swift.store.mechanism.defaults",
@@ -27960,7 +27954,7 @@
           },
           {
             "kind": "func",
-            "line": 120,
+            "line": 116,
             "name": "load",
             "passes": [
               "swift.store.mechanism.defaults"
@@ -27968,20 +27962,20 @@
           },
           {
             "kind": "func",
-            "line": 128,
+            "line": 124,
             "name": "loadFromFile",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 138,
+            "line": 134,
             "name": "loadFromUserDefaults",
             "passes": [
               "swift.store.mechanism.defaults"
             ]
           }
         ],
-        "line_count": 148,
+        "line_count": 144,
         "mapped_declarations": 5,
         "passes": [
           "map.artifact",
@@ -58480,7 +58474,7 @@
         },
         "func": {
           "mapped": 402,
-          "total": 3030
+          "total": 3029
         },
         "protocol": {
           "mapped": 1,
@@ -58492,13 +58486,13 @@
         }
       },
       "citations": 1208,
-      "declarations": 4376,
+      "declarations": 4375,
       "entities": 155,
       "entities_with_origin": 155,
       "files": 393,
       "functions": {
         "mapped": 402,
-        "total": 3030
+        "total": 3029
       },
       "mapped_declarations": 594,
       "passes": 50,
@@ -58974,7 +58968,7 @@
     ],
     "constructs": {
       "described": 102,
-      "stale": 14
+      "stale": 15
     },
     "edges": [
       {
@@ -65710,7 +65704,7 @@
             "deferSave returns early on cancellation without clearing saveTask, which would block all later saves; whether anything cancels the task is not shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": false,
+          "stale": true,
           "summary": "Non-singleton store that persists terminal DelegationBatch results as DelegationBatchRecord entries. `record` ignores running batches and already-recorded ids via an in-memory id set, appends, trims to 200 per session, and debounces a 5-second atomic JSON write to Application Support. Load migrates legacy UserDefaults data once, gated by a flag. Persistence mirrors CronRunHistoryStore."
         },
         "store": {
@@ -78048,9 +78042,9 @@
     "assigned_files": 391,
     "declarations": 1212,
     "files": 391,
-    "lines": 119950,
+    "lines": 119946,
     "swift_files": 391,
-    "swift_lines": 119950,
+    "swift_lines": 119946,
     "unassigned_files": []
   },
   "layers": [
@@ -78082,7 +78076,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "f12b7440a7aa71a1033ef5c3207cc1ac2ab0bdcdfbf6fd9ab1845495667e1a16",
+  "source_tree_sha256": "d93a616a6839abd799fa20dc1c561dfa16ec9000238f60b4aa8418284907bb3c",
   "stores": {
     "by_persistence": {
       "defaults": 6,
@@ -78609,6 +78603,22 @@
             "component": "domain-models",
             "evidence": {
               "excerpt": "UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)",
+              "line": 113,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-b92358c3c8cf",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {",
               "line": 117,
               "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
             },
@@ -78624,28 +78634,12 @@
             "authority": "observed",
             "component": "domain-models",
             "evidence": {
-              "excerpt": "if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {",
-              "line": 121,
-              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
-            },
-            "evidence_class": "static_source",
-            "id": "store-mechanism-df0f28a16795",
-            "kind": "defaults",
-            "label": "UserDefaults",
-            "rule_id": "swift.store.mechanism.defaults",
-            "store": "DelegationBatchHistoryStore",
-            "via": null
-          },
-          {
-            "authority": "observed",
-            "component": "domain-models",
-            "evidence": {
               "excerpt": "guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }",
-              "line": 139,
+              "line": 135,
               "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-mechanism-c4a9d49dda26",
+            "id": "store-mechanism-5b30b0cabfcf",
             "kind": "defaults",
             "label": "UserDefaults",
             "rule_id": "swift.store.mechanism.defaults",
@@ -78657,11 +78651,11 @@
             "component": "domain-models",
             "evidence": {
               "excerpt": "UserDefaults.standard.removeObject(forKey: Self.storageKey)",
-              "line": 143,
+              "line": 139,
               "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-mechanism-5405977b4b6f",
+            "id": "store-mechanism-c4a9d49dda26",
             "kind": "defaults",
             "label": "UserDefaults",
             "rule_id": "swift.store.mechanism.defaults",
