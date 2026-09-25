@@ -42,7 +42,7 @@ internal struct ArchitectureSurfaceModelTests {
         )
     }
 
-    @Test("loading builds the page around the fetched model")
+    @Test("loading fetches the document for the native renderers")
     internal func loadsAndBuildsPage() async {
         let reader = StubArchitectureReader()
         reader.document = document(repository: "ethenotethan/portal")
@@ -52,8 +52,6 @@ internal struct ArchitectureSurfaceModelTests {
         await model.load()
         #expect(model.phase == .loaded)
         #expect(model.document?.service.id == "arch:portal")
-        #expect(model.pageHTML.contains("window.PORTAL_ARCHITECTURE={\"model\":{\"schema_version\":\"1.0.0\"}}"))
-        #expect(model.baseURL?.absoluteString == "https://github.com/ethenotethan/portal/")
         #expect(model.canRunCheck)
         #expect(reader.describeCalls.count == 1)
         #expect(reader.describeCalls.first?.revision == "abc")
@@ -67,7 +65,6 @@ internal struct ArchitectureSurfaceModelTests {
         await model.load()
         #expect(model.phase == .failed)
         #expect(model.errorMessage == "model not found at /x; run the service's compiler first")
-        #expect(model.pageHTML.isEmpty)
         reader.describeError = nil
         reader.document = document()
         await model.load()

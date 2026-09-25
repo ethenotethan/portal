@@ -139,8 +139,8 @@ Per-service architecture models: a service declared by a manifest on the gateway
 (`~/.hermes/services/architecture/<id>.json`, a local checkout or a GitHub
 repository) has a compiler-emitted model the gateway reads, snapshots per
 revision and checks on demand. Portal opens it from the service node on the
-dataflow graph (`ArchitectureSurfaceView`), rendering the model with the
-Architecture Observatory's own renderer (`ArchitecturePanelPage`). Contract:
+dataflow graph (`ArchitectureSurfaceView`), rendering the model natively, one
+tab per contract section (system map, extraction map, CI gates, inventory). Contract:
 `harness/docs/api/architecture.md`.
 
 | Method | Params | Description |

@@ -2,9 +2,8 @@ import SwiftUI
 
 /// A service's architecture model, presented natively: one tab per contract
 /// section (system map, extraction map, CI gates, inventory) rendered from the
-/// decoded document, plus the Architecture Observatory web renderer over the
-/// same document, with the revision, the invariant tally and the last `--check`
-/// in the header. Opened from a service node on the dataflow graph.
+/// decoded document, with the revision, the invariant tally and the last
+/// `--check` in the header. Opened from a service node on the dataflow graph.
 @MainActor
 internal struct ArchitectureSurfaceView: View {
     private let request: ArchitectureRequest
@@ -141,11 +140,25 @@ internal struct ArchitectureSurfaceView: View {
 
     /// The tab strip over the section the tab renders. Only tabs whose section
     /// the document carries are offered; a selection that vanished with a
-    /// reload falls back to the first available tab.
+    /// reload falls back to the first available tab. A document with no
+    /// renderable section is non-conforming and says so instead of a tab strip.
+    @ViewBuilder
     private func loadedContent(_ document: ArchitectureModelDocument) -> some View {
         let tabs = ArchitectureSurfaceTab.available(for: document)
-        let current = tabs.contains(tab) ? tab : (tabs.first ?? .web)
-        return VStack(spacing: 0) {
+        if let current = tabs.contains(tab) ? tab : tabs.first {
+            tabbedContent(current, tabs: tabs, document: document)
+        } else {
+            stateMessage(
+                icon: "exclamationmark.triangle",
+                title: "Non-conforming architecture model",
+                detail: "The document carries none of the sections the hermes.architecture contract requires"
+                    + " (missing \(document.missingRequiredSections.map(\.rawValue).joined(separator: ", ")))."
+            )
+        }
+    }
+
+    private func tabbedContent(_ current: ArchitectureSurfaceTab, tabs: [ArchitectureSurfaceTab], document: ArchitectureModelDocument) -> some View {
+        VStack(spacing: 0) {
             HStack {
                 ThemedSegmentedControl(selection: $tab, options: tabs, label: { $0.title }, icon: { $0.icon })
                 Spacer()
@@ -175,8 +188,6 @@ internal struct ArchitectureSurfaceView: View {
             ArchitectureGatesSectionView(document: document)
         case .inventory:
             ArchitectureInventorySectionView(document: document)
-        case .web:
-            InlineHTMLView(html: model.pageHTML, baseURL: model.baseURL)
         }
     }
 
