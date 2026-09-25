@@ -8,13 +8,12 @@ import Charts
 /// all ≥ 3:1 contrast. Kind also gets its own y-lane on the chart, so color
 /// never carries identity alone. `.other` is the muted catch-all.
 ///
-/// This palette covers Centaur's kinds, which are fixed by its ingestion
-/// pipeline. Hermes kinds are declared by the wiki (`type: event-type` pages)
-/// and resolve through `WikiEventTypeRegistry` instead — see
-/// `WikiEventPresentation`, which picks between the two and is what views
-/// should call.
-enum WikiEventKindStyle {
-    static func color(for kind: WikiEventKind) -> Color {
+/// This palette covers the built-in wire kinds. A wiki can also declare its
+/// own kinds (`type: event-type` pages), which resolve through
+/// `WikiEventTypeRegistry` instead — see `WikiEventPresentation`, which picks
+/// between the two and is what views should call.
+internal enum WikiEventKindStyle {
+    internal static func color(for kind: WikiEventKind) -> Color {
         switch kind {
         case .githubPR: return Color(hex: "3987e5") ?? .blue
         case .linear: return Color(hex: "d95926") ?? .orange
@@ -27,7 +26,7 @@ enum WikiEventKindStyle {
     }
 
     /// Fixed lane order, top-to-bottom on the events chart.
-    static let laneOrder: [WikiEventKind] = [
+    internal static let laneOrder: [WikiEventKind] = [
         .githubPR, .linear, .slack, .drive, .directive, .openrouterStats, .other,
     ]
 }
@@ -36,26 +35,24 @@ enum WikiEventKindStyle {
 
 /// How to draw one event kind, resolved from whichever authority owns it.
 ///
-/// Two backends disagree about who defines the taxonomy, and both are right for
-/// their own data. Centaur's kinds come from its pipeline, so the validated
-/// palette above is authoritative and a wiki page can't know better. Hermes'
-/// kinds are declared by the wiki itself, so a `type: event-type` page is
-/// authoritative and a compiled-in palette would be exactly the closed
-/// vocabulary #123 set out to remove.
+/// A wiki's kinds are declared by the wiki itself, so a `type: event-type`
+/// page is authoritative and a compiled-in palette alone would be exactly the
+/// closed vocabulary #123 set out to remove. But a wiki that has declared
+/// nothing still emits the built-in wire kinds, and those deserve the
+/// validated palette rather than a hashed hue.
 ///
 /// So this resolves the wiki's declaration when there is one, and falls back to
 /// the built-in palette when there isn't. Every view goes through here rather
-/// than calling `WikiEventKindStyle` directly, so neither backend's kinds get
-/// drawn by the other's rules.
+/// than calling `WikiEventKindStyle` directly.
 internal struct WikiEventPresentation {
-    /// The wiki's declared taxonomy — empty for Centaur, and for a Hermes wiki
-    /// that has declared nothing yet.
+    /// The wiki's declared taxonomy — empty for a wiki that has declared
+    /// nothing yet.
     internal let registry: WikiEventTypeRegistry
 
     internal static let empty = WikiEventPresentation(registry: .empty)
 
     /// Color for a wire kind. A declared type's color wins; otherwise a
-    /// recognized Centaur kind uses the validated palette; otherwise the
+    /// recognized built-in kind uses the validated palette; otherwise the
     /// registry's hashed-but-stable derivation keeps unknown kinds distinct
     /// instead of merging them into one "other" bucket.
     internal func color(for kindRaw: String) -> Color {
@@ -122,10 +119,10 @@ internal struct WikiEventPresentation {
 /// Selection is by event id, shared with the Event Feed: tapping a dot
 /// highlights (and scrolls to) the feed row, and selecting a feed row lights
 /// up the dot — the feed row is the detail surface.
-struct WikiEventDotChart: View {
-    let events: [WikiTimelineEvent]
-    let window: ClosedRange<Date>
-    @Binding var selectedEventID: String?
+internal struct WikiEventDotChart: View {
+    internal let events: [WikiTimelineEvent]
+    internal let window: ClosedRange<Date>
+    @Binding internal var selectedEventID: String?
     /// How to color and order kinds — the wiki's taxonomy when it has one.
     internal var presentation: WikiEventPresentation = .empty
 
@@ -135,7 +132,7 @@ struct WikiEventDotChart: View {
         presentation.lanes(present: events.map(\.kindRaw))
     }
 
-    var body: some View {
+    internal var body: some View {
         let lanes = self.lanes
         Chart {
             ForEach(events) { event in
@@ -224,113 +221,6 @@ struct WikiEventDotChart: View {
     }
 }
 
-// MARK: - Revisions chart
-
-/// Page-edit volume (the OUTPUT side): per-bucket revision bars, or the
-/// cumulative "knowledge accrued" curve seeded from the pre-window baseline.
-/// One measure per view — the toggle swaps them instead of dual-axing.
-struct WikiRevisionsChart: View {
-    let timeline: WikiRevisionsTimeline
-    let window: ClosedRange<Date>
-    let showCumulative: Bool
-
-    private static let accrued = Color(hex: "3987e5") ?? .blue
-
-    var body: some View {
-        Group {
-            if showCumulative {
-                cumulativeChart
-            } else {
-                barsChart
-            }
-        }
-        .chartXScale(domain: window.lowerBound...window.upperBound)
-        .chartXAxis { timeAxis }
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
-                AxisGridLine().foregroundStyle(Theme.border.opacity(0.25))
-                AxisValueLabel()
-                    .font(.caption2)
-                    .foregroundStyle(Theme.tertiary)
-            }
-        }
-        .chartPlotStyle { $0.background(Theme.background.opacity(0.4)) }
-        .frame(height: 130)
-    }
-
-    private var barsChart: some View {
-        Chart(timeline.buckets.filter { $0.bucket != nil }) { bucket in
-            BarMark(
-                x: .value("Bucket", bucket.bucket ?? .now, unit: calendarUnit),
-                y: .value("Revisions", bucket.count)
-            )
-            .foregroundStyle(Theme.accent.opacity(0.8))
-            .cornerRadius(2)
-        }
-    }
-
-    private var cumulativeChart: some View {
-        Chart(cumulativeData, id: \.bucket) { point in
-            AreaMark(
-                x: .value("Time", point.bucket),
-                y: .value("Total revisions", point.total)
-            )
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [Self.accrued.opacity(0.28), Self.accrued.opacity(0.02)],
-                    startPoint: .top, endPoint: .bottom
-                )
-            )
-            .interpolationMethod(.monotone)
-
-            LineMark(
-                x: .value("Time", point.bucket),
-                y: .value("Total revisions", point.total)
-            )
-            .foregroundStyle(Self.accrued)
-            .lineStyle(StrokeStyle(lineWidth: 2))
-            .interpolationMethod(.monotone)
-        }
-    }
-
-    /// Cumulative curve pinned to the window edges: seeds at the baseline on
-    /// the left so the accrued height is true, ends at the final total.
-    private var cumulativeData: [(bucket: Date, total: Int)] {
-        var points = timeline.cumulativePoints
-        if let first = points.first, first.bucket > window.lowerBound {
-            points.insert((window.lowerBound, timeline.baseline), at: 0)
-        }
-        if let last = points.last, last.bucket < window.upperBound {
-            points.append((window.upperBound, last.total))
-        }
-        if points.isEmpty {
-            points = [(window.lowerBound, timeline.baseline), (window.upperBound, timeline.baseline)]
-        }
-        return points
-    }
-
-    /// Match the bar width to the server's adaptive date_trunc unit.
-    private var calendarUnit: Calendar.Component {
-        switch timeline.unit {
-        case "hour": return .hour
-        case "week": return .weekOfYear
-        case "month": return .month
-        default: return .day
-        }
-    }
-
-    @AxisContentBuilder
-    private var timeAxis: some AxisContent {
-        AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-            AxisGridLine().foregroundStyle(Theme.border.opacity(0.25))
-            AxisTick().foregroundStyle(Theme.tertiary)
-            AxisValueLabel()
-                .font(.caption2)
-                .foregroundStyle(Theme.tertiary)
-        }
-    }
-}
-
 // MARK: - Kind legend
 
 /// Legend with per-kind counts (events_by_kind), in lane order so it reads
@@ -338,12 +228,12 @@ struct WikiRevisionsChart: View {
 /// also carried by the y-lanes.
 ///
 /// Every kind gets its own row. The previous version collapsed anything outside
-/// the built-in palette into a single "Other N" row, which on a Hermes wiki
+/// the built-in palette into a single "Other N" row, which on a harness wiki
 /// would have merged every wiki-declared kind into one — the legend has to name
 /// what the wiki named, and a declared kind's definition page is clickable.
-struct WikiEventKindLegend: View {
+internal struct WikiEventKindLegend: View {
     /// Wire-kind string → count, from the event log response.
-    let eventsByKind: [String: Int]
+    internal let eventsByKind: [String: Int]
     internal var presentation: WikiEventPresentation = .empty
     /// Opens a kind's definition page. nil (or a kind with no page) renders the
     /// row as plain text.
@@ -358,7 +248,7 @@ struct WikiEventKindLegend: View {
             }
     }
 
-    var body: some View {
+    internal var body: some View {
         FlowLayout(spacing: 10) {
             ForEach(entries, id: \.kind) { entry in
                 legendRow(kind: entry.kind, count: entry.count)

@@ -9,7 +9,11 @@ import SwiftUI
 /// would be invisible until they were wrong everywhere at once: a treatment that
 /// draws no border and no fill (an invisible button), a stored preference that
 /// refuses to load, and `system` leaking geometry it does not own.
+/// `@MainActor` because `PortalButtonStyle`'s initializer and its `tint` are
+/// main-actor isolated, so constructing one from a nonisolated test body warned
+/// on every call. Every test here is synchronous and only inspects style values.
 @Suite("Button themes")
+@MainActor
 internal struct ButtonThemeTests {
 
     // MARK: - Every treatment is visible

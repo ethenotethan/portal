@@ -91,11 +91,29 @@ internal struct KeychainReadOutcomeTests {
     @Test("a valid harness blob decodes to .found")
     internal func validBlobDecodes() throws {
         let saved = [
-            SavedGateway(name: "Eigen VDI", url: "http://10.0.2.47:8642", apiKey: "k1", kind: .hermes),
+            SavedGateway(name: "Eigen VDI", url: "http://10.0.2.47:8642", apiKey: "k1"),
         ]
         let outcome = KeychainStore.decodeGateways(.found(try JSONEncoder().encode(saved)))
         #expect(outcome.value?.count == 1)
         #expect(outcome.value?.first?.name == "Eigen VDI")
+        #expect(!outcome.isUnreadable)
+    }
+
+    @Test("entries saved for a retired backend platform are dropped at decode")
+    internal func retiredKindEntriesAreDropped() throws {
+        // A blob mixing a harness entry with one saved under a retired `kind`
+        // (Centaur / Hermes Standard). `SavedGateway` only reads `kind`, never
+        // writes it, so the retired entry is hand-authored JSON.
+        let blob = Data("""
+        [
+          {"id":"\(UUID().uuidString)","name":"Harness","url":"ws://h.example.com:8642/v1/ws","apiKey":"k1"},
+          {"id":"\(UUID().uuidString)","name":"Old Centaur","url":"https://c.example.com","apiKey":"k2","kind":"centaur"}
+        ]
+        """.utf8)
+        let outcome = KeychainStore.decodeGateways(.found(blob))
+        // Only the harness survives; the retired entry is filtered, not dialed.
+        #expect(outcome.value?.count == 1)
+        #expect(outcome.value?.first?.name == "Harness")
         #expect(!outcome.isUnreadable)
     }
 

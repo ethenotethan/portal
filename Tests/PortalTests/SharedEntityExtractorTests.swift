@@ -12,17 +12,17 @@ internal struct SharedEntityExtractorTests {
     }
 
     @Test("three calls to the same pod become one shared entity with all node ids")
-    internal func groupsPodTouches() {
+    internal func groupsPodTouches() throws {
         let entities = SharedEntityExtractor.extract(from: [
             node("t1", "kubectl get pod/api-server"),
             node("t2", "kubectl describe pod api-server"),
             node("t3", "kubectl delete pod/api-server"),
         ])
         #expect(entities.count == 1)
-        let pod = try? #require(entities.first)
-        #expect(pod?.kind == .k8sPod)
-        #expect(pod?.label == "api-server")
-        #expect(Set(pod?.nodeIDs ?? []) == ["t1", "t2", "t3"])
+        let pod = try #require(entities.first)
+        #expect(pod.kind == .k8sPod)
+        #expect(pod.label == "api-server")
+        #expect(Set(pod.nodeIDs) == ["t1", "t2", "t3"])
     }
 
     @Test("an entity touched by only one bar is not surfaced (nothing to connect)")
@@ -43,6 +43,21 @@ internal struct SharedEntityExtractorTests {
         let host = entities.first { $0.kind == .host }
         #expect(host?.label == "api.example.com")
         #expect(host?.nodeIDs.count == 2)
+    }
+
+    @Test("entity identity and presentation reflect its kind and label")
+    internal func identityAndPresentation() {
+        let entity = SharedEntity(kind: .k8sPod, label: "API-Server", nodeIDs: ["t1", "t2"])
+
+        #expect(entity.id == "K8s pod:api-server")
+        #expect(entity.displayLabel == "K8s pod · API-Server")
+        #expect(SharedEntity.Kind.k8sPod.icon == "shippingbox")
+        #expect(SharedEntity.Kind.k8sDeployment.icon == "shippingbox")
+        #expect(SharedEntity.Kind.container.icon == "shippingbox")
+        #expect(SharedEntity.Kind.k8sService.icon == "network")
+        #expect(SharedEntity.Kind.url.icon == "globe")
+        #expect(SharedEntity.Kind.host.icon == "globe")
+        #expect(SharedEntity.Kind.dbTable.icon == "cylinder")
     }
 
     @Test("distinct resources are distinct entities")

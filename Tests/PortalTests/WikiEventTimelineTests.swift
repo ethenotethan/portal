@@ -68,50 +68,6 @@ private enum Fixtures {
     }
     """
 
-    static let revisionsTimelineJSON = """
-    {
-      "since": "2026-06-23T00:00:00Z",
-      "until": "2026-07-23T00:00:00Z",
-      "unit": "day",
-      "baseline": 412,
-      "total_in_window": 9,
-      "buckets": [
-        {"bucket": "2026-07-19T00:00:00Z", "count": 4},
-        {"bucket": "2026-07-20T00:00:00Z", "count": 5}
-      ]
-    }
-    """
-
-    static let changesJSON = """
-    {
-      "since": "2026-06-23T00:00:00Z",
-      "until": "2026-07-23T00:00:00Z",
-      "page_count": 2,
-      "source_count": 3,
-      "pages_by_type": {"topic": 1, "entity": 1},
-      "sources_by_kind": {"github_pr": 2, "slack": 1},
-      "pages": [
-        {
-          "id": "wiki:topic:glossary-mcp",
-          "title": "Glossary: MCP",
-          "type": "topic",
-          "url": "https://docs.example.com/wiki/glossary-mcp",
-          "updated_at": "2026-07-20T14:30:00Z"
-        },
-        {
-          "id": "wiki:entity:person-greg",
-          "title": "Greg",
-          "type": "entity",
-          "url": "",
-          "updated_at": ""
-        }
-      ],
-      "sources": [
-        {"source_key": "github:pr:1", "kind": "github_pr"}
-      ]
-    }
-    """
-
     static func object(_ json: String) throws -> [String: Any] {
         let data = Data(json.utf8)
         let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -246,153 +202,6 @@ internal struct WikiEventTimelineWindowCountingTests {
     }
 }
 
-// MARK: - /wiki/revisions-timeline decoding
-
-@Suite("Wiki Revisions Timeline Decoding")
-struct WikiRevisionsTimelineDecodingTests {
-
-    @Test("decodes unit, baseline, total, and buckets")
-    func decodesRevisions() throws {
-        let timeline = WikiTimelineDecoding.mapRevisionsTimeline(try Fixtures.object(Fixtures.revisionsTimelineJSON))
-        #expect(timeline.unit == "day")
-        #expect(timeline.baseline == 412)
-        #expect(timeline.totalInWindow == 9)
-        #expect(timeline.buckets.count == 2)
-        #expect(timeline.buckets[0].count == 4)
-        #expect(timeline.buckets[0].bucket != nil)
-    }
-
-    @Test("cumulative points seed at the baseline and run to baseline+window")
-    func cumulativeSeedsAtBaseline() throws {
-        let timeline = WikiTimelineDecoding.mapRevisionsTimeline(try Fixtures.object(Fixtures.revisionsTimelineJSON))
-        let points = timeline.cumulativePoints
-        #expect(points.count == 2)
-        #expect(points.first?.total == 412 + 4)
-        #expect(points.last?.total == 412 + 9)
-    }
-
-    @Test("empty payload decodes to safe defaults")
-    func emptyPayload() {
-        let timeline = WikiTimelineDecoding.mapRevisionsTimeline([:])
-        #expect(timeline.unit == "day")
-        #expect(timeline.baseline == 0)
-        #expect(timeline.buckets.isEmpty)
-        #expect(timeline.cumulativePoints.isEmpty)
-        #expect(timeline.totalAllTime == 0)
-        #expect(timeline.busiestBucket == nil)
-    }
-
-    /// A bucket whose timestamp failed to parse keeps a stable identity so the
-    /// `Identifiable` conformance never traps: `id` falls back to `.distantPast`
-    /// when `bucket` is nil — the only kind of row the cumulative/busiest
-    /// filters already exclude from the plot.
-    @Test("a bucket with no date falls back to distantPast for its id")
-    internal func nilBucketIDFallsBackToDistantPast() {
-        let undated = WikiRevisionsTimeline.Bucket(bucket: nil, count: 3)
-        #expect(undated.id == .distantPast)
-
-        // A dated bucket's id is its own date — the fallback is nil-only.
-        let dated = WikiRevisionsTimeline.Bucket(
-            bucket: WikiTimelineDecoding.parseDate("2026-07-20T00:00:00Z"), count: 1)
-        #expect(dated.id == dated.bucket)
-    }
-
-    @Test("knowledge-accrued stats: all-time total and busiest bucket")
-    func knowledgeStats() throws {
-        let timeline = WikiTimelineDecoding.mapRevisionsTimeline(try Fixtures.object(Fixtures.revisionsTimelineJSON))
-        #expect(timeline.totalAllTime == 412 + 9)
-        // Busiest bucket is the 5-edit day (2026-07-20).
-        let busiest = try #require(timeline.busiestBucket)
-        #expect(busiest.count == 5)
-        #expect(busiest.bucket == WikiTimelineDecoding.parseDate("2026-07-20T00:00:00Z"))
-    }
-
-    @Test("busiest bucket ties break to the most recent bucket")
-    func busiestTieBreak() {
-        let timeline = WikiTimelineDecoding.mapRevisionsTimeline([
-            "buckets": [
-                ["bucket": "2026-07-19T00:00:00Z", "count": 4],
-                ["bucket": "2026-07-20T00:00:00Z", "count": 4],
-            ],
-        ])
-        #expect(timeline.busiestBucket?.bucket == WikiTimelineDecoding.parseDate("2026-07-20T00:00:00Z"))
-    }
-}
-
-// MARK: - /wiki/changes decoding
-
-@Suite("Wiki Changes Summary Decoding")
-struct WikiChangesSummaryDecodingTests {
-
-    @Test("decodes window, page count, per-type map, and page rows")
-    func decodesChanges() throws {
-        let summary = WikiTimelineDecoding.mapChangesSummary(try Fixtures.object(Fixtures.changesJSON))
-        #expect(summary.pageCount == 2)
-        #expect(summary.pages.count == 2)
-        #expect(summary.pagesByType == ["topic": 1, "entity": 1])
-        #expect(summary.since != nil)
-        #expect(summary.until != nil)
-
-        let glossary = try #require(summary.pages.first { $0.id == "wiki:topic:glossary-mcp" })
-        #expect(glossary.title == "Glossary: MCP")
-        #expect(glossary.type == "topic")
-        #expect(glossary.url == "https://docs.example.com/wiki/glossary-mcp")
-        #expect(glossary.updatedAt != nil)
-    }
-
-    @Test("empty url and empty updated_at decode to no-link, nil-date rows")
-    func decodesBareRow() throws {
-        let summary = WikiTimelineDecoding.mapChangesSummary(try Fixtures.object(Fixtures.changesJSON))
-        let greg = try #require(summary.pages.first { $0.id == "wiki:entity:person-greg" })
-        #expect(greg.url.isEmpty)       // no link affordance
-        #expect(greg.updatedAt == nil)  // "" serializes null
-    }
-
-    @Test("page rows without an id are dropped; empty payload decodes empty")
-    func toleratesMalformed() {
-        let summary = WikiTimelineDecoding.mapChangesSummary([
-            "pages": [["title": "orphan"], ["id": "wiki:topic:kept"]],
-        ])
-        #expect(summary.pages.count == 1)
-        #expect(summary.pageCount == 1)
-
-        let empty = WikiTimelineDecoding.mapChangesSummary([:])
-        #expect(empty.pages.isEmpty)
-        #expect(empty.pagesByType.isEmpty)
-    }
-}
-
-// MARK: - Window-param formatting
-
-@Suite("Wiki Timeline Window Params")
-struct WikiTimelineWindowParamTests {
-
-    @Test("days wins and formats whole numbers without a decimal point")
-    func daysParam() {
-        #expect(CentaurWikiClient.timelinePath("wiki/timeline", days: 7, since: nil, until: nil)
-            == "wiki/timeline?days=7")
-        #expect(CentaurWikiClient.timelinePath("wiki/timeline", days: 0.5, since: nil, until: nil)
-            == "wiki/timeline?days=0.5")
-        // days takes precedence over since/until (mirrors the server).
-        #expect(CentaurWikiClient.timelinePath("wiki/timeline", days: 30, since: Date(), until: Date())
-            == "wiki/timeline?days=30")
-    }
-
-    @Test("since/until format as RFC3339 with Z, percent-encoded")
-    func sinceUntilParams() {
-        let since = Date(timeIntervalSince1970: 1_750_000_000)  // 2025-06-15T15:06:40Z
-        let until = Date(timeIntervalSince1970: 1_750_086_400)
-        let path = CentaurWikiClient.timelinePath("wiki/revisions-timeline", days: nil, since: since, until: until)
-        #expect(path == "wiki/revisions-timeline?since=2025-06-15T15:06:40Z&until=2025-06-16T15:06:40Z")
-    }
-
-    @Test("no params yields the bare path")
-    func bareParams() {
-        #expect(CentaurWikiClient.timelinePath("wiki/timeline", days: nil, since: nil, until: nil)
-            == "wiki/timeline")
-    }
-}
-
 // MARK: - Events-page navigation state
 
 @Suite("Wiki Events Page Navigation")
@@ -431,14 +240,25 @@ struct WikiEventsPageNavigationTests {
 @MainActor
 struct WikiEventTimelineGatingTests {
 
-    @Test("CentaurWikiClient provides the event timeline; GatewayClient does not")
-    func onlyCentaurConforms() {
-        let centaur: any WikiSource = CentaurWikiClient(
-            baseURL: URL(string: "https://wiki.example.com")!, apiKey: "k"
-        )
-        #expect(centaur is (any WikiEventTimelineProviding))
-
+    @Test("the harness gateway provides the event log")
+    internal func gatewayConformsToEventLog() {
         let hermes: any WikiSource = GatewayClient()
-        #expect(!(hermes is (any WikiEventTimelineProviding)))
+        #expect(hermes is (any WikiEventLogSource))
+    }
+
+    /// The WikiSource conformance forwards to the wiki RPCs. Unconnected, the
+    /// RPC layer throws `.notConnected` immediately (no socket), so this drives
+    /// both forwarders through their bodies without needing a live gateway.
+    @Test("WikiSource fetch methods forward to the wiki RPCs")
+    internal func gatewaySourceForwardsToRPCs() async {
+        let source: any WikiSource = GatewayClient()
+        do {
+            _ = try await source.fetchGraph()
+            Issue.record("expected fetchGraph to throw when not connected")
+        } catch { /* .notConnected is the expected offline outcome */ }
+        do {
+            _ = try await source.fetchPage(path: "wiki:topic:glossary-mcp")
+            Issue.record("expected fetchPage to throw when not connected")
+        } catch { /* expected */ }
     }
 }

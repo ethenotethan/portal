@@ -6,15 +6,15 @@ import SwiftUI
 /// git-style diff INLINE beneath it — GitHub commit-list style, no nested
 /// sheet. When a page is selected in the shared plane the feed scopes to
 /// that page's history (toggleable back to the whole wiki).
-struct WikiTimelineView: View {
+internal struct WikiTimelineView: View {
     @StateObject private var viewModel = WikiTimelineViewModel()
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
 
     /// Wiki name to scope the timeline to (nil = default wiki).
-    let wiki: String?
+    internal let wiki: String?
     /// Shared-plane selection (relative path); when set, the feed offers
     /// (and defaults to) that page's history.
-    var selectedPagePath: String?
+    internal var selectedPagePath: String?
     /// The wiki's own event-type taxonomy — what its ingestion sources mean.
     /// Defaults to `.empty`, which still resolves every kind (derived), so a
     /// host that hasn't loaded definitions yet renders correctly.
@@ -22,13 +22,13 @@ struct WikiTimelineView: View {
     /// Called when "Open page" is invoked, with the changeset's page path. Also
     /// the click-through for a trigger chip whose kind the wiki declared (opens
     /// the definition page) — both are "show me this page".
-    var onOpenPage: ((String) -> Void)?
+    internal var onOpenPage: ((String) -> Void)?
     /// Click-through for a provenance chip, with the source event's key: opens
     /// the event feed on that event. nil renders the chips as plain labels —
     /// a host without an events surface has nowhere to send the click.
     internal var onOpenEvent: ((String) -> Void)?
     /// Drawer hosting: close affordance.
-    var onClose: (() -> Void)?
+    internal var onClose: (() -> Void)?
 
     /// Changeset whose diff is expanded inline (one at a time keeps the
     /// feed scannable and bounds diff fetches).
@@ -54,7 +54,7 @@ struct WikiTimelineView: View {
         return f
     }()
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             header
             Divider()

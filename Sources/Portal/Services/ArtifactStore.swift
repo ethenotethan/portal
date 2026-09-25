@@ -34,7 +34,13 @@ final class ArtifactStore: ObservableObject {
         case succeeded(message: String?, sessionID: String?)
         case failed(reason: String)
         case conflict
-        case unsupported
+        /// No handler ran. `reason` distinguishes the four very different ways
+        /// that happens — a local bookkeeping miss, no gateway connection, a
+        /// gateway with no artifact.action surface at all, or a successful round
+        /// trip the harness answered `unsupported`. They used to collapse into
+        /// one sentence about "the connected harness", which pointed at the
+        /// server even when nothing had been sent to it.
+        case unsupported(reason: String?)
 
         /// Map a ledger outcome string to a displayable state.
         /// Returns nil for non-terminal outcomes (needs_confirmation, running)
@@ -44,7 +50,7 @@ final class ArtifactStore: ObservableObject {
             case "succeeded": return .succeeded(message: nil, sessionID: nil)
             case "failed":    return .failed(reason: reason ?? "Unknown error")
             case "conflict":  return .conflict
-            case "unsupported": return .unsupported
+            case "unsupported": return .unsupported(reason: reason)
             default:          return nil
             }
         }
@@ -171,6 +177,204 @@ final class ArtifactStore: ObservableObject {
         schedulePush(id: artifactID)
     }
 
+    // MARK: - Backend queries (the read side)
+
+    /// One element's worth of query: which artifact, which declared query, and
+    /// the page's exact `data-hermes-params` text — the key its result is
+    /// written back under.
+    internal struct QuerySlot: Hashable, Sendable {
+        internal let artifactID: String
+        internal let queryID: String
+        internal let rawParams: String
+        /// The page's `data-hermes-cursor` (empty = first page). Part of the key
+        /// so each page is its own slot with its own result, and advancing the
+        /// cursor never clobbers the page the element currently shows.
+        internal let rawCursor: String
+    }
+
+    internal enum QueryState: Equatable {
+        case loading
+        /// `payload` is the JSON text the page reads out of its sink;
+        /// `nextCursor` is the handler's paging token for the following page,
+        /// nil when there are no more pages.
+        case ok(payload: String, etag: String, nextCursor: String?)
+        case failed(reason: String)
+        case unsupported(reason: String)
+    }
+
+    /// Per-slot query results, projected onto the page by the HTML host.
+    @Published internal private(set) var queryStates: [QuerySlot: QueryState] = [:]
+    /// Gateway subscription handles for live slots, released with the view.
+    private var querySubscriptions: [QuerySlot: String] = [:]
+    private var queryTasks: [QuerySlot: Task<Void, Never>] = [:]
+
+    /// Run (or re-run) a declared query for one page element.
+    ///
+    /// The artifact's manifest is checked here first — unknown query, bound key
+    /// overridden, value out of range — so the page gets a readable reason
+    /// without a round trip; the gateway checks again and is authoritative. A
+    /// live query subscribes on first run, after which re-runs use the cheaper
+    /// invoke and the gateway's `artifact.query.changed` drives them.
+    internal func runQuery(artifactID: String, queryID: String, rawParams: String, rawCursor: String = "") {
+        let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams, rawCursor: rawCursor)
+        queryTasks[slot]?.cancel()
+        queryTasks[slot] = Task { [weak self] in
+            await self?.performQuery(slot)
+            self?.queryTasks[slot] = nil
+        }
+    }
+
+    /// Record that a slot can't run at all on this client (no gateway surface),
+    /// so the page hears `unsupported` instead of waiting.
+    internal func markQueryUnsupported(
+        artifactID: String, queryID: String, rawParams: String, rawCursor: String = "", reason: String
+    ) {
+        let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams, rawCursor: rawCursor)
+        queryStates[slot] = .unsupported(reason: reason)
+    }
+
+    /// Every slot for one artifact, for the host to project onto its page.
+    internal func querySlots(artifactID: String) -> [(slot: QuerySlot, state: QueryState)] {
+        queryStates.compactMap { $0.key.artifactID == artifactID ? ($0.key, $0.value) : nil }
+    }
+
+    /// The page went away: stop following its queries and forget their results.
+    internal func releaseQueries(artifactID: String) {
+        for (slot, task) in queryTasks where slot.artifactID == artifactID {
+            task.cancel()
+            queryTasks[slot] = nil
+        }
+        let handles = querySubscriptions.filter { $0.key.artifactID == artifactID }
+        for (slot, handle) in handles {
+            querySubscriptions[slot] = nil
+            guard let client else { continue }
+            Task {
+                do {
+                    try await client.artifactQueryUnsubscribe(handle: handle)
+                } catch {
+                    // Best effort: the gateway also drops a slot whose subscriber
+                    // vanished, so a failed unsubscribe costs a few polls, not a leak.
+                    log.info("artifact query unsubscribe failed for \(handle, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+        queryStates = queryStates.filter { $0.key.artifactID != artifactID }
+    }
+
+    private func performQuery(_ slot: QuerySlot, retryingConflict: Bool = true) async {
+        guard let artifact = artifacts[slot.artifactID] else {
+            queryStates[slot] = .unsupported(reason: "This artifact isn't in the local store.")
+            return
+        }
+        guard let client, syncAvailable != false else {
+            queryStates[slot] = .unsupported(reason: "Not connected to a gateway.")
+            return
+        }
+        guard let declaration = artifact.queries.first(where: { $0.id == slot.queryID }) else {
+            queryStates[slot] = .unsupported(reason: "The artifact declares no query \(slot.queryID).")
+            return
+        }
+        let params: [String: AnyCodable]
+        do {
+            let request = HTMLArtifactQueryRequest(queryID: slot.queryID, rawParams: slot.rawParams)
+            params = try declaration.validate(try request.parameters())
+        } catch {
+            queryStates[slot] = .failed(reason: error.localizedDescription)
+            return
+        }
+        // Keep the previous data on screen while it refreshes: a slot that
+        // flashed empty on every poll would be worse than one that never moved.
+        if case .ok = queryStates[slot] {} else { queryStates[slot] = .loading }
+
+        let cursor = slot.rawCursor.isEmpty ? nil : slot.rawCursor
+        do {
+            let result: ArtifactQueryResult?
+            // A cursored request is a point-in-time page read, so it always
+            // invokes — subscribing per page would pin one subscription for
+            // every page the reader scrolls through, and a "page N" slot has no
+            // meaningful live identity. Only the uncursored base query (the
+            // first page) follows the live-subscribe path.
+            if declaration.isLive, cursor == nil, querySubscriptions[slot] == nil {
+                result = try await client.artifactQuerySubscribe(
+                    artifactID: slot.artifactID, artifactRev: artifact.rev,
+                    queryID: slot.queryID, params: params
+                )
+            } else {
+                result = try await client.artifactQueryInvoke(
+                    artifactID: slot.artifactID, artifactRev: artifact.rev,
+                    queryID: slot.queryID, params: params, cursor: cursor
+                )
+            }
+            guard !Task.isCancelled else { return }
+            guard let result else {
+                queryStates[slot] = .unsupported(
+                    reason: "This gateway has no artifact.query surface — it's too old for queries."
+                )
+                return
+            }
+            if let handle = result.subscription { querySubscriptions[slot] = handle }
+            switch result.outcome {
+            case .ok(let data, let etag, let nextCursor):
+                queryStates[slot] = .ok(
+                    payload: HTMLArtifactQueryBridge.payloadText(data), etag: etag, nextCursor: nextCursor)
+            case .failed(let reason): queryStates[slot] = .failed(reason: reason)
+            case .unsupported(let reason): queryStates[slot] = .unsupported(reason: reason)
+            case .conflict:
+                // The page rendered against a revision that has since moved on.
+                // Pull the current artifact and go once more with its rev — one
+                // retry, because a second conflict means the artifact is being
+                // rewritten under us and the next artifact.changed will re-run.
+                guard retryingConflict else {
+                    queryStates[slot] = .failed(reason: "The artifact changed while the query ran.")
+                    return
+                }
+                let fresh: LivingArtifact?
+                do {
+                    fresh = try await client.artifactGet(id: slot.artifactID)
+                } catch {
+                    queryStates[slot] = .failed(reason: error.localizedDescription)
+                    return
+                }
+                guard let fresh else {
+                    queryStates[slot] = .unsupported(reason: "The artifact is gone from the gateway.")
+                    return
+                }
+                var stamped = fresh
+                stamped.gatewayID = artifacts[slot.artifactID]?.gatewayID
+                artifacts[slot.artifactID] = stamped
+                await performQuery(slot, retryingConflict: false)
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            queryStates[slot] = .failed(reason: error.localizedDescription)
+        }
+    }
+
+    /// The gateway says a subscribed slot's data changed (or that the slot can
+    /// no longer answer). Re-run every slot on that query.
+    private func applyQueryChange(artifactID: String, queryID: String, status: String, reason: String) {
+        let slots = queryStates.keys.filter { $0.artifactID == artifactID && $0.queryID == queryID }
+        for slot in slots {
+            if status == "unsupported" {
+                querySubscriptions[slot] = nil
+                queryStates[slot] = .unsupported(reason: reason.isEmpty ? "Query no longer available." : reason)
+            } else {
+                runQuery(artifactID: slot.artifactID, queryID: slot.queryID, rawParams: slot.rawParams)
+            }
+        }
+    }
+
+    /// An intent succeeded: the queries that declared it in `invalidated_by`
+    /// are stale, so re-run them without waiting for a poll.
+    private func invalidateQueries(artifactID: String, bindingID: String) {
+        guard !bindingID.isEmpty, let artifact = artifacts[artifactID] else { return }
+        let stale = Set(artifact.queries.filter { $0.invalidatedBy.contains(bindingID) }.map(\.id))
+        guard !stale.isEmpty else { return }
+        for slot in queryStates.keys where slot.artifactID == artifactID && stale.contains(slot.queryID) {
+            runQuery(artifactID: slot.artifactID, queryID: slot.queryID, rawParams: slot.rawParams)
+        }
+    }
+
     // MARK: - Backend intent invocation
 
     /// Invoke a backend intent declared by the artifact. The gateway resolves
@@ -188,7 +392,19 @@ final class ArtifactStore: ObservableObject {
     ) async {
         guard let artifact = artifacts[artifactID],
               let client else {
-            intentStates[slotKey(artifactID, bindingID, entryKey)] = .unsupported
+            // Both of these are LOCAL failures — an artifact the store never
+            // adopted, or no gateway connection at all — yet they surface the
+            // same "not available on the connected harness" copy as a genuine
+            // harness verdict. Say which it was, or the user is left auditing a
+            // server that was never asked.
+            let why = artifacts[artifactID] == nil
+                ? "This artifact isn't in the local store, so nothing was sent."
+                : "Not connected to a gateway — nothing was sent."
+            log.notice("""
+            artifact intent \(bindingID, privacy: .public) not dispatched: \
+            \(self.artifacts[artifactID] == nil ? "artifact \(artifactID) is not in the store" : "no gateway client", privacy: .public)
+            """)
+            intentStates[slotKey(artifactID, bindingID, entryKey)] = .unsupported(reason: why)
             return
         }
         let slot = slotKey(artifactID, bindingID, entryKey)
@@ -209,10 +425,19 @@ final class ArtifactStore: ObservableObject {
                 entityRef: entryKey,
                 idempotencyKey: ikey
             ) else {
-                intentStates[slot] = .unsupported
+                // nil means JSON-RPC -32601: this gateway has no
+                // artifact.action.invoke method at all — every intent on every
+                // artifact is dead, not just this binding.
+                log.notice("""
+                artifact intent \(bindingID, privacy: .public) not dispatched: gateway does not implement \
+                artifact.action.invoke (method not found)
+                """)
+                intentStates[slot] = .unsupported(
+                    reason: "This gateway has no artifact.action.invoke method — it's too old for intents."
+                )
                 return
             }
-            applyInvokeResult(result, slot: slot, artifactID: artifactID)
+            applyInvokeResult(result, slot: slot, artifactID: artifactID, bindingID: bindingID)
         } catch {
             intentStates[slot] = .failed(reason: error.localizedDescription)
         }
@@ -237,10 +462,12 @@ final class ArtifactStore: ObservableObject {
                 artifactID: artifactID,
                 challenge: challenge
             ) else {
-                intentStates[slot] = .unsupported
+                intentStates[slot] = .unsupported(
+                    reason: "This gateway has no artifact.action.confirm method."
+                )
                 return
             }
-            applyInvokeResult(result, slot: slot, artifactID: artifactID)
+            applyInvokeResult(result, slot: slot, artifactID: artifactID, bindingID: bindingID)
         } catch {
             intentStates[slot] = .failed(reason: error.localizedDescription)
         }
@@ -301,7 +528,7 @@ final class ArtifactStore: ObservableObject {
     }
 
     private func applyInvokeResult(
-        _ result: ArtifactActionInvokeResult, slot: String, artifactID: String
+        _ result: ArtifactActionInvokeResult, slot: String, artifactID: String, bindingID: String = ""
     ) {
         switch result.outcome {
         case .needsConfirmation(let challenge, let prompt):
@@ -312,6 +539,8 @@ final class ArtifactStore: ObservableObject {
             // (tombstone, field update, etc.). Do not imply the refresh is part
             // of the external action result — they are separate outcomes.
             refreshArtifact(id: artifactID)
+            // The write side telling the read side it is stale.
+            invalidateQueries(artifactID: artifactID, bindingID: bindingID)
         case .failed(let reason):
             intentStates[slot] = .failed(reason: reason)
         case .conflict:
@@ -320,7 +549,18 @@ final class ArtifactStore: ObservableObject {
             // with the updated revision.
             refreshArtifact(id: artifactID)
         case .unsupported:
-            intentStates[slot] = .unsupported
+            // The round trip SUCCEEDED and the gateway resolved the binding
+            // against the pinned revision — it just has no handler registered
+            // for the intent this artifact declares. Nothing client-side can
+            // fix that, so name it as the gateway's verdict rather than letting
+            // it read like the same local failure as the guards above.
+            log.notice("""
+            artifact intent \(bindingID, privacy: .public) on \(artifactID, privacy: .public) dispatched \
+            successfully; gateway reported outcome=unsupported (no registered handler for this binding)
+            """)
+            intentStates[slot] = .unsupported(
+                reason: "The gateway received this and has no handler registered for “\(bindingID)”."
+            )
         }
     }
 
@@ -472,10 +712,29 @@ final class ArtifactStore: ObservableObject {
         eventCancellable = client.eventStream
             .receive(on: RunLoop.main)
             .sink { [weak self] event, _ in
-                guard case .artifactChanged(let id, let deleted) = event else { return }
-                self?.applyRemoteChange(id: id, deleted: deleted)
+                self?.handleGatewayEvent(event)
             }
         Task { await pull() }
+    }
+
+    /// The two gateway events the store acts on. Everything else is another
+    /// store's concern.
+    private func handleGatewayEvent(_ event: GatewayEvent) {
+        switch event {
+        case .artifactChanged(let id, let deleted):
+            applyRemoteChange(id: id, deleted: deleted)
+        case .artifactQueryChanged(let artifactID, let queryID, let status, let reason):
+            applyQueryChange(artifactID: artifactID, queryID: queryID, status: status, reason: reason)
+        default:
+            break
+        }
+    }
+
+    /// Deliver a gateway event without a live subscription, for tests: the
+    /// Combine pipeline hops through the main run loop, which a test that
+    /// yields on the main actor never spins.
+    internal func applyGatewayEventForTesting(_ event: GatewayEvent) {
+        handleGatewayEvent(event)
     }
 
     private var eventCancellable: AnyCancellable?
@@ -529,19 +788,24 @@ final class ArtifactStore: ObservableObject {
                         artifacts[summary.id] = stamped
                         changed = true
                     }
-                } else if var current = local,
-                          current.topLevelActions.isEmpty,
-                          !summary.topLevelActions.isEmpty {
+                } else if var current = local {
                     // Rev unchanged, but the local copy came from the disk
-                    // cache, which cannot persist actions (ArtifactAction is
-                    // not Codable — see LivingArtifact's custom Codable). An
-                    // app restart therefore wakes every artifact with an empty
-                    // manifest, and this rev guard would keep it that way
-                    // forever: every declared intent silently dead. The list
-                    // summary carries the actions (the gateway strips only
-                    // content), so re-adopt them in place.
-                    current.topLevelActions = summary.topLevelActions
-                    artifacts[summary.id] = current
+                    // cache, which cannot persist actions or queries (their
+                    // declaration types are not Codable). An app restart
+                    // therefore wakes every artifact with empty manifests, and
+                    // the rev guard would keep it that way forever. The list
+                    // summary carries both manifests (the gateway strips only
+                    // content), so re-adopt either missing one in place.
+                    var restoredManifest = false
+                    if current.topLevelActions.isEmpty, !summary.topLevelActions.isEmpty {
+                        current.topLevelActions = summary.topLevelActions
+                        restoredManifest = true
+                    }
+                    if current.queries.isEmpty, !summary.queries.isEmpty {
+                        current.queries = summary.queries
+                        restoredManifest = true
+                    }
+                    if restoredManifest { artifacts[summary.id] = current }
                 }
             }
             // Push local-only artifacts up (offline creations).

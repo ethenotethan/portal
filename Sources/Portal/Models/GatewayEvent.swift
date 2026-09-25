@@ -45,7 +45,9 @@ enum GatewayEvent {
         case .activityUpdated: "activity.updated"
         case .reviewSummary: "review.summary"
         case .artifactChanged: "artifact.changed"
+        case .artifactQueryChanged: "artifact.query.changed"
         case .learningChanged: "learning.changed"
+        case .architectureChanged: "architecture.changed"
         }
     }
 
@@ -179,9 +181,18 @@ enum GatewayEvent {
     // clients refetch content via artifact.get when they care)
     case artifactChanged(id: String, deleted: Bool)
 
+    // A subscribed artifact query's result changed server-side (etag-diffed);
+    // `status` is "ok" (re-fetch) or "unsupported" (slot dropped, `reason`).
+    case artifactQueryChanged(artifactID: String, queryID: String, status: String, reason: String)
+
     // Learning surface (course/deck/progress mutations — metadata only;
     // clients refetch via learning.course.get / learning.deck.get)
     case learningChanged(entity: String, id: String, rev: Int, deleted: Bool)
+
+    // A service's architecture model moved: a revision the gateway had not
+    // stored before (`reason: "snapshot"`) or a finished `--check`
+    // (`reason: "check"`, `status`). Clients refetch via architecture.describe.
+    case architectureChanged(service: String, revision: String, reason: String, status: String)
 
     /// Parse from raw JSON-RPC event params.
     static func from(type: String, payload: AnyCodable?) -> GatewayEvent {
@@ -351,12 +362,28 @@ enum GatewayEvent {
                 deleted: p["deleted"]?.boolValue ?? false
             )
 
+        case "artifact.query.changed":
+            return .artifactQueryChanged(
+                artifactID: p["artifact_id"]?.stringValue ?? "",
+                queryID: p["query_id"]?.stringValue ?? "",
+                status: p["status"]?.stringValue ?? "ok",
+                reason: p["reason"]?.stringValue ?? ""
+            )
+
         case "learning.changed":
             return .learningChanged(
                 entity: p["entity"]?.stringValue ?? "",
                 id: p["id"]?.stringValue ?? "",
                 rev: p["rev"]?.intValue ?? 0,
                 deleted: p["deleted"]?.boolValue ?? false
+            )
+
+        case "architecture.changed":
+            return .architectureChanged(
+                service: p["service"]?.stringValue ?? "",
+                revision: p["revision"]?.stringValue ?? "",
+                reason: p["reason"]?.stringValue ?? "snapshot",
+                status: p["status"]?.stringValue ?? ""
             )
 
         case "review.summary":

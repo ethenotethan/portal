@@ -299,6 +299,8 @@ internal struct CurriculumPlayerView: View {
 
                 Spacer()
 
+                discussPageButton
+
                 Button {
                     viewModel.markLessonRead()
                     viewModel.advanceToNextStep()
@@ -662,5 +664,33 @@ internal struct CurriculumPlayerView: View {
         if isCorrect { return Theme.success }
         if isSelected { return .red }
         return Theme.border.opacity(0.4)
+    }
+}
+
+private extension CurriculumPlayerView {
+    /// Hand the open lesson to chat to talk it over. Kept out of the main body
+    /// and hidden when no chat hand-off is wired, matching the quiz screen's
+    /// "Review with Agent" convention.
+    @ViewBuilder
+    var discussPageButton: some View {
+        if let onReviewWithAgent {
+            let prompt = viewModel.discussPrompt
+            Button {
+                onReviewWithAgent(prompt)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.left.and.text.bubble.right")
+                        .font(.system(size: 11))
+                    Text("Discuss this page")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(Theme.accent)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(Theme.surface, in: Capsule())
+                .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
     }
 }

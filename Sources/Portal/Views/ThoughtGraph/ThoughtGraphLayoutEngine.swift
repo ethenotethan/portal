@@ -4,8 +4,8 @@ import SwiftUI
 // MARK: - Graph Edge
 
 /// A directed edge in the thought graph, tagged with how it should render.
-struct ThoughtGraphEdge: Equatable {
-    enum Kind: Equatable {
+internal struct ThoughtGraphEdge: Equatable {
+    internal enum Kind: Equatable {
         /// Sequential step in the main loop (inferred order) — dashed.
         case main
         /// Dispatch from a delegating tool call to a subagent — solid, bold.
@@ -14,16 +14,16 @@ struct ThoughtGraphEdge: Equatable {
         case loop
     }
 
-    let from: String
-    let to: String
-    let kind: Kind
+    internal let from: String
+    internal let to: String
+    internal let kind: Kind
 }
 
 // MARK: - Lane Info
 
 /// One horizontal swimlane: the main loop or a single subagent's loop. Lanes
 /// stack down the y-axis; time runs left→right across each lane.
-struct ThoughtGraphLane: Identifiable {
+internal struct ThoughtGraphLane: Identifiable {
     internal let id: String       // "main" or the subagent_id
     internal let index: Int
     internal let y: Double        // lane center in world space (row)
@@ -59,7 +59,7 @@ struct ThoughtGraphLane: Identifiable {
 /// The engine is pure geometry: filtering (collapsed agents, hidden
 /// reasoning) happens in the view before `layout(nodes:)` is called.
 @MainActor
-final class ThoughtGraphLayoutEngine: ObservableObject {
+internal final class ThoughtGraphLayoutEngine: ObservableObject {
 
     // MARK: - Published State
 
@@ -350,7 +350,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
     }
 
     /// Curved edge path between two nodes.
-    func edgePath(from parentID: String, to childID: String) -> Path {
+    internal func edgePath(from parentID: String, to childID: String) -> Path {
         guard let pts = edgeControlPoints(from: parentID, to: childID) else { return Path() }
         var path = Path()
         path.move(to: pts.start)
@@ -360,7 +360,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
 
     /// Point at parameter `t` (0...1) along an edge's quadratic bezier —
     /// used for flow particles.
-    func edgePoint(from parentID: String, to childID: String, t: CGFloat) -> CGPoint? {
+    internal func edgePoint(from parentID: String, to childID: String, t: CGFloat) -> CGPoint? {
         guard let pts = edgeControlPoints(from: parentID, to: childID) else { return nil }
         let u = 1 - t
         let x = u * u * pts.start.x + 2 * u * t * pts.control.x + t * t * pts.end.x
@@ -371,7 +371,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
     // MARK: - Helpers
 
     /// Lookup the `ThoughtGraphLayout` for a given node ID.
-    func layout(for nodeID: String) -> ThoughtGraphLayout? {
+    internal func layout(for nodeID: String) -> ThoughtGraphLayout? {
         layoutIndex[nodeID]
     }
 
@@ -380,7 +380,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
     /// Compose the full node timeline for one turn: main-loop tool calls,
     /// subagent subtrees, and reasoning beats, all interleaved
     /// chronologically by `layout(nodes:)`.
-    static func composeTimeline(
+    internal static func composeTimeline(
         tools: [ToolCallRecord],
         agentNodes: [ThoughtGraphNode] = [],
         reasoningNodes: [ThoughtGraphNode] = []
@@ -394,7 +394,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
     // MARK: - Category Classification
 
     /// Tool category used for color coding.
-    enum ToolCategory: String {
+    internal enum ToolCategory: String {
         case search  // search_files, web_search, grep, find
         case read    // read_file, cat, open
         case write   // write_file, create, save
@@ -405,7 +405,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
         case other   // everything else
 
         /// Classify a tool by its name.
-        static func classify(name: String) -> ToolCategory {
+        internal static func classify(name: String) -> ToolCategory {
             let lower = name.lowercased()
             if lower == "reasoning" {
                 return .reasoning
@@ -432,7 +432,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
         }
 
         /// Cohesive graph color ramp (see Theme).
-        var color: Color {
+        internal var color: Color {
             switch self {
             case .search:    Theme.graphSearch
             case .read:      Theme.graphRead

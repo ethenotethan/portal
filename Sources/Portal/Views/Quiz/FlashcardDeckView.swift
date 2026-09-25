@@ -3,10 +3,10 @@ import SwiftUI
 /// Full flashcard study session view.
 /// Cycles through cards in a deck, supports swipe, keyboard, and button navigation.
 /// Tracks self-grades, applies SM-2 spaced repetition, and shows completion stats.
-struct FlashcardDeckView: View {
-    let deck: FlashcardDeck
-    let onClose: () -> Void
-    let onDeckUpdated: (FlashcardDeck) -> Void
+internal struct FlashcardDeckView: View {
+    internal let deck: FlashcardDeck
+    internal let onClose: () -> Void
+    internal let onDeckUpdated: (FlashcardDeck) -> Void
 
     @State private var currentIndex: Int = 0
     @State private var updatedDeck: FlashcardDeck
@@ -14,7 +14,7 @@ struct FlashcardDeckView: View {
     @State private var grades: [String: SRSQuality] = [:]
     @State private var dragOffset: CGFloat = 0
 
-    init(deck: FlashcardDeck, onClose: @escaping () -> Void, onDeckUpdated: @escaping (FlashcardDeck) -> Void) {
+    internal init(deck: FlashcardDeck, onClose: @escaping () -> Void, onDeckUpdated: @escaping (FlashcardDeck) -> Void) {
         self.deck = deck
         self.onClose = onClose
         self.onDeckUpdated = onDeckUpdated
@@ -30,7 +30,7 @@ struct FlashcardDeckView: View {
         return dueCards[currentIndex]
     }
 
-    var body: some View {
+    internal var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
 
@@ -400,8 +400,8 @@ struct FlashcardDeckView: View {
 // MARK: - Preview
 
 #if DEBUG
-struct FlashcardDeckView_Previews: PreviewProvider {
-    static var previews: some View {
+internal struct FlashcardDeckView_Previews: PreviewProvider {
+    internal static var previews: some View {
         FlashcardDeckView(
             deck: FlashcardDeck(
                 topic: "Sample Deck",

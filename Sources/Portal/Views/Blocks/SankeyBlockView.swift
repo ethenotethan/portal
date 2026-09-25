@@ -3,11 +3,11 @@ import SwiftUI
 /// Renders a ```sankey block: node bars in topological columns, cubic flow
 /// ribbons with thickness ∝ value. Canvas + native text only (PDF-safe).
 /// Click a node to highlight its flows; click background to clear.
-struct SankeyBlockView: View {
-    let json: String
-    let isStreaming: Bool
+internal struct SankeyBlockView: View {
+    internal let json: String
+    internal let isStreaming: Bool
 
-    var body: some View {
+    internal var body: some View {
         if let spec = SankeySpec.parse(json) {
             SankeyCard(spec: spec)
         } else if isStreaming {

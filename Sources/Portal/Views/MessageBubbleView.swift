@@ -6,6 +6,14 @@ import SwiftUI
 struct MessageBubbleView: View {
     let message: ChatMessage
     @EnvironmentObject var personaManager: PersonaManager
+    /// Per-message read-aloud. The shared service rather than an environment
+    /// object: this view is built in places (skins, site captures) that don't
+    /// install one, and speech is app-global state anyway.
+    @ObservedObject private var speech = TTSService.shared
+    /// Whether a local side-discussion is even possible, for the same reason and
+    /// on the same terms as `speech`.
+    @ObservedObject private var localChat = LocalChatService.shared
+    @Environment(\.discussMessage) private var discussMessage
 
     var body: some View {
         #if os(iOS)
@@ -141,7 +149,15 @@ struct MessageBubbleView: View {
     private var assistantFullWidthBubble: some View {
         VStack(alignment: .leading, spacing: 4) {
             VStack(alignment: .leading, spacing: 8) {
-                let displayContent = message.contentWithoutAttachments
+                // While streaming, the `_contentWithoutAttachments` cache is nil
+                // (it's populated once, on completion — see ChatViewModel), so
+                // `contentWithoutAttachments` would re-run the stripMediaTags
+                // regex over the whole, growing message on every redraw. The
+                // pane auto-scrolls (and thus re-renders) several times a second
+                // during a spoken reply, so that scan compounds into a visible
+                // CPU spin. Use raw `content` while streaming — MEDIA: tags only
+                // matter once the turn is done, when the cached strip kicks in.
+                let displayContent = message.isStreaming ? message.content : message.contentWithoutAttachments
                 if !displayContent.isEmpty {
                     if message.isStreaming && message.content.hasSuffix("…") == false {
                         LongResponseView(text: displayContent, isStreaming: message.isStreaming)
@@ -178,14 +194,63 @@ struct MessageBubbleView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.bubbleRadius))
 
-            if message.showTimestamp {
-                Text(message.timestamp, style: .time)
-                    .font(.system(.caption2))
-                    .foregroundStyle(Theme.tertiary)
-                    .padding(.leading, 4)
+            HStack(spacing: 8) {
+                if message.showTimestamp {
+                    Text(message.timestamp, style: .time)
+                        .font(.system(.caption2))
+                        .foregroundStyle(Theme.tertiary)
+                        .padding(.leading, 4)
+                }
+                Spacer(minLength: 0)
+                if !message.isStreaming, !message.contentWithoutAttachments.isEmpty {
+                    discussButton
+                    speakButton
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Talk this reply over with the on-device model instead of having it read at
+    /// you. Only appears when the user has opted in (Settings → Speech) on a build
+    /// that can run a local model, and only inside a chat that installed the
+    /// action — a discuss button with nowhere to go would be a lie.
+    @ViewBuilder
+    private var discussButton: some View {
+        if localChat.isEnabledAndAvailable, let discuss = discussMessage {
+            Button {
+                discuss(message)
+            } label: {
+                Image(systemName: "bubble.left.and.text.bubble.right")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Talk this reply over with the on-device model")
+            .accessibilityLabel("Discuss this reply locally")
+        }
+    }
+
+    /// Read this one message aloud — or stop, if it's the one playing. Works
+    /// whether or not automatic speech is on, which is the point: hearing a
+    /// single long answer shouldn't require opting into hearing all of them.
+    private var speakButton: some View {
+        let isThisOne = speech.speakingMessageID == message.id && speech.isActive
+        return Button {
+            speech.speakMessage(message)
+        } label: {
+            Image(systemName: isThisOne ? "stop.circle.fill" : "speaker.wave.2")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isThisOne ? Theme.accent : Theme.tertiary)
+                .symbolEffect(.variableColor.iterative, isActive: isThisOne && !speech.isPaused)
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(isThisOne ? "Stop reading this message" : "Read this message aloud")
+        .accessibilityLabel(isThisOne ? "Stop reading" : "Read aloud")
     }
 }
 
@@ -254,9 +319,10 @@ private struct ThinkingTraceSection: View {
                 }
             }
         }
-        .onAppear {
-            if trace.isStreaming { isExpanded = false }
-        }
+        // NOTE: no onAppear force-collapse. The transcript LazyVStack recycles
+        // cells on every auto-scroll tick while streaming, so an onAppear
+        // reset stomped the user's expansion mid-turn. Default (collapsed)
+        // comes from @State's initial value; the user's toggle survives.
     }
 }
 
@@ -330,9 +396,9 @@ private struct ReasoningSection: View {
                     .textSelection(.enabled)
             }
         }
-        .onAppear {
-            if isStreaming { isExpanded = false }
-        }
+        // NOTE: no onAppear force-collapse — same rationale as
+        // ThinkingTraceSection: cell recycling during streaming would stomp
+        // the user's expansion on every scroll tick.
     }
 }
 

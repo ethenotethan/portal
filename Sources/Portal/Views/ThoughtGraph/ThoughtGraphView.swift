@@ -24,29 +24,29 @@ import AppKit
 ///   pulse; new bars fade in; the follow-cam tails the newest activity
 ///   horizontally while streaming until the user pans.
 /// - **Camera**: pan + zoom; macOS `GraphMouseInterceptor`, iOS drag + pinch.
-struct ThoughtGraphView: View {
+internal struct ThoughtGraphView: View {
 
     // MARK: - Observed State
 
-    @ObservedObject var engine: ThoughtGraphLayoutEngine
+    @ObservedObject internal var engine: ThoughtGraphLayoutEngine
 
     /// All nodes currently in the graph — changed externally as new
     /// tool/reasoning/subagent events arrive.
-    let nodes: [ThoughtGraphNode]
+    internal let nodes: [ThoughtGraphNode]
 
     /// Context-compaction folds for this turn, drawn as full-height rules
     /// across the flamechart at the moment each fold happened.
     internal let compactions: [CompactionMarker]
 
     /// Whether the conversation turn is still streaming.
-    let isStreaming: Bool
+    internal let isStreaming: Bool
 
     /// Whether the local reasoning model is actively summarizing right now —
     /// drives the "thinking…" heartbeat in the header.
     internal let isThinking: Bool
 
     /// Invoked with a tool-call ID when the user taps "Jump to tool in chat".
-    var onJumpToTool: ((String) -> Void)?
+    internal var onJumpToTool: ((String) -> Void)?
 
     /// Invoked when the user taps the expand affordance — the host takes the
     /// graph true-fullscreen. nil hides the expand button (e.g. when already
@@ -54,7 +54,7 @@ struct ThoughtGraphView: View {
     internal var onExpand: (() -> Void)?
 
     /// Live cost/token rollup for the current turn. nil hides the chip.
-    var usageSummary: String?
+    internal var usageSummary: String?
 
     /// Optional shared selection — when provided (e.g. the file-tree pane
     /// cross-highlights with the graph), selection reads/writes route through
@@ -72,7 +72,7 @@ struct ThoughtGraphView: View {
     /// as faint edges connecting the thinking to the tools it's about.
     private let conceptLinks: [ConceptLink]
 
-    init(
+    internal init(
         engine: ThoughtGraphLayoutEngine,
         nodes: [ThoughtGraphNode],
         compactions: [CompactionMarker] = [],
@@ -226,7 +226,7 @@ struct ThoughtGraphView: View {
 
     // MARK: - Body
 
-    var body: some View {
+    internal var body: some View {
         GeometryReader { _ in
             HStack(spacing: 0) {
                 ZStack {
@@ -1704,9 +1704,9 @@ private extension ThoughtNodeStatus {
 // MARK: - Previews
 
 #if DEBUG
-struct ThoughtGraphViewPreviews: PreviewProvider {
+internal struct ThoughtGraphViewPreviews: PreviewProvider {
     @MainActor
-    static var previews: some View {
+    internal static var previews: some View {
         let engine = ThoughtGraphLayoutEngine()
         let sampleNodes = makeSampleNodes()
         engine.layout(nodes: sampleNodes, now: Date())
@@ -1729,7 +1729,7 @@ struct ThoughtGraphViewPreviews: PreviewProvider {
     }
 
     @MainActor
-    static func makeSampleNodes() -> [ThoughtGraphNode] {
+    internal static func makeSampleNodes() -> [ThoughtGraphNode] {
         let t0 = Date(timeIntervalSinceNow: -60)
         func at(_ offset: TimeInterval) -> Date { t0.addingTimeInterval(offset) }
 

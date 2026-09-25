@@ -10,6 +10,15 @@ struct ToolTrailView: View {
     let reasoningTokens: Int?
     let toolTokens: Int?
     let isStreaming: Bool
+    /// The turn's total tool count when `tools` is only a tail window (a live
+    /// turn's card is bounded — see `ConversationPanel.toolTrailWindow`). Nil
+    /// when `tools` is the whole trail. Keeps the header count honest and lets
+    /// the rows say how many are folded above them.
+    internal var totalCount: Int?
+
+    private var hiddenEarlierCount: Int {
+        max(0, (totalCount ?? tools.count) - tools.count)
+    }
 
     @State private var reasoningExpanded: Bool = false
     @State private var toolsExpanded: Bool = true
@@ -42,13 +51,20 @@ struct ToolTrailView: View {
             if !tools.isEmpty {
                 ChevronRow(
                     title: "Tool calls",
-                    count: tools.count,
+                    count: totalCount ?? tools.count,
                     isExpanded: $toolsExpanded,
                     spinner: tools.contains(where: { !$0.isComplete }),
                     accentColor: .amber
                 )
 
                 if toolsExpanded {
+                    if hiddenEarlierCount > 0 {
+                        Text("+\(hiddenEarlierCount) earlier")
+                            .font(.system(.caption2, design: .monospaced))
+                            .monospaced()
+                            .foregroundStyle(.tertiary)
+                            .padding(.leading, 12)
+                    }
                     ForEach(Array(tools.enumerated()), id: \.element.id) { index, tool in
                         TreeBranch(isLast: index == tools.count - 1) {
                             ToolRow(tool: tool)
@@ -58,9 +74,10 @@ struct ToolTrailView: View {
             }
         }
         .font(.caption)
-        .onAppear {
-            if isStreaming { reasoningExpanded = true }
-        }
+        // NOTE: no onAppear auto-expand/reset — the canvas panel recycles this
+        // view while streaming; a reset would stomp the user's expansion.
+        // Reasoning starts collapsed via @State default; the streaming caller
+        // that wants it open sets reasoningExpanded explicitly.
     }
 }
 

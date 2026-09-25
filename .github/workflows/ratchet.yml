@@ -103,10 +103,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `--build-tests` so Tests/ is counted. Plain `swift build` never compiles
+      # the test targets, which left them an unmeasured warning pool — when it
+      # was first measured it held 21 of the repo's 23 sites. This stays a
+      # separate step from the coverage run below (rather than harvesting that
+      # run's log, which would compile once instead of twice) on purpose: the
+      # Warnings posture must stay measurable even when tests FAIL, and
+      # `set -o pipefail` would otherwise lose the snapshot with them.
       - name: Build and capture warnings
         run: |
           set -o pipefail
-          swift build 2>&1 | tee build.log
+          swift build --build-tests 2>&1 | tee build.log
           python3 scripts/collect-warnings.py build.log --root "$PWD" --json warnings.json
 
       - name: Test with coverage and capture snapshot
@@ -224,6 +231,18 @@ jobs:
       - name: Verify Periphery version
         run: periphery version
 
+      # The scan below reads Portal.xcodeproj, which is GENERATED output —
+      # commits add sources without regenerating it (every other job that
+      # consumes the project regenerates first). A checked-in pbxproj therefore
+      # lags behind the tree, and the missing file's callers fail to compile
+      # ("cannot find 'X' in scope"), which fails this job for reasons that have
+      # nothing to do with dead code. Generate it here too.
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
       - name: Capture dead-code snapshot
         run: |
           set -o pipefail
@@ -296,6 +315,32 @@ jobs:
           path: perf-counts.json
           if-no-files-found: ignore
           retention-days: 14
+
+  # ── Constraints posture ───────────────────────────────────────────────────
+  # The declarations that decide what CI accepts may only tighten. The numeric
+  # ratchets read their baselines from base, so a floor can't be lowered in the
+  # PR that needs it; this closes the same hole for everything declarative —
+  # invariants, fail-closed config declarations, lint rules, the architecture
+  # tests, specifications, the gate scripts, CODEOWNERS and these workflows.
+  # A deliberate loosening carries the `constraints-loosened` label (a code
+  # owner's call), which makes the guard report and pass instead of fail.
+  constraints:
+    name: Constraints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check no declared constraint is looser than base
+        env:
+          LOOSENED: ${{ contains(github.event.pull_request.labels.*.name, 'constraints-loosened') && '--allow-loosening' || '' }}
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-constraint-growth.py "$BASE" $LOOSENED
+
+      - name: Test the constraint guard
+        run: python3 -m unittest scripts/test_constraint_growth.py
 
   # ── Quality posture ───────────────────────────────────────────────────────
   # Lint-debt floor: the frozen SwiftLint baseline (.swiftlint-baseline) may

@@ -19,7 +19,9 @@ import Foundation
 ///     {"type": "table", "entities": ["apartments"], "columns": ["name", "rent", "status"]},
 ///     {"type": "graph"},
 ///     {"type": "chart", "chart": "bar", "entities": ["apartments"], "x": "name", "y": "rent"},
-///     {"type": "stats", "entities": ["apartments"]}
+///     {"type": "stats", "entities": ["apartments"]},
+///     {"type": "kanban", "entities": ["apartments"], "column": "status",
+///      "columns": ["interested", "viewed", "ruled out"]}
 ///   ],
 ///   "actions": {"apartments": [{"field": "status", "type": "choice", "options": ["interested", "viewed"]},
 ///                              {"type": "delete"}]}
@@ -63,6 +65,7 @@ struct ModelSpec {
         let from: EntityRef
         let to: EntityRef
         let type: String
+        internal let edgeClass: String?
         let note: String?
 
         var id: String { "\(from.set)/\(from.key)→\(to.set)/\(to.key):\(type)" }
@@ -70,7 +73,7 @@ struct ModelSpec {
 
     struct View: Identifiable {
         enum Kind: String {
-            case map, table, graph, chart, stats, markdown
+            case map, table, graph, chart, stats, markdown, kanban
         }
 
         let kind: Kind
@@ -88,6 +91,13 @@ struct ModelSpec {
         let yField: String
         /// stats: fields to tile (empty = numeric fields).
         let fields: [String]
+        /// graph direction, defaulting to the legacy undirected model behavior.
+        internal let directed: Bool
+        /// Distinguishes an explicit graph contract from the legacy default.
+        internal let hasExplicitDirection: Bool
+        /// kanban: entity field whose values define lanes. `columns` supplies
+        /// the optional explicit lane order.
+        internal let columnField: String
         /// markdown: the prose body (headings/lists/nested fences all render
         /// through the standard markdown pipeline).
         let text: String
@@ -164,6 +174,7 @@ struct ModelSpec {
             return Relation(
                 from: from, to: to,
                 type: (raw["type"] as? String) ?? "related",
+                edgeClass: nonEmptyString(raw["class"]),
                 note: raw["note"] as? String
             )
         }
@@ -182,6 +193,9 @@ struct ModelSpec {
                 xField: (raw["x"] as? String) ?? "",
                 yField: (raw["y"] as? String) ?? "",
                 fields: (raw["fields"] as? [String]) ?? [],
+                directed: (raw["directed"] as? Bool) ?? false,
+                hasExplicitDirection: raw["directed"] is Bool,
+                columnField: nonEmptyString(raw["column"]) ?? "column",
                 text: text
             )
         }
@@ -193,7 +207,9 @@ struct ModelSpec {
             }
             func defaultView(_ kind: View.Kind, index: Int) -> View {
                 View(kind: kind, index: index, entitySets: [], columns: [],
-                     chartType: "bar", xField: "", yField: "", fields: [], text: "")
+                     chartType: "bar", xField: "", yField: "", fields: [],
+                     directed: false, hasExplicitDirection: false,
+                     columnField: "column", text: "")
             }
             if hasCoords { views.append(defaultView(.map, index: 0)) }
             views.append(defaultView(.table, index: 1))
@@ -220,5 +236,11 @@ struct ModelSpec {
         if let s = value as? String { return s }
         if let n = value as? NSNumber { return "\(n)" }
         return "\(value)"
+    }
+
+    private static func nonEmptyString(_ value: Any?) -> String? {
+        guard let value = value as? String else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

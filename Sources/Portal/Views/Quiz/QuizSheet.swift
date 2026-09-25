@@ -3,13 +3,13 @@ import SwiftUI
 /// Modal sheet overlay presenting the interactive quiz UI.
 /// Displays questions one at a time with multiple-choice answers,
 /// progress tracking, and a final score review screen.
-struct QuizSheet: View {
-    @Bindable var viewModel: QuizViewModel
-    let onClose: () -> Void
-    let onReviewWithAgent: (String) -> Void
-    let onOpenLearning: () -> Void
+internal struct QuizSheet: View {
+    @Bindable internal var viewModel: QuizViewModel
+    internal let onClose: () -> Void
+    internal let onReviewWithAgent: (String) -> Void
+    internal let onOpenLearning: () -> Void
 
-    var body: some View {
+    internal var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
 

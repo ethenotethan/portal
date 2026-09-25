@@ -13,11 +13,29 @@ import SwiftUI
 /// Tapping a dataflow chip inside the job card highlights the matching node and
 /// swaps the sidebar to it — reads/writes become navigation. Escape (or the
 /// collapse button) closes the takeover.
+///
+/// A **cron** node's sidebar also lists the code behind the job (its scripts
+/// and declared source files, from the graph node itself); opening one adds a
+/// read-only reader as a third column beside the sidebar — on a phone, a sheet
+/// over the inspector — so the script a job runs is readable without leaving
+/// the graph.
 @MainActor
 internal struct CronDataflowExpandedView: View {
     @ObservedObject internal var graphVM: CronGraphViewModel
     internal var listVM: CronListViewModel
-    internal var onDismiss: () -> Void
+
+    /// How to leave. nil means there is nowhere to go back to — the graph *is*
+    /// the surface, as it is inside the **Graphs** section — so the collapse and
+    /// Done affordances are dropped rather than left as dead controls.
+    internal var onDismiss: (() -> Void)?
+
+    /// Set when hosted by the **Graphs** section, which swaps the "Data flow"
+    /// title for a dropdown onto its sibling wiki graph.
+    internal var surfaceSelection: Binding<GraphSurface>?
+
+    /// Cross-surface navigation supplied by `GraphsView`. Standalone dataflow
+    /// surfaces omit it because they do not own the wiki surface to switch to.
+    internal var onOpenWikiResource: ((CronGraphNode) -> Void)?
 
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
     #if os(iOS)
@@ -27,20 +45,89 @@ internal struct CronDataflowExpandedView: View {
     /// Real per-run ledgers fetched on selection, keyed by job id — the same
     /// lazy load the Jobs pane does on card expand.
     @State private var ledgers: [String: [CronRunRecord]] = [:]
+    /// The source-file explorer + reader state for the selected job.
+    @StateObject private var sourceVM = CronSourceFilesViewModel()
+    /// The service whose architecture model fills the surface, if any — from the
+    /// resource card's button or a request from the inline dock. On macOS it is
+    /// an opaque layer over the whole graph (growing in from the card's side); on
+    /// iOS a full-screen cover. The service's code graph is offered from inside it.
+    @State private var presentedArchitecture: ArchitectureRequest?
 
     internal init(
         graphVM: CronGraphViewModel,
         listVM: CronListViewModel,
-        onDismiss: @escaping () -> Void
+        onDismiss: (() -> Void)?,
+        surfaceSelection: Binding<GraphSurface>? = nil,
+        onOpenWikiResource: ((CronGraphNode) -> Void)? = nil
     ) {
         self.graphVM = graphVM
         self.listVM = listVM
         self.onDismiss = onDismiss
+        self.surfaceSelection = surfaceSelection
+        self.onOpenWikiResource = onOpenWikiResource
     }
 
     internal var body: some View {
         expandedSurface
+            .task { sourceVM.setClient(gatewayClientWrapper.client) }
             .task(id: graphVM.selectedNode?.id) { await loadSelected() }
+            // A file asked for from the inline dock, before this surface existed:
+            // open it once we're here, then clear the request so re-selecting the
+            // node later doesn't replay it.
+            .task(id: graphVM.requestedSourceFile) {
+                guard let file = graphVM.requestedSourceFile else { return }
+                graphVM.requestedSourceFile = nil
+                await sourceVM.open(file)
+            }
+            // An architecture model asked for from the inline dock, before this
+            // surface existed: present it here, then clear the request so
+            // re-selecting the service later doesn't replay it.
+            .task(id: graphVM.requestedArchitecture) {
+                guard let request = graphVM.requestedArchitecture else { return }
+                graphVM.requestedArchitecture = nil
+                presentArchitecture(request)
+            }
+            // Selecting another node retires the reader: a file from job A open
+            // beside job B's card would read as B's code.
+            .onChange(of: graphVM.selectedNodeIndex) { _, _ in sourceVM.close() }
+            #if os(iOS)
+            .fullScreenCover(item: $presentedArchitecture) { request in
+                ArchitectureSurfaceView(request: request, client: gatewayClientWrapper.client)
+            }
+            #else
+            .overlay { architectureLayer }
+            #endif
+    }
+
+    /// Show a service's architecture: the surface grows in from the card's side
+    /// and takes the whole window; Done shrinks it away again.
+    private func presentArchitecture(_ request: ArchitectureRequest) {
+        withAnimation(.easeOut(duration: 0.22)) { presentedArchitecture = request }
+    }
+
+    #if os(macOS)
+    /// The architecture surface as an opaque layer over the graph. Opaque and
+    /// topmost, so the graph beneath receives no pointer events while it is up.
+    @ViewBuilder
+    private var architectureLayer: some View {
+        if let request = presentedArchitecture {
+            ArchitectureSurfaceView(
+                request: request,
+                client: gatewayClientWrapper.client,
+                onDismiss: { withAnimation(.easeIn(duration: 0.18)) { presentedArchitecture = nil } }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
+            .contentShape(Rectangle())
+            .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .opacity))
+            .zIndex(10)
+            .accessibilityIdentifier("runtime.graph.architecture-surface")
+        }
+    }
+    #endif
+
+    private func openSourceFile(_ file: CronSourceFile) {
+        Task { await sourceVM.open(file) }
     }
 
     @ViewBuilder
@@ -53,7 +140,7 @@ internal struct CronDataflowExpandedView: View {
         }
         #else
         regularSurface
-            .overlay(alignment: .topLeading) { collapseButton }
+            .overlay(alignment: .topLeading) { macTopLeadingChrome }
         #endif
     }
 
@@ -69,25 +156,47 @@ internal struct CronDataflowExpandedView: View {
                     detailSidebar(node)
                         .presentationDetents([.medium, .large])
                         .presentationDragIndicator(.visible)
+                        // The reader stacks over the inspector sheet rather than
+                        // beside it — there's no width for a third column here.
+                        .sheet(isPresented: readerSheetBinding) {
+                            CronSourceFileReaderPane(viewModel: sourceVM, onClose: { sourceVM.close() })
+                                .presentationDetents([.large])
+                                .presentationDragIndicator(.visible)
+                        }
                 }
             }
+    }
+
+    private var readerSheetBinding: Binding<Bool> {
+        Binding(
+            get: { sourceVM.isPresentingReader },
+            set: { isPresented in
+                if !isPresented { sourceVM.close() }
+            }
+        )
     }
 
     private var compactHeader: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
-                Text("Data flow")
-                    .font(.headline)
-                    .foregroundStyle(Theme.primary)
+                if let surfaceSelection {
+                    GraphSurfaceMenu(selection: surfaceSelection)
+                } else {
+                    Text("Data flow")
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                }
                 Text("Tap a node to inspect it")
                     .font(.caption)
                     .foregroundStyle(Theme.secondary)
             }
             Spacer()
-            Button("Done", action: onDismiss)
-                .font(.body.weight(.medium))
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityIdentifier("cron.dataflow.done")
+            if let onDismiss {
+                Button("Done", action: onDismiss)
+                    .font(.body.weight(.medium))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityIdentifier("cron.dataflow.done")
+            }
         }
         .padding(.horizontal, 16)
         .background(Theme.surface)
@@ -113,9 +222,16 @@ internal struct CronDataflowExpandedView: View {
                 detailSidebar(node)
                     .frame(width: 360)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
+                if sourceVM.isPresentingReader {
+                    Divider().overlay(Theme.border)
+                    CronSourceFileReaderPane(viewModel: sourceVM, onClose: { sourceVM.close() })
+                        .frame(minWidth: 380, idealWidth: 540, maxWidth: 680)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
         }
         .animation(.easeInOut(duration: 0.18), value: graphVM.selectedNodeIndex)
+        .animation(.easeInOut(duration: 0.18), value: sourceVM.isPresentingReader)
         #if os(iOS)
         .safeAreaInset(edge: .top, spacing: 0) { compactHeader }
         #endif
@@ -139,8 +255,28 @@ internal struct CronDataflowExpandedView: View {
 
     // MARK: - Chrome
 
-    private var collapseButton: some View {
-        Button(action: onDismiss) {
+    /// The macOS canvas has no header bar, so its title and its way out both
+    /// float over the top-leading corner. Either can be absent: inside the
+    /// **Graphs** section there is nothing to collapse back to, and as a
+    /// standalone takeover there is no sibling graph to name.
+    @ViewBuilder
+    private var macTopLeadingChrome: some View {
+        HStack(spacing: 8) {
+            if let onDismiss {
+                collapseButton(onDismiss)
+            }
+            if let surfaceSelection {
+                GraphSurfaceMenu(selection: surfaceSelection)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 9))
+            }
+        }
+        .padding(14)
+    }
+
+    private func collapseButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Image(systemName: "arrow.down.right.and.arrow.up.left")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.secondary)
@@ -154,7 +290,6 @@ internal struct CronDataflowExpandedView: View {
         .buttonStyle(.plain)
         .keyboardShortcut(.escape, modifiers: [])
         .help("Close full screen")
-        .padding(14)
     }
 
     // MARK: - Sidebar
@@ -162,11 +297,21 @@ internal struct CronDataflowExpandedView: View {
     @ViewBuilder
     private func detailSidebar(_ node: CronGraphNode) -> some View {
         ScrollView {
-            Group {
+            VStack(alignment: .leading, spacing: 12) {
                 if node.kind == "cron", let job = listVM.jobs.first(where: { $0.id == node.id }) {
                     cronCard(job)
                 } else {
                     resourceCard(node)
+                }
+                // The code behind the node — a cron's scripts, a service's declared
+                // files — from the node itself, whether or not the job list has
+                // caught up with it.
+                if !node.sourceFiles.isEmpty {
+                    CronSourceFilesSection(
+                        files: node.sourceFiles,
+                        viewModel: sourceVM,
+                        onOpen: openSourceFile
+                    )
                 }
             }
             .padding(12)
@@ -186,7 +331,6 @@ internal struct CronDataflowExpandedView: View {
             onUpdatePrompt: { prompt in Task { await listVM.updatePrompt(id: job.id, newPrompt: prompt) } },
             onRename: { name in Task { await listVM.renameJob(id: job.id, newName: name) } },
             siblingJobs: listVM.jobs,
-            supportsRemoveAndEdit: listVM.supportsRemoveAndEdit,
             showsCategoryPath: true,
             dataflow: listVM.dataflow(for: job.id),
             onSelectEndpoint: { graphVM.selectNode(withID: $0.id) }
@@ -203,10 +347,80 @@ internal struct CronDataflowExpandedView: View {
                     .font(.headline)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(2)
+                if let health = node.health {
+                    Text(health.status.capitalized)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(
+                            health.isHealthy ? Color.green : (health.isUnhealthy ? Color.red : Color.orange)
+                        )
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(
+                            (health.isHealthy ? Color.green : (health.isUnhealthy ? Color.red : Color.orange)).opacity(0.12),
+                            in: Capsule()
+                        )
+                }
             }
             infoRow(icon: "square.stack.3d.up", label: "Kind", value: node.kind)
             if !node.type.isEmpty, node.type != node.kind {
                 infoRow(icon: "tag", label: "Type", value: node.type)
+            }
+            if node.kind == "service", !node.description.isEmpty {
+                MarkdownContentView(text: node.description)
+            }
+            if node.wikiPagePath != nil, let onOpenWikiResource {
+                Button {
+                    onOpenWikiResource(node)
+                } label: {
+                    Label("Open wiki page", systemImage: "doc.text.magnifyingglass")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                .accessibilityIdentifier("runtime.graph.open-wiki-page")
+            }
+            if node.kind == "service", let architecture = node.architecture {
+                Button {
+                    presentArchitecture(ArchitectureRequest(
+                        service: architecture.ref,
+                        label: node.label,
+                        revision: architecture.revision,
+                        codeGraph: node.codeGraph
+                    ))
+                } label: {
+                    Label("View architecture", systemImage: "square.3.layers.3d")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                infoRow(icon: "square.3.layers.3d", label: "Model", value: "\(architecture.source) · \(architecture.revision.prefix(9))")
+                if architecture.snapshots > 0 {
+                    infoRow(icon: "clock.arrow.circlepath", label: "Snapshots", value: String(architecture.snapshots))
+                }
+                if let status = architecture.checkStatus {
+                    infoRow(icon: "checkmark.seal", label: "Last check", value: status)
+                }
+            }
+            if let health = node.health {
+                Divider().background(Theme.border)
+                Text("Health")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+                infoRow(icon: "stethoscope", label: "Probe", value: health.probe)
+                if !health.target.isEmpty {
+                    infoRow(icon: "scope", label: "Target", value: health.target)
+                }
+                infoRow(icon: "waveform.path.ecg", label: "Result", value: health.message)
+                if health.latencyMilliseconds > 0 {
+                    infoRow(
+                        icon: "timer",
+                        label: "Latency",
+                        value: String(format: "%.1f ms", health.latencyMilliseconds)
+                    )
+                }
+                if !health.checkedAt.isEmpty {
+                    infoRow(icon: "clock.arrow.circlepath", label: "Checked", value: health.checkedAt)
+                }
             }
             neighborsList
         }
@@ -287,5 +501,122 @@ internal struct CronDataflowExpandedView: View {
         await listVM.loadFullPrompt(id: node.id)
         let runs = await listVM.loadHistory(id: node.id)
         if !runs.isEmpty { ledgers[node.id] = runs }
+    }
+}
+
+/// Purpose-built code topology surface. It deliberately uses only the shared
+/// force-directed canvas, not `WikiGraphView`: users see code nodes/edges and
+/// code-specific loading/empty/error states rather than a nested "Wiki" app.
+@MainActor
+internal struct CodeGraphSurfaceView: View {
+    private let request: CodeGraphRequest
+    @StateObject private var model: CodeGraphSurfaceModel
+    @Environment(\.dismiss) private var dismiss
+
+    internal init(request: CodeGraphRequest, client: GatewayClient) {
+        self.request = request
+        _model = StateObject(
+            wrappedValue: CodeGraphSurfaceModel {
+                try await client.codeGraph(service: request.service)
+            }
+        )
+    }
+
+    internal var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider().background(Theme.border)
+            content
+        }
+        #if os(macOS)
+        .frame(minWidth: 640, minHeight: 480)
+        #endif
+        .background(Theme.background)
+        .task(id: request.digest) { await model.load() }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(request.label)
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+            }
+            Spacer()
+            Button("Done") { dismiss() }
+                .portalButton(prominent: true, size: .small)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Theme.surface)
+    }
+
+    private var summary: String {
+        guard let graph = model.codeGraph else { return "Code graph" }
+        return "\(graph.nodes.count) nodes · \(graph.edges.count) edges"
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch model.phase {
+        case .idle, .loading:
+            stateMessage(
+                icon: "point.3.connected.trianglepath.dotted",
+                title: "Building code graph",
+                detail: "Extracting modules, symbols, and relationships…",
+                showsProgress: true
+            )
+        case .loaded:
+            InteractiveGraphView(graph: model.renderGraph)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .empty:
+            stateMessage(
+                icon: "curlybraces",
+                title: "No code symbols found",
+                detail: "The service has no graphable source files in an allowed source root."
+            )
+        case .failed:
+            VStack(spacing: 14) {
+                stateMessage(
+                    icon: "exclamationmark.triangle",
+                    title: "Code graph unavailable",
+                    detail: model.errorMessage ?? "The gateway could not build this service's code graph."
+                )
+                Button("Try Again") { Task { await model.load() } }
+                    .portalButton(prominent: false, size: .small)
+            }
+        }
+    }
+
+    private func stateMessage(
+        icon: String,
+        title: String,
+        detail: String,
+        showsProgress: Bool = false
+    ) -> some View {
+        VStack(spacing: 10) {
+            if showsProgress {
+                ProgressView()
+                    .controlSize(.large)
+            } else {
+                Image(systemName: icon)
+                    .font(.system(size: 30, weight: .light))
+                    .foregroundStyle(Theme.secondary)
+            }
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Theme.primary)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
     }
 }

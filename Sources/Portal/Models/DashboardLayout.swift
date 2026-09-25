@@ -263,27 +263,25 @@ internal struct DashboardLayout: Codable, Equatable {
     /// artifacts are added by the user or peeled out; while the conversation is
     /// the only panel it runs in solo mode and shows the inline live strip, so a
     /// bare canvas reads exactly like today's transcript.
-    /// First-run arrangement for the **cron activity canvas** — dataflow-first:
+    /// First-run arrangement for the **cron activity canvas**:
     ///
     /// ```
-    /// ┌─────────────────────────┬── Summary ───┐
-    /// │                         ├──────────────┤
-    /// │        Dataflow         │              │
-    /// │                         │    Volume    │
-    /// │                         │              │
-    /// └─────────────────────────┴──────────────┘
+    /// ┌──────────── Summary ─────────────┐
+    /// ├──────────────────────────────────┤
+    /// │                                  │
+    /// │              Volume              │
+    /// │                                  │
+    /// └──────────────────────────────────┘
     /// ```
-    /// The interflow graph is the centerpiece (dominant, left), with the summary
-    /// strip and the volume chart stacked in a right column. Jobs, Timeline, and
-    /// Per-Job are no longer seeded — they stay registered singletons, so they
-    /// appear under "Add panel" for anyone who wants them back.
+    /// The summary strip sits above the volume chart, both full width. Jobs,
+    /// Timeline, and Per-Job stay registered singletons, so they appear under
+    /// "Add panel" for anyone who wants them. The interflow dataflow graph is no
+    /// longer a cron-activity panel — it lives on the dedicated Graphs page.
     internal static func seededCronDashboard(for bounds: CGSize) -> DashboardLayout {
         let w = max(bounds.width, DashboardPanel.minSize.width * 2 + 24)
         let h = max(bounds.height, DashboardPanel.minSize.height * 2 + 24)
         let gap: CGFloat = 8
-        let rightW = max(DashboardPanel.minSize.width, w * 0.30)
-        let leftW = w - rightW - gap * 3
-        let rightX = gap + leftW + gap
+        let fullW = max(DashboardPanel.minSize.width, w - gap * 2)
         // Summary is a short chip strip. Pin it to the minimum height rather than
         // a smaller "nice" number: `clamped(to:)` grows any shorter panel back up
         // to the minimum, which would then push the volume chart down over its
@@ -292,12 +290,10 @@ internal struct DashboardLayout: Codable, Equatable {
         let volumeY = gap + summaryH + gap
         let volumeH = max(DashboardPanel.minSize.height, h - gap - volumeY)
         return DashboardLayout(panels: [
-            DashboardPanel(kind: .cronGraph,
-                frame: CGRect(x: gap, y: gap, width: leftW, height: h - gap * 2)),
             DashboardPanel(kind: .cronSummary,
-                frame: CGRect(x: rightX, y: gap, width: rightW, height: summaryH)),
+                frame: CGRect(x: gap, y: gap, width: fullW, height: summaryH)),
             DashboardPanel(kind: .cronVolume,
-                frame: CGRect(x: rightX, y: volumeY, width: rightW, height: volumeH)),
+                frame: CGRect(x: gap, y: volumeY, width: fullW, height: volumeH)),
         ]).clamped(to: bounds)
     }
 

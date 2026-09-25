@@ -193,7 +193,11 @@ final class SkillSummaryService {
 
 #if canImport(MLXLLM) && canImport(MLXLMCommon) && canImport(HuggingFace) && canImport(Tokenizers)
 
-    private var session: ChatSession?
+    /// The loaded model, not a live conversation. `ModelContainer` is `Sendable`
+    /// and serializes access internally; `ChatSession` is neither thread-safe nor
+    /// Sendable, so sessions are built per call in `generate()` instead of being
+    /// stored here. See `generate()` for what storing one cost.
+    private var container: ModelContainer?
     private var loadTask: Task<Void, Never>?
 
     private static let summaryPrompt = """
@@ -207,7 +211,7 @@ Skill definition:
 
     private func generate(markdown: String) async -> Result<String, Error> {
         await ensureLoaded()
-        guard isModelReady, let session else {
+        guard isModelReady, let container else {
             let detail = modelLoadError.map { "Model load failed: \($0)" }
             return .failure(SkillSummaryError.modelLoadFailed(detail ?? "Local summarization model is unavailable"))
         }
@@ -218,10 +222,32 @@ Skill definition:
             // so `await session.respond(...)` would otherwise execute the heavy
             // tensor/Metal compute on the main thread and beachball the UI
             // (observed: thousands of mlx::core frames on the main thread,
-            // ~150% CPU). Detaching moves the work to a background thread; the
-            // ChatSession is a reference type so it's safe to use there.
-            let response = try await Task.detached(priority: .utility) { [session] in
-                try await session.respond(to: prompt)
+            // ~150% CPU). Detaching moves the work to a background thread.
+            //
+            // The session is built HERE, inside the task, from the Sendable
+            // container — it is not a stored property handed across isolation
+            // domains. The old shape captured a long-lived `session` from
+            // main-actor state, and the "non-Sendable captured in a Sendable
+            // closure" warning it produced was load-bearing, not noise:
+            //
+            //   1. ChatSession is documented as not thread-safe — "each session
+            //      should be used from a single task at a time". One shared
+            //      instance handed to every detached task is that race verbatim;
+            //      nothing serialized two concurrent generate() calls.
+            //   2. ChatSession is a MULTI-TURN object: it holds a cache of KV
+            //      cache / message history. Reusing one across a long run
+            //      accumulated every previously summarized skill, so memory grew
+            //      without bound for calls that are each independent.
+            //   3. That history was also silently in the prompt — each summary
+            //      saw the earlier ones as conversation context, which is not
+            //      what `summaryPrompt + body` says it is.
+            //
+            // The container holds the expensive part (~600MB of weights) and is
+            // shared and thread-safe; a session is a thin per-request cursor over
+            // it. Constructing one is cheap. This is the library's own
+            // "separate sessions per task" guidance.
+            let response = try await Task.detached(priority: .utility) {
+                try await ChatSession(container).respond(to: prompt)
             }.value
             let cleaned = Self.cleanResponse(response)
             guard !cleaned.isEmpty else { return .failure(SkillSummaryError.emptyResponse) }
@@ -261,7 +287,7 @@ Skill definition:
                         configuration: LLMRegistry.gemma3_1B_qat_4bit
                     )
                 }.value
-                self.session = ChatSession(container)
+                self.container = container
                 self.isModelReady = true
                 self.modelLoadError = nil
                 log.info("MLX Gemma 3 1B loaded for skill summaries")

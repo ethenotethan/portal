@@ -162,17 +162,17 @@ internal struct SkillCategoryTests {
     /// A collapsed parent must still summarize everything beneath it — that
     /// rollup is the point of the N-dimensional paths.
     @Test("totalCount rolls the whole subtree up to each ancestor")
-    internal func rollsUpTotalCount() {
+    internal func rollsUpTotalCount() throws {
         let grouping = SkillCategory.group([
             skill("a", category: "writing"),
             skill("b", category: "writing/blog"),
             skill("c", category: "writing/blog/drafts"),
             skill("d", category: "other")
         ])
-        let writing = try? #require(grouping.roots.first { $0.name == "writing" })
-        #expect(writing?.totalCount == 3)
-        #expect(writing?.skills.count == 1)
-        let blog = writing?.children.first
+        let writing = try #require(grouping.roots.first { $0.name == "writing" })
+        #expect(writing.totalCount == 3)
+        #expect(writing.skills.count == 1)
+        let blog = writing.children.first
         #expect(blog?.totalCount == 2)
         #expect(grouping.roots.first { $0.name == "other" }?.totalCount == 1)
     }

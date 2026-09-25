@@ -1,4 +1,7 @@
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ArtifactIntents")
 
 // The one place that decides how an artifact of any kind is drawn, and — for
 // interactive HTML worlds — whether the host captures the mouse for it. Lifted
@@ -16,6 +19,9 @@ internal struct ArtifactKindRenderer: View {
     /// structured kinds embed their actions in content). These render as
     /// trusted SwiftUI chrome above the HTML document; no JS bridge involved.
     internal var topLevelActions: [ArtifactAction] = []
+    /// Declared queries for this artifact (HTML kind only): what its page may
+    /// read from the gateway through `data-hermes-query`.
+    internal var queries: [ArtifactQuery] = []
     /// Forces host-assisted mouse capture off for this rendering regardless of
     /// the document — history revisions, diffs, and export previews are pictures
     /// of an artifact, not something to be driven.
@@ -58,6 +64,8 @@ internal struct ArtifactKindRenderer: View {
 
     internal var body: some View {
         switch kind {
+        case "blueprint":
+            BlueprintBlockView(json: content, isStreaming: false)
         case "map":
             MapBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
         case "chart":
@@ -101,6 +109,7 @@ internal struct ArtifactKindRenderer: View {
                     html: content,
                     artifactID: artifactID,
                     actions: topLevelActions,
+                    queries: queries,
                     capturesPointerInput: capturesPointerInput,
                     onPointerLockChange: onPointerLockChange
                 )
@@ -128,6 +137,9 @@ private struct ArtifactHTMLIntentView: View {
     let html: String
     let artifactID: String
     let actions: [ArtifactAction]
+    /// The read side. Empty means no query bridge is installed at all, the
+    /// same way no intents means no click bridge.
+    let queries: [ArtifactQuery]
     let capturesPointerInput: Bool
     internal var onPointerLockChange: ((Bool) -> Void)?
 
@@ -157,6 +169,31 @@ private struct ArtifactHTMLIntentView: View {
         return HTMLArtifactIntentBridge.resolve(activeRequest, actions: actions)
     }
 
+    /// Every query slot for this artifact projected to a page mark: the JSON
+    /// each `data-hermes-query` element reads out of its sink, or why it can't.
+    private var queryMarks: [HTMLArtifactQueryBridge.ResultMark] {
+        store.querySlots(artifactID: artifactID).map { entry -> HTMLArtifactQueryBridge.ResultMark in
+            switch entry.state {
+            case .loading:
+                return HTMLArtifactQueryBridge.ResultMark(
+                    queryID: entry.slot.queryID, rawParams: entry.slot.rawParams,
+                    rawCursor: entry.slot.rawCursor, status: .loading)
+            case .ok(let payload, _, let nextCursor):
+                return HTMLArtifactQueryBridge.ResultMark(
+                    queryID: entry.slot.queryID, rawParams: entry.slot.rawParams,
+                    rawCursor: entry.slot.rawCursor, status: .ok, payload: payload, nextCursor: nextCursor)
+            case .failed(let reason):
+                return HTMLArtifactQueryBridge.ResultMark(
+                    queryID: entry.slot.queryID, rawParams: entry.slot.rawParams,
+                    rawCursor: entry.slot.rawCursor, status: .failed, error: reason)
+            case .unsupported(let reason):
+                return HTMLArtifactQueryBridge.ResultMark(
+                    queryID: entry.slot.queryID, rawParams: entry.slot.rawParams,
+                    rawCursor: entry.slot.rawCursor, status: .unsupported, error: reason)
+            }
+        }
+    }
+
     /// Every live intent slot for this artifact projected to a page mark, so
     /// each inert control reflects its own status (`data-hermes-status`)
     /// independently — not just the one the user last clicked.
@@ -184,10 +221,17 @@ private struct ArtifactHTMLIntentView: View {
                 html: html,
                 onArtifactIntent: handleRequest,
                 statusMarks: statusMarks,
+                onArtifactQuery: queryHandler,
+                queryMarks: queryMarks,
                 capturesPointerInput: capturesPointerInput,
                 onPointerLockChange: onPointerLockChange
             )
                 .frame(minHeight: 320)
+        }
+        .onDisappear {
+            // Subscriptions belong to the page that asked; the gateway stops
+            // polling once the last subscriber leaves.
+            store.releaseQueries(artifactID: artifactID)
         }
         .confirmationDialog(
             activeAction?.label ?? "Confirm action",
@@ -216,8 +260,25 @@ private struct ArtifactHTMLIntentView: View {
     }
 
     private func handleRequest(_ request: HTMLArtifactIntentRequest) {
-        guard capabilitiesStore.capabilities.supportsArtifactActions,
-              HTMLArtifactIntentBridge.resolve(request, actions: actions) != nil else {
+        // Both refusals below are correct, and both used to be invisible: the
+        // page has already swallowed the click by then, so a world with a dead
+        // control looked identical to a world whose author forgot the markup.
+        // Say which gate closed — it's the difference between "your gateway is
+        // too old", "the artifact declares no such intent", and a host bug.
+        guard capabilitiesStore.capabilities.supportsArtifactActions else {
+            log.notice("""
+            artifact intent dropped: gateway advertises no artifact.action surface \
+            (binding \(request.bindingID, privacy: .public), artifact \(artifactID, privacy: .public))
+            """)
+            return
+        }
+        guard HTMLArtifactIntentBridge.resolve(request, actions: actions) != nil else {
+            log.notice("""
+            artifact intent dropped: binding \(request.bindingID, privacy: .public) matches no declared \
+            intent on artifact \(artifactID, privacy: .public) \
+            (\(actions.count, privacy: .public) action(s) declared, \
+            \(actions.filter { $0.kind == .intent }.count, privacy: .public) of them intents)
+            """)
             return
         }
         if case .pending = activeState { return }
@@ -241,6 +302,32 @@ private struct ArtifactHTMLIntentView: View {
                 showConfirmation = true
             }
         }
+    }
+
+    /// Installed only when the artifact declares queries — no declarations, no
+    /// observer script — the same rule the click bridge follows for intents.
+    private var queryHandler: ((HTMLArtifactQueryRequest) -> Void)? {
+        guard !queries.isEmpty else { return nil }
+        return { request in handleQuery(request) }
+    }
+
+    private func handleQuery(_ request: HTMLArtifactQueryRequest) {
+        guard capabilitiesStore.capabilities.supportsArtifactQueries else {
+            // Say so on the element rather than leaving it loading forever: the
+            // page author's first question is "is it me or the gateway".
+            log.notice("""
+            artifact query dropped: gateway advertises no artifact.query surface \
+            (query \(request.queryID, privacy: .public), artifact \(artifactID, privacy: .public))
+            """)
+            store.markQueryUnsupported(
+                artifactID: artifactID, queryID: request.queryID, rawParams: request.rawParams,
+                rawCursor: request.rawCursor,
+                reason: "This gateway has no artifact.query surface — it's too old for queries.")
+            return
+        }
+        store.runQuery(
+            artifactID: artifactID, queryID: request.queryID,
+            rawParams: request.rawParams, rawCursor: request.rawCursor)
     }
 
     @ViewBuilder
@@ -280,9 +367,13 @@ private struct ArtifactHTMLIntentView: View {
             case .conflict:
                 Image(systemName: "arrow.clockwise.circle.fill").foregroundStyle(Theme.warning)
                 Text("Artifact changed. Refreshed — try again.")
-            case .unsupported:
+            case .unsupported(let reason):
                 Image(systemName: "slash.circle").foregroundStyle(Theme.tertiary)
-                Text("This intent is not available on the connected harness.")
+                // Name the actual gate. "Not available on the connected harness"
+                // was the same sentence whether the request reached the gateway
+                // or was never sent, which sent people auditing a server that
+                // had never been asked.
+                Text(reason ?? "This intent is not available on the connected harness.")
             }
             Spacer()
             Button(action: clearActiveState) {

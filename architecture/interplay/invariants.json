@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0.0",
+  "invariants": [
+    {
+      "id": "single-transport",
+      "kind": "single_transport",
+      "seam": "AgentBackend",
+      "transports": ["GatewayClient"],
+      "why": "One WebSocket JSON-RPC client is shared by every page. A second transport, or a rename, must be declared here deliberately rather than absorbed by the graph."
+    },
+    {
+      "id": "surfaces-hold-core",
+      "kind": "surfaces_hold_transport",
+      "transport": "GatewayClient",
+      "why": "Every calling surface competes for the same pool and socket. A surface that reaches the gateway some other way breaks the concurrent-access picture the graph draws."
+    },
+    {
+      "id": "pool-guarded",
+      "kind": "pool_guarded_by_lock",
+      "owner": "GatewayClient",
+      "pool": "pendingRequests",
+      "lock": "pendingRequestsLock",
+      "resolve_outside_lock": true,
+      "send_outside_lock": true,
+      "why": "The pool is the transport's only shared mutable state: every mutation happens under the lock, continuations resume and frames are written outside it. The critical-section assembly assumes exactly this shape."
+    },
+    {
+      "id": "pool-lifecycle-observed",
+      "kind": "pool_lifecycle_observed",
+      "owner": "GatewayClient",
+      "pool": "pendingRequests",
+      "min": {"pool_register": 1, "pool_resolve": 1, "pool_remove": 1},
+      "why": "If the register, resolve or remove rules stop matching the source, the pool must fail the build rather than look idle."
+    },
+    {
+      "id": "operations-scoped",
+      "kind": "operations_resolve_scope",
+      "why": "Sections are assembled per enclosing function; an operation with no resolved scope would silently drop out of its section."
+    },
+    {
+      "id": "endpoints-dispatched",
+      "kind": "endpoints_dispatched_by_transport",
+      "why": "Every namespace box is dispatched by a transport core; a namespace reached any other way is a new construction, not a variant of this one."
+    },
+    {
+      "id": "stores-mapped",
+      "kind": "stores_mapped",
+      "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
+    },
+    {
+      "id": "triggers-observed",
+      "kind": "triggers_observed",
+      "min": 20,
+      "allow_empty": [],
+      "why": "Every page's views drive at least one surface through an observed action or lifecycle hook. SwiftUI has many ways to attach an action; if a refactor hides them from the rules, the first hop must fail loudly rather than vanish."
+    },
+    {
+      "id": "launch-zoned",
+      "kind": "launch_zoned",
+      "min": 8,
+      "configures": ["SettingsViewModel"],
+      "why": "The App entry points construct the objects that exist before any page: the settings object reads the keychain in its initialiser and is what the transport connects with. A store read only at launch belongs to the launch zone, not to the shared core; if the @StateObject or init rules stop matching, launch must fail loudly rather than dissolve into shared."
+    },
+    {
+      "id": "machines-complete",
+      "kind": "machines_complete",
+      "min": 4,
+      "declared": {
+        "GatewayClient.connectionState": ["disconnected", "connecting", "connected", "reconnecting", "error"],
+        "GatewayRestartController.phase": ["idle", "requesting", "waitingForGateway", "succeeded", "failed", "unsupported"],
+        "ChatViewModel.avatarState": ["idle", "thinking", "speaking", "toolUse", "error"],
+        "LearningStore.sync": ["unknown", "available", "unsupported"]
+      },
+      "allow_dead": {},
+      "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
+    },
+    {
+      "id": "flows-traceable",
+      "kind": "flows_traceable",
+      "min": 6,
+      "why": "A system flow is a path over edges the map draws, never a diagram beside it. When the construction changes under a flow, the flow must be updated in the same change rather than quietly describing wiring that no longer exists."
+    },
+    {
+      "id": "pages-populated",
+      "kind": "pages_populated",
+      "allow_empty": [],
+      "why": "Every declared page owns at least one construct. An empty page means its roots or ownership declarations have drifted from the source."
+    }
+  ]
+}

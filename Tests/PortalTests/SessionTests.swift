@@ -7,11 +7,12 @@ import Foundation
 @Suite("Session Model")
 struct SessionTests {
 
-    @Test("Sessions with same ID are equal")
+    @Test("Sessions with same ID are equal and share hash identity")
     func equalityByID() {
         let a = Session(id: "abc", messageCount: 5, isRunning: false)
         let b = Session(id: "abc", title: "Different", messageCount: 10, isRunning: true)
         #expect(a == b)
+        #expect(Set([a, b]).count == 1)
     }
 
     @Test("Sessions with different IDs are not equal")
@@ -25,6 +26,24 @@ struct SessionTests {
     func identifiable() {
         let session = Session(id: "abc", messageCount: 0)
         #expect(session.id == "abc")
+    }
+
+    @Test("RPC identity prefers the gateway ID and falls back to the stable session ID")
+    internal func rpcIdentity() {
+        let remote = Session(id: "20260829_120000_remote", messageCount: 0)
+        let owned = Session(id: "20260829_120000_owned", messageCount: 0, gatewayID: "abc123")
+
+        #expect(remote.rpcID == remote.id)
+        #expect(owned.rpcID == "abc123")
+    }
+
+    @Test("missing activity timestamps preserve live versus finished status")
+    internal func statusWithoutActivityTimestamps() {
+        let live = Session(id: "live", messageCount: 0, isRunning: true)
+        let finished = Session(id: "finished", messageCount: 0, isRunning: false)
+
+        #expect(live.status == .idle)
+        #expect(finished.status == .ended)
     }
 
     @Test("Session with gateway title")
@@ -89,6 +108,45 @@ internal struct SessionTimelineTests {
             outputTokens: outputTokens,
             costUSD: nil
         )
+    }
+}
+
+@Suite("Session Run Event")
+internal struct SessionRunEventTests {
+    @Test("new runs start with stable accounting defaults")
+    internal func initialState() {
+        let startedAt = Date(timeIntervalSince1970: 1_000)
+        let event = SessionRunEvent(sessionID: "session-1", startedAt: startedAt)
+
+        #expect(event.sessionID == "session-1")
+        #expect(event.startedAt == startedAt)
+        #expect(event.endedAt == nil)
+        #expect(event.inputTokens == nil)
+        #expect(event.outputTokens == nil)
+        #expect(event.totalTokens == nil)
+        #expect(event.apiCalls == 1)
+        #expect(event.costUSD == nil)
+        #expect(event.status == .running)
+        #expect(event.duration == nil)
+        #expect(event.durationLabel == "—")
+    }
+
+    @Test("completed run durations scale from seconds to minutes and hours")
+    internal func durationLabels() {
+        let startedAt = Date(timeIntervalSince1970: 1_000)
+        let cases: [(duration: TimeInterval, label: String)] = [
+            (30, "30.0s"),
+            (90, "1.5m"),
+            (7_200, "2.0h")
+        ]
+
+        for item in cases {
+            var event = SessionRunEvent(sessionID: "session-1", startedAt: startedAt)
+            event.endedAt = startedAt.addingTimeInterval(item.duration)
+
+            #expect(event.duration == item.duration)
+            #expect(event.durationLabel == item.label)
+        }
     }
 }
 
@@ -391,6 +449,13 @@ struct SessionRunStateTests {
         #expect(SessionRunState(gatewayValue: "waiting_for_user") == .waitingForUser)
         #expect(SessionRunState(gatewayValue: "failed") == .failed)
         #expect(SessionRunState(gatewayValue: "cancelled") == .canceled)
+    }
+
+    @Test("missing and unrecognized gateway states remain unspecified")
+    internal func rejectsMissingAndUnrecognizedGatewayValues() {
+        #expect(SessionRunState(gatewayValue: nil) == nil)
+        #expect(SessionRunState(gatewayValue: "") == nil)
+        #expect(SessionRunState(gatewayValue: "future_state") == nil)
     }
 
     @Test("displayRunState prefers explicit run state")

@@ -101,8 +101,8 @@ internal enum CelebrationIntensity: String, CaseIterable, Codable, Sendable {
 /// Which sound a celebration plays.
 ///
 /// Backed by the macOS system sounds in `/System/Library/Sounds`, which every
-/// install has — no bundled audio, so a sound can't fail to load for the same
-/// reason a Lottie asset can. `random` preserves the shipped behavior (a
+/// install has — no bundled audio, so a sound cannot fail to load because an
+/// asset did not resolve. `random` preserves the shipped behavior (a
 /// different pick each time) as an explicit choice rather than the only one.
 ///
 /// On iOS these names have no meaning: there is no `NSSound` and no system

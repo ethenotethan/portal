@@ -52,21 +52,26 @@ extension MediaAttachment {
     /// Generate a 120×120 thumbnail for display in the input bar and message bubbles.
     static func generateThumbnail(for path: String) -> Data? {
         #if os(macOS)
-        guard let nsImage = NSImage(contentsOfFile: path) else { return nil }
-        let targetSize = NSSize(width: 120, height: 120)
-        let resized = NSImage(size: targetSize)
-        resized.lockFocus()
-        nsImage.draw(in: NSRect(origin: .zero, size: targetSize),
-                     from: NSRect(origin: .zero, size: nsImage.size),
-                     operation: .copy,
-                     fraction: 1.0)
-        if let tiffData = resized.tiffRepresentation,
-           let bitmap = NSBitmapImageRep(data: tiffData) {
-            resized.unlockFocus()
-            return bitmap.representation(using: .png, properties: [:])
+        guard let nsImage = NSImage(contentsOfFile: path),
+              let sourceImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
         }
-        resized.unlockFocus()
-        return nil
+        let dimension = 120
+        guard let context = CGContext(
+            data: nil,
+            width: dimension,
+            height: dimension,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+        context.interpolationQuality = .high
+        context.draw(sourceImage, in: CGRect(x: 0, y: 0, width: dimension, height: dimension))
+        guard let resizedImage = context.makeImage() else { return nil }
+        return NSBitmapImageRep(cgImage: resizedImage).representation(using: .png, properties: [:])
         #else
         guard let uiImage = UIImage(contentsOfFile: path) else { return nil }
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 120))

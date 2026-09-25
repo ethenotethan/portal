@@ -767,7 +767,9 @@ struct VideoPlayerView: View {
     /// Dumps the full diagnostic picture for a failed item: the NSError chain
     /// (domain/code/underlying) and AVFoundation's own error-log events, which
     /// carry the real HTTP status / CoreMedia reason behind "Operation Stopped".
-    private static func logItemFailure(_ item: AVPlayerItem) {
+    /// `nonisolated` — pure logging off the passed-in item, and the KVO
+    /// observation that calls it fires on an arbitrary queue.
+    nonisolated private static func logItemFailure(_ item: AVPlayerItem) {
         if let err = item.error as NSError? {
             VideoLog.shared.error("AVPlayerItem failed: \(err.domain, privacy: .public) code=\(err.code) — \(err.localizedDescription, privacy: .public)")
             if let underlying = err.userInfo[NSUnderlyingErrorKey] as? NSError {

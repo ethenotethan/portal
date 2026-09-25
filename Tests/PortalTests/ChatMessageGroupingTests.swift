@@ -8,7 +8,16 @@ import Testing
 /// tests are ultimately about — the searching version they replaced was O(N) per
 /// row, and SwiftUI re-runs a body on every layout pass, not once per change.
 /// The behavior assertions below are what let that change be a refactor.
+/// `@MainActor` because every helper under test is a `ChatView` static, and
+/// `ChatView` is a SwiftUI `View` — so its members inherit main-actor isolation.
+/// Calling them from a nonisolated test body is what produced a wall of
+/// `#ActorIsolatedCall` warnings (most of them inside `#expect` macro
+/// expansions, which report no source file and so were invisible to the warning
+/// collector). These are synchronous pure functions over value types, so running
+/// the suite on the main actor costs nothing and matches where the renderer
+/// actually calls them.
 @Suite("Chat message grouping")
+@MainActor
 internal struct ChatMessageGroupingTests {
 
     private static func messages(_ roles: [ChatMessage.Role]) -> [ChatMessage] {

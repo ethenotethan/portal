@@ -3,8 +3,8 @@ import SwiftUI
 /// Renders ```diff blocks as a real diff: per-line add/remove tinting,
 /// hunk headers, file headers, and an add/remove count in the chrome —
 /// instead of the plain code block diffs used to fall into.
-struct DiffBlockView: View {
-    let code: String
+internal struct DiffBlockView: View {
+    internal let code: String
     @State private var isCopied = false
 
     /// Parse once per distinct diff, not per render (body + stats both read it).
@@ -17,7 +17,7 @@ struct DiffBlockView: View {
                 l.filter { $0.kind == .deletion }.count)
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().overlay(Theme.border.opacity(0.5))
@@ -84,8 +84,8 @@ struct DiffBlockView: View {
 
 // MARK: - Line model
 
-struct DiffLine: Identifiable {
-    enum Kind {
+internal struct DiffLine: Identifiable {
+    internal enum Kind {
         case addition       // +…
         case deletion       // -…
         case hunk           // @@ -a,b +c,d @@
@@ -93,13 +93,13 @@ struct DiffLine: Identifiable {
         case context        // everything else
     }
 
-    let id: Int
-    let kind: Kind
-    let text: String
+    internal let id: Int
+    internal let kind: Kind
+    internal let text: String
 
     /// Classify unified-diff lines. Order matters: "---"/"+++" file markers
     /// must win over the -/+ prefixes they share.
-    static func parse(_ code: String) -> [DiffLine] {
+    internal static func parse(_ code: String) -> [DiffLine] {
         code.split(separator: "\n", omittingEmptySubsequences: false)
             .enumerated()
             .map { index, raw in

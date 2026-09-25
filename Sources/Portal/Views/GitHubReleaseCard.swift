@@ -154,7 +154,7 @@ internal struct GitHubReleaseCard: View {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
+                        image.resizable().scaledToFill()
                     default:
                         Image(systemName: "chevron.left.slash.chevron.right")
                             .font(.system(size: 14))

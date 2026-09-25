@@ -518,33 +518,30 @@ internal struct SessionChatCanvas: View {
 
     /// Response style (deep map / balanced / direct) — a SESSION-global setting:
     /// it steers how every following turn is answered, so it stays in the toolbar
-    /// rather than rewinding with the per-turn pager. Shown only when the backend
-    /// supports it, exactly as the old chat header did.
+    /// rather than rewinding with the per-turn pager.
     @ViewBuilder
     private var responseStyleMenu: some View {
-        if chatViewModel.backendCapabilities.supportsResponseStyles {
-            Menu {
-                ForEach(ResponseStyle.allCases) { style in
-                    Button {
-                        chatViewModel.setResponseStyle(style)
-                    } label: {
-                        if style == chatViewModel.responseStyle {
-                            Label(style.label, systemImage: "checkmark")
-                        } else {
-                            Text(style.label)
-                        }
+        Menu {
+            ForEach(ResponseStyle.allCases) { style in
+                Button {
+                    chatViewModel.setResponseStyle(style)
+                } label: {
+                    if style == chatViewModel.responseStyle {
+                        Label(style.label, systemImage: "checkmark")
+                    } else {
+                        Text(style.label)
                     }
-                    .help(style.help)
                 }
-            } label: {
-                Label(chatViewModel.responseStyle.label, systemImage: chatViewModel.responseStyle.icon)
-                    .font(.system(size: 11, weight: .medium))
+                .help(style.help)
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .foregroundStyle(Theme.secondary)
-            .help("Response style: \(chatViewModel.responseStyle.help). Use /brief for a one-off direct answer.")
+        } label: {
+            Label(chatViewModel.responseStyle.label, systemImage: chatViewModel.responseStyle.icon)
+                .font(.system(size: 11, weight: .medium))
         }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .foregroundStyle(Theme.secondary)
+        .help("Response style: \(chatViewModel.responseStyle.help). Use /brief for a one-off direct answer.")
     }
 
     private var ttsToggle: some View {
@@ -656,6 +653,9 @@ internal struct SessionChatCanvas: View {
 
     private var composer: some View {
         VStack(spacing: 8) {
+            // Read-aloud transport, only while something is being spoken.
+            SpeechNowPlayingBar()
+                .frame(maxWidth: 840, alignment: .center)
             if chatViewModel.pendingApproval != nil {
                 ApprovalBanner()
                     .environmentObject(chatViewModel)

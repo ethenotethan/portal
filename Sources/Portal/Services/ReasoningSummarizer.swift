@@ -590,7 +590,11 @@ enum SummarizerError: LocalizedError {
 final class MLXReasoningSummarizer: ReasoningSummarizing {
     private(set) var isReady: Bool = false
     private var buffer: String = ""
-    private var session: ChatSession?
+    /// The loaded model, not a live conversation — sessions are built per call in
+    /// `summarize()`. `ModelContainer` is `Sendable` and serializes access
+    /// internally; `ChatSession` is neither thread-safe nor Sendable. See
+    /// `SkillSummaryService.generate()` for the full account.
+    private var container: ModelContainer?
     private var loadTask: Task<Void, Never>?
 
     private let extractionPrompt = """
@@ -622,7 +626,7 @@ Reasoning:
         guard !text.isEmpty, text.count >= 100 else { return nil }
 
         await ensureLoaded()
-        guard isReady, let session = session else {
+        guard isReady, let container else {
             let fallback = HeuristicReasoningSummarizer()
             fallback.feed(delta: text)
             return await fallback.summarize()
@@ -634,8 +638,15 @@ Reasoning:
         do {
             // Off the main actor — this type is @MainActor, so running MLX
             // inference inline would block the UI (see SkillSummaryService).
-            let response = try await Task.detached(priority: .utility) { [session] in
-                try await session.respond(to: prompt)
+            //
+            // A fresh ChatSession per call, built inside the task from the
+            // Sendable container, rather than one stored session captured out of
+            // main-actor state: ChatSession is not thread-safe, and it accumulates
+            // multi-turn history, so a reused one both raced and grew unbounded
+            // across a long session while feeding each extraction the previous
+            // traces as context. SkillSummaryService.generate() has the details.
+            let response = try await Task.detached(priority: .utility) {
+                try await ChatSession(container).respond(to: prompt)
             }.value
             guard let jsonStart = response.firstIndex(of: "{"),
                   let jsonEnd = response.lastIndex(of: "}"), jsonStart < jsonEnd else {
@@ -675,7 +686,7 @@ Reasoning:
                         configuration: config
                     )
                 }.value
-                self.session = ChatSession(container)
+                self.container = container
                 self.isReady = true
                 log.info("MLX Gemma 3 1B loaded (first launch downloads ~600MB)")
             } catch {

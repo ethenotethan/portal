@@ -46,7 +46,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// Last WebSocket ping round-trip time (updated every ~15s while
     /// connected; nil until the first pong or after a ping failure).
     @Published private(set) var lastPingRTT: TimeInterval?
-    private var debugSnapshot: GatewayDebugSnapshot = GatewayDebugSnapshot()
+    private var debugSnapshot = GatewayDebugSnapshot()
     var onDebugSnapshotChange: (() -> Void)?
     var snapshotForDebug: GatewayDebugSnapshot {
         // recentEvents is stored oldest-first (append + cap, avoids per-event
@@ -1092,9 +1092,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return GatewayCapabilities.fallback(reason: lastError ?? "Capabilities RPC unsupported")
     }
 
+    /// Parameters for a Portal-owned agent session.
+    ///
+    /// The source is an explicit client-surface capability signal. Without it,
+    /// the gateway defaults to a TUI session and freezes the wrong tool schema.
+    internal static func sessionCreateParams(cols: Int) -> [String: AnyCodable] {
+        [
+            "cols": AnyCodable(cols),
+            "source": AnyCodable("desktop"),
+        ]
+    }
+
     /// Create a new agent session.
     func createSession(cols: Int = 120) async throws -> String {
-        let response = try await callWithRetry("session.create", params: ["cols": AnyCodable(cols)])
+        let response = try await callWithRetry("session.create", params: Self.sessionCreateParams(cols: cols))
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
@@ -1115,10 +1126,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// The prompt is appended to the agent's system prompt on every API call
     /// but is NOT persisted to trajectories. Setting empty string clears it.
     func setEphemeralPrompt(sessionID: String, prompt: String) async throws {
+        // Bounded: this runs inline in session creation, so an unanswered
+        // handler parks the create itself — spinner up forever, the
+        // "__creating__" sentinel never released (#178).
         let response = try await call("session.set_prompt", params: [
             "session_id": AnyCodable(sessionID),
             "prompt": AnyCodable(prompt),
-        ])
+        ], timeout: GatewayClient.hotPathTimeout)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
@@ -1296,27 +1310,18 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         let nextRunAt: Date? = d["next_run_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
         let lastRunAt: Date? = d["last_run_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
 
-        let promptValue: String? = {
-            let candidates = [
-                d["prompt"]?.stringValue,
-                d["full_prompt"]?.stringValue,
-                d["prompt_text"]?.stringValue,
-                d["cron_prompt"]?.stringValue,
-                d["command"]?.stringValue,
-                d["task"]?.stringValue,
-                d["script"]?.stringValue,
-                d["description"]?.stringValue,
-                d["body"]?.stringValue,
-                d["text"]?.stringValue,
-                d["message"]?.stringValue,
-                d["query"]?.stringValue,
-                d["content"]?.stringValue,
-                d["args"]?.stringValue,
-                d["input"]?.stringValue,
-                d["prompt_preview"]?.stringValue
-            ]
-            return candidates.compactMap { $0 }.first
-        }()
+        // Only keys that carry the WHOLE prompt. `list` answers with
+        // `prompt_preview` alone, and that must leave `prompt` nil: the model's
+        // "do we hold the full text" question (`CronJob.isPromptTruncated`) is
+        // answered by `prompt` being set, so folding the preview in here made a
+        // truncated job look complete. The old fallback chain also reached for
+        // `script` and `description`, which put a script *path* where a
+        // script-driven job's prompt belonged.
+        let promptValue: String? = [
+            d["prompt"]?.stringValue,
+            d["full_prompt"]?.stringValue,
+            d["prompt_text"]?.stringValue,
+        ].compactMap { $0 }.first
 
         let lastError: String? = [
             d["last_error"]?.stringValue,
@@ -1654,14 +1659,29 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return artifact
     }
 
-    func submitPrompt(sessionID: String, text: String) async throws {
+    /// `AgentBackend` conformance — a normal, tool-enabled turn.
+    internal func submitPrompt(sessionID: String, text: String) async throws {
+        try await submitPrompt(sessionID: sessionID, text: text, chatMode: false)
+    }
+
+    /// - Parameter chatMode: when true, asks the gateway to run this turn
+    ///   through the tool-less "chat" path (`mode: "chat"`) — a plain
+    ///   completion with no tool loop or action side effects. Used by the voice
+    ///   conversation loop so spoken replies stay low-latency. The gateway
+    ///   ignores the flag when it doesn't advertise `prompt.chat_mode`, so it's
+    ///   safe to send unconditionally.
+    internal func submitPrompt(sessionID: String, text: String, chatMode: Bool) async throws {
         // Retry-once on timeout: after wake-from-idle the socket is often
         // half-open, so the first submit can wedge — reconnect and resend
         // rather than leave the composer spinning forever.
-        let response = try await callWithRetry("prompt.submit", params: [
+        var params: [String: AnyCodable] = [
             "session_id": AnyCodable(sessionID),
             "text": AnyCodable(text),
-        ])
+        ]
+        if chatMode {
+            params["mode"] = AnyCodable("chat")
+        }
+        let response = try await callWithRetry("prompt.submit", params: params)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
@@ -1876,6 +1896,53 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return (sessionID: sessionID, messages: historyMessages)
     }
 
+    /// Resume a session, surfacing the in-flight turn the gateway reports still
+    /// running so the client can rebuild the live streaming shell.
+    ///
+    /// `session.resume` on a session whose turn is still live (an artifact-intent
+    /// spawn the user clicked into, a turn started on another device) returns
+    /// `running: true` plus an `inflight` snapshot carrying the assistant text
+    /// streamed so far. Without it the client resumes to a NON-streaming state,
+    /// every subsequent delta/thinking/tool/subagent event finds no shell to
+    /// attach to, and the opened session shows nothing streaming in.
+    internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+        let response = try await callWithRetry("session.resume", params: [
+            "session_id": AnyCodable(key),
+        ])
+        let resumed = try Self.parseResumeResponse(response)
+        activeSessionID = resumed.sessionID
+        refreshDebugSnapshot()
+        return resumed
+    }
+
+    /// Pure decode of a `session.resume` reply into a `ResumedSession`. Split out
+    /// from the RPC round-trip so the transcript + in-flight-turn parsing (the
+    /// part with real logic) is unit-testable without a live socket.
+    nonisolated internal static func parseResumeResponse(_ response: JSONRPCResponse) throws -> ResumedSession {
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let sessionID = result["session_id"]?.stringValue else {
+            throw GatewayError.invalidResponse("missing session_id in session.resume response")
+        }
+        let historyMessages = result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
+
+        // `running` is the session-level flag; `inflight.streaming` is the turn's
+        // own. A retained FAILED turn carries `inflight` with `streaming: false`
+        // and must NOT reopen a streaming shell, so gate on the turn's flag.
+        var inflight: InflightTurn?
+        if let turn = result["inflight"]?.dictionaryValue {
+            let streaming = turn["streaming"]?.boolValue ?? false
+            let running = result["running"]?.boolValue ?? false
+            let partial = turn["assistant"]?.stringValue ?? ""
+            if streaming && running {
+                inflight = InflightTurn(assistantPartial: partial, isStreaming: true)
+            }
+        }
+        return ResumedSession(sessionID: sessionID, messages: historyMessages, inflight: inflight)
+    }
+
     /// Fetch conversation history for a session.
     func sessionHistory(sessionID: String) async throws -> [[String: AnyCodable]] {
         let response = try await call("session.history", params: [
@@ -1963,7 +2030,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let sid = sessionID {
             params["session_id"] = AnyCodable(sid)
         }
-        let response = try await call("config.set", params: params)
+        // Bounded for the same reason as `session.set_prompt`: new-session
+        // creation awaits this to route the session to the default model.
+        let response = try await call("config.set", params: params, timeout: GatewayClient.hotPathTimeout)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
@@ -2124,6 +2193,65 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
         return response.result?.dictionaryValue?["records"]?.arrayValue?
             .compactMap { $0.dictionaryValue }
+    }
+
+    /// Run a query the artifact declares, with the page's parameters. The read
+    /// side of `artifactActionInvoke`: only the artifact ID, pinned revision,
+    /// `query_id` from the manifest, and typed parameter values travel — never a
+    /// handler name or query text. Returns nil on method-not-found (gateway
+    /// predates the query surface).
+    internal func artifactQueryInvoke(
+        artifactID: String,
+        artifactRev: Int,
+        queryID: String,
+        params: [String: AnyCodable],
+        cursor: String?
+    ) async throws -> ArtifactQueryResult? {
+        var rpcParams: [String: AnyCodable] = [
+            "artifact_id": AnyCodable(artifactID),
+            "artifact_rev": AnyCodable(artifactRev),
+            "query_id": AnyCodable(queryID),
+            "params": .dictionary(params),
+        ]
+        if let cursor { rpcParams["cursor"] = AnyCodable(cursor) }
+        let response = try await call("artifact.query.invoke", params: rpcParams)
+        if let error = response.error {
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return ArtifactQueryResult.from(response.result?.dictionaryValue)
+    }
+
+    /// Follow a declared query: the gateway re-runs it on its declared cadence
+    /// and emits `artifact.query.changed` when the data differs. Returns the
+    /// current result plus the subscription handle.
+    internal func artifactQuerySubscribe(
+        artifactID: String,
+        artifactRev: Int,
+        queryID: String,
+        params: [String: AnyCodable]
+    ) async throws -> ArtifactQueryResult? {
+        let rpcParams: [String: AnyCodable] = [
+            "artifact_id": AnyCodable(artifactID),
+            "artifact_rev": AnyCodable(artifactRev),
+            "query_id": AnyCodable(queryID),
+            "params": .dictionary(params),
+        ]
+        let response = try await call("artifact.query.subscribe", params: rpcParams)
+        if let error = response.error {
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return ArtifactQueryResult.from(response.result?.dictionaryValue)
+    }
+
+    internal func artifactQueryUnsubscribe(handle: String) async throws {
+        let response = try await call(
+            "artifact.query.unsubscribe", params: ["subscription": AnyCodable(handle)]
+        )
+        if let error = response.error, error.code != -32601 {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
     }
 
     /// Confirm a pending backend intent (destructive actions require this

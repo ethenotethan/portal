@@ -8,15 +8,15 @@ options:
   generateEmptyDirectories: true
 
 packages:
-  Lottie:
-    url: https://github.com/airbnb/lottie-spm
-    from: "4.6.0"
   Highlightr:
     url: https://github.com/raspu/Highlightr
     from: "2.3.0"
   BeautifulMermaid:
     url: https://github.com/lukilabs/beautiful-mermaid-swift
     from: "1.0.0"
+  mlx-swift:
+    url: https://github.com/ml-explore/mlx-swift
+    from: "0.31.4"
   mlx-swift-lm:
     url: https://github.com/ml-explore/mlx-swift-lm
     from: "3.31.3"
@@ -29,6 +29,9 @@ packages:
   SwiftMath:
     url: https://github.com/mgriebling/SwiftMath
     from: "1.7.0"
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio
+    from: "0.12.4"
 
 targets:
   Portal:
@@ -38,18 +41,21 @@ targets:
       - path: Sources/Portal
       - path: App/MacApp.swift
     dependencies:
-      - package: Lottie
       - package: Highlightr
       - package: BeautifulMermaid
       - package: mlx-swift-lm
         product: MLXLLM
       - package: mlx-swift-lm
         product: MLXLMCommon
+      - package: mlx-swift
+        product: MLX
       - package: swift-huggingface
         product: HuggingFace
       - package: swift-transformers
         product: Tokenizers
       - package: SwiftMath
+      - package: FluidAudio
+        product: FluidAudio
     entitlements:
       path: Portal.entitlements
     configFiles:
@@ -74,18 +80,21 @@ targets:
       - path: Sources/Portal
       - path: App/IOSApp.swift
     dependencies:
-      - package: Lottie
       - package: Highlightr
       - package: BeautifulMermaid
       - package: mlx-swift-lm
         product: MLXLLM
       - package: mlx-swift-lm
         product: MLXLMCommon
+      - package: mlx-swift
+        product: MLX
       - package: swift-huggingface
         product: HuggingFace
       - package: swift-transformers
         product: Tokenizers
       - package: SwiftMath
+      - package: FluidAudio
+        product: FluidAudio
     entitlements:
       path: Portal-iOS.entitlements
     configFiles:

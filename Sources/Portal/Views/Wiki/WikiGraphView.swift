@@ -19,22 +19,33 @@ import SwiftUI
 ///   navigating back — never a sheet/overlay.
 /// Selection stays synced across every surface via the view model's shared
 /// selection plane.
-struct WikiGraphView: View {
-    /// Knowledge-base source override. nil = the Hermes home gateway
-    /// (existing behavior); a Centaur session passes its wiki-api client so
-    /// the same graph/reader/sidebar UI renders the Darkbloom KB.
-    var overrideSource: (any WikiSource)?
+internal struct WikiGraphView: View {
+    /// Knowledge-base source override. nil = the harness home gateway
+    /// (existing behavior); CodeGraphSource passes a service's code graph so
+    /// the same graph/reader/sidebar UI renders it.
+    internal var overrideSource: (any WikiSource)?
+
+    /// Set when this graph is hosted by the **Graphs** section, which swaps the
+    /// "Wiki" title for a dropdown onto its sibling runtime graph. nil keeps the
+    /// plain title, so the view still stands alone.
+    internal var surfaceSelection: Binding<GraphSurface>?
 
     @ObservedObject internal var viewModel: WikiGraphViewModel
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
     @MainActor
-    internal init(viewModel: WikiGraphViewModel? = nil, overrideSource: (any WikiSource)? = nil) {
+    internal init(
+        viewModel: WikiGraphViewModel? = nil,
+        overrideSource: (any WikiSource)? = nil,
+        surfaceSelection: Binding<GraphSurface>? = nil
+    ) {
         self.viewModel = viewModel ?? WikiGraphViewModel()
         self.overrideSource = overrideSource
+        self.surfaceSelection = surfaceSelection
     }
 
-    /// Hermes-only chrome (wiki picker, taxonomy from wiki.list) hides when
+    /// Harness-only chrome (wiki picker, taxonomy from wiki.list) hides when
     /// browsing an override source — those RPCs don't exist there.
     private var isOverride: Bool { overrideSource != nil }
 
@@ -45,10 +56,11 @@ struct WikiGraphView: View {
         return true // home gateway conforms
     }
 
-    /// Events-page capability. Both backends have an ingestion log — Hermes via
-    /// `wiki.events`, Centaur via `/wiki/timeline` — so this resolves to the
-    /// home gateway when there's no override. nil hides the affordance and
-    /// keeps `showEventsPage` inert.
+    /// Events-page capability. The harness serves an ingestion log via
+    /// `wiki.events`, so this resolves to the home gateway when there's no
+    /// override; an override supplies one only if it conforms to
+    /// `WikiEventLogSource`. nil hides the affordance and keeps
+    /// `showEventsPage` inert.
     private var eventLogSource: (any WikiEventLogSource)? {
         if let overrideSource { return overrideSource as? (any WikiEventLogSource) }
         return gatewayClientWrapper.client
@@ -60,7 +72,18 @@ struct WikiGraphView: View {
     /// hide it exactly when it's needed.
     private var hasEventsSurface: Bool { eventLogSource != nil }
 
+    /// Glossaries are a Harness-only selected-registry capability. Override
+    /// sources and arbitrary filesystem paths intentionally do not get an editor.
+    private var canEditGlossary: Bool {
+        guard overrideSource == nil,
+              capabilitiesStore.capabilities.supportsWikiGlossary else { return false }
+        guard let selected = viewModel.selectedWikiPath else { return true }
+        return viewModel.availableWikis.contains(selected)
+    }
+
     @State private var showWikiPicker = false
+    @State private var showGlossaryEditor = false
+    @State private var glossaryWikiAtOpen: String?
     @State private var lastPinchScale: CGFloat = 1.0
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
@@ -71,18 +94,30 @@ struct WikiGraphView: View {
     #endif
 
     /// Load through the override source when present, else the home gateway.
-    /// `wiki` (multi-wiki selection) is Hermes-only and ignored on overrides.
-    private func loadGraph(wiki: String?) async {
+    /// `wiki` (multi-wiki selection) is harness-only and ignored on overrides.
+    private func loadGraph(wiki: String?, generation: Int? = nil) async {
         if let overrideSource {
-            await viewModel.load(source: overrideSource)
+            await viewModel.load(source: overrideSource, generation: generation)
         } else {
-            await viewModel.load(client: gatewayClientWrapper.client, wiki: wiki)
+            await viewModel.load(
+                client: gatewayClientWrapper.client,
+                wiki: wiki,
+                generation: generation
+            )
         }
+    }
+
+    /// Commit selection state before starting the asynchronous scan. The
+    /// custom-path sheet previously loaded a wiki without updating the picker,
+    /// leaving subsequent named-menu switches anchored to stale state.
+    private func selectAndLoadWiki(_ wiki: String?) {
+        let generation = viewModel.selectWiki(wiki)
+        Task { await loadGraph(wiki: wiki, generation: generation) }
     }
 
     // MARK: - Body
 
-    var body: some View {
+    internal var body: some View {
         adaptiveLayout
             .background(Theme.background)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -98,47 +133,60 @@ struct WikiGraphView: View {
                 WikiPathPickerSheet(
                     selectedPath: $viewModel.selectedWikiPath,
                     onSelect: { path in
-                        Task { await loadGraph(wiki: path) }
+                        selectAndLoadWiki(path)
                     }
                 )
             }
+            .sheet(isPresented: $showGlossaryEditor) {
+                WikiGlossaryEditorView(wiki: glossaryWikiAtOpen, source: gatewayClientWrapper.client)
+            }
             .onAppear {
-                // For override sources (Centaur), always load — the source
-                // changes per session and the VM is shared from ContentView.
-                // For the home gateway, skip if the graph is already populated:
-                // ContentView warms it at connect (see the isConnected handler),
-                // so opening the panel usually finds it loaded and paints
-                // instantly instead of re-fetching. Only cold cases (prefetch
-                // still in flight, or it failed) fall through to load here.
-                guard isOverride || viewModel.graph.pages.isEmpty else { return }
+                guard needsGraphLoad || needsWikiDiscovery else { return }
                 Task { await attemptInitialLoad() }
             }
             .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
-                // The home-gateway graph loads over the WebSocket. If the view
-                // appeared before the socket finished connecting, the first
-                // wiki.scan threw .notConnected and left the surface blank with
-                // no recovery — the "sometimes it doesn't load" bug. Retry once
-                // the connection comes up, but only while we still have no data
-                // (don't disrupt a loaded graph on a mid-session reconnect) and
-                // only for the home gateway (override sources use REST, not the
-                // WS, so isConnected is irrelevant to them).
-                guard connected, !isOverride, viewModel.graph.pages.isEmpty else { return }
+                // The home-gateway graph and wiki list both load over the
+                // WebSocket. If the view appeared before the socket finished
+                // connecting, the first wiki.scan/wiki.list threw .notConnected
+                // and left the surface blank with no recovery — the "sometimes
+                // it doesn't load" bug. Retry once the connection comes up;
+                // whatever already has data is skipped inside
+                // attemptInitialLoad. Home gateway only (override sources use
+                // REST, not the WS, so isConnected is irrelevant to them).
+                guard connected, !isOverride, needsGraphLoad || needsWikiDiscovery else { return }
                 Task { await attemptInitialLoad() }
             }
     }
 
-    /// Discover wikis, then load the selected graph. Safe to call more than
-    /// once: the view model drops stale responses by generation, and the
-    /// retry-on-connect path guards on an empty graph so this never stacks
-    /// redundant loads over live data.
+    /// Whether the graph still needs fetching. For override sources (CodeGraphSource),
+    /// always — the source changes per session and the VM is shared from
+    /// ContentView. For the home gateway, skip if the graph is already
+    /// populated: ContentView warms it at connect (see the isConnected
+    /// handler), so opening the panel usually finds it loaded and paints
+    /// instantly instead of re-fetching. Only cold cases (prefetch still in
+    /// flight, or it failed) fall through to a load.
+    internal var needsGraphLoad: Bool { isOverride || viewModel.graph.pages.isEmpty }
+
+    /// Whether the picker still needs `wiki.list`. Tracked separately from the
+    /// graph because ContentView's connect-time prefetch warms the *graph*
+    /// only: gating discovery on an empty graph meant a warmed surface never
+    /// ran wiki.list, so the picker offered "Default wiki" alone and every
+    /// named space was unreachable (macOS hit this every time, since the Graphs
+    /// door usually opens well after connect). Override sources have no list.
+    internal var needsWikiDiscovery: Bool { !isOverride && viewModel.availableWikis.isEmpty }
+
+    /// Discover wikis and load the selected graph — each only if it's still
+    /// missing. Safe to call more than once: the view model drops stale
+    /// responses by generation, and the two needs-guards keep this from
+    /// stacking redundant fetches over live data.
     private func attemptInitialLoad() async {
         // wiki.list (the picker/taxonomy chrome) and wiki.scan (the graph) are
         // independent RPCs. Running them concurrently instead of serially means
         // the graph no longer waits on the list — it paints as soon as the scan
-        // returns (or instantly from cache). Override sources ignore the list.
+        // returns (or instantly from cache).
         let client = gatewayClientWrapper.client
-        async let wikis: Void = isOverride ? () : viewModel.discoverWikis(client: client)
-        async let graph: Void = loadGraph(wiki: viewModel.selectedWikiPath)
+        async let wikis: Void = needsWikiDiscovery ? viewModel.discoverWikis(client: client) : ()
+        async let graph: Void = needsGraphLoad ? loadGraph(wiki: viewModel.selectedWikiPath) : ()
         _ = await (wikis, graph)
     }
 
@@ -314,6 +362,10 @@ struct WikiGraphView: View {
             WikiGraphControlsBar(
                 viewModel: viewModel,
                 supportsTimeline: supportsTimeline,
+                onGlossary: canEditGlossary ? {
+                    glossaryWikiAtOpen = viewModel.selectedWikiPath
+                    showGlossaryEditor = true
+                } : nil,
                 hasEventsSurface: hasEventsSurface,
                 onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } }
             )
@@ -421,9 +473,13 @@ struct WikiGraphView: View {
     private var infoOverlay: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Text("Wiki")
-                    .font(.headline)
-                    .foregroundStyle(Theme.primary)
+                if let surfaceSelection {
+                    GraphSurfaceMenu(selection: surfaceSelection)
+                } else {
+                    Text("Wiki")
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                }
 
                 if !isOverride { wikiPickerMenu }
             }
@@ -482,14 +538,12 @@ struct WikiGraphView: View {
     private var wikiPickerMenu: some View {
         Menu {
             Button("Default wiki") {
-                viewModel.selectedWikiPath = nil
-                Task { await loadGraph(wiki: nil) }
+                selectAndLoadWiki(nil)
             }
             Divider()
             ForEach(viewModel.availableWikis, id: \.self) { wiki in
                 Button(wiki) {
-                    viewModel.selectedWikiPath = wiki
-                    Task { await loadGraph(wiki: wiki) }
+                    selectAndLoadWiki(wiki)
                 }
             }
             if viewModel.availableWikis.isEmpty {

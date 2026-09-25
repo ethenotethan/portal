@@ -53,9 +53,10 @@ internal struct CronNodeGroupingTests {
         #expect(groups.map(\.key) == ["pr", "wiki"])
     }
 
-    @Test("superNodeID namespaces the scheme so it can't collide with a real id")
-    internal func superNodeIDIsNamespaced() {
+    @Test("group identities use the scheme and namespace the synthetic node")
+    internal func groupIdentitiesAreStable() {
         let group = CronNodeGroup(key: "wiki", memberIDs: ["wiki:a", "wiki:b"], kind: "artifact")
+        #expect(group.id == "wiki")
         #expect(group.superNodeID == "group:wiki")
     }
 
@@ -84,5 +85,17 @@ internal struct CronNodeGroupingTests {
         #expect(CronGroupHull.path(around: [], padding: 10).isEmpty)
         let tri = [CGPoint.zero, CGPoint(x: 10, y: 0), CGPoint(x: 5, y: 10)]
         #expect(!CronGroupHull.path(around: tri, padding: 10).isEmpty)
+    }
+
+    @Test("one- and two-node groups draw exact padded circle and capsule regions")
+    internal func smallGroupHullPaths() {
+        let single = CronGroupHull.path(around: [CGPoint(x: 20, y: 30)], padding: 10)
+        #expect(!single.isEmpty)
+        #expect(single.boundingRect == CGRect(x: 10, y: 20, width: 20, height: 20))
+
+        let pair = [CGPoint(x: 10, y: 20), CGPoint(x: 30, y: 20)]
+        let capsule = CronGroupHull.path(around: pair, padding: 5)
+        #expect(!capsule.isEmpty)
+        #expect(capsule.boundingRect == CGRect(x: 10, y: 15, width: 20, height: 10))
     }
 }

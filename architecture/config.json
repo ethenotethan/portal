@@ -30,8 +30,8 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
-      "patterns": ["Views/Cron*.swift", "Views/Session*.swift", "Views/Activity*.swift", "Views/Feed*.swift", "Views/Skills*.swift", "Views/Skill*.swift", "Views/Learning/**", "Views/Quiz/**", "Views/MissionControl/**", "Views/CentaurWorkflow*.swift", "Views/Files/**"]
+      "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only harness file browser.",
+      "patterns": ["Views/Cron*.swift", "Views/Session*.swift", "Views/Activity*.swift", "Views/Feed*.swift", "Views/Skills*.swift", "Views/Skill*.swift", "Views/Learning/**", "Views/Quiz/**", "Views/MissionControl/**", "Views/Files/**"]
     },
     {
       "id": "wiki-ui",
@@ -66,7 +66,7 @@
       "label": "Operations state",
       "layer": "orchestration",
       "description": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines.",
-      "patterns": ["ViewModels/Cron*.swift", "ViewModels/Session*.swift", "ViewModels/Activity*.swift", "ViewModels/Feed*.swift", "ViewModels/Skills*.swift", "ViewModels/Settings*.swift", "ViewModels/GatewayRestart*.swift", "ViewModels/Quiz/**", "ViewModels/Learning/**", "ViewModels/Celebration*.swift", "ViewModels/FilesBrowser*.swift"]
+      "patterns": ["ViewModels/Cron*.swift", "ViewModels/Session*.swift", "ViewModels/Activity*.swift", "ViewModels/Feed*.swift", "ViewModels/Skills*.swift", "ViewModels/Settings*.swift", "ViewModels/GatewayRestart*.swift", "ViewModels/Quiz/**", "ViewModels/Learning/**", "ViewModels/Celebration*.swift", "ViewModels/FilesBrowser*.swift", "ViewModels/CodeGraph*.swift", "ViewModels/Architecture*.swift"]
     },
     {
       "id": "wiki-state",
@@ -79,22 +79,15 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "description": "Backend-neutral chat protocol, capability model, registry, and event normalization seam.",
-      "patterns": ["Services/AgentBackend.swift", "Services/SessionBackendRegistry.swift", "Models/GatewayEvent.swift", "Models/Backend*.swift"]
+      "description": "Chat backend protocol and event normalization seam for the harness gateway.",
+      "patterns": ["Services/AgentBackend.swift", "Models/GatewayEvent.swift"]
     },
     {
       "id": "hermes-services",
-      "label": "Hermes services",
+      "label": "Harness services",
       "layer": "integration",
-      "description": "Hermes WebSocket JSON-RPC transport and Hermes Standard HTTP/SSE management APIs.",
-      "patterns": ["Services/GatewayClient*.swift", "Services/HermesStandard*.swift", "Services/CronPoller.swift", "Services/PushRegistration*.swift"]
-    },
-    {
-      "id": "centaur-services",
-      "label": "Centaur services",
-      "layer": "integration",
-      "description": "Centaur REST/SSE chat, workflows, wiki, and event adaptation.",
-      "patterns": ["Services/Centaur*.swift", "Models/Centaur*.swift"]
+      "description": "Harness WebSocket JSON-RPC transport, cron polling, and push registration.",
+      "patterns": ["Services/GatewayClient*.swift", "Services/CronPoller.swift", "Services/PushRegistration*.swift"]
     },
     {
       "id": "artifact-intents",
@@ -107,7 +100,7 @@
       "id": "wiki-sources",
       "label": "Wiki source contract",
       "layer": "integration",
-      "description": "Capability markers for knowledge backends: which source records an edit history, and which can report the ingestion events behind a page. Wiki surfaces gate their affordances on conformance rather than on backend identity. WikiSource and the Centaur-only timeline rollups are declared with the Centaur client and stay under centaur-services.",
+      "description": "Capability markers for knowledge sources: which source records an edit history, and which can report the ingestion events behind a page. Wiki surfaces gate their affordances on conformance rather than on backend identity.",
       "patterns": ["Services/WikiChangesetSource.swift", "Services/WikiEventLogSource.swift"]
     },
     {
@@ -140,23 +133,9 @@
     },
     {
       "id": "hermes-gateway",
-      "label": "Hermes Gateway",
+      "label": "Harness gateway",
       "layer": "external",
       "description": "Ethen-managed WebSocket JSON-RPC agent gateway and full runtime surface.",
-      "external": true
-    },
-    {
-      "id": "hermes-standard",
-      "label": "Hermes Standard",
-      "layer": "external",
-      "description": "Upstream HTTP/SSE management surface for sessions, cron, notifications, skills, and settings.",
-      "external": true
-    },
-    {
-      "id": "centaur-api",
-      "label": "Centaur API",
-      "layer": "external",
-      "description": "REST/SSE harness platform and workflow runtime.",
       "external": true
     },
     {
@@ -171,16 +150,13 @@
     {"source": "app-shell", "target": "chat-ui", "type": "navigates", "description": "The application shell presents the conversation experience.", "evidence": ["Sources/Portal/Views/ContentView.swift"]},
     {"source": "chat-ui", "target": "chat-state", "type": "observes", "description": "Chat views render and act through conversation state.", "evidence": ["Sources/Portal/Views/ChatView.swift", "Sources/Portal/ViewModels/ChatViewModel.swift"]},
     {"source": "operations-ui", "target": "operations-state", "type": "observes", "description": "Operational surfaces render dedicated observable state.", "evidence": ["Sources/Portal/Views/CronListView.swift", "Sources/Portal/ViewModels/CronListViewModel.swift"]},
+    {"source": "operations-ui", "target": "wiki-state", "type": "navigates", "description": "A wiki resource selected in the runtime graph resolves its wiki path through the shared Graphs surface and opens that entry in the wiki reader.", "evidence": ["Sources/Portal/Views/CronDataflowExpandedView.swift", "Sources/Portal/Views/GraphsView.swift", "Sources/Portal/ViewModels/WikiGraphViewModel.swift"]},
     {"source": "wiki-ui", "target": "wiki-state", "type": "observes", "description": "Wiki views use graph and timeline view models.", "evidence": ["Sources/Portal/Views/Wiki/WikiGraphView.swift", "Sources/Portal/ViewModels/WikiGraphViewModel.swift"]},
     {"source": "wiki-ui", "target": "wiki-sources", "type": "depends_on", "description": "Wiki surfaces test the source for capability conformance to decide what to offer: the changeset drawer requires an edit history, the events plot and feed require an ingestion log. A missing affordance means the backend has nothing to show.", "evidence": ["Sources/Portal/Views/Wiki/WikiGraphView.swift", "Sources/Portal/Views/Wiki/WikiEventsPageView.swift"]},
-    {"source": "wiki-sources", "target": "hermes-services", "type": "implemented_by", "description": "The gateway serves the wiki graph, pages, changeset history and an event log whose entries carry the changesets they caused.", "evidence": ["Sources/Portal/Services/WikiChangesetSource.swift", "Sources/Portal/Services/GatewayClient+Wiki.swift"]},
-    {"source": "wiki-sources", "target": "centaur-services", "type": "implemented_by", "description": "The REST wiki-api serves the event log with directive attribution, plus the bucketed revision volume and baseline the knowledge-accrued pane needs.", "evidence": ["Sources/Portal/Services/WikiEventLogSource.swift", "Sources/Portal/Services/CentaurWikiClient+Timeline.swift"]},
-    {"source": "chat-state", "target": "backend-contract", "type": "depends_on", "description": "Conversation orchestration consumes the backend-neutral AgentBackend interface.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/ViewModels/ChatViewModel.swift"]},
-    {"source": "backend-contract", "target": "hermes-services", "type": "implemented_by", "description": "GatewayClient implements the AgentBackend protocol for Hermes.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/Services/GatewayClient.swift"]},
-    {"source": "backend-contract", "target": "centaur-services", "type": "implemented_by", "description": "Centaur adapts REST/SSE behavior to the backend-neutral conversation surface.", "evidence": ["Sources/Portal/Services/CentaurClient.swift", "Sources/Portal/Services/AgentBackend.swift"]},
-    {"source": "hermes-services", "target": "hermes-gateway", "type": "connects_to", "description": "GatewayClient connects to the Hermes WebSocket JSON-RPC gateway.", "evidence": ["Sources/Portal/Services/GatewayClient.swift"]},
-    {"source": "hermes-services", "target": "hermes-standard", "type": "connects_to", "description": "HermesStandardClient uses upstream management APIs.", "evidence": ["Sources/Portal/Services/HermesStandardClient.swift"]},
-    {"source": "centaur-services", "target": "centaur-api", "type": "connects_to", "description": "Centaur clients use REST and SSE APIs.", "evidence": ["Sources/Portal/Services/CentaurClient.swift"]},
+    {"source": "wiki-sources", "target": "hermes-services", "type": "implemented_by", "description": "The gateway serves the wiki graph, pages, changeset history and an event log whose entries carry the changesets they caused.", "evidence": ["Sources/Portal/Services/WikiChangesetSource.swift", "Sources/Portal/Services/GatewayClient+Wiki.swift", "Sources/Portal/Services/WikiEventLogSource.swift"]},
+    {"source": "chat-state", "target": "backend-contract", "type": "depends_on", "description": "Conversation orchestration consumes the AgentBackend interface.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/ViewModels/ChatViewModel.swift"]},
+    {"source": "backend-contract", "target": "hermes-services", "type": "implemented_by", "description": "GatewayClient implements the AgentBackend protocol for the harness.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/Services/GatewayClient.swift"]},
+    {"source": "hermes-services", "target": "hermes-gateway", "type": "connects_to", "description": "GatewayClient connects to the harness WebSocket JSON-RPC gateway.", "evidence": ["Sources/Portal/Services/GatewayClient.swift"]},
     {"source": "local-services", "target": "device-services", "type": "connects_to", "description": "Local services integrate with platform persistence, files, media, and notifications.", "evidence": ["Sources/Portal/Services/KeychainStore.swift", "Sources/Portal/Services/NotificationService.swift"]},
     {"source": "artifact-ui", "target": "domain-models", "type": "renders", "description": "Artifact blocks render typed artifact and message models.", "evidence": ["Sources/Portal/Views/Blocks/ArtifactPanel.swift"]},
     {"source": "artifact-ui", "target": "artifact-intents", "type": "depends_on", "description": "Artifact surfaces — including the generated 3D world hosted in its own window — render declared actions and dispatch clicks through the intent contract rather than acting on artifact content directly.", "evidence": ["Sources/Portal/Views/ArtifactFullscreenWindow.swift", "Sources/Portal/Models/HTMLArtifactIntentBridge.swift"]},
@@ -188,11 +164,301 @@
     {"source": "artifact-intents", "target": "operations-state", "type": "depends_on", "description": "Declared maintainer references resolve against cron state, so the product can distinguish an artifact a job actively tends from one that is merely mutable.", "evidence": ["Sources/Portal/Models/MaintainerRef.swift", "Sources/Portal/ViewModels/CronListViewModel.swift"]},
     {"source": "artifact-intents", "target": "app-shell", "type": "navigates", "description": "When an intent runs as a contained agent session, native code posts the session switch; the untrusted artifact page is never handed a session ID or navigation capability.", "evidence": ["Sources/Portal/Models/ArtifactIntentSessionLink.swift", "Sources/Portal/Views/ContentView.swift"]}
   ],
-  "specifications": [
-    {"id": "system", "title": "System architecture", "path": "architecture/specifications/system.md"},
-    {"id": "boundaries", "title": "Boundaries and authority", "path": "architecture/specifications/boundaries.md"},
-    {"id": "artifact-intents", "title": "Intent-based artifacts", "path": "architecture/specifications/artifact-intents.md"},
-    {"id": "wiki", "title": "The wiki as a knowledge system", "path": "architecture/specifications/wiki.md"},
-    {"id": "maintenance", "title": "Continuous maintenance", "path": "architecture/specifications/continuous-maintenance.md"}
-  ]
+  "external_systems": [
+    {
+      "id": "harness-gateway",
+      "label": "Harness gateway",
+      "category": "backend",
+      "component": "hermes-gateway",
+      "protocol": "WebSocket JSON-RPC over URLSession (/v1/ws)",
+      "description": "The Hermes fork's gateway: every chat, session, wiki, skills, cron, learning, and artifact RPC crosses this boundary.",
+      "signatures": [
+        "\\bURLSessionWebSocketTask\\b",
+        "\\bwebSocketTask\\s*\\(",
+        {
+          "pattern": "/v1/ws\\b",
+          "scope": "strings"
+        }
+      ]
+    },
+    {
+      "id": "cloudflare-access",
+      "label": "Cloudflare Access",
+      "category": "network",
+      "protocol": "CF_Authorization cookie on the gateway origin",
+      "description": "Zero-trust front door in front of a remotely hosted gateway; the client carries the Access cookie on WebSocket and HTTP requests.",
+      "signatures": [
+        {
+          "pattern": "CF_Authorization|cloudflareaccess\\.com",
+          "scope": "strings"
+        }
+      ]
+    },
+    {
+      "id": "apple-mlx",
+      "label": "Apple MLX",
+      "category": "ml-runtime",
+      "component": "device-services",
+      "protocol": "In-process Swift framework (MLX, MLXLLM, MLXLMCommon)",
+      "description": "On-device language-model inference on Apple silicon for local chat, reasoning summaries, and skill summaries.",
+      "signatures": [
+        "(?m)^\\s*import\\s+MLX\\w*",
+        "\\bModelContainer\\b",
+        "\\bloadContainer\\s*\\("
+      ]
+    },
+    {
+      "id": "hugging-face-hub",
+      "label": "Hugging Face Hub",
+      "category": "third-party-api",
+      "protocol": "HTTPS model downloads through the MLX model factory",
+      "description": "Source of on-device model weights (mlx-community repositories); downloaded into the local model inventory.",
+      "signatures": [
+        {
+          "pattern": "^mlx-community/|huggingface",
+          "scope": "strings"
+        }
+      ]
+    },
+    {
+      "id": "apns",
+      "label": "Apple Push Notification service",
+      "category": "platform-service",
+      "component": "device-services",
+      "protocol": "Remote-notification registration; device token forwarded to the gateway",
+      "description": "Delivers gateway push notifications to the device when the app is not connected.",
+      "signatures": [
+        "\\bregisterForRemoteNotifications\\b",
+        "\\bdidRegisterForRemoteNotifications\\w*",
+        "\\bdeviceToken\\b"
+      ]
+    },
+    {
+      "id": "user-notifications",
+      "label": "User Notifications",
+      "category": "platform-service",
+      "component": "device-services",
+      "protocol": "UNUserNotificationCenter",
+      "description": "Local notification presentation, authorization, and notification-tap routing back into the app.",
+      "signatures": [
+        "\\bUNUserNotificationCenter\\b"
+      ]
+    },
+    {
+      "id": "keychain",
+      "persistence": "keychain",
+      "label": "Keychain",
+      "category": "platform-storage",
+      "component": "device-services",
+      "protocol": "Security framework SecItem* calls",
+      "description": "Secure storage for gateway API keys, OAuth tokens, and Access cookies.",
+      "signatures": [
+        "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+      ]
+    },
+    {
+      "id": "file-system",
+      "persistence": "file",
+      "label": "Application Support files",
+      "category": "platform-storage",
+      "component": "device-services",
+      "protocol": "FileManager JSON documents and directories",
+      "description": "Per-user persistence for sessions, artifacts, skills, curricula, run history, and caches.",
+      "signatures": [
+        "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+      ]
+    },
+    {
+      "id": "user-defaults",
+      "persistence": "defaults",
+      "label": "UserDefaults",
+      "category": "platform-storage",
+      "component": "device-services",
+      "protocol": "UserDefaults.standard and @AppStorage",
+      "description": "Preferences, small state flags, and migration markers.",
+      "signatures": [
+        "\\bUserDefaults\\.standard\\b",
+        "@AppStorage\\b"
+      ]
+    },
+    {
+      "id": "x-api",
+      "label": "X API",
+      "category": "third-party-api",
+      "protocol": "HTTPS REST v2 with OAuth 2.0 PKCE",
+      "description": "Reads posts for the feed surface; authenticated per user through the X OAuth flow.",
+      "signatures": [
+        {
+          "pattern": "api\\.x\\.com|api\\.twitter\\.com",
+          "scope": "strings"
+        }
+      ]
+    },
+    {
+      "id": "webkit",
+      "label": "WebKit",
+      "category": "platform-framework",
+      "component": "device-services",
+      "protocol": "WKWebView with an isolated content world",
+      "description": "Renders HTML artifacts and rich content; the only bridge from untrusted markup to native intents.",
+      "signatures": [
+        "\\bWKWebView\\b"
+      ]
+    },
+    {
+      "id": "scenekit",
+      "label": "SceneKit",
+      "category": "platform-framework",
+      "component": "device-services",
+      "protocol": "SCNView (macOS)",
+      "description": "3D layout of the wiki knowledge graph.",
+      "signatures": [
+        "\\bSCNView\\b",
+        "(?m)^\\s*import\\s+SceneKit\\b"
+      ]
+    },
+    {
+      "id": "speech-synthesis",
+      "label": "On-device speech",
+      "category": "on-device-engine",
+      "component": "device-services",
+      "protocol": "AVSpeechSynthesizer and FluidAudio / PocketTTS neural voices",
+      "description": "Speaks assistant replies locally; no audio leaves the device.",
+      "signatures": [
+        "\\bAVSpeechSynthesizer\\b",
+        "\\bFluidAudio\\b",
+        "\\bPocketTTS\\w*"
+      ]
+    }
+  ],
+  "external_groups": [
+    {
+      "id": "platform-storage",
+      "label": "Platform storage",
+      "description": "Everything the app persists on the device: the Application Support tree of JSON documents and directories, the UserDefaults keys, and the Keychain items. Each store is drawn writing the artifacts its source names.",
+      "categories": ["platform-storage"]
+    },
+    {
+      "id": "on-device-inference",
+      "label": "On-device inference",
+      "description": "Model loading and inference that never leaves the device: the MLX runtime for local language models and the neural speech engines. Both are in-process frameworks the engines run on.",
+      "categories": ["ml-runtime", "on-device-engine"]
+    }
+  ],
+  "pages": {
+    "shell": ["ContentView"],
+    "items": [
+      {"id": "chat", "label": "Main chat view", "roots": ["ChatView", "SessionListView", "CronSessionView"],
+       "namespaces": ["prompt", "messages", "model", "clarify", "approval", "execute", "image", "interrupt", "voice"],
+       "components": ["chat-ui", "chat-state", "thought-graph-ui"]},
+      {"id": "settings", "label": "Settings", "roots": ["SettingsView"], "namespaces": ["config", "gateway"], "components": ["app-shell"]},
+      {"id": "sessions", "label": "Sessions", "roots": ["SessionsDashboard"], "namespaces": ["session"]},
+      {"id": "cron", "label": "Cron", "roots": ["CronDashboardView", "CronListView"], "namespaces": ["cron"]},
+      {"id": "activity", "label": "Activity", "roots": ["ActivityInboxView"], "namespaces": ["activity"]},
+      {"id": "skills", "label": "Skills", "roots": ["SkillsCanvasView", "SkillsView"], "namespaces": ["commands", "skills"]},
+      {"id": "feed", "label": "Feed", "roots": ["FeedView"], "namespaces": ["feed"]},
+      {"id": "learning", "label": "Learning", "roots": ["LearningDashboardView"], "namespaces": ["learning"]},
+      {"id": "graphs", "label": "Graphs", "roots": ["GraphsView"], "namespaces": ["wiki", "code"], "components": ["wiki-ui", "wiki-state", "wiki-sources"]},
+      {"id": "files", "label": "Files", "roots": ["FilesBrowserView"], "namespaces": ["files"]},
+      {"id": "artifacts", "label": "Artifacts", "roots": ["ArtifactCanvasView"], "namespaces": ["artifact"], "components": ["artifact-intents", "artifact-ui"]}
+    ]
+  },
+  "launch": {
+    "label": "App launch",
+    "roots": ["App"]
+  },
+  "ci": {
+    "_comment": "The CI gates plane. Workflow structure (jobs, needs, artifacts, triggers) is read from .github/workflows; this block declares what the files cannot say: which family each workflow belongs to and what each ratchet measures. The compiler fails on a workflow with no family, a declared workflow with no file, a ratchet naming an unknown job, or a posture job that nothing declares.",
+    "workflows": {
+      "tests": {"family": "behavior", "label": "Tests", "question": "Does it work? Each job runs and passes or fails on behavior."},
+      "ratchet": {"family": "posture", "label": "Ratchet", "question": "Did a tracked metric get worse? Each job compares the tree against a committed baseline."},
+      "build": {"family": "build", "label": "Build", "question": "Do the macOS and iOS apps build from the generated project, and does the offline UI smoke test pass?"},
+      "architecture-pages": {"family": "publication", "label": "Pages", "question": "Do the committed architecture model and site match what the compiler produces from this tree?"},
+      "testflight": {"family": "release", "label": "TestFlight", "question": "Can a signed iOS build be archived and uploaded after a merge or tag?"},
+      "snapshot-record": {"family": "maintenance", "label": "Snapshot Record", "question": "Re-record the View-snapshot goldens on the CI runner image the verify job uses."},
+      "architecture-maintenance": {"family": "maintenance", "label": "Architecture Maintenance", "question": "Manual fallback that refreshes deterministic evidence and proposes semantic summaries as a pull request."}
+    },
+    "ratchets": [
+      {
+        "id": "warnings",
+        "title": "Compiler warnings",
+        "job": "ratchet/warnings",
+        "source": {"kind": "metrics", "key": "warnings", "path": "metrics-baseline.json"},
+        "measures": "Swift compiler warning sites, per category. The build is the source of truth; the baseline freezes pre-existing debt.",
+        "floor": "No category exceeds base.",
+        "patch": "No warning on a line the PR added."
+      },
+      {
+        "id": "coverage",
+        "title": "Test coverage",
+        "job": "ratchet/coverage",
+        "source": {"kind": "metrics", "key": "coverage", "path": "metrics-baseline.json"},
+        "measures": "Line coverage from swift test over the testable layers only (Models, Services, Utilities, ViewModels). Views are excluded: the unit suite cannot reach them.",
+        "floor": "Aggregate drops at most 0.5 pt vs base.",
+        "patch": "At least 80% of added executable lines covered; skipped under 10 lines."
+      },
+      {
+        "id": "skipped",
+        "title": "Skipped tests",
+        "job": "ratchet/skipped-tests",
+        "source": {"kind": "metrics", "key": "skipped", "path": "metrics-baseline.json"},
+        "measures": "Disabled, conditionally enabled, known-issue or XCTest-skipped tests: coverage that never runs.",
+        "floor": "Count at most base.",
+        "patch": "No new skip on an added line."
+      },
+      {
+        "id": "deadcode",
+        "title": "Dead code",
+        "job": "ratchet/dead-code",
+        "source": {"kind": "metrics", "key": "deadcode", "path": "metrics-baseline.json"},
+        "measures": "Unused declarations from Periphery: unreferenced symbols, assign-only properties, redundant protocols, conformances and accessibility.",
+        "floor": "No category exceeds base.",
+        "patch": "No finding on a line the PR added."
+      },
+      {
+        "id": "perf",
+        "title": "Performance op-counts",
+        "job": "ratchet/performance",
+        "source": {"kind": "perf", "path": "perf-baseline.json"},
+        "measures": "Algorithmic operation counts (not time) for the hot pure layout paths over fixed fixtures under -DPERF_COUNTERS. Deterministic on any machine.",
+        "floor": "Every counter at most base; the ceiling is read from base via git show.",
+        "patch": null
+      },
+      {
+        "id": "lint",
+        "title": "Lint baseline",
+        "job": "ratchet/quality",
+        "source": {"kind": "swiftlint_baseline", "path": ".swiftlint-baseline"},
+        "measures": "Pre-existing SwiftLint debt frozen per rule via swiftlint --baseline. The run itself is a Tests job; this ratchet is the lock on growing the baseline to silence a new violation.",
+        "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
+        "patch": null
+      },
+      {
+        "id": "constraints",
+        "title": "Constraint declarations",
+        "job": "ratchet/constraints",
+        "source": {"kind": "declarations", "path": "architecture/interplay/invariants.json"},
+        "measures": "The declarations that decide what CI accepts: invariants, fail-closed config declarations, custom lint rules, architecture tests, specifications, gate scripts, CODEOWNERS and the gate workflows themselves.",
+        "floor": "Nothing declared on base may be removed or loosened: no invariant dropped or relaxed, no exception list grown, no rule removed or demoted, no gate step or job removed, no specification deleted. Tightening always passes; a deliberate loosening carries the constraints-loosened label.",
+        "patch": null
+      },
+      {
+        "id": "secrets",
+        "title": "Secret ignore-list",
+        "job": "ratchet/security",
+        "source": {"kind": "gitleaks_ignore", "path": ".gitleaksignore"},
+        "measures": "Accepted gitleaks fingerprints: matches reviewed and judged not to be real secrets. The scan itself runs in the same job.",
+        "floor": "Count may not grow silently; each addition is justified in the PR.",
+        "patch": null
+      }
+    ],
+    "architectural": {
+      "lint_config": ".swiftlint.yml",
+      "tests": "Tests/PortalTests/ArchitectureTests.swift",
+      "runs_in": ["tests/swift-lint", "tests/swift-test", "architecture-pages/validate"]
+    },
+    "static_checks": {
+      "jobs": ["architecture-pages/validate"]
+    }
+  }
 }

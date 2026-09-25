@@ -48,34 +48,25 @@ internal struct GatewayPersonaTests {
         #expect(persona.name == "gateway.example.com")
     }
 
-    // MARK: - Chrome persona precedence (gateway always wins)
+    // MARK: - Adopting a gateway persona
 
-    @Test("an adopted gateway persona beats the Centaur harness identity")
+    @Test("adopting a gateway persona makes it the active persona")
     @MainActor
-    internal func gatewayPersonaBeatsHarness() {
+    internal func adoptingMakesActive() {
         let manager = PersonaManager()
         let gateway = SavedGateway(name: "Cosmos", url: "wss://x", apiKey: "k")
         manager.adoptGatewayPersona(gateway)
-        // Even on a Centaur (harness-fixed) backend, the gateway persona wins.
-        let shown = manager.chromePersona(harness: .centaurPersona)
-        #expect(shown.name == "Cosmos")
-        #expect(shown.id == gateway.id.uuidString)
+        #expect(manager.activePersona.name == "Cosmos")
+        #expect(manager.activePersona.id == gateway.id.uuidString)
+        // A gateway persona is identicon-eligible, not a built-in glyph.
+        #expect(manager.activePersona.isBuiltIn == false)
     }
 
-    @Test("with no gateway persona adopted, the harness identity is the fallback")
+    @Test("with nothing adopted, the default persona is active")
     @MainActor
-    internal func harnessFallbackWhenNoGatewayPersona() {
-        let manager = PersonaManager()  // activePersona == .defaultPersona (built-in)
-        let shown = manager.chromePersona(harness: .centaurPersona)
-        #expect(shown == .centaurPersona)
-    }
-
-    @Test("with no harness and no adoption, the default persona shows")
-    @MainActor
-    internal func defaultWhenNoHarnessNoAdoption() {
+    internal func defaultWhenNoAdoption() {
         let manager = PersonaManager()
-        let shown = manager.chromePersona(harness: nil)
-        #expect(shown == .defaultPersona)
+        #expect(manager.activePersona == .defaultPersona)
     }
 
     // MARK: - SavedGateway backward-compatible decoding
@@ -91,6 +82,20 @@ internal struct GatewayPersonaTests {
         #expect(gateway.name == "Old")
     }
 
+    @Test("only legacy harness gateways remain compatible")
+    internal func legacyBackendKindCompatibility() throws {
+        func decode(kindFragment: String) throws -> SavedGateway {
+            let jsonString = """
+            {"id":"\(UUID().uuidString)","name":"Old","url":"wss://x","apiKey":"k"\(kindFragment)}
+            """
+            return try JSONDecoder().decode(SavedGateway.self, from: Data(jsonString.utf8))
+        }
+
+        #expect(try decode(kindFragment: "").speaksHarness)
+        #expect(try decode(kindFragment: ",\"kind\":\"hermes\"").speaksHarness)
+        #expect(try !decode(kindFragment: ",\"kind\":\"centaur\"").speaksHarness)
+    }
+
     @Test("a gateway round-trips its avatar path through Codable")
     internal func avatarPathRoundTrips() throws {
         var gateway = SavedGateway(name: "Cosmos", url: "wss://x", apiKey: "k")
@@ -99,6 +104,18 @@ internal struct GatewayPersonaTests {
         let decoded = try JSONDecoder().decode(SavedGateway.self, from: data)
         #expect(decoded.avatarImagePath == "/tmp/persona-abc.png")
         #expect(decoded == gateway)
+    }
+}
+
+@Suite("Persona image")
+internal struct PersonaImageTests {
+    @Test("a missing avatar path fails closed without constructing an image")
+    internal func missingAvatarReturnsNil() {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("portal-missing-avatar-\(UUID().uuidString).png")
+            .path
+
+        #expect(PersonaImage.load(path: path) == nil)
     }
 }
 

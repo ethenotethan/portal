@@ -7,15 +7,15 @@ import SwiftUI
 /// Accepts the two shapes models actually emit:
 /// - box-drawing / ASCII trees (`├── src`, `│   └── main.swift`, `|-- lib`)
 /// - plain indentation (2 or 4 spaces per level), directories ending in `/`
-struct FileTreeView: View {
-    let code: String
+internal struct FileTreeView: View {
+    internal let code: String
     @State private var collapsed: Set<Int> = []
 
     /// Parse once per distinct tree source, not on every render/collapse toggle.
     private static let parseMemo = RenderMemo<[FileTreeNode]>(limit: 24)
     private var nodes: [FileTreeNode] { Self.parseMemo.value(for: code) { FileTreeNode.parse(code) } }
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().overlay(Theme.border.opacity(0.5))
@@ -124,15 +124,15 @@ struct FileTreeView: View {
 
 // MARK: - Node model
 
-struct FileTreeNode: Identifiable {
-    let id: Int
-    let depth: Int
-    let name: String
+internal struct FileTreeNode: Identifiable {
+    internal let id: Int
+    internal let depth: Int
+    internal let name: String
     /// Trailing comment ("# entry point", "— 12 files") if present.
-    let annotation: String?
-    let isDirectory: Bool
+    internal let annotation: String?
+    internal let isDirectory: Bool
 
-    var icon: String {
+    internal var icon: String {
         if isDirectory { return "folder.fill" }
         switch (name as NSString).pathExtension.lowercased() {
         case "swift": return "swift"
@@ -154,7 +154,7 @@ struct FileTreeNode: Identifiable {
     /// is one level per 4-column segment/connector; for plain-indent trees
     /// the indent unit is inferred from the smallest nonzero indent (so both
     /// 2- and 4-space trees map to one level per step).
-    static func parse(_ code: String) -> [FileTreeNode] {
+    internal static func parse(_ code: String) -> [FileTreeNode] {
         var nodes: [FileTreeNode] = []
 
         let lines = code.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)

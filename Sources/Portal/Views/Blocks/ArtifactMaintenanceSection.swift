@@ -14,7 +14,7 @@ private struct OpenCronKey: EnvironmentKey {
 extension EnvironmentValues {
     /// Navigate to the cron surface; the String is the target job id (empty =
     /// just open the list).
-    var openCron: (@MainActor (String) -> Void)? {
+    internal var openCron: (@MainActor (String) -> Void)? {
         get { self[OpenCronKey.self] }
         set { self[OpenCronKey.self] = newValue }
     }
@@ -36,16 +36,16 @@ extension EnvironmentValues {
 /// "link a cron" affordance — the link exists because the cron actually tends
 /// the artifact, not because someone remembered to wire it up. Unlink remains
 /// as an escape hatch for stale declarations.
-struct ArtifactMaintenanceSection: View {
-    let artifact: LivingArtifact
+internal struct ArtifactMaintenanceSection: View {
+    internal let artifact: LivingArtifact
     /// All known cron jobs (from CronListViewModel), used to resolve refs.
-    let jobs: [CronJob]
+    internal let jobs: [CronJob]
     @Environment(\.openCron) private var openCron
     @ObservedObject private var store = ArtifactStore.shared
 
     private var refs: [MaintainerRef] { artifact.maintainerRefs }
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
 

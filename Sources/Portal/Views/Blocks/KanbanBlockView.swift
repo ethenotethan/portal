@@ -4,19 +4,22 @@ import SwiftUI
 /// its cards. In artifact hosts (`actionableArtifactID` set) each card carries
 /// a live column picker — choosing another column moves the card through
 /// `ArtifactStore`, the same `choice` path dataset actions use. In chat
-/// transcripts it renders read-only. A card carrying a `detail`/`desc` body or
-/// extra scalar fields (assignee, due, points…) shows a disclosure chevron and
-/// expands inline on tap. PDF-safe: a fixed HStack of columns, no
+/// transcripts it renders read-only. Clicking a card opens its ticket content
+/// in a consistently sized popover, independent of the board's column widths.
+/// PDF-safe: a fixed HStack of columns, no
 /// ScrollView (a board with many columns clips rather than scrolls in export,
 /// acceptable for a snapshot).
 internal struct KanbanBlockView: View {
     internal let json: String
     internal let isStreaming: Bool
     internal var actionableArtifactID: String?
+    /// Field written when a card moves. Top-level boards use `column`; model
+    /// projections pass their configured entity lane field.
+    internal var movementField: String = "column"
 
     internal var body: some View {
         if let spec = KanbanSpec.parse(json) {
-            KanbanCard(spec: spec, artifactID: actionableArtifactID)
+            KanbanCard(spec: spec, artifactID: actionableArtifactID, movementField: movementField)
         } else if isStreaming {
             EmptyView()
         } else {
@@ -25,13 +28,38 @@ internal struct KanbanBlockView: View {
     }
 }
 
+/// Keeps large boards navigable by rendering a short per-column preview until
+/// the user explicitly expands that lane. This is deliberately presentation
+/// state: the artifact content and card ordering are never mutated.
+internal enum KanbanDisplayPolicy {
+    internal static let collapsedCardLimit = 8
+    /// A readable ticket surface that stays bounded rather than taking over the
+    /// artifact pane or inheriting a narrow board-column width.
+    internal static let ticketDetailSize = CGSize(width: 360, height: 420)
+
+    internal static func cardsToRender(
+        _ cards: [KanbanSpec.Card],
+        expanded: Bool
+    ) -> ArraySlice<KanbanSpec.Card> {
+        cards.prefix(expanded ? cards.count : collapsedCardLimit)
+    }
+
+    internal static func hiddenCount(cardCount: Int, expanded: Bool) -> Int {
+        expanded ? 0 : max(0, cardCount - collapsedCardLimit)
+    }
+}
+
 private struct KanbanCard: View {
     let spec: KanbanSpec
     let artifactID: String?
+    let movementField: String
 
-    /// Cards the user has expanded, by card id. Local view state — expansion is
-    /// a display concern, never written back to the artifact.
-    @State private var expanded: Set<String> = []
+    /// The ticket currently open in the fixed-size detail popover. Local view
+    /// state only — opening a ticket never mutates the artifact.
+    @State private var selectedCardID: String?
+    /// Lanes whose full card inventory is visible. Large lanes start bounded
+    /// so one board cannot make the entire artifact thousands of points tall.
+    @State private var expandedColumns: Set<String> = []
     /// Column currently under a drag, for drop-target highlight. Nil = none.
     @State private var dropTarget: String?
 
@@ -58,12 +86,41 @@ private struct KanbanCard: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Theme.border, lineWidth: 0.5)
         )
+        // One popover for the whole board, not one per card. A per-card
+        // `.popover` mounts an NSPopover for every rendered card, and the
+        // columns (lazy stacks at the time) re-mounted those as cards scrolled
+        // in and out — enough to beachball an expanded board mid-scroll.
+        // Anchoring a single popover to the board keeps card realization cheap.
+        .popover(isPresented: openTicketBinding, arrowEdge: .leading) {
+            if let card = selectedCard {
+                ticketDetail(card)
+                    .presentationCompactAdaptation(.popover)
+            }
+        }
+    }
+
+    /// The card whose ticket is open, resolved from the board's cards.
+    private var selectedCard: KanbanSpec.Card? {
+        guard let id = selectedCardID else { return nil }
+        return spec.cards.first { $0.id == id }
+    }
+
+    /// Board-level presentation state for the ticket popover. Dismissing it
+    /// clears the selection; opening is driven by tapping a card header.
+    private var openTicketBinding: Binding<Bool> {
+        Binding(
+            get: { selectedCardID != nil },
+            set: { isPresented in if !isPresented { selectedCardID = nil } }
+        )
     }
 
     @ViewBuilder
     private func columnView(_ column: String) -> some View {
         let cards = spec.cards(in: column)
         let isTarget = dropTarget == column
+        let isColumnExpanded = expandedColumns.contains(column)
+        let visibleCards = KanbanDisplayPolicy.cardsToRender(cards, expanded: isColumnExpanded)
+        let hiddenCount = KanbanDisplayPolicy.hiddenCount(cardCount: cards.count, expanded: isColumnExpanded)
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Text(column)
@@ -74,8 +131,39 @@ private struct KanbanCard: View {
                     .foregroundStyle(Theme.tertiary)
                     .monospacedDigit()
             }
-            ForEach(cards) { card in
-                cardView(card)
+            // Plain VStack: the board is a fixed HStack of columns with no
+            // scroll viewport, so a lazy column can never defer a card — it
+            // only measures at an unbounded height and re-arms layout through
+            // signalPrefetch → requestUpdate (see ModelCard.body). The
+            // collapsed-lane limit above is what bounds a large board.
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(visibleCards) { card in
+                    cardView(card)
+                }
+            }
+            if hiddenCount > 0 || isColumnExpanded && cards.count > KanbanDisplayPolicy.collapsedCardLimit {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        if isColumnExpanded {
+                            expandedColumns.remove(column)
+                        } else {
+                            expandedColumns.insert(column)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(isColumnExpanded ? "Show fewer" : "+ \(hiddenCount) more")
+                        Image(systemName: isColumnExpanded ? "chevron.up" : "chevron.down")
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 5)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    isColumnExpanded ? "Collapse \(column) column" : "Show all cards in \(column) column"
+                )
             }
             if cards.isEmpty {
                 Text(isTarget ? "Drop here" : "—")
@@ -104,14 +192,14 @@ private struct KanbanCard: View {
 
     @ViewBuilder
     private func cardView(_ card: KanbanSpec.Card) -> some View {
-        let isExpanded = expanded.contains(card.id)
+        let isExpanded = selectedCardID == card.id
         let body = VStack(alignment: .leading, spacing: 4) {
             // Header is a Button so the click reliably lands — a whole-card tap
             // gesture fights both the inner move Menu and the drag gesture on
             // macOS. Every card is expandable (the expanded view always shows at
             // least id + column) so a click always does something visible.
             Button {
-                if isExpanded { expanded.remove(card.id) } else { expanded.insert(card.id) }
+                selectedCardID = isExpanded ? nil : card.id
             } label: {
                 HStack(alignment: .top, spacing: 4) {
                     Image(systemName: "chevron.right")
@@ -133,9 +221,6 @@ private struct KanbanCard: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-            if isExpanded {
-                expandedDetail(card)
             }
             HStack(spacing: 6) {
                 if let tag = card.tag {
@@ -166,7 +251,6 @@ private struct KanbanCard: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(Theme.border, lineWidth: 0.5)
         )
-
         body
     }
 
@@ -189,34 +273,64 @@ private struct KanbanCard: View {
             .help("Drag to move")
     }
 
-    /// Ticket body revealed on tap: a divider, the long `detail` text, then the
-    /// card's fields as key/value rows. Always includes id + column as a
-    /// baseline so expanding a bare card still shows something.
-    private func expandedDetail(_ card: KanbanSpec.Card) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Divider().overlay(Theme.border.opacity(0.6))
-            if let detail = card.detail {
-                Text(detail)
-                    .font(.caption2)
-                    .foregroundStyle(Theme.secondary)
+    /// Ticket body revealed on tap. Its stable two-dimensional frame makes long
+    /// titles and descriptions readable without resizing the board around them.
+    private func ticketDetail(_ card: KanbanSpec.Card) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(card.title)
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
                     .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Button {
+                    selectedCardID = nil
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close ticket")
             }
-            fieldRow(key: "id", value: card.id)
-            fieldRow(key: "column", value: card.column)
-            ForEach(card.extra, id: \.key) { field in
-                fieldRow(key: field.key, value: field.value)
+            Divider().overlay(Theme.border.opacity(0.6))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let note = card.note {
+                        Text(note)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.tertiary)
+                    }
+                    if let detail = card.detail {
+                        Text(detail)
+                            .font(.body)
+                            .foregroundStyle(Theme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    fieldRow(key: "id", value: card.id)
+                    fieldRow(key: "column", value: card.column)
+                    ForEach(card.extra, id: \.key) { field in
+                        fieldRow(key: field.key, value: field.value)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.top, 1)
+        .padding(16)
+        .frame(
+            width: KanbanDisplayPolicy.ticketDetailSize.width,
+            height: KanbanDisplayPolicy.ticketDetailSize.height,
+            alignment: .topLeading
+        )
+        .background(Theme.surface)
     }
 
     private func fieldRow(key: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 4) {
             Text(key)
-                .font(.system(size: 9, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.tertiary)
             Text(value)
-                .font(.system(size: 9))
+                .font(.caption)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -231,7 +345,7 @@ private struct KanbanCard: View {
               let card = spec.cards.first(where: { $0.id == cardID }),
               card.column != column else { return }
         let action = ArtifactAction(
-            kind: .choice, field: "column", options: spec.columns,
+            kind: .choice, field: movementField, options: spec.columns,
             bindingID: "", label: "", intentName: "", presentationRole: .normal
         )
         ArtifactStore.shared.applyAction(
@@ -239,10 +353,10 @@ private struct KanbanCard: View {
         )
     }
 
-    /// Column picker → a `choice` action on the card's `column` field.
+    /// Column picker → a `choice` action on the configured movement field.
     private func moveMenu(for card: KanbanSpec.Card, artifactID: String) -> some View {
         let action = ArtifactAction(
-            kind: .choice, field: "column", options: spec.columns,
+            kind: .choice, field: movementField, options: spec.columns,
             bindingID: "", label: "", intentName: "", presentationRole: .normal
         )
         return Menu {

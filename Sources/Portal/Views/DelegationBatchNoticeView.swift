@@ -1,27 +1,23 @@
 import SwiftUI
 
-/// A centered interstitial notice for a gateway async-delegation batch marker
-/// (e.g. `[ASYNC DELEGATION BATCH COMPLETE]`). These arrive as assistant message
-/// content but are status notices, not model prose — so instead of pushing the
-/// raw bracketed marker through the markdown bubble (which reads as a broken
-/// response), the transcript shows this thin centered rule + caption, the same
-/// visual weight as a system divider. Detected by
-/// `ChatMessage.delegationBatchNoticeLabel`.
+/// A gateway async-delegation batch notice. Bare markers stay lightweight;
+/// completed envelopes become a bordered result card whose returned content is
+/// rendered as markdown instead of appearing as an unstructured raw dump.
 internal struct DelegationBatchNoticeView: View {
-    /// Humanized label from `delegationBatchNoticeLabel` (e.g. "delegation
-    /// batch complete").
-    internal let label: String
+    internal let notice: DelegationBatchNotice
 
     internal var body: some View {
+        if let details = notice.details {
+            resultCard(details: details)
+        } else {
+            marker
+        }
+    }
+
+    private var marker: some View {
         HStack(spacing: 10) {
             rule
-            HStack(spacing: 5) {
-                Image(systemName: "bolt.horizontal.circle")
-                    .font(.system(size: 11))
-                Text(label)
-                    .font(.caption)
-                    .lineLimit(1)
-            }
+            title
             .foregroundStyle(Theme.tertiary)
             .fixedSize()
             rule
@@ -29,6 +25,43 @@ internal struct DelegationBatchNoticeView: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
+    }
+
+    private func resultCard(details: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                title
+                    .foregroundStyle(Theme.success)
+                Spacer(minLength: 8)
+                if let batchID = notice.batchID {
+                    Text(batchID)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(Theme.tertiary)
+                }
+            }
+
+            Divider()
+            MarkdownContentView(text: details)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.surface.opacity(0.65), in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Theme.border, lineWidth: 1)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+    }
+
+    private var title: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "bolt.horizontal.circle.fill")
+                .font(.system(size: 11))
+            Text(notice.label.capitalized)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+        }
     }
 
     private var rule: some View {

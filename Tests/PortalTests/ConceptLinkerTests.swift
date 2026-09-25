@@ -65,6 +65,24 @@ internal struct ConceptLinkerTests {
         #expect(links.isEmpty)
     }
 
+    @Test("agent nodes are not treated as tool calls")
+    internal func excludesAgentNodes() {
+        let agent = ThoughtGraphNode(
+            id: "a1",
+            name: "researcher",
+            context: "Inspecting GatewayClient.swift",
+            isComplete: true,
+            startedAt: Date(),
+            agentID: "researcher-1"
+        )
+        let links = ConceptLinker.link(nodes: [
+            beat("r1", "Reviewing GatewayClient.swift"),
+            agent,
+        ])
+
+        #expect(links.isEmpty)
+    }
+
     /// When a beat and tool share MORE than one salient token, the link is
     /// deterministic: it picks the smallest (alphabetically first) shared
     /// concept so two runs over the same nodes always draw the same edge.
@@ -128,5 +146,52 @@ internal struct ConceptLinkerTests {
         #expect(!tokens.contains("the"))
         // Longer non-compound words still pass the length gate
         #expect(tokens.contains("refactoring"))
+    }
+
+    @Test("short snake-case and dotted identifiers remain salient compounds")
+    internal func salientTokensKeepShortCompounds() {
+        let node = ThoughtGraphNode(
+            id: "r1",
+            name: "reasoning",
+            context: "Compare a_b with x.y and abc",
+            isComplete: true,
+            startedAt: Date()
+        )
+
+        let tokens = ConceptLinker.salientTokens(in: node)
+
+        #expect(tokens.contains("a_b"))
+        #expect(tokens.contains("x.y"))
+        #expect(!tokens.contains("abc"))
+    }
+
+    @Test("salientTokens includes concepts carried only by the node summary")
+    internal func salientTokensFromSummary() {
+        let node = ThoughtGraphNode(
+            id: "r1",
+            name: "reasoning",
+            context: nil,
+            summary: "Inspecting SessionManager",
+            isComplete: true,
+            startedAt: Date()
+        )
+
+        let tokens = ConceptLinker.salientTokens(in: node)
+        #expect(tokens.contains("sessionmanager"))
+        #expect(tokens.contains("inspecting"))
+    }
+
+    @Test("salientTokens returns no concepts when context and summary are absent")
+    internal func salientTokensOnEmptyNode() {
+        let node = ThoughtGraphNode(
+            id: "r1",
+            name: "reasoning",
+            context: nil,
+            summary: nil,
+            isComplete: true,
+            startedAt: Date()
+        )
+
+        #expect(ConceptLinker.salientTokens(in: node).isEmpty)
     }
 }

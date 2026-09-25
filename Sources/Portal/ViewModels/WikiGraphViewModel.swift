@@ -36,7 +36,7 @@ final class WikiGraphViewModel: ObservableObject {
     /// Folder-tree sidebar (macOS) / browse sheet (iOS) visibility.
     @Published var showFileTree = false
     /// Changeset-timeline drawer (macOS) / sheet (iOS) visibility.
-    /// Hermes-only; the hosting view hides the affordance for sources that
+    /// Harness-only; the hosting view hides the affordance for sources that
     /// don't conform to WikiChangesetSource.
     @Published var showTimeline = false
     /// Full-surface events page: while true the adaptive host swaps the graph
@@ -246,21 +246,21 @@ final class WikiGraphViewModel: ObservableObject {
         case "query": return Color(hex: "ff6b9d")!
         case "raw": return Color(hex: "888888")!
         case "meta", "index", "log": return Color(hex: "5ad4e6")!  // root pages (index.md, log.md)
-        // Centaur wiki-api kinds beyond the hermes set.
+        // Additional page kinds beyond the core set.
         case "glossary": return Color(hex: "5ad4e6")!   // taxonomy definitions
         case "project": return Color(hex: "e8a838")!
         case "goal": return Color(hex: "ff6b9d")!
+        // Code-graph kinds (CodeGraphSource). Distinct hues, no wiki type
+        // collides; modules are the hub hue, externals muted.
+        case "module": return Color(hex: "4a9eff") ?? .blue
+        case "class": return Color(hex: "c678dd") ?? .purple
+        case "func": return Color(hex: "56d364") ?? .green
+        case "symbol": return Color(hex: "d19a66") ?? .orange
+        case "external": return Color(hex: "6a6a6a") ?? .gray
         default: return Color(hex: "aaaaaa")!
         }
     }
 
-    func nodeRadius(for type: String) -> CGFloat {
-        switch type {
-        case "entity": return 7
-        case "meta", "index", "log", "glossary": return 8  // hub/definition pages read larger
-        default: return 5
-        }
-    }
 
     /// Per-node radii, PRECOMPUTED when degrees change. nodeRadius(at:) is
     /// on the Canvas draw path (every node, every frame at 30fps); computing
@@ -298,7 +298,7 @@ final class WikiGraphViewModel: ObservableObject {
         didSet { updateFilteredNodes() }
     }
 
-    private var loadGeneration = 0
+    internal var loadGeneration = 0
     /// Read-only view of the load counter for extensions that run async work
     /// against a load and must drop out when a newer one supersedes it.
     internal var currentLoadGeneration: Int { loadGeneration }
@@ -310,33 +310,34 @@ final class WikiGraphViewModel: ObservableObject {
     /// overlay while the serial wiki.list → wiki.scan round-trips complete),
     /// then replace it with the fresh scan. Injectable so tests use a scratch
     /// dir. Only the home gateway (GatewayClient) has a stable cacheIdentity;
-    /// override sources (Centaur) skip the cache.
+    /// override sources (CodeGraphSource) skip the cache.
     private let graphCache: WikiGraphCache
 
     internal init(graphCache: WikiGraphCache = WikiGraphCache()) {
         self.graphCache = graphCache
     }
     /// The source the current graph was loaded from; the reader fetches page
-    /// bodies through it so override wikis (Centaur) don't hit the home gateway.
-    /// Strong on purpose: ContentView rebuilds its override client on every
-    /// body evaluation, so a weak ref here dies between graph load and page
-    /// read and the reader silently falls back to the home gateway (which
-    /// 404s every Centaur page). No cycle: sources hold no view-model refs.
+    /// bodies through it so override wikis (CodeGraphSource) don't hit the home
+    /// gateway. Strong on purpose: ContentView rebuilds its override client on
+    /// every body evaluation, so a weak ref here dies between graph load and
+    /// page read and the reader silently falls back to the home gateway (which
+    /// 404s every code-graph page). No cycle: sources hold no view-model refs.
     private var loadedSource: (any WikiSource)?
 
-    func load(client: GatewayClient, wiki: String? = nil) async {
-        await load(source: client, wiki: wiki)
+    internal func load(client: GatewayClient, wiki: String? = nil, generation: Int? = nil) async {
+        await load(source: client, wiki: wiki, generation: generation)
     }
 
-    /// Source-generic load: Hermes (GatewayClient) and Centaur
-    /// (CentaurWikiClient) both conform to WikiSource. `wiki` selection is
-    /// Hermes-only (multi-wiki gateways); other sources ignore it.
-    func load(source: any WikiSource, wiki: String? = nil) async {
-        prepareForLoad(wiki: wiki)
+    /// Source-generic load: the harness (GatewayClient) and CodeGraphSource
+    /// conform to WikiSource. `wiki` selection is harness-only (multi-wiki
+    /// gateways); other sources ignore it.
+    internal func load(source: any WikiSource, wiki: String? = nil, generation: Int? = nil) async {
+        let generation = generation ?? beginLoad(wiki: wiki)
+        // A named selection establishes its generation synchronously in the
+        // button action. If this task was scheduled after a newer click, drop
+        // it before it can mutate source, graph, or loading state.
+        guard generation == loadGeneration else { return }
         loadedSource = source
-        loadGeneration += 1
-        let generation = loadGeneration
-        isLoading = true; error = nil
         defer { if generation == loadGeneration { isLoading = false } }
 
         // Cold-open fast path: paint the last-known graph immediately so the
@@ -504,8 +505,8 @@ final class WikiGraphViewModel: ObservableObject {
         guard contentCache[path] == nil else { return }
         let content: WikiPageContent?
         if let source = loadedSource, !(source is GatewayClient) {
-            // Override wiki (Centaur): page bodies come from the same source
-            // the graph did, never the home gateway.
+            // Override wiki (CodeGraphSource): page bodies come from the same
+            // source the graph did, never the home gateway.
             content = await loadPage(source: source, path: path)
         } else {
             content = await loadPage(client: client, path: path, wiki: loadedWiki)
@@ -787,8 +788,8 @@ final class WikiGraphViewModel: ObservableObject {
         let anyDragging = simNodes.contains { $0.isDragging }
         guard alpha > alphaMin || anyDragging else { return }
         let charge: Float = chargeConstant3D
-        let maxForce: Float = Float(maxRepulsionForce)
-        let springK: Float = Float(springConstant)
+        let maxForce = Float(maxRepulsionForce)
+        let springK = Float(springConstant)
         // Simulate into a local copy so the @Published publisher fires once per tick.
         var nodes = simNodes
         for _ in 0..<iterationsPerFrame {
@@ -922,7 +923,7 @@ final class WikiGraphViewModel: ObservableObject {
 extension WikiGraphViewModel {
 
     /// True when the loaded source supports page writes — the home gateway's
-    /// Hermes wiki. Centaur override sources are read-only HTTP, so their
+    /// harness wiki. CodeGraphSource override sources are read-only, so their
     /// readers hide the Edit affordance.
     internal var supportsPageEditing: Bool {
         loadedSource == nil || loadedSource is GatewayClient

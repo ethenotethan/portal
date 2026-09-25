@@ -78,11 +78,6 @@ internal struct SkillsListPanel: View {
             installStatus: viewModel.installStatus[skill.name],
             summaryState: viewModel.skillSummaries[skill.name],
             confirmUninstall: confirmUninstall == skill.name,
-            isStandardMode: viewModel.isStandardMode,
-            isEnabled: viewModel.standardEnabled[skill.name] ?? true,
-            onSetEnabled: { _ in
-                Task { await viewModel.toggleStandardSkill(name: skill.name) }
-            },
             onToggle: {
                 let expanding = filterState.selectedSkillName != skill.name
                 withAnimation(.easeInOut(duration: 0.18)) {

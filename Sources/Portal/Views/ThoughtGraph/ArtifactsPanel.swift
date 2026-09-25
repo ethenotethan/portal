@@ -112,7 +112,8 @@ internal struct ArtifactsPanel: View {
                     kind: artifact.kind,
                     content: artifact.content,
                     actionableArtifactID: artifact.id,
-                    topLevelActions: artifact.topLevelActions
+                    topLevelActions: artifact.topLevelActions,
+                    queries: artifact.queries
                 )
                 .padding(8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -124,7 +125,8 @@ internal struct ArtifactsPanel: View {
                         kind: artifact.kind,
                         content: artifact.content,
                         actionableArtifactID: artifact.id,
-                        topLevelActions: artifact.topLevelActions
+                        topLevelActions: artifact.topLevelActions,
+                        queries: artifact.queries
                     )
                     .padding(8)
                 }
@@ -134,6 +136,7 @@ internal struct ArtifactsPanel: View {
 
     private func icon(for kind: String) -> String {
         switch kind {
+        case "blueprint": return "ruler"
         case "map": return "map"
         case "chart": return "chart.xyaxis.line"
         case "graph": return "point.3.connected.trianglepath.dotted"

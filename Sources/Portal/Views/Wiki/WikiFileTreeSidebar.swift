@@ -39,15 +39,15 @@ private func buildFolderNode(name: String, id: String, entries: [(page: WikiPage
 /// Obsidian-style folder tree over the wiki vault, with page search. The
 /// adaptive wiki hosts it as a toggleable left sidebar (macOS) or a browse
 /// sheet (iOS); selection flows through the shared plane via `onSelect`.
-struct WikiFileTreeSidebar: View {
-    @ObservedObject var viewModel: WikiGraphViewModel
+internal struct WikiFileTreeSidebar: View {
+    @ObservedObject internal var viewModel: WikiGraphViewModel
     /// Called after a page is picked (hosts navigate + present the reader;
     /// the iOS sheet also dismisses itself here).
-    var onSelect: (WikiPage) -> Void
+    internal var onSelect: (WikiPage) -> Void
 
     @State private var searchText = ""
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")

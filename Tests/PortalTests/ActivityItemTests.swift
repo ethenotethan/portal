@@ -48,7 +48,9 @@ struct ActivityItemTests {
         #expect(item?.severity == .warning)
         #expect(item?.artifacts.first?.typeLabel == "HTML")
         #expect(item?.actions.first?.type == "open_session")
+        #expect(item?.actions.first?.id == "open_session-Open session-sid123")
         #expect(item?.externalRefs.first?.label == "Open Telegram")
+        #expect(item?.externalRefs.first?.id == "https://t.me/c/example")
     }
 
     @Test("parses activity.created gateway event")
@@ -87,6 +89,35 @@ struct ActivityItemTests {
         #expect(item?.isDismissed == true)
     }
 
+    @Test("activity presentation exposes readable status and severity cues")
+    internal func presentationCues() {
+        var item = ActivityItem(
+            id: "act_presentation",
+            createdAt: Date(timeIntervalSinceNow: -3_600),
+            updatedAt: nil,
+            kind: "activity",
+            severity: .info,
+            source: "gateway",
+            title: "Activity",
+            summary: "",
+            sessionID: nil,
+            isRead: false,
+            isDismissed: false,
+            actions: [],
+            artifacts: [],
+            externalRefs: []
+        )
+
+        #expect(!item.relativeTimestamp.isEmpty)
+        #expect(item.unreadBadgeAccessibilityLabel == "Unread")
+        item.isRead = true
+        #expect(item.unreadBadgeAccessibilityLabel == "Read")
+
+        #expect(ActivitySeverity.info.icon == "bell.fill")
+        #expect(ActivitySeverity.warning.icon == "exclamationmark.triangle.fill")
+        #expect(ActivitySeverity.error.icon == "xmark.octagon.fill")
+    }
+
     @Test("artifact type labels recognize MIME types and filename fallbacks")
     internal func artifactTypeLabels() {
         let cases: [(name: String, mimeType: String, expected: String)] = [
@@ -109,6 +140,30 @@ struct ActivityItemTests {
             )
             #expect(artifact.typeLabel == testCase.expected)
         }
+    }
+
+    @Test("artifact content payloads parse fields and apply gateway defaults")
+    internal func parseArtifactContent() {
+        let content = ActivityArtifactContent.from([
+            "id": AnyCodable("art_123"),
+            "name": AnyCodable("report.html"),
+            "mime_type": AnyCodable("text/html"),
+            "encoding": AnyCodable("base64"),
+            "content": AnyCodable("<h1>Report</h1>"),
+            "content_base64": AnyCodable("PGgxPlJlcG9ydDwvaDE+"),
+        ])
+        let defaults = ActivityArtifactContent.from(["id": AnyCodable("art_default")])
+
+        #expect(content?.id == "art_123")
+        #expect(content?.name == "report.html")
+        #expect(content?.mimeType == "text/html")
+        #expect(content?.encoding == "base64")
+        #expect(content?.content == "<h1>Report</h1>")
+        #expect(content?.contentBase64 == "PGgxPlJlcG9ydDwvaDE+")
+        #expect(defaults?.name == "artifact")
+        #expect(defaults?.mimeType == "application/octet-stream")
+        #expect(defaults?.encoding == "utf-8")
+        #expect(ActivityArtifactContent.from([:]) == nil)
     }
 
     @Test("activity events parse direct payloads as well as nested activity payloads")

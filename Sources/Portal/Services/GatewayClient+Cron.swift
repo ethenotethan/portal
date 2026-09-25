@@ -21,41 +21,9 @@ extension GatewayClient {
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
-        guard let dict = response.result?.dictionaryValue,
-              let nodesArray = dict["nodes"]?.arrayValue,
-              let edgesArray = dict["edges"]?.arrayValue else {
+        guard let result = response.result else {
             throw GatewayError.invalidResponse("cron.graph missing nodes/edges arrays")
         }
-
-        let nodes: [CronGraphNode] = nodesArray.compactMap { item -> CronGraphNode? in
-            guard let d = item.dictionaryValue,
-                  let id = d["id"]?.stringValue, !id.isEmpty,
-                  let kind = d["kind"]?.stringValue else { return nil }
-            return CronGraphNode(
-                id: id,
-                kind: kind,
-                type: d["type"]?.stringValue ?? kind,
-                label: d["label"]?.stringValue ?? id,
-                description: d["description"]?.stringValue ?? "",
-                schedule: d["schedule"]?.stringValue,
-                enabled: d["enabled"]?.boolValue ?? true,
-                usesLLM: d["uses_llm"]?.boolValue ?? false,
-                lastStatus: d["last_status"]?.stringValue,
-                deliver: d["deliver"]?.stringValue
-            )
-        }
-
-        let edges: [CronGraphEdge] = edgesArray.compactMap { item -> CronGraphEdge? in
-            guard let d = item.dictionaryValue,
-                  let source = d["source"]?.stringValue,
-                  let target = d["target"]?.stringValue else { return nil }
-            return CronGraphEdge(
-                source: source,
-                target: target,
-                type: d["type"]?.stringValue ?? "reads"
-            )
-        }
-
-        return CronGraph(nodes: nodes, edges: edges)
+        return try CronGraph.decodeGatewayValue(result)
     }
 }

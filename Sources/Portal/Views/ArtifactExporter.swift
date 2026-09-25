@@ -281,7 +281,6 @@ internal enum ArtifactExporter {
     /// Build the export-safe SwiftUI view for an artifact's kind. Returns nil
     /// for html (WKWebView — not rasterizable without a live view) and for
     /// maps (rasterized via MapExportRenderer, not SwiftUI).
-    @ViewBuilder
     private static func exportContent(
         for artifact: LivingArtifact,
         diagramImages: [String: PlatformImage]? = nil
@@ -437,6 +436,10 @@ private struct ExportModelArtifactView: View {
         case .stats:
             if let json = ModelProjections.statsJSON(spec: spec, view: view) {
                 StatTilesView(json: json, isStreaming: false)
+            }
+        case .kanban:
+            if let json = ModelProjections.kanbanJSON(spec: spec, view: view) {
+                KanbanBlockView(json: json, isStreaming: false, actionableArtifactID: nil)
             }
         }
     }

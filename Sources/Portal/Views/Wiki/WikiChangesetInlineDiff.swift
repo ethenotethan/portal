@@ -6,15 +6,15 @@ import SwiftUI
 /// Purely presentational: WikiTimelineViewModel owns the fetch
 /// (wiki.changeset_diff) and hands the state in. +green / −red / @@hunk
 /// coloring like a terminal `git show`.
-struct WikiChangesetInlineDiff: View {
-    let changeset: WikiChangeset
-    let state: WikiTimelineViewModel.DiffState
-    var onRetry: (() -> Void)?
+internal struct WikiChangesetInlineDiff: View {
+    internal let changeset: WikiChangeset
+    internal let state: WikiTimelineViewModel.DiffState
+    internal var onRetry: (() -> Void)?
 
     /// Inline expansion stays bounded; long diffs scroll within the row.
     private let maxDiffHeight: CGFloat = 320
 
-    var body: some View {
+    internal var body: some View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))

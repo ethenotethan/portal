@@ -5,6 +5,35 @@ import Foundation
 @Suite("Gateway Event Decoding — new families")
 struct GatewayEventDecodingTests {
 
+    // MARK: - architecture.changed
+
+    @Test("architecture.changed parses a snapshot announcement and a check outcome")
+    internal func architectureChangedPayloads() {
+        let snapshot = GatewayEvent.from(type: "architecture.changed", payload: .dictionary([
+            "service": .string("arch:portal"), "revision": .string("62911e4"), "source": .string("local"), "reason": .string("snapshot"),
+        ]))
+        guard case .architectureChanged(let service, let revision, let reason, let status) = snapshot else {
+            Issue.record("expected architectureChanged, got \(snapshot.debugName)")
+            return
+        }
+        #expect(service == "arch:portal")
+        #expect(revision == "62911e4")
+        #expect(reason == "snapshot")
+        #expect(status.isEmpty)
+        #expect(snapshot.debugName == "architecture.changed")
+        let check = GatewayEvent.from(type: "architecture.changed", payload: .dictionary([
+            "service": .string("arch:portal"), "reason": .string("check"), "status": .string("failed"),
+        ]))
+        guard case .architectureChanged(_, let checkRevision, let checkReason, let checkStatus) = check else {
+            Issue.record("expected architectureChanged, got \(check.debugName)")
+            return
+        }
+        #expect(checkRevision.isEmpty)
+        #expect(checkReason == "check")
+        #expect(checkStatus == "failed")
+        #expect(!snapshot.isLiveTurnEvent)
+    }
+
     // MARK: - tool.output_risk
 
     @Test("tool.output_risk parses full payload")
@@ -189,6 +218,55 @@ struct GatewayEventDecodingTests {
             return
         }
         #expect(type == "pet.feed")
+    }
+}
+
+// MARK: - JSON-RPC value coding
+
+@Suite("JSON-RPC value coding")
+internal struct JSONRPCValueCodingTests {
+
+    @Test("heterogeneous JSON values round-trip through Codable")
+    internal func heterogeneousValuesRoundTrip() throws {
+        let values: [AnyCodable] = [
+            .string("portal"),
+            .int(42),
+            .double(3.5),
+            .bool(true),
+            .null,
+            .array([.string("nested"), .int(7)]),
+            .dictionary(["enabled": .bool(false), "count": .int(2)]),
+        ]
+
+        for value in values {
+            let data = try JSONEncoder().encode(value)
+            let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
+            #expect(decoded == value)
+        }
+    }
+
+    @Test("untyped JSON-shaped values bridge recursively and unsupported leaves become null")
+    internal func untypedValueBridge() {
+        let existing = AnyCodable.string("preserved")
+        let bridged = AnyCodable(any: [
+            "name": "portal",
+            "active": true,
+            "retries": 3,
+            "ratio": 0.5,
+            "items": ["one", 2, false] as [Any],
+            "existing": existing,
+            "unsupported": Date(timeIntervalSince1970: 0),
+        ] as [String: Any])
+
+        #expect(bridged == .dictionary([
+            "name": .string("portal"),
+            "active": .bool(true),
+            "retries": .int(3),
+            "ratio": .double(0.5),
+            "items": .array([.string("one"), .int(2), .bool(false)]),
+            "existing": existing,
+            "unsupported": .null,
+        ]))
     }
 }
 

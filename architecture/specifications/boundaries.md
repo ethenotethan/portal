@@ -18,9 +18,9 @@ The enforced rules and exceptions live in `docs/architecture-rules.md`. This por
 
 ## Backend boundary
 
-`AgentBackend` is the seam between conversation orchestration and concrete agent platforms. Hermes and Centaur adapters may differ in transport and capability, while the UI consumes normalized events and declared capabilities.
+`AgentBackend` is the seam between conversation orchestration and the harness gateway. The gateway normalizes its runtime into `GatewayEvent`, and the UI consumes that one event stream rather than reaching through to the transport.
 
-Backend-specific management features may use dedicated service surfaces outside the chat seam. Such paths must remain explicit in the graph rather than being presented as generic backend behavior.
+Management features (cron, skills, sessions, settings) use dedicated service surfaces outside the chat seam. Such paths must remain explicit in the graph rather than being presented as generic backend behavior.
 
 ## Publication boundary
 

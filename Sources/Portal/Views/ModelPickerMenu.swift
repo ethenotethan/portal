@@ -5,8 +5,8 @@ import SwiftUI
 /// providers with curated model lists) and falls back to the static
 /// `AgentModel.catalog` on gateways that predate the RPC. A model the
 /// gateway reports that isn't in either list is shown checked at the top so
-/// the truth is never hidden. Falls back to the plain badge when the backend
-/// can't switch models (Centaur) or no session is active yet.
+/// the truth is never hidden. Falls back to the plain badge when no session
+/// is active yet.
 ///
 /// Expensive models: the gateway can gate a switch behind confirmation;
 /// the ViewModel publishes `pendingModelConfirmation` and this view asks.
@@ -36,9 +36,7 @@ struct ModelPickerMenu: View {
     }
 
     private var canSwitch: Bool {
-        chatViewModel.backendCapabilities.supportsModelSwitching
-            && chatViewModel.isSessionReady
-            && !chatViewModel.isStreaming
+        chatViewModel.isSessionReady && !chatViewModel.isStreaming
     }
 
     var body: some View {
@@ -91,9 +89,7 @@ struct ModelPickerMenu: View {
             }
         } else {
             badge(withChevron: false)
-                .help(chatViewModel.backendCapabilities.supportsModelSwitching
-                      ? "Model switching is unavailable while a turn is streaming"
-                      : "This backend does not support model switching")
+                .help("Model switching is unavailable while a turn is streaming")
         }
     }
 

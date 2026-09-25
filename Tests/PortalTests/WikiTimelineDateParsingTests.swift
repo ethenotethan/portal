@@ -163,6 +163,12 @@ internal struct WikiTimelineDateParsingTests {
 /// An event can be in the feed and absent from the plot for two honest reasons:
 /// it has no time, or its time is outside the window. Both used to be silent,
 /// which made a sparse plot look broken.
+///
+/// `@MainActor` because `WikiEventsPageView.unplottedSummary` is a static on a
+/// SwiftUI `View` and so inherits main-actor isolation from the protocol; a
+/// nonisolated test body warns on every call. It is a pure function over two
+/// integers, so the annotation costs nothing and matches where the page calls it.
+@MainActor
 @Suite("Unplotted event accounting")
 internal struct WikiEventUnplottedTests {
 

@@ -70,10 +70,6 @@ internal final class DelegationBatchHistoryStore: ObservableObject {
             .sorted { $0.startedAt < $1.startedAt }
     }
 
-    internal func allRecordsSorted() -> [DelegationBatchRecord] {
-        records.sorted { $0.startedAt < $1.startedAt }
-    }
-
     // MARK: - Trim
 
     private func trim(sessionID: String) {

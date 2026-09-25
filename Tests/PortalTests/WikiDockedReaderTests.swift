@@ -197,8 +197,13 @@ internal struct WikiDockedReaderTests {
 // The editor's frontmatter round-trip: the three edited fields (title, type,
 // tags) overlay the original block; everything else survives untouched, and
 // clearing a field drops the key rather than writing an empty value.
+// `@MainActor` to match the other two suites in this file: the helper under test
+// is a `WikiPageEditorView` static, and a SwiftUI `View`'s members inherit
+// main-actor isolation, so a nonisolated test body warns on every call.
 @Suite("Wiki page editor frontmatter")
-internal struct WikiPageEditorFrontmatterTests {    @Test("Edited fields overlay; untouched keys round-trip; blanks drop")
+@MainActor
+internal struct WikiPageEditorFrontmatterTests {
+    @Test("Edited fields overlay; untouched keys round-trip; blanks drop")
     internal func assembly() {
         let original = [
             "title": "Old", "type": "concept", "tags": "a, b",

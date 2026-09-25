@@ -240,6 +240,7 @@ internal struct ArtifactExpandedOverlay: View {
             content: content,
             actionableArtifactID: artifact.id,
             topLevelActions: artifact.topLevelActions,
+            queries: artifact.queries,
             // Capture is the renderer's own call now (derived from the document),
             // so this presentation only has to say where a lock lands: Escape
             // releases the mouse before it collapses the artifact.

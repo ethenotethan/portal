@@ -22,10 +22,6 @@ internal struct CronJobCard: View {
     /// The other jobs in the list, so the Move picker can offer existing
     /// categories rather than making the user retype a path.
     internal var siblingJobs: [CronJob] = []
-    /// Standard's dashboard API has no update endpoint, so the category card
-    /// hides there — it was previously shown unconditionally on this card while
-    /// the detail view gated it, offering a Move that could not work.
-    internal var supportsRemoveAndEdit = true
     /// Whether the header spells out the job's whole category path.
     ///
     /// True when the card stands on its own (an ungrouped job, or a flat list)
@@ -67,7 +63,6 @@ internal struct CronJobCard: View {
         onUpdatePrompt: @escaping (String) -> Void,
         onRename: @escaping (String) -> Void,
         siblingJobs: [CronJob] = [],
-        supportsRemoveAndEdit: Bool = true,
         showsCategoryPath: Bool = true,
         dataflow: CronJobDataflow = .empty,
         onSelectEndpoint: ((CronDataflowEndpoint) -> Void)? = nil
@@ -82,7 +77,6 @@ internal struct CronJobCard: View {
         self.onUpdatePrompt = onUpdatePrompt
         self.onRename = onRename
         self.siblingJobs = siblingJobs
-        self.supportsRemoveAndEdit = supportsRemoveAndEdit
         self.showsCategoryPath = showsCategoryPath
         self.dataflow = dataflow
         self.onSelectEndpoint = onSelectEndpoint
@@ -110,14 +104,12 @@ internal struct CronJobCard: View {
                     statsStrip
                     healthBar
                     errorBanner
-                    if supportsRemoveAndEdit {
-                        CronCategoryEditor(
-                            name: displayJob.name,
-                            isCompact: true,
-                            siblingJobs: siblingJobs,
-                            onRename: onRename
-                        )
-                    }
+                    CronCategoryEditor(
+                        name: displayJob.name,
+                        isCompact: true,
+                        siblingJobs: siblingJobs,
+                        onRename: onRename
+                    )
                     detailRows
                     dataflowSection
                     promptSection

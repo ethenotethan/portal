@@ -273,7 +273,10 @@ private struct ExportBlockView: View {
     var body: some View {
         switch block {
         case .codeBlock(let language, let code):
-            if MarkdownParser.isChartLanguage(language) {
+            if MarkdownParser.isBlueprintLanguage(language) {
+                // Pure SwiftUI + Canvas with an intrinsic aspect ratio.
+                BlueprintBlockView(json: code, isStreaming: false)
+            } else if MarkdownParser.isChartLanguage(language) {
                 // interactive: false — the zoomed chart plot is a scroll view,
                 // which ImageRenderer rasterizes as an empty box; export always
                 // draws the full domain with all series visible.
@@ -483,6 +486,10 @@ private struct ExportModelView: View {
         case .stats:
             if let json = ModelProjections.statsJSON(spec: spec, view: view) {
                 StatTilesView(json: json, isStreaming: false)
+            }
+        case .kanban:
+            if let json = ModelProjections.kanbanJSON(spec: spec, view: view) {
+                KanbanBlockView(json: json, isStreaming: false, actionableArtifactID: nil)
             }
         }
     }

@@ -84,10 +84,6 @@ final class ActivityStore {
         }
     }
 
-    func saveNow() {
-        save()
-    }
-
     private func save() {
         let items = self.items
         let dir = storageDir

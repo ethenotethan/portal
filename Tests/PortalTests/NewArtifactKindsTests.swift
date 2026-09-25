@@ -115,6 +115,26 @@ private struct CalendarSpecTests {
         #expect(onGA.count == 1)
     }
 
+    @Test("Day lookup sorts events and months are distinct and chronological")
+    private func eventOrdering() throws {
+        let spec = try #require(CalendarSpec.parse("""
+        {"events": [
+          {"id": "sep", "date": "2026-09-01T12:00:00Z", "title": "September"},
+          {"id": "late", "date": "2026-08-20T18:00:00Z", "title": "Late"},
+          {"id": "jul", "date": "2026-07-31T12:00:00Z", "title": "July"},
+          {"id": "early", "date": "2026-08-20T09:00:00Z", "title": "Early"}
+        ]}
+        """))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let augustDay = try #require(calendar.date(from: DateComponents(
+            year: 2026, month: 8, day: 20
+        )))
+
+        #expect(spec.events(on: augustDay, calendar: calendar).map(\.id) == ["early", "late"])
+        #expect(spec.months(calendar: calendar).map { calendar.component(.month, from: $0) } == [7, 8, 9])
+    }
+
     @Test("Empty/malformed return nil")
     private func fails() {
         #expect(CalendarSpec.parse("{\"events\": []}") == nil)
@@ -206,6 +226,19 @@ private struct NewKindActionTests {
                                           entryKey: "A", field: "column", value: "Done")
         )
         #expect(KanbanSpec.parse(moved)?.cards.first?.column == "Done")
+    }
+
+    @Test("Calendar updates an event lacking an id by its title")
+    private func calendarUpdateByTitle() throws {
+        let content = "{\"events\": [{\"date\": \"2026-08-01\", \"title\": \"Release\"}]}"
+        let updated = try #require(
+            ArtifactActionEngine.setField(in: content, kind: "calendar",
+                                          entryKey: "Release", field: "date", value: "2026-08-02")
+        )
+        #expect(
+            CalendarSpec.parse(updated)?.events.first?.date
+                == TimelineSpec.parseDate("2026-08-02")
+        )
     }
 
     @Test("Unknown entry key returns nil (no mutation)")

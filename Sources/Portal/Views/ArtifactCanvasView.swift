@@ -618,7 +618,8 @@ private struct ArtifactPanelContent: View {
                     kind: artifact.kind,
                     content: store.artifacts[artifact.id]?.content ?? artifact.content,
                     actionableArtifactID: artifact.id,
-                    topLevelActions: artifact.topLevelActions
+                    topLevelActions: artifact.topLevelActions,
+                    queries: artifact.queries
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -627,7 +628,8 @@ private struct ArtifactPanelContent: View {
                         kind: artifact.kind,
                         content: store.artifacts[artifact.id]?.content ?? artifact.content,
                         actionableArtifactID: artifact.id,
-                        topLevelActions: artifact.topLevelActions
+                        topLevelActions: artifact.topLevelActions,
+                        queries: artifact.queries
                     )
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -712,6 +714,7 @@ private struct ArtifactPanelContent: View {
 internal enum ArtifactKindGlyph {
     internal static func icon(for kind: String) -> String {
         switch kind {
+        case "blueprint": return "ruler"
         case "map": return "map"
         case "chart": return "chart.xyaxis.line"
         case "graph": return "point.3.connected.trianglepath.dotted"
@@ -743,6 +746,7 @@ internal enum ArtifactPreviewGist {
         guard !trimmed.isEmpty else { return "Empty artifact" }
 
         switch kind {
+        case "blueprint": return structural(trimmed, list: "elements", noun: "element", titleKey: "title")
         case "map":       return structural(trimmed, list: "markers", noun: "marker", titleKey: "title")
         case "dataset":   return structural(trimmed, list: "rows", noun: "row", titleKey: "title")
         case "checklist": return structural(trimmed, list: "items", noun: "item", titleKey: "title")

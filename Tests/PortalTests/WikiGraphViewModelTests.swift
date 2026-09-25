@@ -33,6 +33,66 @@ struct WikiGraphViewModelTests {
         return vm
     }
 
+    @Test("Integration link identity includes both provider and identifier")
+    internal func integrationLinkIdentity() {
+        let issue = IntegrationLink(prefix: "github", identifier: "ethenotethan/portal#364")
+        let project = IntegrationLink(prefix: "linear", identifier: "PORTAL-364")
+
+        #expect(issue.id == "github:ethenotethan/portal#364")
+        #expect(project.id == "linear:PORTAL-364")
+    }
+
+    @Test("Selecting named wikis keeps the active wiki state in sync")
+    internal func namedWikiSelectionUpdatesActiveState() {
+        let vm = WikiGraphViewModel()
+
+        vm.selectWiki("life")
+        #expect(vm.selectedWikiPath == "life")
+
+        vm.selectWiki("research")
+        #expect(vm.selectedWikiPath == "research")
+
+        vm.selectWiki(nil)
+        #expect(vm.selectedWikiPath == nil)
+    }
+
+    @Test("Latest wiki click wins even when load tasks start out of order")
+    internal func latestWikiSelectionWinsOutOfOrderLoads() async {
+        final class StaticSource: WikiSource {
+            let graph: WikiGraph
+
+            init(graph: WikiGraph) { self.graph = graph }
+            func fetchGraph() async throws -> WikiGraph { graph }
+            func fetchPage(path: String) async throws -> WikiPageContent {
+                WikiPageContent(frontmatter: [:], body: "", path: path)
+            }
+        }
+
+        let vm = WikiGraphViewModel()
+        let lifeGraph = WikiGraph(pages: [page("life", path: "life/home.md")], links: [])
+        let researchGraph = WikiGraph(pages: [page("research", path: "concepts/home.md")], links: [])
+
+        let lifeGeneration = vm.selectWiki("life")
+        let researchGeneration = vm.selectWiki("research")
+
+        // Simulate scheduler inversion: the newer click's task starts first,
+        // then the older click's task finally gets CPU. The older graph must
+        // not overwrite the already-selected Research graph.
+        await vm.load(
+            source: StaticSource(graph: researchGraph),
+            wiki: "research",
+            generation: researchGeneration
+        )
+        await vm.load(
+            source: StaticSource(graph: lifeGraph),
+            wiki: "life",
+            generation: lifeGeneration
+        )
+
+        #expect(vm.selectedWikiPath == "research")
+        #expect(vm.graph.pages.map(\.id) == ["research"])
+    }
+
     @Test("Selecting a node makes its page the shared current page")
     func nodeSelectSetsPath() {
         let vm = makeVM()
@@ -198,6 +258,18 @@ struct WikiGraphViewModelTests {
         #expect(!vm.canGoBack)
         #expect(!vm.canGoForward)
         #expect(vm.selectedNodeIndex == nil)
+    }
+
+    @Test("A warmed home graph still discovers named wikis")
+    internal func warmedGraphStillNeedsWikiDiscovery() {
+        let vm = makeVM()
+        let view = WikiGraphView(viewModel: vm)
+
+        #expect(!view.needsGraphLoad)
+        #expect(view.needsWikiDiscovery)
+
+        vm.availableWikis = ["default", "research"]
+        #expect(!view.needsWikiDiscovery)
     }
 
     @Test("Reveal in file tree opens the sidebar with the page selected")

@@ -42,6 +42,17 @@ internal protocol ArtifactGateway: AnyObject, Sendable {
     func artifactActionLog(
         artifactID: String, bindingID: String?, limit: Int
     ) async throws -> [[String: AnyCodable]]?
+
+    // artifact.query.* read surface
+    func artifactQueryInvoke(
+        artifactID: String, artifactRev: Int, queryID: String,
+        params: [String: AnyCodable], cursor: String?
+    ) async throws -> ArtifactQueryResult?
+    func artifactQuerySubscribe(
+        artifactID: String, artifactRev: Int, queryID: String,
+        params: [String: AnyCodable]
+    ) async throws -> ArtifactQueryResult?
+    func artifactQueryUnsubscribe(handle: String) async throws
 }
 
 /// Convenience overloads matching the defaulted call sites in `ArtifactStore`.

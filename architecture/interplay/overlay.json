@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "entries": [
+    {
+      "id": "rpc_pool:GatewayClient:pendingRequests",
+      "kind": "rpc_pool",
+      "owner_type": "GatewayClient",
+      "label": "pendingRequests",
+      "prose": "The in-flight JSON-RPC request pool. Every outbound request registers a CheckedContinuation under its integer id before the frame is written to the WebSocket, and an inbound response resolves and removes it. The pool is guarded by the co-owned pendingRequestsLock so registration and resolution cannot race across the receive task and caller tasks.",
+      "sources": [
+        "Sources/Portal/Services/GatewayClient.swift:223",
+        "Sources/Portal/Services/GatewayClient.swift:225"
+      ]
+    },
+    {
+      "id": "on_device_model:MLXReasoningSummarizer:container",
+      "kind": "on_device_model",
+      "owner_type": "MLXReasoningSummarizer",
+      "label": "container",
+      "prose": "An on-device MLX Gemma model container that summarizes reasoning traces. It is loaded lazily via LLMModelFactory.loadContainer and every load and inference runs inside a Task.detached closure so the Metal work leaves the @MainActor owner. The whole engine is compiled only behind the MLXLLM/MLXLMCommon/HuggingFace/Tokenizers canImport gate.",
+      "sources": [
+        "Sources/Portal/Services/ReasoningSummarizer.swift:597"
+      ]
+    },
+    {
+      "id": "on_device_model:SkillSummaryService:container",
+      "kind": "on_device_model",
+      "owner_type": "SkillSummaryService",
+      "label": "container",
+      "prose": "A second on-device MLX model container that generates short skill summaries. Like the reasoning summarizer it loads through LLMModelFactory.loadContainer and runs inference off the main actor inside Task.detached, behind the same MLXLLM canImport gate.",
+      "sources": [
+        "Sources/Portal/Services/SkillSummaryService.swift:200"
+      ]
+    },
+    {
+      "id": "on_device_model:MLXLocalChatEngine:container",
+      "kind": "on_device_model",
+      "owner_type": "MLXLocalChatEngine",
+      "label": "container",
+      "prose": "A third on-device MLX model container, the one that holds a spoken conversation about a chat answer behind LocalChatService's LocalChatGenerating seam. Unlike the two summarizers it is owned by an actor rather than a @MainActor class: the actor's executor is a background thread, so loads through LLMModelFactory.loadContainer and every generation run off the main thread without Task.detached, and generations serialize instead of racing. The container is keyed by the selected LocalChatModel so a Settings change reloads the weights, and a ChatSession is retained alongside it for turn-to-turn continuity. Compiled only behind the MLXLLM/MLXLMCommon/HuggingFace/Tokenizers canImport gate on macOS.",
+      "sources": [
+        "Sources/Portal/Services/LocalChatEngine.swift:29"
+      ]
+    },
+    {
+      "id": "speech_synth:TTSService:AVSpeechSynthesizer",
+      "kind": "speech_synth",
+      "owner_type": "TTSService",
+      "label": "AVSpeechSynthesizer",
+      "prose": "The on-device text-to-speech engine that speaks completed responses. TTSService holds an AVSpeechSynthesizer behind the SpeechSynthesizing protocol so the concrete engine can be swapped in tests, and is reached through TTSService.shared from the chat hub.",
+      "sources": [
+        "Sources/Portal/Services/TTSService.swift:129"
+      ]
+    },
+    {
+      "id": "rpc_pool:FileDownloadManager:continuations",
+      "kind": "rpc_pool",
+      "owner_type": "FileDownloadManager",
+      "label": "continuations",
+      "prose": "The in-flight attachment download pool. fetch(url:token:attachmentID:) registers a CheckedContinuation under the attachment's UUID and starts a URLSessionDownloadTask on the manager's own URLSession; the URLSessionDownloadDelegate callbacks resolve and remove it when the file lands or the task fails. Unlike the gateway pool it is not lock-guarded: the manager is @MainActor and the delegate hops back to it, so registration and resolution are serialised by the actor, not by a lock. It is a download pool, not an RPC pool, and never touches the gateway.",
+      "sources": [
+        "Sources/Portal/Services/FileDownloadManager.swift:26"
+      ]
+    }
+  ]
+}

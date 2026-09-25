@@ -36,12 +36,6 @@ internal struct GatewayURLTests {
         #expect(url.absoluteString == "ws://100.94.3.17:8642/v1/ws")
     }
 
-    @Test("the Standard sidecar path is left alone")
-    internal func preservesStandardSidecarPath() throws {
-        let url = try #require(GatewayURL.normalize("http://100.94.3.17:8080/api/ws"))
-        #expect(url.absoluteString == "ws://100.94.3.17:8080/api/ws")
-    }
-
     // MARK: - Scheme inference
 
     @Test("a public host with no scheme gets TLS, a private one does not")
@@ -51,6 +45,13 @@ internal struct GatewayURLTests {
         #expect(try #require(GatewayURL.normalize("100.94.3.17:8642")).scheme == "ws")
         #expect(try #require(GatewayURL.normalize("my-box.ts.net:8642")).scheme == "ws")
         #expect(try #require(GatewayURL.normalize("gateway.example.com")).scheme == "wss")
+    }
+
+    @Test("scheme inference ignores userinfo and classifies the host")
+    internal func infersSchemeAfterUserinfo() throws {
+        let url = try #require(GatewayURL.normalize("operator@my-box.ts.net:8642"))
+        #expect(url.absoluteString == "ws://operator@my-box.ts.net:8642/v1/ws")
+        #expect(url.host == "my-box.ts.net")
     }
 
     @Test("http and https map onto ws and wss")
@@ -68,6 +69,7 @@ internal struct GatewayURLTests {
         #expect(GatewayURL.normalize("   ") == nil)
         #expect(GatewayURL.normalize("ftp://example.com") == nil)
         #expect(GatewayURL.normalize("ws://") == nil)
+        #expect(GatewayURL.normalize("[fe80::1234") == nil)
     }
 
     // MARK: - Private-network classification
@@ -105,6 +107,15 @@ internal struct GatewayURLTests {
         #expect(GatewayURL.isPrivateHost("::1"))
     }
 
+    @Test("link-local IPv4 and bracketed IPv6 addresses infer plaintext WebSockets")
+    internal func normalizesLinkLocalAddresses() throws {
+        let ipv4 = try #require(GatewayURL.normalize("169.254.10.20:8642"))
+        #expect(ipv4.absoluteString == "ws://169.254.10.20:8642/v1/ws")
+
+        let ipv6 = try #require(GatewayURL.normalize("[fe80::1234]:8642"))
+        #expect(ipv6.absoluteString == "ws://[fe80::1234]:8642/v1/ws")
+    }
+
     @Test("public hosts are not mistaken for private ones")
     internal func classifiesPublicHosts() {
         #expect(!GatewayURL.isPrivateHost("gateway.example.com"))
@@ -114,25 +125,6 @@ internal struct GatewayURLTests {
         #expect(!GatewayURL.isPrivateHost("172.32.0.1"))
         // Looks like ts.net but isn't the tailnet zone.
         #expect(!GatewayURL.isPrivateHost("nots.net"))
-    }
-
-    // MARK: - HTTP origin (Standard / Centaur)
-
-    @Test("an HTTP origin keeps host and port and drops the socket path")
-    internal func buildsHTTPOrigin() throws {
-        let bare = try #require(GatewayURL.httpOrigin("100.94.3.17:8080"))
-        #expect(bare.absoluteString == "http://100.94.3.17:8080")
-
-        let publicHost = try #require(GatewayURL.httpOrigin("dash.example.com"))
-        #expect(publicHost.absoluteString == "https://dash.example.com")
-
-        // A ws endpoint pasted into an HTTP field still names the right origin.
-        let fromWS = try #require(GatewayURL.httpOrigin("ws://100.94.3.17:8642/v1/ws"))
-        #expect(fromWS.absoluteString == "http://100.94.3.17:8642")
-
-        // "/api/ws" is longer than "/v1/ws" — stripped by suffix, not by length.
-        let fromSidecar = try #require(GatewayURL.httpOrigin("http://box.ts.net:8080/api/ws"))
-        #expect(fromSidecar.absoluteString == "http://box.ts.net:8080")
     }
 
     // MARK: - What the settings layer derives from it
@@ -158,23 +150,5 @@ internal struct GatewayURLTests {
         }
         let publicHost = try #require(GatewayURL.normalize("wss://gateway.example.com/v1/ws")?.host)
         #expect(!GatewayURL.isPrivateHost(publicHost))
-    }
-
-    /// `SavedGateway` is a plain value type that touches no Keychain, so this one
-    /// is safe to construct directly — unlike `SettingsViewModel` above.
-    @Test("a Standard entry on a tailnet still yields a chat sidecar URL")
-    internal func standardChatURLOnTailnet() throws {
-        let entry = SavedGateway(
-            name: "box",
-            url: "100.94.3.17:8080",
-            apiKey: "token123",
-            kind: .hermesStandard
-        )
-        let url = try #require(entry.hermesStandardChatURL)
-        #expect(url.scheme == "ws")
-        #expect(url.host == "100.94.3.17")
-        #expect(url.port == 8080)
-        #expect(url.path == "/api/ws")
-        #expect(url.query?.contains("token=token123") == true)
     }
 }

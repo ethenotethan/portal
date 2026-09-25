@@ -7,18 +7,33 @@ on:
       - site/**
       - architecture/**
       - scripts/build_architecture.py
+      - scripts/build_architecture_history.py
       - scripts/test_architecture.py
-      - .github/workflows/architecture-pages.yml
+      # The CI gates view is compiled from these; a change here without
+      # `make architecture` leaves the committed model stale.
+      - .github/workflows/**
+      - .swiftlint.yml
+      - Tests/PortalTests/ArchitectureTests.swift
+      - metrics-baseline.json
+      - perf-baseline.json
+      - .swiftlint-baseline
+      - .gitleaksignore
   pull_request:
     branches: [main]
     paths:
       - site/**
       - architecture/**
       - scripts/build_architecture.py
+      - scripts/build_architecture_history.py
       - scripts/architecture_agent.py
       - scripts/test_architecture.py
-      - .github/workflows/architecture-pages.yml
-      - .github/workflows/architecture-maintenance.yml
+      - .github/workflows/**
+      - .swiftlint.yml
+      - Tests/PortalTests/ArchitectureTests.swift
+      - metrics-baseline.json
+      - perf-baseline.json
+      - .swiftlint-baseline
+      - .gitleaksignore
   workflow_dispatch:
 
 concurrency:
@@ -37,6 +52,11 @@ jobs:
 
       - name: Verify generated architecture is current
         run: python3 scripts/build_architecture.py --check
+
+      # The vendored hermes.architecture contract must be the pinned copy, its
+      # schema export must be its own, and the committed model must conform.
+      - name: Check the architecture contract pins
+        run: python3 scripts/check-contract-pins.py
 
       - name: Test architecture compiler
         run: python3 -m unittest scripts/test_architecture.py
@@ -78,6 +98,31 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the history walk reads every first-parent commit
+
+      # The System map at every commit (architecture/site/history.js, not in git).
+      # Restored from the cache when a previous deploy built it with the same
+      # extractor, so a merge derives only its new commits; an extractor change
+      # falls through to a full walk.
+      - name: Restore architecture history
+        id: history-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: architecture/site/history.js
+          key: architecture-history-${{ hashFiles('scripts/build_architecture.py', 'scripts/build_architecture_history.py', 'architecture/config.json', 'architecture/semantic/components.json', 'architecture/interplay/overlay.json', 'architecture/interplay/invariants.json') }}-${{ github.sha }}
+          restore-keys: |
+            architecture-history-${{ hashFiles('scripts/build_architecture.py', 'scripts/build_architecture_history.py', 'architecture/config.json', 'architecture/semantic/components.json', 'architecture/interplay/overlay.json', 'architecture/interplay/invariants.json') }}-
+
+      - name: Derive architecture history
+        run: python3 scripts/build_architecture_history.py --ref "$GITHUB_SHA" --jobs 4 --quiet
+
+      - name: Save architecture history
+        if: steps.history-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: architecture/site/history.js
+          key: ${{ steps.history-cache.outputs.cache-primary-key }}
 
       - name: Assemble Pages tree
         run: |

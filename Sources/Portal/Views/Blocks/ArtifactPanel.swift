@@ -9,8 +9,8 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Artifa
 /// side panel: code, a diff, or a whole markdown document. Identity is the
 /// content hash so re-opening the same block reuses the panel instead of
 /// stacking.
-struct Artifact: Identifiable, Equatable {
-    enum Kind: Equatable {
+internal struct Artifact: Identifiable, Equatable {
+    internal enum Kind: Equatable {
         case code(language: String)
         case diff
         case markdown
@@ -19,11 +19,11 @@ struct Artifact: Identifiable, Equatable {
         case living(kind: String, artifactID: String)
     }
 
-    let kind: Kind
-    let title: String
-    let content: String
+    internal let kind: Kind
+    internal let title: String
+    internal let content: String
 
-    var id: Int {
+    internal var id: Int {
         var hasher = Hasher()
         hasher.combine(title)
         hasher.combine(content)
@@ -31,7 +31,7 @@ struct Artifact: Identifiable, Equatable {
     }
 
     /// Suggested filename for Save.
-    var suggestedFilename: String {
+    internal var suggestedFilename: String {
         let base = title
             .lowercased()
             .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
@@ -87,7 +87,7 @@ private struct OpenArtifactKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    var openArtifact: (@MainActor (Artifact) -> Void)? {
+    internal var openArtifact: (@MainActor (Artifact) -> Void)? {
         get { self[OpenArtifactKey.self] }
         set { self[OpenArtifactKey.self] = newValue }
     }
@@ -95,11 +95,11 @@ extension EnvironmentValues {
 
 /// Small header-chrome button shared by every block that can promote its
 /// content to the panel.
-struct OpenInPanelButton: View {
-    let artifact: () -> Artifact
+internal struct OpenInPanelButton: View {
+    internal let artifact: () -> Artifact
     @Environment(\.openArtifact) private var openArtifact
 
-    var body: some View {
+    internal var body: some View {
         if let openArtifact {
             Button {
                 openArtifact(artifact())
@@ -119,13 +119,13 @@ struct OpenInPanelButton: View {
 #if os(macOS)
 /// The right-hand artifact pane: renders the promoted content full-height
 /// with copy/save chrome, independent of transcript scroll position.
-struct ArtifactPanelView: View {
-    let artifact: Artifact
-    let onClose: () -> Void
+internal struct ArtifactPanelView: View {
+    internal let artifact: Artifact
+    internal let onClose: () -> Void
     @State private var isCopied = false
     @ObservedObject private var store = ArtifactStore.shared
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             header
             Divider().overlay(Theme.border)
@@ -159,8 +159,21 @@ struct ArtifactPanelView: View {
     private func livingContent(kind: String, artifactID: String) -> some View {
         // Same dispatch as the Artifacts pane (all kinds, incl. dataset/
         // timeline/sankey the old inline switch predated), actions enabled.
-        let content = store.artifacts[artifactID]?.content ?? artifact.content
-        ArtifactKindRenderer(kind: kind, content: content, actionableArtifactID: artifactID)
+        //
+        // `topLevelActions` has to travel WITH the id. An html artifact's action
+        // manifest lives on the record, not in its content, so passing the id
+        // alone injects the intent bridge, captures the click, and then resolves
+        // it against an empty manifest — a world whose every control is dead,
+        // with nothing logged. The panel is the primary way an artifact is
+        // opened from the transcript, so that was most of the surface.
+        let live = store.artifacts[artifactID]
+        ArtifactKindRenderer(
+            kind: kind,
+            content: live?.content ?? artifact.content,
+            actionableArtifactID: artifactID,
+            topLevelActions: live?.topLevelActions ?? [],
+            queries: live?.queries ?? []
+        )
     }
 
     private var header: some View {
@@ -217,6 +230,7 @@ struct ArtifactPanelView: View {
         case .markdown: return "doc.richtext"
         case .living(let kind, _):
             switch kind {
+            case "blueprint": return "ruler"
             case "map": return "map"
             case "chart": return "chart.bar"
             case "graph": return "point.3.connected.trianglepath.dotted"

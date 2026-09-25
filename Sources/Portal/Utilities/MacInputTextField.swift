@@ -158,14 +158,17 @@ struct MacInputTextField: NSViewRepresentable {
     }
 
     private func makeFirstResponder(_ nsView: FocusableTextView) {
-        let attempt: () -> Void = { [weak nsView] in
+        // Inline rather than a stored `let attempt: () -> Void`: main.async
+        // takes a @MainActor @Sendable block, so hoisting the closure into a
+        // plain non-Sendable function value only to pass it back warns about a
+        // conversion that isn't needed. Written inline it just infers both.
+        DispatchQueue.main.async { [weak nsView] in
             guard let nsView, let window = nsView.window else { return }
             guard window.firstResponder !== nsView else { return }
             nsView.isEditable = true
             window.makeFirstResponder(nil)
             window.makeFirstResponder(nsView)
         }
-        DispatchQueue.main.async(execute: attempt)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -176,7 +179,7 @@ struct MacInputTextField: NSViewRepresentable {
     /// delegate machinery on the main thread; the isolation makes the
     /// deferred invalidation hop compile under strict concurrency.
     @MainActor
-    final class Coordinator: NSObject, @preconcurrency NSTextViewDelegate {
+    internal final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: MacInputTextField
         weak var textView: FocusableTextView?
         var wasFocused: Bool = false

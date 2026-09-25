@@ -4,21 +4,23 @@ import SwiftUI
 /// the adaptive graph surface (top-trailing). New affordances (e.g. a
 /// source-specific timeline) belong here — add a button to this bar rather
 /// than scattering conditionals through WikiGraphView.
-struct WikiGraphControlsBar: View {
-    @ObservedObject var viewModel: WikiGraphViewModel
+internal struct WikiGraphControlsBar: View {
+    @ObservedObject internal var viewModel: WikiGraphViewModel
     /// Changeset timeline is a per-source capability (WikiChangesetSource);
     /// the host computes conformance and the bar just hides the toggle.
-    let supportsTimeline: Bool
+    internal let supportsTimeline: Bool
+    /// Present only when the home Harness advertises wiki.glossary.
+    internal let onGlossary: (() -> Void)?
     /// Whether an ingestion event log exists (WikiEventLogSource) — gates the
     /// Events door. A Bool rather than the source itself: the host resolves the
     /// capability against the *effective* source, which for the home gateway is
     /// the shared client and not any injected override. Handing this bar an
     /// override that is nil in the normal case is what previously left the
-    /// Events entry unrenderable on Hermes.
+    /// Events entry unrenderable on the harness.
     internal let hasEventsSurface: Bool
-    let onRefresh: () -> Void
+    internal let onRefresh: () -> Void
 
-    var body: some View {
+    internal var body: some View {
         HStack(spacing: 6) {
             if !viewModel.is3D {
                 zoomCluster
@@ -26,6 +28,17 @@ struct WikiGraphControlsBar: View {
             }
 
             surfaceToggles
+
+            if let onGlossary {
+                Button {
+                    onGlossary()
+                } label: {
+                    Image(systemName: "text.book.closed")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.borderless)
+                .help("Edit this wiki's proper-noun glossary")
+            }
 
             Divider().frame(height: 14)
 

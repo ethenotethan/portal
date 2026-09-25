@@ -140,6 +140,8 @@ struct InlineMathTests {
     internal func operatorsAndBraces() {
         // '*' inside a span becomes the times sign.
         #expect(InlineMath.render("$a * b$") == "𝑎 × 𝑏")
+        // Bare grouping braces flatten away without changing their contents.
+        #expect(InlineMath.render("${a+b}$") == "𝑎+𝑏")
         // A brace group on a script converts each member (digits map cleanly).
         #expect(InlineMath.render("$x^{12}$") == "𝑥¹²")
         // Subscript brace group likewise.
@@ -178,6 +180,42 @@ struct StatTileSpecTests {
         #expect(StatTileSpec.TileValue.number(7).display == "7")
     }
 
+    @Test("Tile identity follows its visible label")
+    internal func tileIdentity() throws {
+        let spec = try #require(StatTileSpec.parse(#"{"tiles":[{"label":"Requests","value":128400}]}"#))
+        let tile = try #require(spec.tiles.first)
+
+        #expect(tile.id == "Requests")
+    }
+
+    @Test("Programmatic tiles preserve presentation metadata and defaults")
+    internal func programmaticTileInitialization() {
+        let tile = StatTileSpec.Tile(
+            label: "Latency",
+            value: .number(42.5),
+            unit: "ms",
+            delta: -3.2,
+            deltaLabel: "vs yesterday",
+            upIsGood: false,
+            trend: [48, 45, 42.5]
+        )
+
+        #expect(tile.id == "Latency")
+        #expect(tile.value.display == "42.5")
+        #expect(tile.unit == "ms")
+        #expect(tile.delta == -3.2)
+        #expect(tile.deltaLabel == "vs yesterday")
+        #expect(!tile.upIsGood)
+        #expect(tile.trend == [48, 45, 42.5])
+
+        let minimal = StatTileSpec.Tile(label: "Errors", value: .number(0))
+        #expect(minimal.upIsGood)
+        #expect(minimal.unit == nil)
+        #expect(minimal.delta == nil)
+        #expect(minimal.deltaLabel == nil)
+        #expect(minimal.trend == nil)
+    }
+
     @Test("Empty or malformed specs return nil")
     func malformed() {
         #expect(StatTileSpec.parse("{\"tiles\": []}") == nil)
@@ -186,6 +224,11 @@ struct StatTileSpecTests {
     }
 }
 
+// `NetworkGraphView.looksLikeMermaid` is a static on a SwiftUI `View`, whose
+// members inherit main-actor isolation from the protocol, so a nonisolated test
+// body warns on every call. Everything here is a pure function over a string, so
+// running the suite on the main actor costs nothing.
+@MainActor
 @Suite("Network Graph Spec")
 struct NetworkGraphSpecTests {
 
@@ -208,6 +251,7 @@ struct NetworkGraphSpecTests {
         #expect(spec?.groups == ["backend", "data"])     // nil group excluded
         #expect(spec?.edges.count == 2)
     }
+
 
     @Test("Duplicate nodes dedupe; dangling edges drop instead of failing")
     func sanitizes() {
@@ -245,6 +289,22 @@ struct NetworkGraphSpecTests {
         // Connected square should not collapse to a point.
         let xs = first.placed.map(\.position.x)
         #expect((xs.max()! - xs.min()!) > 50)
+    }
+
+    @Test("Single-node layout centers the node in intrinsic and fitted canvases")
+    internal func singleNodeLayout() throws {
+        let spec = try #require(NetworkGraphSpec.parse(#"{"nodes": [{"id": "only"}]}"#))
+
+        let intrinsic = NetworkGraphLayout.layout(spec, width: 600)
+        #expect(intrinsic.size == CGSize(width: 600, height: 180))
+        #expect(intrinsic.placed.map(\.id) == ["only"])
+        #expect(intrinsic.placed.first?.position == CGPoint(x: 300, y: 90))
+        #expect(intrinsic.positions["only"] == CGPoint(x: 300, y: 90))
+
+        let fitted = NetworkGraphLayout.layout(spec, width: 400, fitHeight: 240)
+        #expect(fitted.size == CGSize(width: 400, height: 240))
+        #expect(fitted.placed.first?.position == CGPoint(x: 200, y: 120))
+        #expect(fitted.positions["only"] == CGPoint(x: 200, y: 120))
     }
 
     @Test("Mermaid syntax in a graph fence is detected for rerouting")
@@ -319,9 +379,21 @@ struct LivingArtifactTests {
     @Test("Store upsert merges by id and preserves titles")
     @MainActor
     func storeUpsert() {
-        let store = ArtifactStore.shared
+        // Isolated store, NOT `.shared`. This test used to drive the production
+        // singleton, and `persistToDisk()` has no test-process guard (unlike
+        // `schedulePush` and `remove`'s delete) — so every run wrote "Test Map"
+        // into ~/Library/Application Support/portal/artifacts.json under a fresh
+        // random id. The deferred `remove` was meant to clean up, but each
+        // persist is a detached background task holding its own snapshot, so the
+        // upsert's write could land after the remove's and strand the artifact
+        // permanently. Six had accumulated in a real store and were showing up
+        // in the app's artifact list.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("artifact-upsert-tests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = ArtifactStore(fileURL: dir.appendingPathComponent("artifacts.json"))
         let testID = "test-artifact-\(UUID().uuidString.prefix(8))"
-        defer { store.remove(id: testID) }
+        defer { try? FileManager.default.removeItem(at: dir) }
 
         store.upsert(id: testID, kind: "map", title: "Test Map",
                      content: "{\"markers\": [{\"lat\": 1, \"lon\": 2, \"label\": \"a\"}]}")
@@ -479,6 +551,16 @@ struct ArtifactActionTests {
         #expect(out.contains("\"reached_out\":true"))
     }
 
+    @Test("Action mutation rejects malformed content and unknown artifact kinds")
+    internal func mutationRejectsInvalidInputs() {
+        #expect(ArtifactActionEngine.setField(
+            in: "{not json", kind: "dataset", entryKey: "row", field: "status", value: "done"
+        ) == nil)
+        #expect(ArtifactActionEngine.markDeleted(
+            in: "{\"rows\":[]}", kind: "timeline", entryKey: "event"
+        ) == nil)
+    }
+
     @Test("markDeleted tombstones; spec parsers hide tombstoned entries")
     func tombstone() {
         let content = """
@@ -589,6 +671,9 @@ struct EnsembleModelTests {
         #expect(apartments.items.count == 2)                 // ghost filtered
         #expect(spec.relations.count == 2)                   // broken-set ref dropped
         #expect(spec.views.count == 4)
+        // View identity includes declaration position, so two projections of
+        // the same kind remain distinct when SwiftUI renders them in ForEach.
+        #expect(spec.views.map(\.id) == ["0:map", "1:table", "2:graph", "3:chart"])
         #expect(spec.actions["apartments"]?.count == 2)
         #expect(ModelSpec.parse("{\"entities\": {}}") == nil)
     }
@@ -600,6 +685,13 @@ struct EnsembleModelTests {
         #expect(spec.item(for: ref)?["rent"] == "22000")
         #expect(spec.relations(touching: ref).count == 1)
         #expect(ModelSpec.EntityRef("noslash") == nil)
+    }
+
+    @Test("Relation identity composes normalized endpoints and type")
+    internal func relationIdentity() throws {
+        let spec = try #require(ModelSpec.parse(Self.fixture))
+        let relation = try #require(spec.relations.first)
+        #expect(relation.id == "apartments/seed mingle→gyms/felixmuaythai:walkable")
     }
 
     @Test("Map projection: coordinates become markers grouped by set")
@@ -619,7 +711,13 @@ struct EnsembleModelTests {
         let graph = NetworkGraphSpec.parse(json)!
         #expect(graph.nodes.count == 3)
         #expect(graph.edges.count == 1)                      // ghost + broken edges dropped
+        #expect(!graph.directed)                             // legacy model graphs stay undirected
+        #expect(graph.nodes.allSatisfy { $0.kind == nil && $0.type == nil })
+        #expect(graph.edges[0].label == "walkable")
+        #expect(graph.edges[0].type == nil)
+        #expect(graph.edges[0].edgeClass == nil)
     }
+
 
     @Test("Chart projection: one series per set, y from field")
     func chartProjection() {
@@ -640,6 +738,38 @@ struct EnsembleModelTests {
          "relations": [{"from": "things/a", "to": "things/a", "type": "self"}]}
         """)!
         #expect(spec.views.map(\.kind) == [.map, .table, .graph])
+    }
+
+    @Test("Kanban view projects model entities and routes moves into the configured field")
+    internal func kanbanProjectionAndMove() throws {
+        let content = """
+        {"entities": {"work": {"key": "id", "items": [
+           {"id": "PORT-1", "title": "Build board", "status": "Doing", "tag": "feat", "assignee": "ethen"},
+           {"id": "PORT-2", "title": "Ship board", "status": "Todo"}]}},
+         "views": [
+           {"type": "markdown", "text": "## Sprint goal"},
+           {"type": "kanban", "entities": ["work"], "column": "status",
+            "columns": ["Todo", "Doing", "Done"]},
+           {"type": "markdown", "text": "## Decision log"}
+         ]}
+        """
+
+        let spec = try #require(ModelSpec.parse(content))
+        #expect(spec.views.map(\.kind) == [.markdown, .kanban, .markdown])
+        let view = spec.views[1]
+        #expect(view.columnField == "status")
+        let json = try #require(ModelProjections.kanbanJSON(spec: spec, view: view))
+        let board = try #require(KanbanSpec.parse(json))
+        #expect(board.columns == ["Todo", "Doing", "Done"])
+        #expect(board.cards.map(\.id) == ["work/PORT-1", "work/PORT-2"])
+        #expect(board.cards.map(\.title) == ["Build board", "Ship board"])
+        #expect(board.cards[0].extra.contains { $0.key == "assignee" && $0.value == "ethen" })
+
+        let moved = try #require(ArtifactActionEngine.setField(
+            in: content, kind: "model", entryKey: board.cards[0].id,
+            field: view.columnField, value: "Done"
+        ))
+        #expect(ModelSpec.parse(moved)?.item(for: .init(set: "work", key: "PORT-1"))?["status"] == "Done")
     }
 
     @Test("Model merge: per-set union by key, tombstone carry, relations by triple")
@@ -718,5 +848,54 @@ struct ModelMarkdownViewTests {
          "views": [{"type": "markdown", "text": "one"}, {"type": "markdown", "text": "two"}]}
         """)!
         #expect(Set(spec.views.map(\.id)).count == 2)
+    }
+}
+
+@Suite("Mermaid Graph Parser")
+internal struct MermaidGraphParserTests {
+
+    @Test("Recognizes supported fenced diagrams and rejects unsupported or trivial input")
+    internal func explorationEligibility() {
+        #expect(MermaidGraphParser.canExplore("```mermaid\nflowchart LR\nA --> B\n```"))
+        #expect(MermaidGraphParser.canExplore("  MINDMAP;\n  root\n    child"))
+        #expect(!MermaidGraphParser.canExplore("sequenceDiagram\nA->>B: hello"))
+        #expect(MermaidGraphParser.parse("graph TD\nA") == nil)
+    }
+
+    @Test("Parses labeled, grouped flowchart nodes without duplicating edges")
+    internal func flowchart() throws {
+        let graph = try #require(MermaidGraphParser.parse("""
+        ```mermaid
+        flowchart LR
+          subgraph API [API Layer]
+            A[Start] & B -->|ready| C((Finish))
+            A --> C
+          end
+        ```
+        """))
+
+        #expect(graph.pages.map(\.id) == ["A", "B", "C"])
+        #expect(graph.pages.map(\.title) == ["Start", "B", "Finish"])
+        #expect(graph.pages.map(\.type) == ["API Layer", "API Layer", "API Layer"])
+        #expect(graph.links.map { "\($0.source)->\($0.target)" } == ["A->C", "B->C"])
+    }
+
+    @Test("Builds mindmap hierarchy and gives repeated labels stable unique ids")
+    internal func mindmap() throws {
+        let graph = try #require(MermaidGraphParser.parse("""
+        mindmap
+          root((Road Map))
+            First Child
+              Leaf
+            First Child
+        """))
+
+        #expect(graph.pages.map(\.id) == ["road-map", "first-child", "leaf", "first-child-2"])
+        #expect(graph.pages.map(\.type) == ["root", "branch", "leaf", "leaf"])
+        #expect(graph.links.map { "\($0.source)->\($0.target)" } == [
+            "road-map->first-child",
+            "first-child->leaf",
+            "road-map->first-child-2",
+        ])
     }
 }

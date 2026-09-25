@@ -56,7 +56,7 @@ struct SkillInfoTests {
         ]
         let skill = SkillInfo.fromInspectDict(dict)
         #expect(skill?.name == "minimal-skill")
-        #expect(skill?.description == "")
+        #expect(skill?.description.isEmpty == true)
         #expect(skill?.source == "local")
         #expect(skill?.tags.isEmpty == true)
         #expect(skill?.skillMdPreview == nil)
@@ -150,5 +150,13 @@ struct SkillsViewModelTests {
         #expect(vm.installStatus["my-skill"] == "installing")
         vm.installStatus["my-skill"] = "installed"
         #expect(vm.installStatus["my-skill"] == "installed")
+    }
+
+    @Test("errorMessage forwards to the shared SkillStore")
+    internal func errorMessageForwardsToStore() {
+        // The Standard HTTP path is gone; error state now mirrors the WebSocket
+        // harness SkillStore rather than a per-view-model field.
+        let vm = SkillsViewModel()
+        #expect(vm.errorMessage == SkillStore.shared.errorMessage)
     }
 }

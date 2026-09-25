@@ -138,8 +138,6 @@ internal struct DashboardPanel: Codable, Identifiable, Equatable {
     /// Smallest a panel may be shrunk to — keeps the chrome (title bar + grips)
     /// usable and the content non-degenerate.
     internal static let minSize = CGSize(width: 200, height: 140)
-    /// Height of the title bar — the visible height when a panel is collapsed.
-    internal static let titleBarHeight: CGFloat = 28
 
     /// Return this panel with its frame clamped so it stays at least partially
     /// on-canvas and no smaller than `minSize`. Used on load (a saved layout may

@@ -1,8 +1,12 @@
 # Gateway RPC & Event Reference
 
-The complete catalog of WebSocket JSON-RPC methods the HermesNative app calls, the
-server events it handles, and the connection lifecycle. Generated from the
-`GatewayClient` sources — keep it in sync when adding methods.
+The complete catalog of WebSocket JSON-RPC methods Portal calls on a **Harness** gateway
+([`ethenotethan/harness`](https://github.com/ethenotethan/harness), the opinionated Hermes
+Agent fork Portal is the client for), the server events it handles, and the connection
+lifecycle. Generated from the `GatewayClient` sources — keep it in sync when adding
+methods. Almost everything here is Harness-only: stock hermes-agent has no `/v1/ws`. The
+server side of each surface is documented in Harness under `docs/api/`, and the full
+fork diff is at [ethenotethan.github.io/harness](https://ethenotethan.github.io/harness/).
 
 - **Outbound RPCs** are dispatched through `GatewayClient.call(_ method:params:)`.
 - **Inbound events** arrive as `method: "event"` notifications and are decoded into the
@@ -103,11 +107,53 @@ vs. database-format `session_key` (e.g. `20260501_112429_d91274`, used to resume
 | `activity.dismiss` | `activity_id` | Dismiss an item |
 | `activity.artifacts.get` | `artifact_id` | Fetch artifact content |
 
+### artifact.query.*
+
+The read side of artifact intents: an HTML artifact's page asks for data
+through inert `data-hermes-query` / `data-hermes-params` attributes; the
+client validates the parameters against the artifact's `queries` manifest and
+calls these. The caller never names a handler or sends query text — see the
+gateway contract in `harness/docs/api/artifact-queries.md`.
+
+| Method | Params | Description |
+|--------|--------|-------------|
+| `artifact.query.invoke` | `artifact_id`, `artifact_rev`, `query_id`, `params?` (object), `cursor?` | Run a declared query → `{status: ok|failed|conflict|unsupported, data, etag, params, next_cursor?}`. **-32601** on gateways without the surface (client shows `unsupported`) |
+| `artifact.query.subscribe` | `artifact_id`, `artifact_rev`, `query_id`, `params?` | Same result plus `subscription` (handle) and `interval_s`; the gateway re-runs the slot and emits `artifact.query.changed` only when the etag differs |
+| `artifact.query.unsubscribe` | `subscription` | Drop a handle; the slot stops being polled with its last subscriber |
+| `artifact.query.handlers` | — | Registered read handlers and their parameter schemas (what a manifest may declare against) |
+
 ### cron.*
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `cron.manage` | `action:"list"` | Cron jobs: `job_id`, `name`, `schedule`, `next_run_at`, `last_run_at`, `last_status`, `enabled`, … |
+| `cron.manage` | `action:"list"` | Cron jobs: `job_id`, `name`, `schedule`, `next_run_at`, `last_run_at`, `last_status`, `enabled`, `prompt_preview` (100 chars + `...`), `source_files?`, … |
+| `cron.manage` | `action:"describe"`, `name` (job id) | One job with the **full** `prompt`, its `inputs`/`outputs`/`side_effects`/`source_files`/`context_from`, and `source_files_resolved` (same shape as the graph node's `source_files`). **4404** unknown job |
+| `cron.manage` | `action:"update"`, `name` (job id), any of `prompt`, `job_name` (new name), `schedule`, `deliver`, `inputs`, `outputs`, `side_effects`, `source_files`, `script`, `monitor_script`, `monitor_url`, `context_from`, `workdir`, `skills`, `enabled_toolsets`, `repeat` | Edit a job. `name` is already the identifier, so the new name travels as `job_name`. **4017** when the harness refuses the edit; **4016** on a harness too old to have `update` |
+| `cron.manage` | `action:"history"`, `name`, `limit?` | Execution ledger, newest first: `runs[]` (`status`, `claimed_at`, `started_at`, `finished_at`, `error`) + `job_name`, `count` |
+| `cron.manage` | `action:"pause"` / `"resume"` / `"remove"` / `"add"`, `name` | Lifecycle; `add` also takes `schedule`, `prompt` |
+| `cron.graph` | — | Dataflow graph: `nodes` (kind `cron` / `source` / `artifact` / `sink` / `service` / `object`) + typed `edges`. A `cron` node carries `source_files[]`: `{path, declared, role: script|monitor|declared, root?, rel?, exists}` — the job's code, each resolved onto a `files.read` root when it lives under one. Not part of the commitment digest (see `CronGraphDigest`) |
+
+### architecture.*
+
+Per-service architecture models: a service declared by a manifest on the gateway
+(`~/.hermes/services/architecture/<id>.json`, a local checkout or a GitHub
+repository) has a compiler-emitted model the gateway reads, snapshots per
+revision and checks on demand. Portal opens it from the service node on the
+dataflow graph (`ArchitectureSurfaceView`), rendering the model with the
+Architecture Observatory's own renderer (`ArchitecturePanelPage`). Contract:
+`harness/docs/api/architecture.md`.
+
+| Method | Params | Description |
+|--------|--------|-------------|
+| `architecture.describe` | `service` (graph id `arch:<id>`), `revision?` | `{service, revision, source, stored_at, summary, check, contract, model}` — the current model, read now and snapshotted, or a stored revision; `contract` is `{name, version, major, minor, schema_digest}` of the hermes.architecture contract the gateway validated the model against (vendored in Portal at `architecture/contract/`). **4029** missing service, **4030** unknown, **4032** model missing/invalid, **4033** model does not conform to the contract (message lists the problems), **4404** no such revision |
+| `architecture.check` | `service` | Runs the manifest's `check` in the service root (local only) → `{service, check: {status: passed\|failed\|unavailable, exit_code?, output?, reason?, revision, checked_at, duration_s}}` |
+| `architecture.list` | — | Every manifest service with its `status` (the node annotation, which now also carries `conforming` and `contract`) — not called by Portal yet |
+| `architecture.history` | `service` | Stored revisions (genesis first) and recorded check runs — not called by Portal yet |
+
+`cron.graph` service nodes declared by a manifest carry an `architecture`
+annotation `{ref, source, revision, model, snapshots, check?: {status, checked_at}, summary?}`
+and their `source_files`, resolved onto the `arch-<id>` browse root the gateway
+exposes for the checkout.
 
 ### wiki.*
 
@@ -288,7 +334,9 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `activity.created` | `activityCreated(ActivityItem)` | New inbox item |
 | `activity.updated` / `activity.read` / `activity.dismissed` | `activityUpdated(ActivityItem)` | Inbox item modified (all three wire types decode to the same case) |
 | `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields; clients refetch content via `artifact.get` |
+| `artifact.query.changed` | `artifactQueryChanged(artifactID, queryID, status, reason)` | A subscribed query's result changed (`status: "ok"` — re-fetch via `artifact.query.invoke`) or its slot was dropped server-side (`"unsupported"` + `reason`). Etag-diffed: identical data emits nothing |
 | `learning.changed` | `learningChanged(entity, id, rev, deleted)` | Learning store mutation (course/deck) — id + rev only; clients refetch via `learning.course.get` / `learning.deck.get` |
+| `architecture.changed` | `architectureChanged(service, revision, reason, status)` | A service's architecture model moved: a newly stored revision (`reason: "snapshot"`) or a finished check (`reason: "check"` + `status`). Clients refetch via `architecture.describe` |
 | `review.summary` | `reviewSummary(text)` | Summary / review content |
 
 ## Errors

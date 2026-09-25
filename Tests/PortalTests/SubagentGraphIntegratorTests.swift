@@ -4,7 +4,7 @@ import Foundation
 
 @Suite("Subagent Graph Integrator")
 @MainActor
-struct SubagentGraphIntegratorTests {
+internal struct SubagentGraphIntegratorTests {
 
     private func spawnPayload(
         id: String,
@@ -19,7 +19,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("spawn creates an agent node parented to the delegating tool")
-    func spawnCreatesAgentNode() {
+    internal func spawnCreatesAgentNode() {
         let integrator = SubagentGraphIntegrator()
         integrator.upsertAgent(payload: spawnPayload(id: "s1"), running: true, delegatingToolID: "tool_9")
 
@@ -34,7 +34,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("subagent tools chain sequentially under the agent node")
-    func toolsChainUnderAgent() {
+    internal func toolsChainUnderAgent() {
         let integrator = SubagentGraphIntegrator()
         integrator.upsertAgent(payload: spawnPayload(id: "s1"), running: true, delegatingToolID: nil)
         integrator.recordTool(payload: SubagentToolPayload(
@@ -56,7 +56,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("recursive spawn parents onto the parent agent node")
-    func recursiveSpawnParentsOntoAgent() {
+    internal func recursiveSpawnParentsOntoAgent() {
         let integrator = SubagentGraphIntegrator()
         integrator.upsertAgent(payload: spawnPayload(id: "s1"), running: true, delegatingToolID: "tool_1")
         integrator.upsertAgent(payload: spawnPayload(id: "s2", parentID: "s1"), running: true, delegatingToolID: "tool_1")
@@ -66,7 +66,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("complete marks node done and records cost/tokens")
-    func completeRollsUpUsage() {
+    internal func completeRollsUpUsage() {
         let integrator = SubagentGraphIntegrator()
         integrator.upsertAgent(payload: spawnPayload(id: "s1"), running: true, delegatingToolID: nil)
         integrator.completeAgent(payload: SubagentCompletePayload(
@@ -83,7 +83,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("thinking with nil subagentID falls back to the running agent")
-    func thinkingFallsBackToRunningAgent() async throws {
+    internal func thinkingFallsBackToRunningAgent() async throws {
         let integrator = SubagentGraphIntegrator()
         integrator.upsertAgent(payload: spawnPayload(id: "s1"), running: true, delegatingToolID: nil)
         integrator.appendThinking("pondering...", subagentID: nil)
@@ -130,7 +130,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("reset clears all runs")
-    func resetClears() {
+    internal func resetClears() {
         let integrator = SubagentGraphIntegrator()
         integrator.upsertAgent(payload: spawnPayload(id: "s1"), running: true, delegatingToolID: nil)
         integrator.reset()
@@ -202,7 +202,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("agent with unknown parent spawn-links to the latest main-lane node")
-    func orphanAgentFallsBack() {
+    internal func orphanAgentFallsBack() {
         let t0 = Date(timeIntervalSinceReferenceDate: 1000)
         let nodes = [
             ThoughtGraphNode(id: "t1", name: "search_files", isComplete: true, startedAt: t0),
@@ -219,7 +219,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("composeTimeline merges tools, agents, and reasoning nodes")
-    func composeTimelineMerges() {
+    internal func composeTimelineMerges() {
         let nodes = ThoughtGraphLayoutEngine.composeTimeline(
             tools: [ToolCallRecord(id: "t1", name: "read_file", isComplete: true)],
             agentNodes: [ThoughtGraphNode(id: "agent-s1", name: "agent", agentID: "s1")],
@@ -232,7 +232,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("delegate tool names classify as agent category")
-    func delegateClassification() {
+    internal func delegateClassification() {
         #expect(ThoughtGraphLayoutEngine.ToolCategory.classify(name: "delegate_task") == .agent)
         #expect(ThoughtGraphLayoutEngine.ToolCategory.classify(name: "spawn_subagent") == .agent)
         #expect(ThoughtGraphLayoutEngine.ToolCategory.classify(name: "read_file") == .read)

@@ -18,6 +18,7 @@ internal struct SettingsView: View {
         case appearance
         case notifications
         case celebrations
+        case speech
         case x
         case gateway(SavedGateway)
 
@@ -26,6 +27,7 @@ internal struct SettingsView: View {
             case .appearance: return "appearance"
             case .notifications: return "notifications"
             case .celebrations: return "celebrations"
+            case .speech: return "speech"
             case .x: return "x"
             case .gateway(let g): return g.id
             }
@@ -36,6 +38,7 @@ internal struct SettingsView: View {
             case .appearance: return "Appearance"
             case .notifications: return "Notifications"
             case .celebrations: return "Celebrations"
+            case .speech: return "Speech"
             case .x: return "X (Twitter)"
             case .gateway(let g): return g.displayName
             }
@@ -46,8 +49,9 @@ internal struct SettingsView: View {
             case .appearance: return "paintpalette"
             case .notifications: return "bell"
             case .celebrations: return "party.popper"
+            case .speech: return "speaker.wave.2"
             case .x: return "bird"
-            case .gateway(let g): return g.kind.isSessionScoped ? g.kind.iconName : "server.rack"
+            case .gateway: return "server.rack"
             }
         }
     }
@@ -78,7 +82,7 @@ internal struct SettingsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 sidebarGroup(
                     header: nil,
-                    items: [.appearance, .notifications, .celebrations, .x]
+                    items: [.appearance, .notifications, .celebrations, .speech, .x]
                 )
 
                 Divider().padding(.vertical, 8)
@@ -157,6 +161,8 @@ internal struct SettingsView: View {
                         notificationsSection
                     case .celebrations:
                         CelebrationSettingsSection()
+                    case .speech:
+                        SpeechSettingsSection()
                     case .x:
                         xSection
                     case .gateway(let g):
@@ -170,8 +176,8 @@ internal struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
         .sheet(isPresented: $showAddGateway) {
-            AddGatewaySheet { name, url, key, kind in
-                let gw = settings.addGateway(name: name, url: url, apiKey: key, kind: kind)
+            AddGatewaySheet { name, url, key in
+                let gw = settings.addGateway(name: name, url: url, apiKey: key)
                 selection = .gateway(gw)
                 showAddGateway = false
             } onCancel: {
@@ -209,7 +215,7 @@ internal struct SettingsView: View {
                 Spacer(minLength: 0)
                 if case .gateway(let g) = item {
                     HarnessStatusDot(
-                        backend: gatewayClientWrapper.liveClient(for: g, isActive: settings.isActive(g))
+                        backend: settings.isActive(g) ? gatewayClientWrapper.client : nil
                     )
                 }
             }
@@ -464,21 +470,14 @@ private struct GatewayDetailPane: View {
         VStack(alignment: .leading, spacing: 20) {
             // Header row
             HStack(spacing: 12) {
-                Image(systemName: gateway.kind.isSessionScoped ? gateway.kind.iconName : "server.rack")
+                Image(systemName: "server.rack")
                     .font(.system(size: 20))
                     .foregroundStyle(Theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(gateway.displayName)
                             .font(.title2.weight(.semibold))
-                        if gateway.kind.isSessionScoped {
-                            Text(gateway.kind.displayName)
-                                .font(.system(size: 9, weight: .semibold))
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(Theme.accent.opacity(0.15), in: Capsule())
-                                .foregroundStyle(Theme.accent)
-                        } else if settings.isActive(gateway) {
+                        if settings.isActive(gateway) {
                             Text("Active")
                                 .font(.system(size: 9, weight: .semibold))
                                 .padding(.horizontal, 5)
@@ -494,7 +493,7 @@ private struct GatewayDetailPane: View {
                         .lineLimit(1)
                 }
                 Spacer()
-                if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
+                if !settings.isActive(gateway) {
                     Button("Make Active") { settings.selectGateway(gateway) }
                         .portalButton(size: .small)
                 }
@@ -510,7 +509,7 @@ private struct GatewayDetailPane: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
-                .disabled(!gateway.kind.isSessionScoped && settings.hermesBackends.count <= 1)
+                .disabled(settings.savedGateways.count <= 1)
                 .help("Remove this harness")
             }
 
@@ -522,15 +521,10 @@ private struct GatewayDetailPane: View {
             // Restarting the backend belongs next to the connection state: it
             // is the same question ("is the gateway healthy?") and the restart
             // is answered by watching that state recover.
-            if !gateway.kind.isSessionScoped {
-                Divider()
-                GatewayRestartSection(
-                    client: gatewayClientWrapper.liveClient(
-                        for: gateway,
-                        isActive: settings.isActive(gateway)
-                    ) as? GatewayClient
-                )
-            }
+            Divider()
+            GatewayRestartSection(
+                client: settings.isActive(gateway) ? gatewayClientWrapper.client : nil
+            )
 
             Divider()
 
@@ -551,14 +545,14 @@ private struct GatewayDetailPane: View {
                 }
             }
 
-            // Cloudflare Access (Hermes, when gateway requires it)
-            if !gateway.kind.isSessionScoped && settings.needsCFAuth {
+            // Cloudflare Access (when the gateway requires it)
+            if settings.needsCFAuth {
                 Divider()
                 cfAuthRow
             }
 
             // Capabilities summary
-            if !gateway.kind.isSessionScoped {
+            Group {
                 Divider()
                 capabilitiesSummary
 
@@ -583,7 +577,7 @@ private struct GatewayDetailPane: View {
             }
         }
         .sheet(item: $editingGateway) { gw in
-            AddGatewaySheet(editing: gw) { name, url, key, _ in
+            AddGatewaySheet(editing: gw) { name, url, key in
                 var updated = gw
                 updated.name = name
                 updated.url = url
@@ -722,10 +716,7 @@ extension SettingsView {
                                     }
                                     Spacer()
                                     HarnessStatusDot(
-                                        backend: gatewayClientWrapper.liveClient(
-                                            for: gateway,
-                                            isActive: settings.isActive(gateway)
-                                        )
+                                        backend: settings.isActive(gateway) ? gatewayClientWrapper.client : nil
                                     )
                                 }
                             }
@@ -792,6 +783,10 @@ extension SettingsView {
 
                 Section("Celebrations") {
                     CelebrationSettingsSection(showsHeader: false)
+                }
+
+                Section("Speech") {
+                    SpeechSettingsSection(showsHeader: false)
                 }
 
                 Section("Capabilities") {
@@ -1124,7 +1119,7 @@ internal struct SystemPromptSection: View {
 
     private func firstActiveSessionID(client: GatewayClient) async -> String? {
         do {
-            return try await client.listSessions().first?.id
+            return promptCandidateSessionIDs(try await client.listSessions()).first
         } catch {
             log.warning("Unable to list sessions for system prompt settings: \(error.localizedDescription)")
             return nil
@@ -1184,13 +1179,12 @@ internal struct SystemPromptSection: View {
 internal struct AddGatewaySheet: View {
     /// When set, the sheet edits this gateway in place instead of adding.
     internal var editing: SavedGateway?
-    internal let onAdd: (_ name: String, _ url: String, _ apiKey: String, _ kind: BackendKind) -> Void
+    internal let onAdd: (_ name: String, _ url: String, _ apiKey: String) -> Void
     internal let onCancel: () -> Void
 
     @State private var name = ""
     @State private var url = ""
     @State private var apiKey = ""
-    @State private var kind: BackendKind = .hermes
 
     private var canSave: Bool {
         !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -1199,26 +1193,14 @@ internal struct AddGatewaySheet: View {
     internal var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section(editing == nil ? "New Backend" : "Edit Backend") {
-                    Picker("Type", selection: $kind) {
-                        ForEach(BackendKind.allCases, id: \.self) { k in
-                            Text(k.displayName).tag(k)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .disabled(editing != nil)
+                Section(editing == nil ? "New Harness" : "Edit Harness") {
                     TextField("Name (optional)", text: $name)
                         .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("gatewayNameField")
-                    TextField(kind.urlFieldLabel, text: $url)
+                    TextField("Gateway URL", text: $url)
                         .textFieldStyle(.roundedBorder)
-                    SecureField(kind.keyFieldLabel, text: $apiKey)
+                    SecureField("API key", text: $apiKey)
                         .textFieldStyle(.roundedBorder)
-                    if let footnote = kind.sessionScopedFootnote {
-                        Text(footnote)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
                 }
             }
             .formStyle(.grouped)
@@ -1233,8 +1215,7 @@ internal struct AddGatewaySheet: View {
                     onAdd(
                         name.trimmingCharacters(in: .whitespacesAndNewlines),
                         url.trimmingCharacters(in: .whitespacesAndNewlines),
-                        apiKey,
-                        kind
+                        apiKey
                     )
                 }
                 .keyboardShortcut(.defaultAction)
@@ -1248,7 +1229,6 @@ internal struct AddGatewaySheet: View {
                 name = gateway.name
                 url = gateway.url
                 apiKey = gateway.apiKey
-                kind = gateway.kind
             }
         }
     }

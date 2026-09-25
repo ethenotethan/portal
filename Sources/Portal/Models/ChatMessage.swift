@@ -50,6 +50,20 @@ struct ChatMessage: Identifiable, Codable {
 /// Cached value — set eagerly to avoid repeated regex scanning during renders.
     var _contentWithoutAttachments: String?
 
+    /// Populate `_contentWithoutAttachments` from the current `content`.
+    ///
+    /// The cache is derived, not persisted (it is deliberately absent from
+    /// `CodingKeys`), so every path that produces a *finished* message has to
+    /// prime it: decode/restore, and each completion path. Miss one and that
+    /// message's bubble re-runs `stripMediaTags` over the whole content on
+    /// every `body` evaluation — and the transcript re-renders many times a
+    /// second while a reply is read aloud or the pane scrolls, so an unprimed
+    /// message (a restored session, or a just-finished foreground turn) spins
+    /// the main thread. Call once, when the content is final.
+    internal mutating func primeStrippedContentCache() {
+        _contentWithoutAttachments = MediaParser.stripMediaTags(from: content)
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, role, content, isStreaming, toolCalls, reasoning, thinkingTrace
         case usage, status, attachments, userAttachments, graphSnapshot, skills
@@ -70,6 +84,10 @@ struct ChatMessage: Identifiable, Codable {
         status = try container.decodeIfPresent(String.self, forKey: .status)
         attachments = try container.decodeIfPresent([FileAttachment].self, forKey: .attachments) ?? []
         userAttachments = try container.decodeIfPresent([MediaAttachment].self, forKey: .userAttachments) ?? []
+        // The stripped-content cache is not part of the wire format, so decoded
+        // history would otherwise re-scan every bubble on every render. Prime it
+        // once here so a restored/resumed transcript renders cheaply.
+        _contentWithoutAttachments = MediaParser.stripMediaTags(from: content)
     }
 
     enum Role: String, Equatable, Codable {
@@ -111,30 +129,86 @@ struct ChatMessage: Identifiable, Codable {
         role == .user && content.hasPrefix("[IMPORTANT:") && content.contains("cron job")
     }
 
-    /// Non-nil when this assistant message is *entirely* a gateway-injected
-    /// async-delegation batch marker — e.g. `[ASYNC DELEGATION BATCH COMPLETE]`,
-    /// emitted when a batch of async-delegated subagents finishes. These arrive
-    /// as assistant `content` but are status notices, not model prose, so the
-    /// transcript renders them as a centered interstitial chip rather than
-    /// pushing the raw marker through the markdown bubble (which reads as a
-    /// broken response). Returns the humanized chip label (e.g. "delegation
-    /// batch complete").
-    ///
-    /// Deliberately matches only when the whole trimmed content is the marker
-    /// (`[`…`]` with nothing after): if the gateway ever appends real output to
-    /// the notice, this returns nil and the message renders normally rather than
-    /// having its content swallowed.
-    internal var delegationBatchNoticeLabel: String? {
+    /// Structured gateway async-delegation completion content. The gateway can
+    /// send either a bare marker or a marker followed by the batch's returned
+    /// results. Matching the first line keeps those results in a dedicated card
+    /// instead of treating the whole envelope as ordinary assistant prose.
+    internal var delegationBatchNotice: DelegationBatchNotice? {
         guard role == .assistant else { return nil }
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.hasPrefix("["), trimmed.hasSuffix("]") else { return nil }
-        let inner = trimmed.dropFirst().dropLast()
-        guard !inner.contains("]") else { return nil } // more than one bracket → not a bare marker
-        let upper = inner.uppercased()
+        let normalized = content.replacingOccurrences(of: "\r\n", with: "\n")
+        let trimmed = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let newline = trimmed.firstIndex(of: "\n") else {
+            return DelegationBatchNotice.parse(header: trimmed, details: nil)
+        }
+
+        let header = String(trimmed[..<newline])
+        let detailsStart = trimmed.index(after: newline)
+        let details = String(trimmed[detailsStart...])
+            .trimmingCharacters(in: .newlines)
+        return DelegationBatchNotice.parse(
+            header: header,
+            details: details.isEmpty ? nil : details
+        )
+    }
+
+    /// Compatibility convenience for callers that only need the marker label.
+    internal var delegationBatchNoticeLabel: String? {
+        delegationBatchNotice?.label
+    }
+
+    /// Non-nil when this assistant message is a *rich* async-delegation batch
+    /// completion report — the multi-task `[ASYNC DELEGATION BATCH COMPLETE —
+    /// deleg_…]` block the gateway re-injects when a fan-out of subagents
+    /// finishes. Unlike `delegationBatchNoticeLabel` (a bare marker with no
+    /// body), this one carries the full report — a preamble plus one `--- ✓ TASK
+    /// n/m … ---` section per subagent — which reads as an unformatted wall
+    /// through the plain markdown bubble. Parsing it lets the transcript render
+    /// each task as its own card.
+    internal var asyncDelegationBatch: DelegationBatchMessage? {
+        guard role == .assistant else { return nil }
+        return DelegationBatchMessage.parse(content)
+    }
+}
+
+/// Presentation data recovered from an async-delegation batch envelope.
+internal struct DelegationBatchNotice: Equatable, Sendable {
+    internal let label: String
+    internal let batchID: String?
+    internal let details: String?
+
+    fileprivate static func parse(header: String, details: String?) -> DelegationBatchNotice? {
+        let trimmed = header.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasSuffix("]") else { return nil }
+        let inner: Substring
+        if trimmed.hasPrefix("[") {
+            inner = trimmed.dropFirst().dropLast()
+        } else {
+            guard trimmed.uppercased().hasPrefix("ASYNC DELEGATION BATCH ") else { return nil }
+            inner = trimmed.dropLast()
+        }
+        guard !inner.contains("]") else { return nil }
+
+        let parts = inner.split(separator: "—", maxSplits: 1, omittingEmptySubsequences: false)
+        let marker = parts[0].trimmingCharacters(in: .whitespaces)
+        let upper = marker.uppercased()
         guard upper.contains("DELEGATION"), upper.contains("BATCH") else { return nil }
-        var label = inner.trimmingCharacters(in: .whitespaces).lowercased()
-        if label.hasPrefix("async ") { label = String(label.dropFirst("async ".count)) }
-        return label.isEmpty ? "delegation batch complete" : label
+        if details != nil, upper != "ASYNC DELEGATION BATCH COMPLETE" {
+            return nil
+        }
+
+        var label = marker.lowercased()
+        if label.hasPrefix("async ") {
+            label = String(label.dropFirst("async ".count))
+        }
+        let batchID = parts.count == 2
+            ? parts[1].trimmingCharacters(in: .whitespaces)
+            : nil
+
+        return DelegationBatchNotice(
+            label: label.isEmpty ? "delegation batch complete" : label,
+            batchID: batchID?.isEmpty == false ? batchID : nil,
+            details: details
+        )
     }
 }
 

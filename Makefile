@@ -11,7 +11,7 @@ SCHEME_MAC := Portal
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
+.PHONY: generate build installer installer-test run kill lint lint-fix lint-baseline lint-baseline-guard constraint-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -24,6 +24,17 @@ generate:
 build: generate
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) -configuration $(CONFIG) \
 		-destination 'platform=macOS' build
+
+# Build a signed Release app and package it with the user-level Hermes/gateway
+# setup command. Distribution signing/notarization can be supplied through the
+# normal Xcode signing environment; local builds remain useful for smoke tests.
+installer: generate
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) -configuration Release \
+		-destination 'platform=macOS' \
+		-derivedDataPath .build/installer-derived build
+	./scripts/build-macos-installer.sh \
+		--app .build/installer-derived/Build/Products/Release/Portal.app \
+		--output dist/Portal-Installer.dmg
 
 # Rebuild from current source, then relaunch. Kills any running instance first
 # so you never end up staring at a stale binary.
@@ -97,7 +108,10 @@ secret-scan:
 secret-scan-guard:
 	python3 scripts/check-secret-baseline-growth.py origin/main
 
-test:
+installer-test:
+	python3 -m unittest discover -s Tests/InstallerTests -p 'test_*.py' -v
+
+test: installer-test
 	swift build --build-tests
 	swift test --disable-sandbox
 
@@ -109,16 +123,26 @@ architecture:
 # Deterministic architecture validation used by CI and maintenance PRs.
 architecture-check:
 	python3 scripts/build_architecture.py --check
+	python3 scripts/check-contract-pins.py
 	python3 -m unittest scripts/test_architecture.py
 	node --check architecture/site/app.js
+
+# The System map at every commit that touched the app source: today's extractor
+# re-run over first-parent history into architecture/site/history.js, which the
+# site loads as an opt-in slider. Not committed (it depends on git history, not
+# the working tree); extends an existing artifact when the extractor is unchanged.
+architecture-history:
+	python3 scripts/build_architecture_history.py
 
 # Local preview at http://127.0.0.1:4173/. The production copy is deployed by
 # .github/workflows/architecture-pages.yml after merge to main.
 architecture-serve: architecture
 	python3 -m http.server 4173 --directory architecture/site
 
-# The product site has no build step, so the only thing to check is that its
-# relative asset references (screenshots, stylesheet) actually resolve.
+# The product site has no build step, so the check is that its relative asset
+# references (screenshots, stylesheet) resolve. The quality gates themselves are
+# the observatory's CI gates view, compiled by `make architecture` from the
+# workflow files and the committed baselines.
 site-check:
 	python3 scripts/check_site_assets.py
 
@@ -137,7 +161,12 @@ site-serve: architecture site-check
 #   warnings — compiler warning sites (floor: no category grows; patch: no
 #              warning on a line this PR added). A CLEAN build is mandatory —
 #              incremental builds skip unchanged modules and under-count, so we
-#              wipe .build first.
+#              wipe .build first. `--build-tests` is likewise mandatory: plain
+#              `swift build` never compiles Tests/, so for as long as this read
+#              `swift build` the test targets were an unmeasured warning pool
+#              the ratchet could not see. When that was first measured it held
+#              21 of the repo's 23 sites — most of them inside `#expect` macro
+#              expansions, which report no source file and so never surfaced.
 #   coverage — testable-layer line coverage (floor: aggregate can't erode;
 #              patch: >=80% of executable lines this PR added must be covered).
 #   skipped  — disabled / known-issue test count (floor: can't rise; baseline 0).
@@ -151,7 +180,7 @@ site-serve: architecture site-check
 # build here — the compile is the slow part and running it twice buys nothing.
 metrics-ratchet:
 	rm -rf .build
-	swift build 2>&1 | tee /tmp/portal-metrics-build.log
+	swift build --build-tests 2>&1 | tee /tmp/portal-metrics-build.log
 	python3 scripts/collect-warnings.py /tmp/portal-metrics-build.log --root "$(PWD)" --json /tmp/portal-warnings.json
 	swift test --enable-code-coverage 2>&1 | tail -3
 	$(call export-coverage)
@@ -177,7 +206,7 @@ endef
 # build for an honest warning count. Rewrites ALL metric keys.
 metrics-baseline:
 	rm -rf .build
-	swift build 2>&1 | tee /tmp/portal-metrics-build.log
+	swift build --build-tests 2>&1 | tee /tmp/portal-metrics-build.log
 	python3 scripts/collect-warnings.py /tmp/portal-metrics-build.log --root "$(PWD)" --json /tmp/portal-warnings.json
 	swift test --enable-code-coverage 2>&1 | tail -3
 	$(call export-coverage)
@@ -187,6 +216,7 @@ metrics-baseline:
 	python3 scripts/collect-deadcode.py /tmp/portal-periphery.json --root "$(PWD)" --json /tmp/portal-deadcode.json
 	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); s=json.load(open('/tmp/portal-skipped.json')); d=json.load(open('/tmp/portal-deadcode.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; b['skipped']=s; b['deadcode']=d; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warnings,', str(c['testable_pct'])+'% coverage,', s['total'], 'skipped,', d['total'], 'dead-code')"
 	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings/skipped/deadcode should only DROP, coverage only RISE."
+	python3 scripts/build_architecture.py
 
 # Performance ratchet: fail if a hot pure layout path does MORE algorithmic work
 # than base for a fixed input. The metric is an integer OP COUNT, not time — the
@@ -215,13 +245,23 @@ perf-baseline:
 		swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests
 	@python3 -c "import json; s=json.load(open('/tmp/portal-perf-counts.json')); b=json.load(open('perf-baseline.json')); b['counts']=s['counts']; open('perf-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('perf-baseline.json updated:', ', '.join(f'{k}={v}' for k,v in sorted(s['counts'].items())))"
 	@echo "Baseline rewritten. Check 'git diff perf-baseline.json' — counts should only DROP (a faster path) unless a size change is intended."
+	python3 scripts/build_architecture.py
 
 # One command an agent (or human) runs before pushing — the whole CI gate:
 # strict-concurrency build, tests, baselined lint, and the security posture.
 # If this is green, CI is. (The Warnings/Coverage posture ratchets need a clean
 # from-scratch build + base diff, so run `make metrics-ratchet` separately when
 # touching those — kept out of `check` so the fast pre-push loop stays fast.)
-check: lint lint-baseline-guard secret-scan secret-scan-guard
+# Constraint ratchet: the declarations that decide what CI accepts (invariants,
+# config declarations, lint rules, architecture tests, specifications, gate
+# scripts, CODEOWNERS, the gate workflows) may only tighten vs origin/main.
+# In CI this is Ratchet / Constraints; a deliberate loosening carries the
+# `constraints-loosened` label there. See scripts/check-constraint-growth.py.
+constraint-guard:
+	python3 scripts/check-constraint-growth.py origin/main
+	python3 -m unittest scripts/test_constraint_growth.py
+
+check: lint lint-baseline-guard secret-scan secret-scan-guard constraint-guard installer-test
 	swift build
 	swift build --build-tests
 	swift test --disable-sandbox

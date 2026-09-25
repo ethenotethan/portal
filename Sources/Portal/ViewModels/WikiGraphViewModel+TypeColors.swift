@@ -10,6 +10,18 @@ import SwiftUI
 
 extension WikiGraphViewModel {
 
+    internal func nodeRadius(for type: String) -> CGFloat {
+        switch type {
+        case "entity": return 7
+        case "meta", "index", "log", "glossary": return 8
+        // Code-graph kinds — modules read as hubs, functions/symbols smaller.
+        case "module": return 8
+        case "class": return 7
+        case "external": return 4
+        default: return 5
+        }
+    }
+
     /// The folder a page lives in, used as its color group: the path's directory
     /// with the filename dropped — "entities/chain/base.md" → "entities/chain".
     /// Nil for a root-level page ("index.md") that has no folder. Pages sharing a

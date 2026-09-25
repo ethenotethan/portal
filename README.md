@@ -1,8 +1,8 @@
 # Portal
 
-Native macOS + iOS client for AI agent backends — built with Swift + SwiftUI.
+Open-source macOS + iOS SwiftUI client for a personally managed Hermes fork.
 
-Supports **Hermes** (WebSocket JSON-RPC) and **Centaur** (REST + SSE) from a single app. No local server or CLI required.
+Portal presents streaming chat, multi-gateway sessions, knowledge graphs, artifacts, skills, cron, and spaced-repetition learning in a native app. A session-scoped Centaur connection is also supported, but the management surfaces depend on the Hermes fork below.
 
 The Hermes gateway is [`ethenotethan/harness`](https://github.com/ethenotethan/harness), a fork of [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent). The fork is required, not preferred: stock hermes-agent has no `/v1/ws` endpoint. See [docs/gateway-setup.md](docs/gateway-setup.md).
 
@@ -23,9 +23,34 @@ The Hermes gateway is [`ethenotethan/harness`](https://github.com/ethenotethan/h
 ## Requirements
 
 - macOS 14 (Sonoma) / iOS 17+
+- A model-provider account or local model supported by Hermes
+
+The managed macOS installer supplies Hermes, its local API server, and its
+gateway. Building Portal from source additionally requires:
+
 - Xcode 16+ / Swift 6.1+
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
-- A running backend: **Hermes** ([`ethenotethan/harness`](https://github.com/ethenotethan/harness)) or **Centaur** ([`paradigmxyz/centaur`](https://github.com/paradigmxyz/centaur))
+
+## Managed macOS installer
+
+`make installer` builds `dist/Portal-Installer.dmg`. The image contains the
+signed Portal app and **Set Up Portal.command**, which runs as the logged-in user
+and:
+
+1. Installs Portal into `~/Applications`.
+2. Clones and installs the managed Hermes fork under Portal's Application Support directory.
+3. Configures a loopback-only API server with a generated key.
+4. Runs Hermes provider setup and installs its per-user launchd gateway.
+5. Prefills Portal through a mode-`0600` one-time handoff; Portal moves the values into Keychain after **Connect** is pressed.
+
+It never uses `sudo`, never prints the generated API key, and refuses to replace
+an unexpected checkout or unreadable Keychain state. See
+[docs/macos-installer.md](docs/macos-installer.md) for the complete security and
+release model.
+
+> This removes the manual fork/gateway setup, but it is not yet an honest
+> “two-minute setup” guarantee. Provider authentication and dependency downloads
+> remain variable and must be measured on clean Macs before making that claim.
 
 ## Build & Run
 

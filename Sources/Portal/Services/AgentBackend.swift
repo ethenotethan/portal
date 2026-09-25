@@ -14,21 +14,42 @@ internal enum AgentBackendError: LocalizedError {
     }
 }
 
-/// The backend surface ChatViewModel actually consumes, extracted so a second
-/// agent platform (Centaur — REST + SSE) can sit behind the same chat UI as
-/// the Hermes gateway (WebSocket JSON-RPC).
+/// A resumed session's transcript plus, when the gateway reports the turn is
+/// still running, the in-flight turn — so the client can rebuild the live
+/// streaming shell instead of dropping every delta that arrives for it.
 ///
-/// Design notes:
-/// - Events arrive as the existing `GatewayEvent` enum regardless of backend;
-///   non-Hermes backends adapt their wire events into it (see
-///   `CentaurEventAdapter`). The per-session state machinery in ChatViewModel
-///   is backend-agnostic once events are normalized.
-/// - `capabilities` gates UI: Centaur has no wiki/skills/cron/voice, and its
-///   sessions can't answer approval/clarify prompts (the harness runs
-///   non-interactively in a sandbox).
-/// - Members deliberately mirror GatewayClient's existing signatures so the
-///   conformance is `extension GatewayClient: AgentBackend {}` with no
-///   behavior change.
+/// A session spawned by an artifact intent (or started on another device) runs
+/// its turn in the background; the resuming client never saw the `message.start`
+/// that opens the streaming shell, so without this it has no message for the
+/// running turn's deltas, thinking, tool and subagent events to attach to.
+internal struct ResumedSession {
+    internal var sessionID: String
+    internal var messages: [[String: AnyCodable]]
+    internal var inflight: InflightTurn?
+
+    internal init(sessionID: String, messages: [[String: AnyCodable]], inflight: InflightTurn? = nil) {
+        self.sessionID = sessionID
+        self.messages = messages
+        self.inflight = inflight
+    }
+}
+
+/// The turn a resumed session is running right now, as the gateway sees it.
+internal struct InflightTurn {
+    /// Assistant text streamed BEFORE this client resumed. Seeds the shell so
+    /// the visible answer doesn't restart from the next delta; the terminal
+    /// `message.complete` replaces it with the authoritative full text.
+    internal var assistantPartial: String
+    /// The gateway still has a live turn open on this session.
+    internal var isStreaming: Bool
+}
+
+/// The harness surface ChatViewModel actually consumes.
+///
+/// A protocol rather than `GatewayClient` directly so the chat pipeline can be
+/// driven by a test spy: every member mirrors GatewayClient's existing
+/// signature, so the production conformance is `extension GatewayClient:
+/// AgentBackend {}` with no behavior change. Events arrive as `GatewayEvent`.
 @MainActor
 protocol AgentBackend: AnyObject {
 
@@ -52,20 +73,24 @@ protocol AgentBackend: AnyObject {
     /// The backend's current runtime session ID, if any.
     var activeSessionID: String? { get }
 
-    // MARK: Capabilities
-
-    var capabilities: BackendCapabilities { get }
-
     // MARK: Session Lifecycle
 
     func createSession(cols: Int) async throws -> String
     func resumeSession(key: String) async throws -> (sessionID: String, messages: [[String: AnyCodable]])
+    /// Like `resumeSession`, but also surfaces the in-flight turn when the
+    /// harness reports one still running. Conformers without a live-turn
+    /// resume inherit the default below, which reports no in-flight turn.
+    func resumeSessionDetailed(key: String) async throws -> ResumedSession
     func sessionHistory(sessionID: String) async throws -> [[String: AnyCodable]]
     func interrupt(sessionID: String) async throws
 
     // MARK: Conversation
 
     func submitPrompt(sessionID: String, text: String) async throws
+    /// Submit a turn, optionally through the tool-less "chat" path. Has a
+    /// default (below) that ignores `chatMode`, so only the gateway client
+    /// needs to implement it — test spies fall back to a normal turn.
+    func submitPrompt(sessionID: String, text: String, chatMode: Bool) async throws
     func respondApproval(sessionID: String, choice: String, all: Bool) async throws
     func respondClarify(requestID: String, answer: String) async throws
 
@@ -109,84 +134,25 @@ protocol AgentBackend: AnyObject {
     func recordDroppedEvent(_ event: GatewayEvent, sessionID: String?, reason: String)
 }
 
-// MARK: - Backend Capabilities
-
-/// Feature flags a backend advertises so the UI can hide what can't work.
-struct BackendCapabilities: Sendable {
-    /// Blocking approval/clarify prompts can be answered (Hermes only).
-    var supportsInteractivePrompts: Bool
-    /// subagent.* events flow, powering spawn trees and agent graph lanes.
-    var supportsSubagentEvents: Bool
-    /// wiki.* RPCs exist.
-    var supportsWiki: Bool
-    /// Skills catalog / attach RPCs exist.
-    var supportsSkills: Bool
-    /// File upload/attach RPCs exist.
-    var supportsAttachments: Bool
-    /// Model switching via config.set.
-    var supportsModelSwitching: Bool
-    /// Ephemeral system-prompt injection (config-driven response styles).
-    var supportsResponseStyles: Bool
-    /// Home-gateway service surface beyond chat: cron, activity inbox,
-    /// feed, learning. These are Hermes gateway RPCs, not chat features —
-    /// harness backends never grow them.
-    var supportsGatewayServices: Bool
-    /// Per-session introspection RPCs beyond plain history: session.timeline
-    /// (playback), session.usage, session.peek, prompt breakdown. Gates the
-    /// Explorer's Timeline/Usage tabs — backends without these RPCs show
-    /// their raw event log instead (see `RawEventLogProviding`).
-    var supportsSessionIntrospection: Bool
-    /// Centaur workflow runtime introspection (/api/workflows/*): schedules
-    /// + run history. The Centaur analogue of Hermes cron.
-    var supportsWorkflows: Bool
-    /// Fixed identity the chat chrome must present for this harness.
-    /// nil = presentation is persona-driven (PersonaManager / gateway
-    /// PERSONA.md sync). Non-nil harnesses are a different agent platform,
-    /// not a Hermes persona — the user is not "messaging Hermes".
-    var harnessPersona: Persona?
-    /// voice.toggle / voice.record / voice.tts RPCs exist.
-    internal var supportsVoice: Bool
-
-    static let hermes = BackendCapabilities(
-        supportsInteractivePrompts: true,
-        supportsSubagentEvents: true,
-        supportsWiki: true,
-        supportsSkills: true,
-        supportsAttachments: true,
-        supportsModelSwitching: true,
-        supportsResponseStyles: true,
-        supportsGatewayServices: true,
-        supportsSessionIntrospection: true,
-        supportsWorkflows: false,
-        harnessPersona: nil,
-        supportsVoice: true
-    )
-
-    /// Centaur relays harness stdout; structured features stay dark until the
-    /// sandbox harness emits typed events (SessionEventName::Other passthrough).
-    static let centaur = BackendCapabilities(
-        supportsInteractivePrompts: false,
-        supportsSubagentEvents: false,
-        // Wiki reads route through Darkbloom's public wiki-api REST
-        // endpoints (CentaurWikiClient), not the hermes wiki.* RPCs.
-        supportsWiki: true,
-        supportsSkills: false,
-        supportsAttachments: false,
-        supportsModelSwitching: false,
-        supportsResponseStyles: false,
-        supportsGatewayServices: false,
-        supportsSessionIntrospection: false,
-        supportsWorkflows: true,
-        harnessPersona: .centaurPersona,
-        supportsVoice: false
-    )
-}
-
-// MARK: - Defaults for backends without a model catalog
+// MARK: - Defaults (GatewayClient overrides the ones it can answer)
 
 extension AgentBackend {
-    /// Backends without an inventory RPC (Centaur) report no catalog; the
-    /// picker falls back to the static list (or hides, per capabilities).
+    /// Default: resume with no in-flight turn. `GatewayClient` can resume INTO
+    /// a running turn and overrides this to surface it.
+    internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+        let result = try await resumeSession(key: key)
+        return ResumedSession(sessionID: result.sessionID, messages: result.messages, inflight: nil)
+    }
+
+    /// Conformers without a tool-less chat path (a harness that doesn't
+    /// advertise `prompt.chat_mode`) just run the normal turn — the flag is a
+    /// hint, never a hard requirement.
+    internal func submitPrompt(sessionID: String, text: String, chatMode: Bool) async throws {
+        try await submitPrompt(sessionID: sessionID, text: text)
+    }
+
+    /// Conformers without an inventory RPC report no catalog; the picker falls
+    /// back to the static list.
     func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog? { nil }
 
     /// Fallback switch path: plain config.set with no verdict surface.
@@ -225,6 +191,4 @@ extension GatewayClient: AgentBackend {
     var sessionInfoPublisher: AnyPublisher<SessionInfo?, Never> {
         $sessionInfo.eraseToAnyPublisher()
     }
-
-    var capabilities: BackendCapabilities { .hermes }
 }

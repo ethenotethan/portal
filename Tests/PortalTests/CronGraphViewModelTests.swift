@@ -303,6 +303,36 @@ internal struct CronGraphViewModelTests {
         }
     }
 
+    @Test("SPO relationships render as relationships rather than deliveries")
+    internal func relationshipEdgesAreDistinctFromDeliveries() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                CronGraphNode(id: "nomad:gateway", kind: "service", type: "service",
+                              label: "Gateway", description: "dispatches reviews", schedule: nil,
+                              enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "runtime:docker", kind: "object", type: "runtime",
+                              label: "docker", description: "", schedule: nil,
+                              enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "github:review", kind: "sink", type: "github",
+                              label: "review", description: "", schedule: nil,
+                              enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: [
+                CronGraphEdge(source: "nomad:gateway", target: "runtime:docker",
+                              type: "runs_in", edgeClass: "relationship"),
+                CronGraphEdge(source: "nomad:gateway", target: "github:review", type: "github"),
+            ]
+        ))
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+
+        #expect(vm.edgeLegend.map(\.type) == ["runs_in", "deliver"])
+        #expect(vm.edgeLegend.map(\.label) == ["Runs in", "Delivers"])
+        #expect(vm.edgeColor(forType: "runs_in") != vm.edgeColor(forType: "github"))
+        #expect(CronGraphViewModel.legend.map(\.kind).contains("object"))
+    }
+
     // MARK: - zoomAtPoint / zoomAtCenter
 
     @Test("zoomAtPoint scales zoom and keeps the anchor point fixed")
@@ -340,6 +370,121 @@ internal struct CronGraphViewModelTests {
         vm.zoomAtPoint(factor: -1, around: .zero)
         vm.zoomAtPoint(factor: .infinity, around: .zero)
         #expect(vm.zoom == 1.4)
+    }
+}
+
+@MainActor
+@Suite("Cron run history")
+internal struct CronRunHistoryTests {
+    @Test("average interval requires two runs")
+    internal func averageIntervalRequiresTwoRuns() {
+        let store = CronRunHistoryStore(testing: true)
+        let firstRun = Date(timeIntervalSince1970: 1_700_000_000)
+
+        #expect(store.averageInterval(for: "daily-digest") == nil)
+        store.seedFromJobs([job(lastRunAt: firstRun)])
+        #expect(store.averageInterval(for: "daily-digest") == nil)
+
+        store.seedFromJobs([job(lastRunAt: firstRun.addingTimeInterval(90))])
+        #expect(store.averageInterval(for: "daily-digest") == 90)
+    }
+
+    @Test("run duration labels scale from pending through hours")
+    internal func runDurationLabels() {
+        let cases: [(duration: TimeInterval?, label: String)] = [
+            (nil, "—"),
+            (59, "59.0s"),
+            (60, "1.0m"),
+            (3_599, "60.0m"),
+            (3_600, "1.0h"),
+        ]
+
+        for item in cases {
+            #expect(record(duration: item.duration).durationLabel == item.label)
+        }
+    }
+
+    @Test("only an exact ok status is successful")
+    internal func runSuccessStatus() {
+        #expect(record(status: "ok").isOk)
+        #expect(!record(status: "error").isOk)
+        #expect(!record(status: "OK").isOk)
+    }
+
+    @Test("success rate counts exact ok runs and handles empty history")
+    internal func successRate() {
+        let store = CronRunHistoryStore(testing: true)
+        #expect(store.successRate(for: "daily-digest") == 0)
+
+        store.seedFromJobs([job(lastRunAt: Date(timeIntervalSince1970: 100), status: "ok")])
+        store.seedFromJobs([job(lastRunAt: Date(timeIntervalSince1970: 200), status: "error")])
+        store.seedFromJobs([job(lastRunAt: Date(timeIntervalSince1970: 300), status: "OK")])
+
+        #expect(abs(store.successRate(for: "daily-digest") - 33.333_333) < 0.000_001)
+    }
+
+    private func record(
+        status: String = "ok",
+        duration: TimeInterval? = nil
+    ) -> CronRunRecord {
+        CronRunRecord(
+            id: UUID(),
+            jobID: "daily-digest",
+            jobName: "Daily digest",
+            firedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            status: status,
+            duration: duration
+        )
+    }
+
+    private func job(lastRunAt: Date, status: String = "ok") -> CronJob {
+        CronJob(
+            id: "daily-digest",
+            name: "Daily digest",
+            schedule: "every 1m",
+            nextRunAt: nil,
+            lastRunAt: lastRunAt,
+            lastStatus: status,
+            enabled: true,
+            state: "scheduled",
+            deliver: "local",
+            promptPreview: nil,
+            prompt: nil,
+            lastError: nil
+        )
+    }
+}
+
+@MainActor
+@Suite("Cron session navigation")
+internal struct CronSessionNavigatorTests {
+    @Test("the nearest cron session inside the correlation window wins")
+    internal func nearestEligibleSessionWins() {
+        let firedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let record = CronRunRecord(
+            id: UUID(),
+            jobID: "daily-digest",
+            jobName: "Daily digest",
+            firedAt: firedAt,
+            status: "ok"
+        )
+        let navigator = CronSessionNavigator(sessions: [
+            Session(id: "wrong-source", source: "cli", messageCount: 0,
+                    startedAt: firedAt.addingTimeInterval(1)),
+            Session(id: "missing-start", source: "cron", messageCount: 0),
+            Session(id: "earlier", source: "cron", messageCount: 0,
+                    startedAt: firedAt.addingTimeInterval(-119)),
+            Session(id: "nearest", source: "CRON", messageCount: 0,
+                    startedAt: firedAt.addingTimeInterval(30)),
+        ])
+
+        #expect(navigator.session(for: record)?.id == "nearest")
+
+        let boundary = CronSessionNavigator(sessions: [
+            Session(id: "boundary", source: "cron", messageCount: 0,
+                    startedAt: firedAt.addingTimeInterval(120)),
+        ])
+        #expect(boundary.session(for: record) == nil)
     }
 }
 

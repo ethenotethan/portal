@@ -56,7 +56,7 @@ internal struct EmptyTranscriptStateView: View {
     /// "Harness" is meaningless to a first-time user; the entry's name (or its
     /// host) is what they typed and what they can check.
     private var gatewayLabel: String {
-        if let gateway = settings.focusedGateway { return gateway.displayName }
+        if let gateway = settings.activeGateway { return gateway.displayName }
         if let host = URL(string: settings.gatewayURL)?.host { return host }
         return settings.gatewayURL
     }

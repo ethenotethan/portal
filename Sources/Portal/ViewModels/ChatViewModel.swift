@@ -64,6 +64,20 @@ final class ChatViewModel: ObservableObject {
       - `xychart` — trends, comparisons with axes, metrics over time
       - `treemap` — hierarchical proportions, storage breakdown, budget categories
       - `block` — block diagrams, high-level system composition
+    - **Blueprints** in ```blueprint JSON blocks for spatial or technical layouts where explicit placement
+      matters — system architecture, floor plans, hardware layouts, trust boundaries. Coordinates use a
+      declared logical canvas (100 × 100 by default); `x`, `y`, `width`, and `height` are in those units:
+      ```blueprint
+      {"title":"Inference rig","width":100,"height":70,"grid":true,
+       "elements":[
+         {"id":"edge","label":"Edge zone","kind":"boundary","x":4,"y":6,"width":40,"height":30},
+         {"id":"api","label":"API","kind":"service","x":12,"y":15,"width":18,"height":9,"note":"public"},
+         {"id":"db","label":"Postgres","kind":"storage","x":70,"y":45,"width":20,"height":12}],
+       "connections":[{"from":"api","to":"db","label":"SQL","style":"data","arrow":true}]}
+      ```
+      Element kinds: `generic`, `boundary`, `service`, `storage`, `actor`, `note`. Connection styles:
+      `flow`, `data`, `dependency`, `physical`. Prefer 0–100 coordinates unless a different aspect ratio
+      needs a custom canvas. Use this instead of Mermaid when exact placement is part of the explanation.
     - **Native data charts** for anything with numbers: wrap a JSON spec in a ```chart block.
       The app renders these as interactive native charts (hover readouts, legend toggling, zoom).
       NEVER generate chart images with matplotlib or other plotting tools, and never draw charts
@@ -142,14 +156,14 @@ final class ChatViewModel: ObservableObject {
         {"id": "review", "date": "2026-08-12", "title": "Design review", "time": "14:00"}]}
       ```
     - **Living artifacts**: add an "id" field to any block above — map, chart, graph, stats, dataset,
-      timeline, kanban, checklist, calendar, model — to make it a PERSISTENT model the user keeps across
+      blueprint, timeline, kanban, checklist, calendar, model — to make it a PERSISTENT model the user keeps across
       sessions. When the user adds or changes items, re-emit the block with the SAME id — maps merge
       markers by label and datasets merge rows by key (emit only new/changed entries or the full set;
       both work); kanban, checklist and calendar merge their entries by "id" and PRESERVE THE USER'S OWN
       EDITS (a ticked box, a card you didn't know had moved) even when your re-emit omits that field, so
       you can safely re-send a board from your own notes; chart/stats/graph/timeline replace wholesale,
       so emit the complete block. Example: a ```map block with "id": "bkk-apartments" updated as the
-      user evaluates listings.
+      user evaluates listings. Blueprints use the same replace-whole-document behavior as charts and timelines.
       Artifacts may also declare per-entry USER ACTIONS — controls the user taps to
       triage entries, writing back into the artifact where you'll see them on your next read:
       "actions": [{"field": "status", "type": "choice", "options": ["going", "not going"]},
@@ -163,16 +177,20 @@ final class ChatViewModel: ObservableObject {
       ```model
       {"id": "bkk-life", "title": "Bangkok Base",
        "entities": {"apartments": {"key": "name", "items": [{"name": "Seed Mingle", "lat": 13.716, "lon": 100.54, "rent": 22000}]},
+                    "work": {"key": "id", "items": [{"id": "PORT-1", "title": "Build model Kanban", "status": "Doing"}]},
                     "gyms": {"key": "name", "items": [{"name": "FelixMuayThai", "lat": 13.729, "lon": 100.539}]}},
        "relations": [{"from": "apartments/Seed Mingle", "to": "gyms/FelixMuayThai", "type": "walkable", "note": "8 min"}],
        "views": [{"type": "markdown", "text": "## Hunt status\\nDown to **3 candidates**."},
+                 {"type": "kanban", "entities": ["work"], "column": "status", "columns": ["Todo", "Doing", "Done"]},
                  {"type": "map"}, {"type": "table", "entities": ["apartments"], "columns": ["name", "rent", "status"]},
                  {"type": "graph"}, {"type": "chart", "chart": "bar", "entities": ["apartments"], "x": "name", "y": "rent"}],
        "actions": {"apartments": [{"field": "status", "type": "choice", "options": ["interested", "viewed", "ruled out"]}, {"type": "delete"}]}}
       ```
       Entity refs are "set/keyValue". Views render in declaration order — markdown views carry the
       artifact-level narrative (summary, criteria, decision log) and can be interleaved anywhere in the
-      stack; update the prose alongside the data. Entity sets merge by key and relations by (from,to,type),
+      stack; update the prose alongside the data. A `kanban` view projects an entity set as an interactive Kanban;
+      `column` names the entity field changed by card moves and `columns` sets the lane order.
+      Entity sets merge by key and relations by (from,to,type),
       so emit only new/changed items when updating (views replace wholesale — re-emit the full views array).
       Prefer upgrading a map/dataset to a model over emitting parallel artifacts when the user wants
       relationships or multiple lenses on the same data.
@@ -285,9 +303,6 @@ final class ChatViewModel: ObservableObject {
     /// property so existing views and `if pendingApproval != nil` layout checks
     /// keep working unchanged.
     @Published internal private(set) var pendingApproval: ApprovalPayload?
-    /// Active backend's feature flags — views hide affordances the backend
-    /// can't serve (attachments/skills pickers on Centaur sessions).
-    @Published private(set) var backendCapabilities: BackendCapabilities = .hermes
     /// Blocking clarify question awaiting an answer (clarify.request).
     @Published var pendingClarify: ClarifyPayload?
     @Published var activeToolCalls: [String: ToolCallRecord] = [:] // tool_id → record
@@ -318,6 +333,137 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var createGeneration: Int = 0
     /// Voice recording state — true while the gateway is capturing audio via VAD.
     @Published internal private(set) var isVoiceRecording: Bool = false
+    /// On-device speech-to-text. When the user opts in (Settings → Speech) on a
+    /// supported build, the mic button transcribes locally instead of streaming
+    /// to the gateway. Injectable so tests can drive the branch with a fake.
+    internal var localVoiceService: any LocalVoiceControlling = LocalVoiceService.shared
+    /// Speech-playback status used to gate barge-in (talking over a spoken
+    /// reply) and derive the conversation phase; injectable so the conversation
+    /// loop can be tested without the real synthesizer.
+    internal var speechStatus: any ConversationSpeechStatus = TTSService.shared
+    /// On-device conversation partner for talking a reply over locally, and the
+    /// playback it streams through. Both injectable so the local branch of the
+    /// voice loop can be tested without a model or a synthesizer.
+    internal var localChatService: any LocalChatControlling = LocalChatService.shared
+    internal var conversationSpeaker: any ConversationSpeaking = TTSService.shared
+    /// Raw material for the local model's briefing: the other sessions on this
+    /// machine, so a discussion can start knowing what "today" means.
+    ///
+    /// A closure rather than a dependency on `SessionListViewModel` because the
+    /// session list belongs to the sidebar, not to chat — `ContentView` owns both
+    /// and wires this up. Defaults to nothing, which degrades to the previous
+    /// behavior (no briefing block) rather than to a crash.
+    internal var recentSessionsProvider: @MainActor () -> [Session] = { [] }
+    /// True while a hands-free conversation is running: the mic stays open
+    /// continuously across turns (so the user can talk over a reply) until the
+    /// user ends it by tapping the mic again.
+    @Published internal private(set) var isConversationActive: Bool = false
+
+    /// Smoothed 0...1 microphone level while a conversation is capturing, so the
+    /// orb can expand and shrink with the user's voice. Zero when idle.
+    @Published internal private(set) var voiceLevel: Float = 0
+
+    /// The open local side-discussion, if any: a spoken exchange about one
+    /// assistant reply that runs entirely on this machine. Non-nil is what routes
+    /// spoken input to the local model instead of the gateway.
+    @Published internal private(set) var localDiscussion: LocalDiscussion?
+    /// True while a local reply is being generated — the local twin of
+    /// `isStreaming`, kept separate so nothing mistakes it for a gateway turn.
+    @Published internal private(set) var isLocalStreaming: Bool = false
+    /// True while the local model is writing the instruction that the discussion
+    /// will be handed to the agent as. Distinct from `isLocalStreaming`: this reply
+    /// is never shown as a turn and never spoken aloud.
+    @Published internal private(set) var isDraftingHandoff: Bool = false
+    /// The in-flight local generation, retained so barge-in and "end" can cancel
+    /// it rather than talking over it.
+    private var localReplyTask: Task<Void, Never>?
+    /// The in-flight write-up of the handoff prompt, retained so closing the card
+    /// can abandon it instead of waiting on it.
+    private var handoffDraftTask: Task<String?, Never>?
+    /// Discussions that have been closed but not forgotten, keyed by anchor id.
+    ///
+    /// Closing a discussion used to throw the exchange away, which made the
+    /// surface unusable for what it is actually for — talking a prompt into shape
+    /// over several sittings. They are held for the app's lifetime and rebuilt into
+    /// the prompt on resume (`LocalDiscussion.resuming()`), never persisted: these
+    /// turns are scratch space and were promised not to outlive the run.
+    private var setAsideDiscussions: [UUID: LocalDiscussion] = [:]
+    /// The id every composer-started discussion uses, so re-opening finds the one
+    /// that was set aside. A `UUID` per view model, which is what keeps it from
+    /// ever colliding with a message id.
+    private let composerDiscussionID = UUID()
+
+    /// The three states the inline voice-conversation card animates between.
+    internal enum ConversationPhase {
+        /// Mic open, waiting for / capturing the user's speech.
+        case listening
+        /// Reply is being generated (tool-less completion streaming in).
+        case thinking
+        /// The reply is being read aloud.
+        case speaking
+    }
+
+    /// Current phase, derived from the live flags the card observes. Ordering
+    /// matters: playback (`isSpeaking`) is set only after streaming ends, so
+    /// speaking wins over thinking, and both win over the idle mic-open state.
+    internal var conversationPhase: ConversationPhase {
+        if speechStatus.isSpeaking { return .speaking }
+        if isStreaming || isLocalStreaming || isDraftingHandoff { return .thinking }
+        return .listening
+    }
+
+    /// Caption under the orb: the live partial transcript while listening,
+    /// otherwise the reply the agent is generating / speaking.
+    internal var conversationCaption: String {
+        switch conversationPhase {
+        case .listening:
+            return inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .thinking, .speaking:
+            // In a local discussion the reply being spoken is the local model's,
+            // not the last thing the agent said.
+            if let discussion = localDiscussion {
+                return discussion.turns.last(where: { $0.role == .assistant })?.text
+                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            }
+            return messages.last(where: { $0.role == .assistant })?.content
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+    }
+
+    /// What the user is saying *right now* into an open discussion, before the
+    /// transcriber has finalized it.
+    ///
+    /// The live partial otherwise only exists in the composer at the far bottom of
+    /// the window and in the one-line caption under the orb, so the user's own half
+    /// of a spoken exchange was invisible until it had already been answered. The
+    /// discussion surface shows it as a provisional turn instead, which is what
+    /// makes the thread read as a conversation while it is happening.
+    internal var localDiscussionLiveUtterance: String? {
+        // Nothing said during the write-up is going anywhere (see
+        // `handleDiscussionUtterance`), so it is not shown as about to be.
+        guard localDiscussion != nil, isConversationActive, !isDraftingHandoff else { return nil }
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
+    /// Changes whenever the discussion thread's rendered content does — a new turn,
+    /// another delta into the streaming one, a word added to the live utterance.
+    /// The chat watches it to keep the growing thread in view; without that the
+    /// exchange scrolls off the bottom as it arrives, which is what made a
+    /// conversation that is all there feel like it was disappearing.
+    internal var localDiscussionRenderKey: String {
+        guard let discussion = localDiscussion else { return "" }
+        let tail = discussion.turns.last?.text.count ?? 0
+        let live = localDiscussionLiveUtterance?.count ?? 0
+        return "\(discussion.id)-\(discussion.turns.count)-\(tail)-\(live)-\(isDraftingHandoff)"
+    }
+
+    /// The look the conversation card should render, chosen in Settings.
+    internal var conversationVisual: ConversationVisual { localVoiceService.conversationVisual }
+    /// True between detecting a barge-in (the user spoke over a reply) and that
+    /// utterance being submitted, so the repeated partial transcripts of a
+    /// single interruption only cancel the in-flight turn once.
+    private var isBargingIn = false
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
@@ -485,6 +631,46 @@ final class ChatViewModel: ObservableObject {
     /// while session A was visible must never be applied after a switch to B.
     /// Set on the first append of a batch, cleared on flush/cancel.
     private var pendingVisibleDeltaOwner: String?
+
+    /// An append-only text accumulator with a bounded head.
+    private struct CappedText {
+        private(set) var text = ""
+        /// Tracked as an Int because `String.count` is O(n): recomputing the
+        /// length per token would make a whole background turn quadratic.
+        private(set) var length = 0
+        /// True once the head was trimmed, so the splice can mark the gap.
+        private(set) var didElide = false
+
+        mutating func append(_ chunk: String, cap: Int, lowWater: Int) {
+            guard !chunk.isEmpty else { return }
+            text += chunk
+            length += chunk.count
+            guard length > cap else { return }
+            let drop = length - lowWater
+            text.removeFirst(drop)
+            length -= drop
+            didElide = true
+        }
+    }
+
+    /// What a session streamed while it was NOT on screen. Background delta
+    /// events never touch the transcript (see `applySessionEvent`) because
+    /// appending to `state.messages[idx]` copy-on-write clones the whole array
+    /// per token; the text lands here instead — a String append, no array touch
+    /// — so switching back mid-turn can splice in what was said rather than
+    /// showing an empty bubble for an agent that has been talking the whole time.
+    private struct BackgroundTurnBuffer {
+        var content = CappedText()
+        var thoughts = CappedText()
+    }
+
+    private var backgroundTurnBuffers: [String: BackgroundTurnBuffer] = [:]
+    /// Both fields are superseded at `message.complete` (by `payload.text` and
+    /// the finished thinking trace), so the cap only bounds what a mid-turn
+    /// switch-back displays — nothing is permanently lost by trimming.
+    private static let backgroundTurnTextCap = 64_000
+    private static let backgroundTurnTextLowWater = 48_000
+
     private var perfEventCounts: [String: Int] = [:]
     private var perfLastLog = Date()
     private var perfFlushCount = 0
@@ -558,7 +744,6 @@ final class ChatViewModel: ObservableObject {
         pendingVisibleEventFlush?.cancel()
         pendingVisibleEventFlush = nil
         gatewayClient = client
-        backendCapabilities = client.capabilities
 
         // Subscribe to gateway events. Events are multiplexed over one app-level
         // WebSocket, so only apply events whose session_id matches this chat's
@@ -581,29 +766,7 @@ client.eventStream
         client.connectionStatePublisher
             .receive(on: RunLoop.main)
             .sink { [weak self] state in
-                switch state {
-                case .connected:
-                    self?.error = nil
-                case .reconnecting:
-                    self?.error = nil
-                    self?.needsGatewayResume = true
-                    // Do not mark the active turn as stopped during a transient
-                    // reconnect. The gateway agent may still be running, and
-                    // clearing isStreaming makes later frames look stale.
-                    if self?.isStreaming == true {
-                        self?.avatarState = .thinking
-                    }
-                case .error(let msg):
-                    self?.error = msg
-                    if self?.sessionID == nil {
-                        self?.isSessionReady = false
-                    }
-                    if self?.isStreaming == true {
-                        self?.avatarState = .error
-                    }
-                default:
-                    break
-                }
+                self?.handleConnectionState(state)
             }
             .store(in: &cancellables)
 
@@ -619,29 +782,100 @@ client.eventStream
         // reconnect should not implicitly create an invisible chat that races with
         // the New Session button and leaves the list empty on compact iOS.
         client.onReconnected = { [weak self] in
-            guard let self else { return }
-            if let resumedID = self.gatewayClient?.activeSessionID, self.sessionID != resumedID {
-                self.sessionID = resumedID
-                self.createGeneration += 1
-                self.isSessionReady = true
-                self.error = nil
-} else if let sid = self.sessionID, self.isSessionReady,
-                       self.gatewayClient?.activeSessionID == nil {
-                // Gateway didn't auto-resume — explicitly re-resume so the
-                // session is re-registered and streaming events will flow.
-                let displayID = self.displaySessionID(for: sid)
-                Task {
-                    let _ = try? await self.gatewayClient?.resumeSession(key: displayID)
-                    if let resumedID = self.gatewayClient?.activeSessionID,
-                       self.sessionID != resumedID {
-                        self.sessionID = resumedID
-                    }
-                    self.isSessionReady = true
-                    self.error = nil
-                    self.needsGatewayResume = false
-                }
-            }
+            self?.handleGatewayReconnected()
         }
+    }
+
+    /// React to a gateway connection-state transition. Extracted from the
+    /// `connectionStatePublisher` sink so it can be exercised directly.
+    private func handleConnectionState(_ state: GatewayClient.ConnectionState) {
+        switch state {
+        case .connected:
+            error = nil
+        case .reconnecting:
+            error = nil
+            needsGatewayResume = true
+            // Do not mark the active turn as stopped during a transient
+            // reconnect. The gateway agent may still be running, and
+            // clearing isStreaming makes later frames look stale.
+            if isStreaming {
+                avatarState = .thinking
+            }
+        case .error(let msg):
+            error = msg
+            if sessionID == nil {
+                isSessionReady = false
+            }
+            // Terminal failure: the socket is dead and reconnect is
+            // exhausted, so no turn can still be live and no terminal
+            // frame will ever arrive to settle one. Finalize every
+            // wedged turn — visible and background — so `isStreaming`
+            // clears, the spinner stops, and `submitPrompt`'s
+            // `guard !isStreaming` no longer bars the session. A late
+            // live frame can still re-open a stream (resumesLiveTurn),
+            // so this force-settle is safe. Settle first, THEN paint the
+            // error avatar: finalize routes the visible turn through
+            // `finishStreaming`, which resets the avatar to `.idle`, so
+            // an earlier `.error` assignment would be clobbered. Only paint
+            // it when a turn was actually in flight — an idle session should
+            // not sprout an error face on a background reconnect failure.
+            let hadLiveTurn = isStreaming
+            finalizeAllStuckStreamingTurns(status: "error")
+            if hadLiveTurn {
+                avatarState = .error
+            }
+        default:
+            break
+        }
+    }
+
+    /// Reconcile local state with the gateway after a reconnect. Session
+    /// creation is explicit from the Sessions UI; reconnect should not
+    /// implicitly create an invisible chat that races with the New Session
+    /// button and leaves the list empty on compact iOS. Extracted from the
+    /// `onReconnected` closure so it can be exercised directly.
+    private func handleGatewayReconnected() {
+        // The gateway may auto-resume into a (possibly renamed) runtime id.
+        if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID {
+            sessionID = resumedID
+            createGeneration += 1
+            isSessionReady = true
+            error = nil
+        }
+        // Reconcile the visible session's turn against the gateway. A socket
+        // that dropped mid-turn took the live event stream with it, so the
+        // turn's terminal `message.complete` was emitted into a dead socket
+        // and is never redelivered. `resumeSession` re-seeds the shell if the
+        // turn is genuinely still running and settles it — clearing the
+        // spinner, restoring usage/model metadata — if the gateway reports it
+        // finished. The old code only re-resumed when the gateway had NOT
+        // auto-resumed; a turn streaming at drop time on an auto-resumed
+        // session was left spinning forever, with `submitPrompt`'s
+        // `guard !isStreaming` then wedging the session for good.
+        guard let sid = sessionID, isSessionReady else {
+            needsGatewayResume = false
+            return
+        }
+        Task { await reconcileTurnAfterReconnect(displayID: displaySessionID(for: sid)) }
+    }
+
+    /// Re-resume the visible session after a reconnect so its turn is either
+    /// re-seeded (still live on the gateway) or settled (finished during the
+    /// gap, its terminal frame lost with the dead socket). Split out of
+    /// `handleGatewayReconnected` so the async reconcile is awaitable in tests.
+    private func reconcileTurnAfterReconnect(displayID: String) async {
+        let generation = beginSwitchToSession(key: displayID)
+        let resumed = await resumeSession(
+            key: displayID,
+            generation: generation,
+            finalizeMissingInflight: true
+        )
+        if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID {
+            sessionID = resumedID
+        }
+        isSessionReady = true
+        error = nil
+        if resumed { needsGatewayResume = false }
     }
 
     /// The session ID currently active in this chat view.
@@ -717,8 +951,47 @@ client.eventStream
         sessionStates[displaySessionID(for: sessionID)]?.activeToolCalls
     }
 
+    internal func cachedMessagesForTesting(sessionID: String) -> [ChatMessage]? {
+        sessionStates[displaySessionID(for: sessionID)]?.messages
+    }
+
+    /// Text retained for a session that streamed while it was off screen, before
+    /// a switch-back splices it into the transcript.
+    internal func retainedBackgroundTextForTesting(
+        sessionID: String
+    ) -> (content: String, thoughts: String)? {
+        guard let buffer = backgroundTurnBuffers[displaySessionID(for: sessionID)] else { return nil }
+        return (buffer.content.text, buffer.thoughts.text)
+    }
+
     internal var streamingSessionIDsForTesting: Set<String> {
         Set(sessionStates.filter { $0.value.isStreaming }.keys)
+    }
+
+    /// Drive a connection-state transition exactly as the
+    /// `connectionStatePublisher` sink does.
+    internal func handleConnectionStateForTesting(_ state: GatewayClient.ConnectionState) {
+        handleConnectionState(state)
+    }
+
+    /// Run the synchronous reconnect reconciliation (id adoption + guard).
+    internal func handleGatewayReconnectedForTesting() {
+        handleGatewayReconnected()
+    }
+
+    /// Await the async post-reconnect turn reconcile directly.
+    internal func reconcileTurnAfterReconnectForTesting(displayID: String) async {
+        await reconcileTurnAfterReconnect(displayID: displayID)
+    }
+
+    /// Force-settle a single background session's wedged turn.
+    internal func finalizeStuckStreamingTurnForTesting(sessionID: String, status: String) {
+        finalizeStuckStreamingTurn(displayID: displaySessionID(for: sessionID), status: status)
+    }
+
+    /// Force-settle every wedged turn — visible and background.
+    internal func finalizeAllStuckStreamingTurnsForTesting(status: String) {
+        finalizeAllStuckStreamingTurns(status: status)
     }
 
     /// Link the active short-lived gateway ID with the stable database ID shown
@@ -896,6 +1169,45 @@ client.eventStream
         return true
     }
 
+    /// Rebuild the live streaming shell for a session whose turn was already
+    /// running server-side when this client resumed it.
+    ///
+    /// The resuming client never observed the turn's `message.start`, which is
+    /// what normally appends the empty assistant bubble and sets
+    /// `streamingMessageID` + `isStreaming`. Without that shell, `applySessionEvent`
+    /// finds no message for the running turn's `message.delta` (it appends to the
+    /// message named by `streamingMessageID`), and its drop guard silently
+    /// discards every live-turn frame once the session is "known" and shows
+    /// `isStreaming == false`. The user clicks in and sees no tools, thinking,
+    /// thought graph or answer stream in. Seed the shell from the gateway's
+    /// in-flight snapshot so the running turn attaches and streams the rest live;
+    /// the terminal `message.complete` replaces `partial` with the full text.
+    ///
+    /// Idempotent: if a streaming shell already exists (we watched this turn
+    /// start, or a prior seed ran) it only re-asserts `isStreaming` rather than
+    /// stacking a second assistant bubble on the same turn.
+    private func seedResumedLiveTurn(displayID: String, partial: String) {
+        var state = sessionStates[displayID] ?? SessionRuntimeState()
+        if let msgID = state.streamingMessageID,
+           state.messages.contains(where: { $0.id == msgID }) {
+            state.isStreaming = true
+            state.isSessionReady = true
+            sessionStates[displayID] = state
+            return
+        }
+        let shell = ChatMessage(role: .assistant, content: partial, isStreaming: true)
+        state.messages.append(shell)
+        state.streamingMessageID = shell.id
+        state.isStreaming = true
+        state.isSessionReady = true
+        if state.avatarState == .idle { state.avatarState = .speaking }
+        sessionStates[displayID] = state
+        // Fold in any deltas retained between the resume RPC and the shell
+        // existing (they were bucketed under this display id with no shell to
+        // land in); now the shell owns them.
+        adoptBackgroundTurnBuffer(for: displayID)
+    }
+
     private func mutateSessionState(for eventSessionID: String, _ mutation: (inout SessionRuntimeState) -> Void) {
         let displayID = displaySessionID(for: eventSessionID)
         var state = sessionStates[displayID] ?? SessionRuntimeState()
@@ -920,6 +1232,13 @@ client.eventStream
             return
         }
         isCreatingSession = true
+        // MUST be a defer: the best-effort RPCs below (`session.set_prompt`,
+        // skills, model) can outlive a wedged socket, and a `= false` at the
+        // bottom of the body never runs when one of them parks. A latched
+        // `isCreatingSession` makes every later New Session press a silent
+        // no-op that only re-displays the previous error — "unable to start
+        // new sessions".
+        defer { isCreatingSession = false }
         do {
             let sid = try await client.createSession(cols: 120)
             log.info("ChatViewModel createSession succeeded sid=\(sid)")
@@ -936,6 +1255,18 @@ client.eventStream
             self.isStreaming = false
             self.avatarState = .idle
             self.error = nil
+            // A session created on the live socket is already registered with
+            // the gateway — there is nothing to resume. Leaving the flag set
+            // (any earlier `.reconnecting` turns it on, and the gateway resets
+            // connections periodically) sent the session's FIRST prompt through
+            // the auto-resume gate in `submitPrompt`, which resumes by
+            // `displaySessionID` — for a fresh session that is still the short
+            // runtime hex, not the database-format ID `session.resume` wants.
+            // The resume was rejected, the prompt was dropped, and the create
+            // status bar reported "Session connection lost. Please try again."
+            // A new session could therefore never take its first turn, while
+            // sessions from `session.list` (already DB-keyed) worked fine.
+            self.needsGatewayResume = false
             cancelPendingFlush()
             snapshotCurrentSessionState()
 
@@ -945,13 +1276,8 @@ client.eventStream
         } catch {
             self.error = "Session create failed: \(error.localizedDescription)"
         }
-        isCreatingSession = false
     }
 
-    /// Starts a user-visible switch immediately from local cache and returns a
-    /// generation token. Call `resumeSession(key:generation:)` to revalidate the
-    /// same selection from the gateway; stale generations are ignored.
-    @discardableResult
     /// The turn-scoped graph integrators (subagent lanes, reasoning beats,
     /// compaction folds) belong to the VISIBLE session's live turn, but they
     /// are only reset when a turn STARTS while its session is visible. A
@@ -972,6 +1298,9 @@ client.eventStream
         currentTurnCompactions = []
     }
 
+    /// Starts a user-visible switch immediately from local cache and returns a
+    /// generation token. Call `resumeSession(key:generation:)` to revalidate the
+    /// same selection from the gateway; stale generations are ignored.
     func beginSwitchToSession(key: String) -> Int {
         flushPendingVisibleEventDeltas()
         snapshotCurrentSessionState()
@@ -985,7 +1314,11 @@ client.eventStream
         sessionSwitchGeneration += 1
         let generation = sessionSwitchGeneration
 
-if restoreSessionState(displayID: key) {
+        // Fold in whatever this session streamed while it was off screen BEFORE
+        // publishing its state, so the switch renders the live turn as it stands
+        // instead of the empty shell `message.start` left behind.
+        adoptBackgroundTurnBuffer(for: key)
+        if restoreSessionState(displayID: key) {
             fillModelBadgeIfEmpty()
             return generation
         }
@@ -1037,7 +1370,11 @@ if restoreSessionState(displayID: key) {
     }
 
     @discardableResult
-    func resumeSession(key: String, generation: Int) async -> Bool {
+    internal func resumeSession(
+        key: String,
+        generation: Int,
+        finalizeMissingInflight: Bool = false
+    ) async -> Bool {
         guard let client = gatewayClient else {
             if generation == sessionSwitchGeneration {
                 self.error = "No harness client"
@@ -1062,7 +1399,7 @@ if restoreSessionState(displayID: key) {
         let cachedBeforeResume = sessionStates[key]
 
         do {
-            let result = try await client.resumeSession(key: key)
+            let result = try await client.resumeSessionDetailed(key: key)
             guard generation == sessionSwitchGeneration else {
                 log.info("ignoring stale resume for \(key) generation=\(generation) current=\(self.sessionSwitchGeneration)")
                 return false
@@ -1086,6 +1423,10 @@ if restoreSessionState(displayID: key) {
                 }
                 return parsed
             }.value
+            // The resume RPC is async, so more background tokens can have
+            // arrived since `beginSwitchToSession` adopted: fold them in before
+            // reading the cache, or they are judged stale and thrown away below.
+            adoptBackgroundTurnBuffer(for: key)
             if !parsedMessages.isEmpty {
                 if var liveState = sessionStates[key], liveState.isStreaming {
                     // The gateway history returned by session.resume is a persisted
@@ -1098,12 +1439,23 @@ if restoreSessionState(displayID: key) {
                     // (see applySessionEvent), so the cached state may only contain
                     // the empty assistant placeholder from messageStart.  When the
                     // cache is stale (no assistant message with content), fall back
-                    // to the gateway's persisted history.
+                    // to the gateway's persisted history — but CARRY THE LIVE TURN
+                    // ACROSS IT. A straight `liveState.messages = parsedMessages`
+                    // deletes the shell that `streamingMessageID` names, and every
+                    // later delta and the terminal `message.complete` find their
+                    // message by that id: the turn's remaining thinking, its tool
+                    // stamps and its final answer were all then dropped on the
+                    // floor, so a session clicked back into mid-turn stayed frozen
+                    // on the thought it was on when the user left.
                     let cachedHasContent = liveState.messages.contains(where: {
                         $0.role == .assistant && (!$0.isStreaming || !$0.content.isEmpty)
                     })
                     if !cachedHasContent {
-                        liveState.messages = parsedMessages
+                        let tail = Self.liveTurnTail(
+                            of: liveState.messages,
+                            streamingID: liveState.streamingMessageID
+                        )
+                        liveState.messages = Self.appendLiveTurnTail(tail, to: parsedMessages)
                     }
                     liveState.isSessionReady = true
                     sessionStates[key] = liveState
@@ -1132,6 +1484,29 @@ if restoreSessionState(displayID: key) {
                         isSessionReady: true
                     )
                 }
+            }
+
+            // The gateway resumed us INTO a turn that is still running (an
+            // artifact-intent spawn the user clicked into, or a turn started on
+            // another device). We never saw its `message.start`, so rebuild the
+            // streaming shell now — otherwise every delta/thinking/tool/subagent
+            // event for it is dropped for want of a message to attach to, and the
+            // opened session shows the row but nothing streaming in.
+            if let inflight = result.inflight, inflight.isStreaming {
+                seedResumedLiveTurn(displayID: key, partial: inflight.assistantPartial)
+            } else if finalizeMissingInflight, sessionStates[key]?.isStreaming == true {
+                // Resumed into a session local state still believes is
+                // streaming, but the gateway reports no in-flight turn: the turn
+                // finished or its live event stream was lost across a disconnect,
+                // and its terminal `message.complete` will never arrive. Settle
+                // it here so the spinner clears and the usage/model metadata can
+                // refresh — otherwise the turn hangs and blocks the session.
+                // Only reconnect reconciliation may make this inference. A normal
+                // switch-back also resumes persisted history, whose missing
+                // in-flight snapshot does not prove that a locally observed turn
+                // stopped; settling there destroys its live shell and drops all
+                // later deltas and the terminal frame.
+                finalizeStuckStreamingTurn(displayID: key, status: "interrupted")
             }
 
             if !restoreSessionState(displayID: key, runtimeID: result.sessionID) {
@@ -1165,37 +1540,16 @@ if restoreSessionState(displayID: key) {
     }
 
     private func applyEphemeralPrompt(for sessionID: String, using client: any AgentBackend) async {
-        guard client.capabilities.supportsResponseStyles else { return }
         let prompt = Self.appFormattingPrompt + "\n\n" + responseStyle.preamble
         try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
     }
 
-    /// Sessions that already received the formatting prompt inline (backends
-    /// with no system-prompt channel). In-memory: harness threads have
-    /// conversational memory, so once per session per launch is enough — a
-    /// re-send after app restart is redundant but harmless.
-    private var inlineFormattingPromptSent: Set<String> = []
-
-    /// The formatting contract for backends that can't take an ephemeral
-    /// system prompt (Centaur): folded into the FIRST user message of the
-    /// session instead. Without this the harness model never learns the
-    /// app's native fences (```chart/graph/stats/tree, typeset math, diff
-    /// rendering) and answers in plain markdown — "Centaur doesn't support
-    /// the pretty viz" was exactly this gap, not a renderer limitation.
-    private func inlineFormattingPreamble(for sessionID: String) -> String {
-        guard !backendCapabilities.supportsResponseStyles,
-              !inlineFormattingPromptSent.contains(sessionID) else { return "" }
-        inlineFormattingPromptSent.insert(sessionID)
-        return Self.appFormattingPrompt + "\n\n---\n\n"
-    }
-
     /// Route a newly created session to the user's last-picked model. No-op
-    /// when the user never picked one (gateway default stays in charge) or
-    /// the backend can't switch models. Best-effort like the ephemeral
-    /// prompt: session.info remains the source of truth for the badge.
+    /// when the user never picked one (harness default stays in charge).
+    /// Best-effort like the ephemeral prompt: session.info remains the source
+    /// of truth for the badge.
     private func applyDefaultModel(for sessionID: String, using client: any AgentBackend) async {
-        guard backendCapabilities.supportsModelSwitching,
-              let model = AgentModel.storedDefaultID else { return }
+        guard let model = AgentModel.storedDefaultID else { return }
         try? await client.setConfig(key: "model", value: model, sessionID: sessionID)
     }
 
@@ -1263,14 +1617,6 @@ if restoreSessionState(displayID: key) {
     /// Call this whenever `inputText` changes to update slash suggestions.
     func updateSlashSuggestions() {
         let text = inputText
-        // Skills are Hermes gateway state; offering them on a harness
-        // backend would attach nothing (setSessionSkills is a no-op there).
-        guard backendCapabilities.supportsSkills else {
-            slashMode = false
-            slashSuggestions = []
-            slashSelectedIndex = 0
-            return
-        }
         guard text.hasPrefix("/") else {
             slashMode = false
             slashSuggestions = []
@@ -1520,9 +1866,67 @@ if restoreSessionState(displayID: key) {
         return merged
     }
 
+    /// The uncommitted tail of a live turn: the streaming assistant shell plus
+    /// the prompt that opened it (and anything in between).
+    ///
+    /// `session.resume` returns a PERSISTED snapshot, which by definition cannot
+    /// contain the turn still running. Adopting that snapshot wholesale destroys
+    /// the shell, and the shell's identity is what `streamingMessageID` — and so
+    /// every remaining delta and the terminal `message.complete` — looks up.
+    /// Splicing this tail back on keeps that identity alive across the resume.
+    nonisolated internal static func liveTurnTail(
+        of messages: [ChatMessage],
+        streamingID: UUID?
+    ) -> [ChatMessage] {
+        guard let streamingID,
+              let shellIndex = messages.firstIndex(where: { $0.id == streamingID }) else { return [] }
+        // Walk back to the prompt that opened the turn so the spliced tail reads
+        // as a question and its answer, not an answer with nothing above it.
+        var start = shellIndex
+        var index = shellIndex - 1
+        while index >= 0 {
+            if messages[index].role == .user {
+                start = index
+                break
+            }
+            index -= 1
+        }
+        return Array(messages[start...])
+    }
+
+    /// Append a live-turn tail to freshly resumed history, dropping a duplicated
+    /// leading user bubble — the gateway usually persists the prompt as soon as
+    /// the turn starts, so the tail's first message is often already `history`'s
+    /// last entry, and appending blindly shows the prompt twice.
+    nonisolated internal static func appendLiveTurnTail(
+        _ tail: [ChatMessage],
+        to history: [ChatMessage]
+    ) -> [ChatMessage] {
+        guard !tail.isEmpty else { return history }
+        var pending = tail
+        if let first = pending.first, first.role == .user,
+           let last = history.last, last.role == .user,
+           last.content == first.content {
+            pending.removeFirst()
+        }
+        return history + pending
+    }
+
     nonisolated internal static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
         var messages: [ChatMessage] = []
         var currentToolCalls: [ToolCallRecord] = []
+        /// History entries carry no tool_call_id, so the id is synthesized — and
+        /// it must be UNIQUE, because it becomes SwiftUI's `ForEach` identity in
+        /// the tool trail. It used to be `hist_\(messages.count)`, which does not
+        /// change across a run of consecutive tool entries: every tool in a turn
+        /// got the same id and they all landed in ONE message's `toolCalls`. A
+        /// resumed session then logged hundreds of "the ID hist_3 occurs multiple
+        /// times within the collection, this will give undefined results!" and
+        /// SwiftUI rebuilt rows instead of diffing them — CALayer insert storms
+        /// that pinned the main thread (watchdog: 21 hangs, 275–647ms, one
+        /// 95%-busy storm) for as long as the transcript stayed on screen. A
+        /// monotonic counter is the whole fix.
+        var toolSequence = 0
 
         for raw in rawMessages {
             guard let roleStr = raw["role"]?.stringValue else { continue }
@@ -1554,7 +1958,8 @@ if restoreSessionState(displayID: key) {
             case "tool":
                 let name = raw["name"]?.stringValue ?? "tool"
                 let context = raw["context"]?.stringValue
-                let toolID = "hist_\(messages.count)"
+                let toolID = "hist_\(toolSequence)"
+                toolSequence += 1
                 currentToolCalls.append(ToolCallRecord(
                     id: toolID,
                     name: name,
@@ -1733,6 +2138,16 @@ if restoreSessionState(displayID: key) {
             log.info("Auto-resume before submit: key=\(key)")
             if await resumeSession(key: key) {
                 needsGatewayResume = false
+            } else if case .connected = client.connectionState {
+                // The resume failed on a LIVE socket, so "connection lost" is a
+                // guess — and a wrong one for a session the gateway can't
+                // resume by this key (a fresh session is keyed by its short
+                // runtime hex until a `session.title` event resolves the
+                // database ID `session.resume` expects). Refusing to send here
+                // dropped the prompt and blamed the transport. Send it and let
+                // `prompt.submit` report the real failure if there is one.
+                log.info("Resume failed but socket is connected — submitting anyway")
+                self.error = nil
             } else {
                 self.error = "Session connection lost. Please try again."
                 return
@@ -1809,8 +2224,16 @@ if restoreSessionState(displayID: key) {
             }
 
             log.info("Submitting prompt with \(attachments.count) attachments, text length: \(promptText.count)")
-            let promptWithSkills = inlineFormattingPreamble(for: sid) + skillPreamble() + promptText
-            try await client.submitPrompt(sessionID: sid, text: promptWithSkills)
+            let promptWithSkills = skillPreamble() + promptText
+            // A spoken back-and-forth is a conversation, not an action request:
+            // route conversation-mode turns through the tool-less chat path
+            // (plain completion, no tool loop) so replies come back fast. Typed
+            // prompts and one-shot dictation keep the full tool-enabled agent.
+            // Backends without a chat path fall back to a normal turn.
+            try await client.submitPrompt(sessionID: sid, text: promptWithSkills, chatMode: isConversationActive)
+            // The gateway accepted a prompt for this session, so it is live and
+            // registered — don't re-run the resume gate on the next turn.
+            needsGatewayResume = false
         } catch {
             log.error("Submit failed: \(error.localizedDescription)")
             self.error = error.localizedDescription
@@ -1823,8 +2246,8 @@ if restoreSessionState(displayID: key) {
     /// Start VAD-bounded voice recording. The gateway captures audio, runs
     /// STT, and emits a `voice.transcript` event which is auto-submitted.
     internal func startVoiceRecording() async {
+        if await startLocalVoiceRecordingIfEnabled() { return }
         guard let client = gatewayClient else { return }
-        guard backendCapabilities.supportsVoice else { return }
         guard !isVoiceRecording else { return }
         do {
             _ = try await client.voiceToggle(action: "on")
@@ -1837,8 +2260,470 @@ if restoreSessionState(displayID: key) {
         }
     }
 
+    /// Route the mic button to on-device transcription when the user enabled it
+    /// on a supported build. Returns true when it took over, so the gateway path
+    /// is skipped. The final transcript arrives via `onFinalTranscript` and is
+    /// submitted exactly like a gateway `voice.transcript`.
+    internal func startLocalVoiceRecordingIfEnabled() async -> Bool {
+        guard localVoiceService.isEnabledAndAvailable else { return false }
+        guard !isVoiceRecording else { return true }
+        // A single tap honors the Conversation-mode setting; a deliberate
+        // double-tap (see `startVoiceConversation`) forces it on for the session.
+        await beginLocalCapture(conversation: localVoiceService.conversationMode)
+        return true
+    }
+
+    /// Start a hands-free conversation on demand — the double-tap entry point —
+    /// regardless of the Conversation-mode setting. Lets the user drop into a
+    /// spoken back-and-forth about a response without visiting Settings first.
+    internal func startVoiceConversation() async {
+        guard localVoiceService.isEnabledAndAvailable else { return }
+        guard !isConversationActive else { return }
+        // Abandon any one-shot capture already in flight so the double-tap
+        // cleanly upgrades it into a conversation.
+        if isVoiceRecording {
+            await localVoiceService.cancel()
+            isVoiceRecording = false
+        }
+        await beginLocalCapture(conversation: true)
+    }
+
+    /// Wire the transcript callbacks and open the mic. Shared by the one-shot
+    /// and conversation entry points. A conversation opens a *continuous*
+    /// capture (mic stays live across turns) so the exchange is truly hands-free
+    /// and the user can talk over a reply; a one-shot capture stops at
+    /// end-of-utterance as before.
+    private func beginLocalCapture(conversation: Bool) async {
+        if conversation {
+            isConversationActive = true
+            isBargingIn = false
+            // A conversation is a *spoken* exchange — make sure replies are read
+            // back, otherwise there's nothing to converse with.
+            conversationSpeaker.isEnabled = true
+        }
+        localVoiceService.onFinalTranscript = { [weak self] text in
+            Task { @MainActor in await self?.submitLocalVoiceTranscript(text) }
+        }
+        localVoiceService.onPartialTranscript = { [weak self] text in
+            Task { @MainActor in self?.handleLocalVoicePartial(text) }
+        }
+        localVoiceService.onAudioLevel = { [weak self] level in
+            self?.updateVoiceLevel(level)
+        }
+        inputText = ""
+        voiceLevel = 0
+        isVoiceRecording = true
+        if conversation {
+            await localVoiceService.startConversation()
+        } else {
+            await localVoiceService.start()
+        }
+    }
+
+    /// Mirror the live partial into the composer, and — in a conversation —
+    /// detect a barge-in: the user talking while a reply is still streaming or
+    /// being spoken. That cancels the in-flight turn and stops playback so the
+    /// new utterance supersedes it. `isBargingIn` collapses the many partials of
+    /// one interruption into a single cancel.
+    private func handleLocalVoicePartial(_ text: String) {
+        inputText = text
+        guard isConversationActive, !isBargingIn else { return }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard isStreaming || isLocalStreaming || speechStatus.isSpeaking else { return }
+        isBargingIn = true
+        // In a local discussion there is no gateway turn to interrupt — the things
+        // to stop are the on-device generation and the voice reading it. The
+        // speaker is stopped explicitly because a finished reply is still being
+        // read long after there is any generation left to cancel.
+        if localDiscussion != nil {
+            cancelLocalReply()
+            conversationSpeaker.stop()
+        } else {
+            Task { await interrupt() }
+        }
+    }
+
+    /// Fold each raw per-buffer mic level into `voiceLevel`. An exponential
+    /// moving average tames the ~10 Hz buffer jitter so the orb pulses smoothly
+    /// with the voice instead of strobing.
+    private func updateVoiceLevel(_ raw: Float) {
+        let clamped = max(0, min(1, raw))
+        voiceLevel = voiceLevel * 0.7 + clamped * 0.3
+    }
+
+    /// Submit an on-device transcript as the user's prompt, mirroring the
+    /// gateway `voice.transcript` handler. In a conversation the mic stays open
+    /// (continuous capture), so recording is not stopped and an empty utterance
+    /// simply keeps listening; a one-shot dictation stops here.
+    internal func submitLocalVoiceTranscript(_ text: String) async {
+        isBargingIn = false
+        if !isConversationActive { isVoiceRecording = false }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            inputText = ""
+            return
+        }
+        inputText = trimmed
+        // An open local discussion is the sink for spoken input: the whole point
+        // is that these turns cost nothing and never touch the session.
+        if localDiscussion != nil {
+            await handleDiscussionUtterance(trimmed)
+            return
+        }
+        await submitPrompt()
+    }
+
+    /// Called when a reply completes (`messageComplete`). With continuous
+    /// capture the mic never closed, so the next utterance is already being
+    /// listened for — there's nothing to reopen. Just clear the barge-in latch
+    /// in case a turn ended without one.
+    internal func handleConversationResponseComplete() {
+        guard isConversationActive else { return }
+        isBargingIn = false
+    }
+
+    /// End a hands-free conversation: silence any spoken reply, abandon the
+    /// current capture without submitting, and return the mic to idle.
+    internal func endConversation() async {
+        isConversationActive = false
+        isBargingIn = false
+        isVoiceRecording = false
+        voiceLevel = 0
+        conversationSpeaker.stop()
+        // A local discussion only exists as a spoken exchange, so closing the mic
+        // closes it too rather than leaving it open with no way to talk. It stays
+        // resumable — the mic going away is not the user disowning the exchange.
+        if localDiscussion != nil { await setAsideLocalDiscussion() }
+        await localVoiceService.cancel()
+    }
+
+    // MARK: - Local discussion
+
+    /// Open a spoken side-discussion about one assistant reply, running entirely
+    /// on this machine.
+    ///
+    /// This is the "Reply A, B, or C" case: instead of having the whole answer
+    /// read at you, you talk it over — for free, with no gateway turn and nothing
+    /// added to the transcript — and then hand the conclusion back to the agent
+    /// (`handLocalDiscussionToAgent`). Re-opening on the same message resumes the
+    /// exchange; opening on a different one starts fresh.
+    ///
+    /// Hands-free when on-device transcription is available; otherwise the
+    /// discussion surface's text field is the input and the reply is still spoken.
+    internal func startLocalDiscussion(about message: ChatMessage) async {
+        guard localChatService.isEnabledAndAvailable else { return }
+        let anchor = message.contentWithoutAttachments.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !anchor.isEmpty else { return }
+
+        if localDiscussion?.id != message.id {
+            if localDiscussion != nil { await setAsideLocalDiscussion() }
+            localDiscussion = setAsideDiscussions[message.id]?.resuming() ?? LocalDiscussion(
+                anchorID: message.id,
+                anchorText: anchor,
+                options: LocalDiscussion.detectOptions(in: anchor),
+                briefing: currentBriefing()
+            )
+        }
+        await openDiscussionSurface()
+    }
+
+    /// Open a discussion with no reply to anchor to — the composer's own discuss
+    /// button.
+    ///
+    /// This is the forward-facing direction: talk through what you are about to
+    /// ask for before spending a gateway turn on it. Whatever is in the composer
+    /// comes along as the draft, and an empty composer is a perfectly good start —
+    /// "what are we working on today?" is answered from the session briefing.
+    /// Re-tapping resumes the open discussion instead of restarting it, which also
+    /// keeps the engine's KV cache warm.
+    internal func startLocalDiscussion() async {
+        guard localChatService.isEnabledAndAvailable else { return }
+        // An anchored discussion is about something else entirely; don't quietly
+        // fold the composer's draft into it.
+        if localDiscussion?.isAnchored == true { await setAsideLocalDiscussion() }
+        if localDiscussion == nil {
+            let draft = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+            localDiscussion = resumableComposerDiscussion(draft: draft) ?? LocalDiscussion(
+                anchorID: composerDiscussionID,
+                draftText: draft,
+                briefing: currentBriefing()
+            )
+        }
+        await openDiscussionSurface()
+    }
+
+    /// The set-aside composer discussion, when picking it back up is what the user
+    /// means. A composer whose text has changed since is a different ask, so that
+    /// starts fresh rather than answering about a draft that's no longer there.
+    private func resumableComposerDiscussion(draft: String) -> LocalDiscussion? {
+        guard let kept = setAsideDiscussions[composerDiscussionID], !kept.turns.isEmpty else { return nil }
+        guard draft.isEmpty || draft == kept.draftText else { return nil }
+        return kept.resuming()
+    }
+
+    /// Load the model and open the mic. Shared by both entry points.
+    private func openDiscussionSurface() async {
+        // Start the (possibly multi-gigabyte) load now so the first question isn't
+        // also waiting on weights.
+        localChatService.prepare()
+        conversationSpeaker.isEnabled = true
+        if localVoiceService.isEnabledAndAvailable, !isVoiceRecording {
+            await beginLocalCapture(conversation: true)
+        }
+    }
+
+    /// Digest the other sessions for the local model. Read at open time rather
+    /// than kept live: the instructions are held constant for the whole exchange
+    /// so the engine can reuse one chat session.
+    private func currentBriefing() -> LocalDiscussionBriefing {
+        LocalDiscussionBriefing.build(
+            from: recentSessionsProvider(),
+            currentSessionID: currentSessionID
+        )
+    }
+
+    /// Ask the local model something typed rather than spoken — the fallback path
+    /// on builds without on-device transcription, and the way to correct a
+    /// mis-transcribed question.
+    internal func submitLocalDiscussionInput(_ text: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, localDiscussion != nil else { return }
+        await handleDiscussionUtterance(trimmed)
+    }
+
+    /// Route one thing the user said inside an open discussion.
+    ///
+    /// "Okay, let's submit" is not a question for the local model — it is the end
+    /// of the conversation and the start of the real turn. Catching it here is what
+    /// lets a hands-free discussion finish hands-free, instead of asking the user to
+    /// stop talking and find a button at the exact moment they have decided what
+    /// they want. Anything else is another free local turn.
+    ///
+    /// Only once there is an exchange to hand over: before that, "go" is far more
+    /// likely to be the start of a thought than the end of one.
+    private func handleDiscussionUtterance(_ trimmed: String) async {
+        guard let discussion = localDiscussion else { return }
+        // The conversation is over once the write-up starts. Anything the mic hears
+        // now — the tail of the user's own sentence, the room — would otherwise
+        // start a second generation against the same engine while the prompt is
+        // being written, and the handoff would lose the race to it.
+        guard !isDraftingHandoff else {
+            inputText = ""
+            return
+        }
+        guard discussion.hasExchange, LocalDiscussionCloseOut.isCloseOut(trimmed) else {
+            await respondLocally(to: trimmed)
+            return
+        }
+        inputText = ""
+        await handLocalDiscussionToAgent()
+    }
+
+    /// Generate one local reply, streaming it into the discussion and out through
+    /// the synthesizer as it arrives.
+    private func respondLocally(to prompt: String) async {
+        guard var discussion = localDiscussion else { return }
+        cancelLocalReply()
+        discussion.turns.append(LocalDiscussionTurn(role: .user, text: prompt))
+        let replyID = UUID()
+        discussion.turns.append(LocalDiscussionTurn(id: replyID, role: .assistant, text: "", isStreaming: true))
+        localDiscussion = discussion
+        inputText = ""
+        isLocalStreaming = true
+
+        // Instructions are computed once and held constant for the exchange: the
+        // engine reuses its chat session (and KV cache) while they match.
+        let instructions = discussion.instructions()
+        let task = Task { [weak self] in
+            guard let self else { return }
+            let result = await self.localChatService.respond(instructions: instructions, to: prompt) { [weak self] delta in
+                self?.appendLocalDelta(delta, turnID: replyID)
+            }
+            self.finishLocalReply(result, turnID: replyID)
+        }
+        localReplyTask = task
+        await task.value
+        if localReplyTask == task { localReplyTask = nil }
+    }
+
+    private func appendLocalDelta(_ delta: String, turnID: UUID) {
+        guard var discussion = localDiscussion,
+              let index = discussion.turns.firstIndex(where: { $0.id == turnID }) else { return }
+        discussion.turns[index].text += delta
+        localDiscussion = discussion
+        // Sentence-by-sentence while it generates, when the user has that on;
+        // otherwise the whole reply is spoken once it lands (`finishLocalReply`).
+        if conversationSpeaker.speaksWhileStreaming {
+            conversationSpeaker.streamDelta(delta, messageID: turnID)
+        }
+    }
+
+    private func finishLocalReply(_ result: Result<String, Error>, turnID: UUID) {
+        isLocalStreaming = false
+        isBargingIn = false
+        guard var discussion = localDiscussion,
+              let index = discussion.turns.firstIndex(where: { $0.id == turnID }) else { return }
+        discussion.turns[index].isStreaming = false
+        switch result {
+        case .success(let reply):
+            // The cleaned full reply is authoritative: a reasoning block split
+            // across deltas can only be resolved once the stream has ended.
+            discussion.turns[index].text = reply
+            if conversationSpeaker.speaksWhileStreaming {
+                conversationSpeaker.finishStreaming(messageID: turnID)
+            } else {
+                conversationSpeaker.speak(reply)
+            }
+        case .failure:
+            // A reply cut off by barge-in keeps what was said; one that produced
+            // nothing leaves no empty bubble behind (the service holds the error).
+            if discussion.turns[index].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                discussion.turns.remove(at: index)
+            }
+        }
+        localDiscussion = discussion
+    }
+
+    /// Stop an in-flight local reply, keeping the discussion open.
+    private func cancelLocalReply() {
+        guard localReplyTask != nil || isLocalStreaming else { return }
+        localReplyTask?.cancel()
+        localReplyTask = nil
+        isLocalStreaming = false
+        conversationSpeaker.stop()
+    }
+
+    /// Take the discussion's conclusion forward: the local model writes up the ask,
+    /// and that goes to the agent as a real turn.
+    ///
+    /// This is the output the conversation exists to produce. Both directions
+    /// submit — anchored to a reply and started from the composer alike — because
+    /// "okay, let's submit" has to actually continue the session; a prompt parked
+    /// in the composer waiting for a keystroke is not a conclusion. The exchange
+    /// travels with the ask as its reasoning.
+    ///
+    /// The hands-free conversation ends here rather than staying open for the
+    /// reply, for two reasons that are really one: this turn is *work*, not chat.
+    /// A conversation-mode turn is routed through the gateway's tool-less path
+    /// (`submitPrompt`), which would have the agent answer the ask instead of
+    /// carrying it out; and an open mic during an agentic turn treats the next
+    /// cough as a barge-in and interrupts the agent mid-task.
+    ///
+    /// The discussion is set aside rather than deleted, so the thread is still there
+    /// to pick up after the agent has replied.
+    internal func handLocalDiscussionToAgent() async {
+        guard localDiscussion?.hasExchange == true, !isDraftingHandoff else { return }
+        // Whatever the local model was still saying is now beside the point; the
+        // next thing to be read aloud is the agent's reply. Read the exchange back
+        // after cancelling, so a half-spoken reply is carried as far as it got.
+        cancelLocalReply()
+        guard let discussion = localDiscussion else { return }
+
+        isDraftingHandoff = true
+        let drafting = Task { [weak self] () -> String? in
+            guard let self else { return nil }
+            return await self.draftHandoffAsk(for: discussion)
+        }
+        handoffDraftTask = drafting
+        let ask = await drafting.value
+        handoffDraftTask = nil
+        isDraftingHandoff = false
+        // The user closed the discussion while the write-up was running, which
+        // cancelled it. Their tap wins — nothing is submitted.
+        guard localDiscussion?.id == discussion.id else { return }
+
+        let prompt = discussion.handoffPrompt(ask: ask)
+        // Closing the conversation sets the discussion aside with it; without a mic
+        // there is only the discussion to put away.
+        if isConversationActive {
+            await endConversation()
+        } else {
+            await setAsideLocalDiscussion()
+        }
+        inputText = prompt
+        // The surface the user was talking into is gone; the cursor goes back to
+        // the composer for whatever comes after the agent's reply.
+        refocusInput += 1
+        await submitPrompt()
+    }
+
+    /// Ask the local model for the instruction the exchange arrived at, or nil when
+    /// it declined or the generation failed — in which case the handoff falls back
+    /// to the raw transcript rather than losing the conversation.
+    ///
+    /// Deliberately silent: the deltas go nowhere and no turn is appended. This is
+    /// the model writing rather than talking, and hearing the prompt read aloud
+    /// while the real turn is being submitted would be noise.
+    private func draftHandoffAsk(for discussion: LocalDiscussion) async -> String? {
+        let result = await localChatService.respond(
+            instructions: discussion.draftingInstructions(),
+            to: discussion.draftingPrompt(),
+            onDelta: { _ in }
+        )
+        guard case .success(let raw) = result else { return nil }
+        return LocalDiscussion.usableAsk(raw)
+    }
+
+    /// Abandon a write-up in progress. Without this, closing the card mid-write-up
+    /// would leave a generation running against a discussion nobody is having, and
+    /// the surface stuck reading "Writing the prompt…".
+    private func cancelHandoffDraft() {
+        guard let task = handoffDraftTask else { return }
+        handoffDraftTask = nil
+        task.cancel()
+        isDraftingHandoff = false
+    }
+
+    /// Close the discussion and return the mic to the agent. The exchange is kept:
+    /// re-opening picks it up where it stopped.
+    internal func endLocalDiscussion() async {
+        await setAsideLocalDiscussion()
+        if isConversationActive { await endConversation() }
+    }
+
+    /// Throw the exchange away and start the same discussion over — the only way
+    /// out of a conversation that went somewhere the user doesn't want to resume.
+    internal func restartLocalDiscussion() async {
+        guard let discussion = localDiscussion else { return }
+        cancelLocalReply()
+        cancelHandoffDraft()
+        setAsideDiscussions[discussion.id] = nil
+        localDiscussion = LocalDiscussion(
+            anchorID: discussion.id,
+            anchorText: discussion.anchorText,
+            draftText: discussion.draftText,
+            options: discussion.options,
+            briefing: discussion.briefing
+        )
+        await localChatService.endSession()
+    }
+
+    /// Put the open discussion away without forgetting it — shared by "close", by
+    /// re-anchoring onto a different message, and by the handoff.
+    ///
+    /// Dropping the engine's session here is safe precisely because `resuming()`
+    /// re-states the exchange in the prompt: what would otherwise be several
+    /// hundred megabytes of KV cache held for a conversation nobody is having.
+    private func setAsideLocalDiscussion() async {
+        cancelLocalReply()
+        cancelHandoffDraft()
+        guard let discussion = localDiscussion else { return }
+        setAsideDiscussions[discussion.id] = discussion
+        localDiscussion = nil
+        await localChatService.endSession()
+    }
+
     /// Stop the current voice recording session.
     internal func stopVoiceRecording() async {
+        if isConversationActive {
+            await endConversation()
+            return
+        }
+        if localVoiceService.isRunning {
+            await localVoiceService.stop()
+            isVoiceRecording = false
+            return
+        }
         guard let client = gatewayClient else { return }
         guard isVoiceRecording else { return }
         do {
@@ -1921,6 +2806,8 @@ if restoreSessionState(displayID: key) {
     /// Interrupt the current agent turn.
     func interrupt() async {
         guard !isStopping else { return }
+        // Stop reading an answer the user just cut off.
+        TTSService.shared.stop()
         guard let client = gatewayClient, let sid = sessionID else {
             finishStreaming(status: "interrupted")
             await reasoningGraph.finalize()
@@ -1958,6 +2845,9 @@ if restoreSessionState(displayID: key) {
             if messages[idx].content.isEmpty && status == "interrupted" {
                 messages[idx].content = "_Interrupted_"
             }
+            // Content is final here (streamed text, or the interrupted stub) —
+            // prime the cache so the settled bubble stops re-scanning per render.
+            messages[idx].primeStrippedContentCache()
         }
         activeToolCalls = [:]
         isStreaming = false
@@ -1981,6 +2871,56 @@ if restoreSessionState(displayID: key) {
 
         // Text-to-speech summary
         TTSService.shared.speakLastAssistantMessage(messages)
+    }
+
+    /// Force-settle a session whose turn is wedged on `isStreaming` with no way
+    /// left to receive its terminal `message.complete`. When the socket dies
+    /// mid-turn (the resource-timeout boundary, a dropped or half-open socket
+    /// that `verifyLivenessOrReconnect` replaces) the live event stream is lost,
+    /// and the completion is emitted into a socket that no longer exists — it is
+    /// never redelivered. The turn then spins forever: the sidebar live-dot
+    /// stays lit, `SessionUsageBadge` stays blocked behind its `guard
+    /// !isStreaming` so no usage/model metadata ever refreshes, and
+    /// `submitPrompt`'s own `guard !isStreaming` blocks any new prompt on the
+    /// session — it is wedged until relaunch. Settling is safe and
+    /// self-correcting: if the turn is in fact still running, the next live
+    /// frame re-opens the stream via `GatewayEvent.resumesLiveTurn`.
+    ///
+    /// Operates on the CACHED state for a background session; the visible
+    /// session settles through `finishStreaming`, which drives the published
+    /// properties. A no-op unless the cached turn is actually streaming.
+    private func finalizeStuckStreamingTurn(displayID: String, status: String) {
+        guard var state = sessionStates[displayID], state.isStreaming else { return }
+        if let msgID = state.streamingMessageID,
+           let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
+            state.messages[idx].isStreaming = false
+            if state.messages[idx].status == nil {
+                state.messages[idx].status = status
+            }
+            state.messages[idx].primeStrippedContentCache()
+        }
+        state.isStreaming = false
+        state.isRemoteTurn = false
+        state.streamingMessageID = nil
+        state.activeToolCalls = [:]
+        state.avatarState = .idle
+        sessionStates[displayID] = state
+        publishStreamingSessions()
+    }
+
+    /// Settle every wedged streaming turn — the visible session and any
+    /// background ones — when the connection has terminally failed and no
+    /// further events can arrive. See `finalizeStuckStreamingTurn`.
+    private func finalizeAllStuckStreamingTurns(status: String) {
+        if isStreaming {
+            // completedTurn:false — a turn killed by a dead connection did not
+            // "complete", so fire no celebration and read nothing aloud.
+            finishStreaming(status: status, completedTurn: false)
+        }
+        let visible = sessionID.map { displaySessionID(for: $0) }
+        for displayID in Array(sessionStates.keys) where displayID != visible {
+            finalizeStuckStreamingTurn(displayID: displayID, status: status)
+        }
     }
 
     // MARK: - Remote Attachment Downloads
@@ -2094,7 +3034,6 @@ if restoreSessionState(displayID: key) {
     /// confirm_required, published as `pendingModelConfirmation` for the UI
     /// to show; confirming resends with the confirmation flag.
     func switchModel(_ model: String, provider: String? = nil, confirmed: Bool = false) async {
-        guard backendCapabilities.supportsModelSwitching else { return }
         // Record the pick as the new-session default BEFORE any early return.
         // If no session is wired yet (picker used from a fresh chat before
         // session.create lands), the guard below bails — the pick must still
@@ -2142,8 +3081,7 @@ if restoreSessionState(displayID: key) {
     /// returning early on the next session left every session after the first
     /// showing "No model" forever.
     func refreshModelCatalog(force: Bool = false) async {
-        guard backendCapabilities.supportsModelSwitching,
-              let client = gatewayClient else { return }
+        guard let client = gatewayClient else { return }
         let isStaleForSession = modelCatalogSessionID != sessionID
         if let catalog = modelCatalog, !force, !isStaleForSession {
             adoptCatalogModelIfBadgeEmpty(catalog)
@@ -2186,7 +3124,6 @@ if restoreSessionState(displayID: key) {
     /// when the picker first appeared.
     private func fillModelBadgeIfEmpty() {
         guard currentModel.isEmpty,
-              backendCapabilities.supportsModelSwitching,
               gatewayClient != nil else { return }
         Task { await refreshModelCatalog() }
     }
@@ -2315,7 +3252,9 @@ if restoreSessionState(displayID: key) {
 
 
     /// Show a short-lived status line ("aggregating via …"); auto-clears.
-    private func showTransientStatus(_ text: String) {
+    /// Internal so the app shell can post a one-line status too (a session
+    /// switch that found nothing to switch to) instead of a modal error banner.
+    internal func showTransientStatus(_ text: String) {
         guard !text.isEmpty else { return }
         transientStatus = text
         transientStatusClearTask?.cancel()
@@ -2436,7 +3375,7 @@ if restoreSessionState(displayID: key) {
         message.thinkingTrace?.append(text, kind: kind)
     }
 
-    private func finishThinkingTrace(on message: inout ChatMessage, finalReasoning: String?) {
+    internal func finishThinkingTrace(on message: inout ChatMessage, finalReasoning: String?) {
         if let finalReasoning, !finalReasoning.isEmpty {
             if message.thinkingTrace == nil {
                 message.thinkingTrace = ThinkingTrace(
@@ -2448,15 +3387,30 @@ if restoreSessionState(displayID: key) {
                 // the final reasoning must still land or it's lost.
                 message.thinkingTrace?.append(finalReasoning, kind: .reasoning)
             }
+        } else if message.thinkingTrace == nil,
+                  let streamed = message.reasoning, !streamed.isEmpty {
+            // No structured trace was built (the gateway sent raw thinking/
+            // reasoning deltas) and the completion payload carried no final
+            // reasoning. Promote the streamed text into a trace so the
+            // collapsible ThinkingTraceSection survives the turn — this is
+            // what keeps "expand thinking after the turn" possible. An empty
+            // finalReasoning used to fall through to `finalReasoning ?? …`
+            // below and WIPE the streamed reasoning to "" (#audit).
+            message.thinkingTrace = ThinkingTrace(
+                blocks: [ThinkingBlock(kind: .reasoning, text: streamed)],
+                isStreaming: false
+            )
         }
         message.thinkingTrace?.finish()
         // Keep the legacy reasoning field populated for persistence/search and
         // backward-compatible views, but the UI prefers the structured trace.
+        // Guard: an EMPTY finalReasoning must never overwrite streamed text.
         if let traceText = message.thinkingTrace?.fullText, !traceText.isEmpty {
             message.reasoning = traceText
-        } else {
-            message.reasoning = finalReasoning ?? message.reasoning
+        } else if let finalReasoning, !finalReasoning.isEmpty {
+            message.reasoning = finalReasoning
         }
+        // else: keep whatever reasoning was streamed (may be nil/empty — fine).
     }
 
     // MARK: - Event Handling
@@ -2610,11 +3564,20 @@ if restoreSessionState(displayID: key) {
         // the user had clicked to by the time the block ran. The hop bought
         // nothing (same thread, same runloop turn's end) and cost correctness.
         if !messageDelta.isEmpty {
+            var spokenMessageID: UUID?
             if let msgID = streamingMessageID,
                let idx = messages.firstIndex(where: { $0.id == msgID }) {
                 messages[idx].content += messageDelta
+                spokenMessageID = msgID
             } else if isStreaming, let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
                 messages[idx].content += messageDelta
+                spokenMessageID = messages[idx].id
+            }
+            // Speak sentences as they close, from the same coalesced buffer the
+            // transcript renders — one place, so the voice can't run ahead of or
+            // double up on what's on screen. A no-op unless speech is on.
+            if let spokenMessageID {
+                TTSService.shared.streamDelta(messageDelta, messageID: spokenMessageID)
             }
         }
         let thoughtDelta = reasoningDelta + thinkingDelta
@@ -2650,6 +3613,63 @@ if restoreSessionState(displayID: key) {
             state.messages[idx].reasoning = (state.messages[idx].reasoning ?? "") + thoughts
         }
         sessionStates[displayID] = state
+    }
+
+    /// Retain a background session's streamed text instead of dropping it.
+    ///
+    /// Written through the dictionary's `_modify` subscript accessor: routing it
+    /// via a local `var` copy would leave the buffer at refcount 2 and re-copy
+    /// every retained character on each token, which is exactly the cost the
+    /// background-delta skip exists to avoid.
+    private func retainBackgroundDelta(displayID: String, content: String, thoughts: String) {
+        if !content.isEmpty {
+            backgroundTurnBuffers[displayID, default: BackgroundTurnBuffer()].content.append(
+                content,
+                cap: Self.backgroundTurnTextCap,
+                lowWater: Self.backgroundTurnTextLowWater
+            )
+        }
+        if !thoughts.isEmpty {
+            backgroundTurnBuffers[displayID, default: BackgroundTurnBuffer()].thoughts.append(
+                thoughts,
+                cap: Self.backgroundTurnTextCap,
+                lowWater: Self.backgroundTurnTextLowWater
+            )
+        }
+    }
+
+    /// Splice what a session streamed off screen into its cached transcript, so
+    /// a switch-back mid-turn shows the live answer and thinking as they stand.
+    ///
+    /// APPENDS, never replaces: the user may have watched the turn start, left
+    /// mid-answer and come back, in which case the shell already holds the text
+    /// that streamed while it was visible and only the gap belongs to the buffer.
+    ///
+    /// Idempotent, and only consumes the buffer when it can actually apply it —
+    /// both switch-back paths call it (`beginSwitchToSession` publishes from
+    /// cache, `resumeSession` lands later with the gateway's history), and a
+    /// session whose shell isn't in state yet must keep its text for the retry.
+    @discardableResult
+    private func adoptBackgroundTurnBuffer(for displayID: String) -> Bool {
+        guard let buffer = backgroundTurnBuffers[displayID] else { return false }
+        guard var state = sessionStates[displayID],
+              let msgID = state.streamingMessageID,
+              let idx = state.messages.firstIndex(where: { $0.id == msgID }) else { return false }
+        backgroundTurnBuffers.removeValue(forKey: displayID)
+        if !buffer.content.text.isEmpty {
+            state.messages[idx].content += elisionMark(buffer.content.didElide) + buffer.content.text
+        }
+        if !buffer.thoughts.text.isEmpty {
+            let existing = state.messages[idx].reasoning ?? ""
+            state.messages[idx].reasoning = existing + elisionMark(buffer.thoughts.didElide) + buffer.thoughts.text
+        }
+        sessionStates[displayID] = state
+        return true
+    }
+
+    /// Marks a trimmed head so the spliced text doesn't read as continuous.
+    private func elisionMark(_ didElide: Bool) -> String {
+        didElide ? "…\n" : ""
     }
 
     private func applySessionEvent(_ event: GatewayEvent, to eventSessionID: String) {
@@ -2695,11 +3715,26 @@ if restoreSessionState(displayID: key) {
         // Skip high-frequency delta events for background (non-visible)
         // sessions.  Every delta triggers a copy-on-write clone of the full
         // messages array — for long sessions this saturates the main thread
-        // and causes the spinning wheel.  Background session state is
-        // re-synced via the session.resume RPC when the user switches back.
+        // and causes the spinning wheel.
+        //
+        // The text is RETAINED in a side buffer first, though. `session.resume`
+        // returns the gateway's PERSISTED history, which by definition excludes
+        // the turn still running, so "re-synced on switch-back" only ever
+        // recovered whatever had already been committed: clicking back into a
+        // live session showed an empty bubble with no thinking, and the running
+        // turn's answer arrived only at `message.complete`. Thinking text was
+        // worse than stale — the gateway accumulates assistant message deltas
+        // for its in-flight snapshot but not reasoning, so a dropped thinking
+        // token was gone for good.
         switch event {
-        case .messageDelta, .reasoningDelta, .thinkingDelta:
+        case .messageDelta(let text, _):
             if displaySessionID(for: sessionID ?? "") != displayID {
+                retainBackgroundDelta(displayID: displayID, content: text, thoughts: "")
+                return
+            }
+        case .reasoningDelta(let text), .thinkingDelta(let text):
+            if displaySessionID(for: sessionID ?? "") != displayID {
+                retainBackgroundDelta(displayID: displayID, content: "", thoughts: text)
                 return
             }
         case .subagentSpawnRequested, .subagentStart, .subagentComplete,
@@ -2719,7 +3754,7 @@ if restoreSessionState(displayID: key) {
         }
 
         switch event {
-        case .artifactChanged, .learningChanged, .unknown:
+        case .artifactChanged, .artifactQueryChanged, .learningChanged, .architectureChanged, .unknown:
             // Store-level concerns; ArtifactStore/LearningStore subscribe
             // directly. .unknown never reaches consumers (GatewayClient
             // drops it).
@@ -2768,6 +3803,11 @@ if restoreSessionState(displayID: key) {
                 let assistantMessage = ChatMessage(role: .assistant, content: "", isStreaming: true)
                 state.streamingMessageID = assistantMessage.id
                 state.messages.append(assistantMessage)
+                // A fresh shell owns no retained text. Anything left over
+                // belongs to a turn that ended without being adopted (an error,
+                // a stop), and splicing it here would graft the previous
+                // answer's tail onto this one.
+                backgroundTurnBuffers.removeValue(forKey: displayID)
             }
             if displaySessionID(for: sessionID ?? "") == displayID {
                 streamingMessageID = state.streamingMessageID
@@ -2795,6 +3835,10 @@ if restoreSessionState(displayID: key) {
             }
 
         case .messageComplete(payload: let payload):
+            // `payload.text` and the finished thinking trace below are the
+            // authoritative full turn, so any retained background text is now
+            // redundant — and must not survive into the next turn.
+            backgroundTurnBuffers.removeValue(forKey: displayID)
             if displaySessionID(for: sessionID ?? "") == displayID {
                 flushPendingVisibleEventDeltas()
                 // Reload state to pick up flushed reasoning from snapshot
@@ -2824,7 +3868,7 @@ if restoreSessionState(displayID: key) {
             state.messages[idx].usage = payload.usage
             state.messages[idx].status = payload.status
             state.messages[idx].attachments = attachments(from: payload.text)
-            state.messages[idx]._contentWithoutAttachments = MediaParser.stripMediaTags(from: payload.text)
+            state.messages[idx].primeStrippedContentCache()
             finishThinkingTrace(on: &state.messages[idx], finalReasoning: payload.reasoning)
             state.messages[idx].toolCalls = Array(state.activeToolCalls.values)
             // Reconcile the compaction counter BEFORE snapshotting so an
@@ -2976,6 +4020,7 @@ if restoreSessionState(displayID: key) {
                let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
                 state.messages[idx].isStreaming = false
                 state.messages[idx].status = "error"
+                state.messages[idx].primeStrippedContentCache()
                 state.streamingMessageID = nil
             }
             state.activeToolCalls = [:]
@@ -3216,7 +4261,7 @@ if restoreSessionState(displayID: key) {
 
         switch event {
         case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary, .artifactChanged,
-             .learningChanged, .sessionTitle, .unknown:
+             .artifactQueryChanged, .learningChanged, .architectureChanged, .sessionTitle, .unknown:
             break
 
         case .sessionInfo(let info):
@@ -3278,6 +4323,10 @@ if restoreSessionState(displayID: key) {
             messages[idx].isStreaming = false
             messages[idx].usage = payload.usage
             messages[idx].status = payload.status
+            // Prime the stripped-content cache now the content is final, so the
+            // bubble (read aloud + auto-scrolling) doesn't re-run stripMediaTags
+            // on every redraw. The session-routed path does the same at complete.
+            messages[idx].primeStrippedContentCache()
             finishThinkingTrace(on: &messages[idx], finalReasoning: payload.reasoning)
             // Merge any accumulated tool calls into the message
             messages[idx].toolCalls = Array(activeToolCalls.values)
@@ -3317,6 +4366,9 @@ if restoreSessionState(displayID: key) {
 
             // Text-to-speech summary
             TTSService.shared.speakLastAssistantMessage(messages)
+
+            // Hands-free conversation: reopen the mic once the spoken reply ends.
+            handleConversationResponseComplete()
 
             // Notify if app is backgrounded or this isn't the active session
             let preview = payload.text.truncated(to: 80)

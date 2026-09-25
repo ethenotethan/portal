@@ -38,11 +38,12 @@ def unresolved(html_path: Path) -> list[str]:
     for reference in REFERENCE.findall(html_path.read_text(encoding="utf-8")):
         if reference.startswith(EXTERNAL):
             continue
-        # Directory links (`architecture/`) resolve through the deploy-time
-        # assembly, not this tree, so they can't be checked here.
-        if reference.endswith("/"):
+        path_part = reference.split("#")[0].split("?")[0]
+        # Directory links (`architecture/`, `architecture/#gates`) resolve through
+        # the deploy-time assembly, not this tree, so they can't be checked here.
+        if path_part.endswith("/"):
             continue
-        target = (html_path.parent / reference.split("#")[0].split("?")[0]).resolve()
+        target = (html_path.parent / path_part).resolve()
         if not target.is_file():
             missing.append(f"{html_path.relative_to(ROOT)} → {reference}")
     return missing
@@ -56,7 +57,7 @@ def stale_stats(index: Path) -> list[str]:
     """
     inventory = json.loads(MODEL.read_text(encoding="utf-8"))["inventory"]
     html = index.read_text(encoding="utf-8")
-    quoted = re.findall(r"<strong>([\d,]+)</strong>", html)
+    quoted = re.findall(r"<strong[^>]*>([\d,]+)</strong>", html)
     values = {value.replace(",", "") for value in quoted}
 
     problems = []

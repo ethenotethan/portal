@@ -25,6 +25,63 @@ struct ChartSpecTests {
         #expect(spec.series[0].points.count == 2)
     }
 
+    @Test("Malformed chart shapes fail with actionable messages")
+    internal func malformedShapesFailClearly() {
+        func failureMessage(_ json: String) -> String {
+            switch parse(json) {
+            case .failure(let error):
+                return error.message
+            case .success:
+                Issue.record("expected chart parsing to fail")
+                return ""
+            }
+        }
+
+        #expect(failureMessage(#"{"type":"radar","series":[{"points":[{"x":1,"y":2}]}]}"#)
+            .contains("Unknown chart type 'radar'"))
+        #expect(failureMessage(#"{"type":"line","series":[]}"#)
+            .contains("Chart has no series"))
+        #expect(failureMessage(#"{"type":"line","series":[{"name":"Empty"}]}"#)
+            .contains("Series 'Empty' has no points"))
+    }
+
+    @Test("Decoder failures identify the nested field that is invalid")
+    internal func decoderFailuresIncludeCodingPath() {
+        func failureMessage(_ json: String) -> String {
+            switch parse(json) {
+            case .failure(let error):
+                return error.message
+            case .success:
+                Issue.record("expected chart parsing to fail")
+                return ""
+            }
+        }
+
+        let missing = failureMessage(
+            #"{"type":"line","series":[{"points":[{"y":1}]}]}"#
+        )
+        #expect(missing.contains("Missing key 'x'"))
+        #expect(missing.contains("series[0].points[0]"))
+
+        let null = failureMessage(#"{"type":null,"series":[{"points":[{"x":1,"y":2}]}]}"#)
+        #expect(null.contains("Missing value"))
+        #expect(null.contains("type"))
+
+        let wrongType = failureMessage(
+            #"{"type":"line","series":[{"points":[{"x":1,"y":"many"}]}]}"#
+        )
+        #expect(wrongType.contains("Expected to decode Double"))
+        #expect(wrongType.contains("series[0].points[0].y"))
+    }
+
+    @Test("Chart JSON sniff requires an object with type and series keys")
+    internal func chartJSONSniff() {
+        #expect(ChartSpec.looksLikeChartJSON(#" {"type":"line","series":[]} "#))
+        #expect(!ChartSpec.looksLikeChartJSON(#"[{"type":"line","series":[]}]"#))
+        #expect(!ChartSpec.looksLikeChartJSON(#"{"type":"line"}"#))
+        #expect(!ChartSpec.looksLikeChartJSON(#"{"series":[]}"#))
+    }
+
     @Test("Heatmap points carry row category and magnitude")
     func heatmapParses() {
         let result = parse("""
@@ -59,6 +116,21 @@ struct ChartSpecTests {
             return
         }
         #expect(error.message.contains("heatmap"))
+    }
+
+    @Test("Numeric heatmap rows use compact category labels")
+    internal func heatmapNumericRowLabels() throws {
+        let result = parse("""
+        {"type": "heatmap", "series": [
+          {"name": "A", "points": [
+            {"x": "Mon", "y": 2, "v": 4},
+            {"x": "Tue", "y": 2.5, "v": 7}
+          ]}
+        ]}
+        """)
+        let spec = try result.get()
+
+        #expect(spec.series[0].points.map(\.row) == ["2", "2.5"])
     }
 
     @Test("Histogram takes raw values; points degrade to their y values")
@@ -106,6 +178,11 @@ struct ChartSpecTests {
         let bins = ChartDistribution.bins(for: [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], count: 5)
         #expect(bins.count == 5)
         #expect(bins.map(\.count).reduce(0, +) == 10)
+        // Swift Charts keys each bar by its lower edge and plots it at the
+        // center of the interval, so both presentation projections are part of
+        // the binning contract rather than incidental view arithmetic.
+        #expect(bins[0].id == bins[0].lowerBound)
+        #expect(bins[0].midpoint == 1)
         // Top edge value (10) lands in the last bin, not out of range.
         #expect(bins.last?.count ?? 0 > 0)
 
@@ -167,6 +244,7 @@ struct WaterfallTests {
         ]
         let segments = ChartWaterfall.segments(for: points)
         #expect(segments[0].start == 0 && segments[0].end == 500)
+        #expect(segments[0].id == "Revenue")
         #expect(segments[1].start == 500 && segments[1].end == 320)   // fall
         #expect(!segments[1].isRise)
         #expect(segments[2].isTotal && segments[2].start == 0 && segments[2].end == 320)
@@ -223,6 +301,28 @@ struct TimelineTests {
         #expect(range.upperBound == TimelineSpec.parseDate("2026-07-20"))
     }
 
+    @Test("An empty spec has no presentation domain")
+    internal func emptySpecPresentationDomain() {
+        let spec = TimelineSpec(title: nil, items: [])
+
+        #expect(spec.lanes.isEmpty)
+        #expect(spec.groups.isEmpty)
+        #expect(spec.dateRange == nil)
+    }
+
+    @Test("Items expose stable lane-scoped identity and elapsed duration")
+    internal func itemIdentityAndDuration() throws {
+        let spec = try #require(TimelineSpec.parse("""
+        {"items": [
+          {"label": "Build", "start": "2026-07-10T12:00:00Z", "end": "2026-07-10T14:30:00Z", "lane": "Eng"}
+        ]}
+        """))
+        let item = try #require(spec.items.first)
+
+        #expect(item.id == "Eng|Build")
+        #expect(item.duration == 2.5 * 60 * 60)
+    }
+
     @Test("Single milestone pads the axis instead of collapsing")
     func singleInstant() {
         let spec = TimelineSpec.parse("""
@@ -264,10 +364,15 @@ struct SankeyTests {
           {"from": "Eng", "to": "Salaries", "value": 0},
           {"from": "Eng", "to": "Cloud", "value": -3},
           {"from": "Eng", "to": "Salaries", "value": 320}
+        ], "nodes": [
+          {"name": "Revenue", "group": "income"},
+          {"name": "Eng", "group": "expense"},
+          {"name": "Salaries", "group": "expense"}
         ]}
         """)!
         #expect(spec.links.count == 2)
         #expect(spec.nodeOrder == ["Revenue", "Eng", "Salaries"])
+        #expect(spec.groupNames == ["income", "expense"])
         #expect(SankeySpec.parse("{\"links\": []}") == nil)
     }
 
@@ -283,6 +388,8 @@ struct SankeyTests {
         """)!
         let result = SankeyLayout.layout(spec)
         #expect(result.columnCount == 3)
+        #expect(result.nodes.map(\.id) == ["A", "B", "C", "D"])
+        #expect(result.ribbons.map(\.id) == ["A→B", "A→C", "B→D", "C→D"])
         let byName = Dictionary(uniqueKeysWithValues: result.nodes.map { ($0.name, $0) })
         #expect(byName["A"]!.column == 0)
         #expect(byName["B"]!.column == 1 && byName["C"]!.column == 1)

@@ -26,7 +26,6 @@ struct ChatView: View {
     #if os(iOS)
     @State private var showSettings = false
     #endif
-    @State private var avatarY: CGFloat = 0
     @State private var pendingScrollTask: Task<Void, Never>?
 
     /// How far the transcript's bottom edge sits below the visible viewport,
@@ -84,22 +83,9 @@ struct ChatView: View {
         activeSkin.makeProvider()
     }
 
-    /// Reserve the avatar rail only for skins that render the floating avatar.
-    /// TUI uses the full transcript width.
-    private var messageLeadingPadding: CGFloat {
-        activeSkin == .darkManga ? 72 : 16
-    }
-
-    /// Whether any bot content exists (for floating avatar visibility)
-    private var hasBotContent: Bool {
-        chatViewModel.messages.contains { $0.role == .assistant } || chatViewModel.isStreaming
-    }
-
-    /// The identity all chat chrome presents. An adopted gateway persona wins;
-    /// the backend's harness-fixed identity (Centaur) is the fallback while none
-    /// has been adopted. See `PersonaManager.chromePersona(harness:)`.
+    /// The identity all chat chrome presents: the adopted harness persona.
     private var displayPersona: Persona {
-        personaManager.chromePersona(harness: chatViewModel.backendCapabilities.harnessPersona)
+        personaManager.activePersona
     }
 
     // MARK: - Thought Graph Helpers
@@ -169,6 +155,7 @@ struct ChatView: View {
 
     private func iconForKind(_ kind: String) -> String {
         switch kind {
+        case "blueprint": return "ruler"
         case "map": return "map"
         case "chart": return "chart.bar"
         case "graph": return "point.3.connected.trianglepath.dotted"
@@ -188,21 +175,6 @@ struct ChatView: View {
         #else
         8
         #endif
-    }
-
-    /// Current avatar expression based on streaming state
-    private var currentAvatarExpression: CharacterExpression {
-        if chatViewModel.isStreaming {
-            switch chatViewModel.avatarState {
-            case .thinking: .thinking
-            case .speaking: .happy
-            case .toolUse:  .thinking
-            case .error:    .confused
-            default:        .idle
-            }
-        } else {
-            .idle
-        }
     }
 
     var body: some View {
@@ -261,9 +233,19 @@ struct ChatView: View {
                 .equatable()
         case .living(let kind, let artifactID):
             // Live content when the store has it; actions enabled — the
-            // sheet hosts the live model, not a transcript snapshot.
-            let content = ArtifactStore.shared.artifacts[artifactID]?.content ?? artifact.content
-            ArtifactKindRenderer(kind: kind, content: content, actionableArtifactID: artifactID)
+            // sheet hosts the live model, not a transcript snapshot. The action
+            // manifest travels with the id: an html artifact declares its
+            // intents on the record rather than in its content, so an id
+            // without them injects the bridge and then resolves every click
+            // against nothing.
+            let live = ArtifactStore.shared.artifacts[artifactID]
+            ArtifactKindRenderer(
+                kind: kind,
+                content: live?.content ?? artifact.content,
+                actionableArtifactID: artifactID,
+                topLevelActions: live?.topLevelActions ?? [],
+                queries: live?.queries ?? []
+            )
         }
     }
     #endif
@@ -324,6 +306,9 @@ struct ChatView: View {
                     .environmentObject(chatViewModel)
             }
 
+            // Read-aloud transport, only while something is being spoken.
+            SpeechNowPlayingBar()
+
             // Input bar
             ChatInputBar()
                 .environmentObject(chatViewModel)
@@ -334,6 +319,12 @@ struct ChatView: View {
             }
             #endif
         }
+        // The local side-discussion breaks away over the whole chat — toolbar,
+        // transcript and composer dimmed behind it — and collapses when it has
+        // handed its conclusion to the composer. Animated on the view model's
+        // open/closed state so the collapse and the prompt landing read as one
+        // motion.
+        .overlay(localDiscussionOverlay)
         #if os(macOS)
         .frame(minWidth: 600, minHeight: 400)
         .background(
@@ -416,6 +407,12 @@ struct ChatView: View {
                 let _ = Task<Void, Never> { await chatViewModel.reviewQuizWithAgent(prompt: prompt) }
             }
         }
+        // Per-message "talk this over locally" action. Installed here because the
+        // bubbles don't own a view model; where it isn't installed (previews,
+        // exports) the button doesn't render.
+        .environment(\.discussMessage) { message in
+            Task { await chatViewModel.startLocalDiscussion(about: message) }
+        }
         .onChange(of: chatViewModel.currentSessionID) { _, _ in
             // Close the thought graph when switching sessions
             withAnimation(.easeOut(duration: 0.2)) {
@@ -454,24 +451,18 @@ struct ChatView: View {
         #endif
     }
 
-    @ViewBuilder
-    private var latestAssistantTurnProbe: some View {
-        // Only the darkManga floating avatar consumes this Y — don't run a
-        // per-layout-pass GeometryReader (and its preference traffic) for
-        // skins that never read it. The value is rounded to whole points so
-        // sub-pixel layout jitter cannot mint a "new" preference value every
-        // pass; see ChatLayoutMath for why that loops.
-        if activeSkin == .darkManga && hasBotContent {
-            GeometryReader { geo in
-                Color.clear.preference(
-                    key: LatestBotTurnYKey.self,
-                    value: ChatLayoutMath.avatarY(
-                        fromProbeMaxY: geo.frame(in: .named("chatContent")).maxY
-                    )
-                )
+    /// The local side-discussion, broken away over the whole chat — toolbar,
+    /// transcript and composer dimmed behind it — and gone once it has handed its
+    /// conclusion to the composer. Animated on the open/closed state so the
+    /// collapse and the prompt landing read as one motion.
+    private var localDiscussionOverlay: some View {
+        ZStack {
+            if chatViewModel.localDiscussion != nil {
+                LocalDiscussionPane(chatViewModel: chatViewModel)
+                    .transition(.opacity)
             }
-            .frame(height: 0)
         }
+        .animation(.easeInOut(duration: 0.22), value: chatViewModel.localDiscussion != nil)
     }
 
     /// Zero-height marker pinned to the bottom of the transcript content. It
@@ -587,17 +578,15 @@ struct ChatView: View {
             .help(ttsService.isEnabled ? "Text-to-speech enabled" : "Text-to-speech disabled")
 
             // Response style (deep map / balanced / direct)
-            if chatViewModel.backendCapabilities.supportsResponseStyles {
-                Menu {
-                    responseStyleMenuItems
-                } label: {
-                    Image(systemName: chatViewModel.responseStyle.icon)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
-                }
-                .buttonStyle(.plain)
+            Menu {
+                responseStyleMenuItems
+            } label: {
+                Image(systemName: chatViewModel.responseStyle.icon)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
             }
+            .buttonStyle(.plain)
 
             Spacer()
 
@@ -729,13 +718,11 @@ struct ChatView: View {
                     Label("Chat Style: \(activeSkin.displayName)", systemImage: activeSkin.icon)
                 }
 
-                if chatViewModel.backendCapabilities.supportsResponseStyles {
-                    Menu {
-                        responseStyleMenuItems
-                    } label: {
-                        Label("Response Style: \(chatViewModel.responseStyle.label)",
-                              systemImage: chatViewModel.responseStyle.icon)
-                    }
+                Menu {
+                    responseStyleMenuItems
+                } label: {
+                    Label("Response Style: \(chatViewModel.responseStyle.label)",
+                          systemImage: chatViewModel.responseStyle.icon)
                 }
 
                 Button {
@@ -892,9 +879,8 @@ struct ChatView: View {
                     // guides are pinned to constants below for the same reason
                     // DashboardCanvasView's two `.topLeading` stacks are: a
                     // constant is read directly, so the descent never begins.
-                    // Zero is what `.topLeading` resolved to anyway — the
-                    // overlays are the zero-height probe and an offset avatar,
-                    // neither of which needs the stack to consult the transcript.
+                    // Zero is what `.topLeading` resolved to anyway, and no child
+                    // needs the stack to consult the transcript for that value.
                     ZStack(alignment: .topLeading) {
                         LazyVStack(alignment: .leading, spacing: 2) {
                             let msgs = chatViewModel.messages
@@ -905,12 +891,18 @@ struct ChatView: View {
                                 EmptyTranscriptStateView()
                             }
                             ForEach(renderedMessages, id: \.element.id) { index, message in
-                                if let noticeLabel = message.delegationBatchNoticeLabel {
-                                    // A gateway async-delegation batch marker —
-                                    // render as a centered interstitial rule, not
-                                    // a prose bubble (the raw marker reads as a
-                                    // broken response otherwise).
-                                    DelegationBatchNoticeView(label: noticeLabel)
+                                if let batch = message.asyncDelegationBatch {
+                                    // A full delegation-batch report — render each
+                                    // subagent as its own card instead of pushing
+                                    // the raw `--- TASK n/m ---` block through the
+                                    // markdown bubble as one wall of text.
+                                    AsyncDelegationBatchView(batch: batch)
+                                        .id(message.id)
+                                } else if let notice = message.delegationBatchNotice {
+                                    // Gateway async-delegation envelopes that do
+                                    // not match the rich per-task report grammar
+                                    // still preserve their returned Markdown.
+                                    DelegationBatchNoticeView(notice: notice)
                                         .id(message.id)
                                 } else {
                                     // `index` is the message's position in the
@@ -932,7 +924,19 @@ struct ChatView: View {
                                 }
                             }
 
-                            if chatViewModel.isStreaming {
+                            // A hands-free voice turn replaces the tool-trace
+                            // panel with the inline conversation card: it's a
+                            // tool-less chat, so there's no tool timeline to
+                            // show — just the orb, phase and live caption.
+                            // A local side-discussion is not in the stream at
+                            // all: it opens as a pane over the chat
+                            // (`LocalDiscussionPane`), and its mic is its own, so
+                            // the voice card must not appear behind it.
+                            if chatViewModel.isConversationActive, chatViewModel.localDiscussion == nil {
+                                VoiceConversationCard(chatViewModel: chatViewModel)
+                                    .id("voice-conversation-card")
+                                    .transition(.opacity)
+                            } else if chatViewModel.isStreaming {
                                 // Same plane as the running-tools trace: the
                                 // status + live timeline occupy the main width;
                                 // the skills lens (the "what capability" view)
@@ -986,22 +990,11 @@ struct ChatView: View {
 
                             bottomFoldSentinel
                         }
-                        .padding(.leading, messageLeadingPadding)
+                        .padding(.leading, 16)
                         .padding(.trailing, 16)
                         .padding(.top, 8)
                         .padding(.bottom, chatBottomContentPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
-
-                        latestAssistantTurnProbe
-
-                        if activeSkin == .darkManga && hasBotContent {
-                            FloatingAvatarView(
-                                expression: currentAvatarExpression,
-                                persona: displayPersona
-                            )
-                            .offset(y: avatarY)
-                            .padding(.leading, 16)
-                        }
                     }
                     .alignmentGuide(.leading) { _ in 0 }
                     .alignmentGuide(.top) { _ in 0 }
@@ -1088,34 +1081,9 @@ struct ChatView: View {
                     }
                 }
             }
-            .onPreferenceChange(LatestBotTurnYKey.self) { y in
-                if let y = y {
-                    Task { @MainActor in
-                        // Hysteresis: adopting Y writes @State → body → new
-                        // layout pass → probe re-measures. Without a dead
-                        // band the measure/adopt pair can ping-pong forever
-                        // (the beachball); a sub-4pt move is invisible.
-                        guard ChatLayoutMath.shouldMoveAvatar(from: avatarY, to: y) else { return }
-                        avatarY = y
-                    }
-                }
-            }
             .onPreferenceChange(ChatViewportHeightKey.self) { height in
                 if abs(height - chatViewportHeight) > 1 {
                     chatViewportHeight = height
-                }
-                if !hasBotContent {
-                    Task { @MainActor in
-                        await Task.yield()
-                        // Same dead band as the sibling handler above, for the
-                        // same reason: this writes @State from a measurement of
-                        // the view it lays out, so an unguarded write re-measures
-                        // and can ping-pong forever. The empty-transcript path is
-                        // no less prone to it than the populated one.
-                        let target = max(0, height - 72)
-                        guard ChatLayoutMath.shouldMoveAvatar(from: avatarY, to: target) else { return }
-                        avatarY = target
-                    }
                 }
             }
             .onChange(of: chatViewModel.messages.count) { _, _ in
@@ -1310,56 +1278,6 @@ struct ChatView: View {
     }
 }
 
-// MARK: - Floating Avatar (Singleton)
-// Exactly one instance. Y position driven by LatestBotTurnYKey preference.
-// Animated with easeInOut 400ms.
-
-private struct FloatingAvatarView: View {
-    let expression: CharacterExpression
-    let persona: Persona
-
-    var body: some View {
-        VStack(spacing: 4) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Theme.surface.opacity(0.96))
-                    .shadow(color: .black.opacity(0.22), radius: 8, x: 0, y: 4)
-
-                LottieCharacterView(
-                    expression: expression,
-                    size: CGSize(width: 48, height: 48)
-                )
-                .frame(width: 48, height: 48)
-            }
-            .frame(width: 52, height: 52)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(persona.accentColor.opacity(0.55), lineWidth: 1)
-            )
-
-            Text(persona.name)
-                .font(.system(size: 9, weight: .medium))
-                .lineLimit(1)
-                .frame(width: 58)
-                .foregroundStyle(persona.accentColor.opacity(0.75))
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
-
-// MARK: - Preference Key
-// Tracks Y position of the latest bot turn within the scroll content coordinate space.
-// Multiple assistant messages and the streaming panel report their Y;
-// reduce takes the last non-nil value (bottom-most in view tree = latest turn).
-
-private struct LatestBotTurnYKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat?
-    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
-        if let next = nextValue() { value = next }
-    }
-}
-
 private struct ChatViewportHeightKey: PreferenceKey {
     nonisolated(unsafe) static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -1427,10 +1345,13 @@ struct ChatInputBar: View {
     /// app-wide via the "composerStyle" key.
     @AppStorage("composerStyle") private var composerStyle: ComposerStyle = .card
 
-    /// The identity the composer placeholder names — an adopted gateway persona
-    /// wins, else the backend's harness-fixed identity (Centaur).
+    /// Drives the composer's discuss button: whether a local model is opted into
+    /// and available, and which one, for the tooltip.
+    @ObservedObject private var localChat = LocalChatService.shared
+
+    /// The identity the composer placeholder names: the adopted harness persona.
     private var displayPersona: Persona {
-        personaManager.chromePersona(harness: chatViewModel.backendCapabilities.harnessPersona)
+        personaManager.activePersona
     }
 
     /// On macOS, the focus binding is owned by ChatView so that clicks
@@ -1472,11 +1393,10 @@ struct ChatInputBar: View {
                 Divider().overlay(Theme.border)
             }
             HStack(alignment: .bottom, spacing: 10) {
-                if chatViewModel.backendCapabilities.supportsAttachments {
-                    attachButton
-                }
+                attachButton
                 inputField
                     .frame(maxWidth: .infinity, alignment: .leading)
+                discussButton
                 voiceButton
                 sendButton
             }
@@ -1506,10 +1426,9 @@ struct ChatInputBar: View {
                 Divider().overlay(Theme.border)
             }
             HStack(alignment: .bottom, spacing: 10) {
-                if chatViewModel.backendCapabilities.supportsAttachments {
-                    attachButton
-                }
+                attachButton
                 inputField
+                discussButton
                 voiceButton
                 sendButton
             }
@@ -1721,42 +1640,97 @@ struct ChatInputBar: View {
 
     // MARK: - Voice Button
 
-    /// Walkie-talkie mic button. Taps toggle VAD recording on/off.
-    /// While recording, the gateway captures speech via faster-whisper and
-    /// emits `voice.transcript` events, which ChatViewModel auto-submits.
-    private var voiceButton: some View {
-        guard chatViewModel.backendCapabilities.supportsVoice else {
-            return AnyView(EmptyView())
-        }
-        let isRecording = chatViewModel.isVoiceRecording
-        let isIdle = !chatViewModel.isStreaming && !isRecording
-        return AnyView(Button {
-            Task {
-                if isRecording {
-                    await chatViewModel.stopVoiceRecording()
-                } else {
-                    await chatViewModel.startVoiceRecording()
+    /// "Talk it over first" — a local discussion started from the composer,
+    /// before anything is sent.
+    ///
+    /// The mic next to it dictates *to the agent*; this one opens a free,
+    /// on-device conversation about what to ask for, seeded with whatever is in
+    /// the composer and a briefing on the other sessions. Only shown when the
+    /// user has opted in (Settings → Speech) on a build that can run a local
+    /// model, and independent of the gateway — this path needs no network.
+    private var discussButton: some View {
+        guard localChat.isEnabledAndAvailable else { return AnyView(EmptyView()) }
+        let isOpen = chatViewModel.localDiscussion != nil
+        let symbol = isOpen ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right"
+        let fill: Color = isOpen ? Color.accentColor : Theme.surfaceHover
+        let foreground: Color = isOpen ? .white : Theme.secondary
+        return AnyView(Image(systemName: symbol)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(foreground)
+            .frame(width: 30, height: 30)
+            .background(fill, in: Circle())
+            .contentShape(Circle())
+            .onTapGesture {
+                Task {
+                    if isOpen {
+                        await chatViewModel.endLocalDiscussion()
+                    } else {
+                        await chatViewModel.startLocalDiscussion()
+                    }
                 }
             }
-        } label: {
-            Image(systemName: isRecording ? "mic.fill" : "mic")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(isRecording ? .white : Theme.secondary)
-                .frame(width: 30, height: 30)
-                .background(
-                    isRecording
-                        ? Color.red
-                        : (isIdle ? Theme.surfaceHover : Color.clear),
-                    in: Circle()
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isRecording ? "Stop recording" : "Voice input")
-        .accessibilityIdentifier("voiceButton")
-        .help(isRecording ? "Stop voice recording" : "Start voice recording (walkie-talkie)")
-        .opacity(chatViewModel.isStreaming ? 0.3 : 1)
-        .disabled(chatViewModel.isStreaming)
-        .animation(.easeInOut(duration: 0.18), value: isRecording))
+            .accessibilityElement()
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(isOpen ? "End local discussion" : "Talk it over on-device first")
+            .accessibilityIdentifier("composerDiscussButton")
+            .help(discussButtonHelp(isOpen: isOpen)))
+    }
+
+    private func discussButtonHelp(isOpen: Bool) -> String {
+        if isOpen { return "In a local discussion \u{2014} tap to end" }
+        return "Talk it over with \(localChat.model.label) on-device first \u{2014} free, "
+            + "off the transcript, and it knows what else you have open"
+    }
+
+    /// Walkie-talkie mic button. Taps toggle recording on/off.
+    /// With the gateway path, the backend captures speech via faster-whisper and
+    /// emits `voice.transcript` events, which ChatViewModel auto-submits. With
+    /// on-device voice enabled, the mic transcribes locally instead — so the
+    /// button is available whenever either path is, independent of the gateway.
+    private var voiceButton: some View {
+        let isRecording = chatViewModel.isVoiceRecording
+        let isConversation = chatViewModel.isConversationActive
+        let isIdle = !chatViewModel.isStreaming && !isRecording && !isConversation
+        // Conversation session takes visual priority (accent), then one-shot
+        // recording (red), then idle.
+        let symbol = isConversation ? "waveform" : (isRecording ? "mic.fill" : "mic")
+        let fill: Color = isConversation
+            ? Color.accentColor
+            : (isRecording ? Color.red : (isIdle ? Theme.surfaceHover : Color.clear))
+        let foreground: Color = (isConversation || isRecording) ? .white : Theme.secondary
+        let blockedByStreaming = chatViewModel.isStreaming && !isConversation
+        return AnyView(Image(systemName: symbol)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(foreground)
+            .frame(width: 30, height: 30)
+            .background(fill, in: Circle())
+            .contentShape(Circle())
+            // Double-tap drops into a hands-free conversation regardless of the
+            // Conversation-mode setting; single tap dictates / stops / ends.
+            // Declaring the 2-count gesture first lets SwiftUI disambiguate
+            // reliably on macOS (a plain Button swallowed the double-tap).
+            .onTapGesture(count: 2) {
+                Task { await chatViewModel.startVoiceConversation() }
+            }
+            .onTapGesture(count: 1) {
+                guard !blockedByStreaming else { return }
+                Task {
+                    if isConversation || isRecording {
+                        await chatViewModel.stopVoiceRecording()
+                    } else {
+                        await chatViewModel.startVoiceRecording()
+                    }
+                }
+            }
+            .accessibilityElement()
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(isConversation ? "End conversation" : (isRecording ? "Stop recording" : "Voice input"))
+            .accessibilityIdentifier("voiceButton")
+            .help(isConversation
+                  ? "In conversation — tap to end"
+                  : (isRecording ? "Stop voice recording" : "Tap to dictate · double-tap to start a conversation"))
+            .opacity(blockedByStreaming ? 0.3 : 1)
+            .animation(.easeInOut(duration: 0.18), value: isRecording))
     }
 
     // MARK: - Send / Stop Button
@@ -1871,54 +1845,7 @@ struct ChatInputBar: View {
     #if os(macOS)
     private func handlePaste(providers: [NSItemProvider]) {
         for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
-                    if let url = item as? URL {
-                        let cachedPath = Self.copyToCache(url: url)
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    } else if let data = item as? Data {
-                        let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    } else if let nsImage = item as? NSImage,
-                              let tiffData = nsImage.tiffRepresentation,
-                              let bitmapRep = NSBitmapImageRep(data: tiffData),
-                              let pngData = bitmapRep.representation(using: .png, properties: [:]) {
-                        let cachedPath = Self.saveImageDataToCache(data: pngData, ext: "png")
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                            if let url = item as? URL {
-                                let cachedPath = Self.copyToCache(url: url)
-                                guard !cachedPath.isEmpty else { return }
-                                Task { @MainActor in
-                                    chatViewModel.addAttachment(path: cachedPath)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                    if let url = item as? URL {
-                        // Accept any file type — documents are extracted/uploaded
-                        // by ChatViewModel.ingestAttachment, not just images.
-                        let cachedPath = Self.copyToCache(url: url)
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    }
-                }
-            }
+            _ = ingest(provider: provider)
         }
     }
     #endif
@@ -1926,70 +1853,111 @@ struct ChatInputBar: View {
     // MARK: - Drop Handler
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        var handled = false
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                handled = true
-                provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
-                    if let url = item as? URL {
-                        let cachedPath = Self.copyToCache(url: url)
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    } else if let data = item as? Data {
-                        let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    }
-                    #if os(macOS)
-                    if let nsImage = item as? NSImage,
-                       let tiffData = nsImage.tiffRepresentation,
-                       let bitmapRep = NSBitmapImageRep(data: tiffData),
-                       let pngData = bitmapRep.representation(using: .png, properties: [:]) {
-                        let cachedPath = Self.saveImageDataToCache(data: pngData, ext: "png")
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    }
-                    #endif
-                    if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                            if let url = item as? URL {
-                                let cachedPath = Self.copyToCache(url: url)
-                                guard !cachedPath.isEmpty else { return }
-                                Task { @MainActor in
-                                    chatViewModel.addAttachment(path: cachedPath)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                handled = true
-                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                    if let url = item as? URL {
-                        // Accept any dropped file type — documents are handled
-                        // downstream, not just images.
-                        let cachedPath = Self.copyToCache(url: url)
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    }
-                }
+        // `map` every provider first, then fold. `ingest` has the side effect
+        // that IS the drop, so this must not short-circuit — `contains(where:)`
+        // or `handled || ingest(...)` would stop at the first accepted provider
+        // and silently discard the rest of a multi-file drop.
+        providers.map { ingest(provider: $0) }.contains(true)
+    }
+
+    // MARK: - Attachment Ingest
+    //
+    // Named for the attachment rather than for `NSItemProvider`, and worth
+    // keeping that way: scripts/build_architecture.py scans raw file text for
+    // bare capitalized type names, comments included, so spelling the second
+    // half of `NSItemProvider` as a word of its own anywhere in this file
+    // fabricates a chat-ui → domain-models reference edge against the
+    // like-named type in Models/ModelCatalog.swift.
+
+    /// Take one dragged or pasted provider into the attachment cache, reporting
+    /// whether it offered anything we know how to accept — which is what
+    /// `.onDrop` hands back to SwiftUI.
+    ///
+    /// Both type identifiers are resolved here, synchronously on the main actor,
+    /// and exactly one load is issued. Two properties of that shape matter:
+    ///
+    /// * **Nothing is nested.** Paste and drop each used to run the
+    ///   `public.file-url` check *inside* the `public.image` completion handler.
+    ///   That handler is `@Sendable` and arrives on an arbitrary queue, so
+    ///   reaching back for the non-Sendable `provider` from inside it was a
+    ///   cross-domain transfer the compiler was right to flag — the repo's last
+    ///   two `SendableClosureCaptures` warnings. Passing only the resolved
+    ///   identifier, a `String`, removes the capture by construction instead of
+    ///   suppressing it.
+    /// * **The branches are mutually exclusive.** The drop path's nested check
+    ///   was a plain `if`, not the `else if` the paste path used, so dropping an
+    ///   image *file* loaded it twice and added two attachments.
+    ///
+    /// `public.file-url` is checked first. A provider advertising it has a real
+    /// file on disk, and copying that file is what both old branches ultimately
+    /// did anyway — a `public.image` load returns a `URL` for a dropped file.
+    /// Going straight to it keeps the original bytes and extension rather than
+    /// possibly re-encoding to PNG through `NSImage`. Browser drags are
+    /// unaffected: they carry `public.url`, which does not conform to
+    /// `public.file-url`, so they still take the image path.
+    private func ingest(provider: NSItemProvider) -> Bool {
+        let typeIdentifier: String
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            typeIdentifier = UTType.fileURL.identifier
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+            typeIdentifier = UTType.image.identifier
+        } else {
+            return false
+        }
+        provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, _ in
+            guard let cachedPath = Self.cachedPath(forLoadedItem: item) else { return }
+            Task { @MainActor in
+                chatViewModel.addAttachment(path: cachedPath)
             }
         }
-        return handled
+        return true
+    }
+
+    /// Reduce an item handed back by `loadItem` to a path in the images cache,
+    /// or nil if it carried nothing usable.
+    ///
+    /// `nonisolated` for the same reason as the cache helpers below: this runs
+    /// on whatever queue the provider calls back on.
+    nonisolated private static func cachedPath(forLoadedItem item: (any NSSecureCoding)?) -> String? {
+        let cachedPath: String
+        if let url = item as? URL {
+            // Any file type is accepted — documents are extracted and uploaded
+            // by ChatViewModel.ingestAttachment, not just images.
+            cachedPath = copyToCache(url: url)
+        } else if let data = item as? Data {
+            cachedPath = saveImageDataToCache(data: data, ext: "png")
+        } else if let pngData = pngData(forLoadedItem: item) {
+            cachedPath = saveImageDataToCache(data: pngData, ext: "png")
+        } else {
+            return nil
+        }
+        return cachedPath.isEmpty ? nil : cachedPath
+    }
+
+    /// PNG bytes for an in-memory image item — a pasted screenshot, say, which
+    /// arrives as an `NSImage` with no file behind it. Always nil off macOS,
+    /// where `NSImage` does not exist.
+    nonisolated private static func pngData(forLoadedItem item: (any NSSecureCoding)?) -> Data? {
+        #if os(macOS)
+        guard let nsImage = item as? NSImage,
+              let tiffData = nsImage.tiffRepresentation,
+              let bitmapRep = NSBitmapImageRep(data: tiffData) else { return nil }
+        return bitmapRep.representation(using: .png, properties: [:])
+        #else
+        return nil
+        #endif
     }
 
     // MARK: - Cache Helpers
 
+    // These three are pure file I/O — no main-actor state is touched, and they
+    // run inside NSItemProvider load callbacks, which arrive on an arbitrary
+    // queue. `nonisolated` states that plainly; without it they inherit
+    // ChatInputBar's main-actor isolation and every call from those callbacks
+    // is a main-actor-call-from-nonisolated-context warning.
+
     /// Directory for cached user-sent images.
-    private static var gatewayImagesDir: String {
+    nonisolated private static var gatewayImagesDir: String {
         let home = NSHomeDirectory()
         let dir = "\(home)/.hermes/images"
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
@@ -1997,7 +1965,7 @@ struct ChatInputBar: View {
     }
 
     /// Copy a file URL into the hermes images cache, returning the cached path.
-    private static func copyToCache(url: URL) -> String {
+    nonisolated private static func copyToCache(url: URL) -> String {
         let dir = gatewayImagesDir
         let ext = url.pathExtension.isEmpty ? "png" : url.pathExtension
         let fileName = "\(UUID().uuidString).\(ext)"
@@ -2012,7 +1980,7 @@ struct ChatInputBar: View {
         }
     }
 
-    private static func saveImageDataToCache(data: Data, ext: String) -> String {
+    nonisolated private static func saveImageDataToCache(data: Data, ext: String) -> String {
         let dir = gatewayImagesDir
         let fileName = "\(UUID().uuidString).\(ext)"
         let dest = "\(dir)/\(fileName)"

@@ -74,6 +74,23 @@ internal struct DashboardLayoutTests {
         #expect(layout.panels.map(\.id) == [a.id, b.id])  // order intact
     }
 
+    @Test("kind removal and collapse mutation affect only matching panels")
+    internal func kindRemovalAndCollapseMutation() {
+        let files = DashboardPanel(kind: .files, frame: .zero)
+        let skills = DashboardPanel(kind: .skills, frame: .zero)
+        let otherFiles = DashboardPanel(kind: .files, frame: .zero)
+        var layout = DashboardLayout(panels: [files, skills, otherFiles])
+
+        layout.toggleCollapsed(skills.id)
+        #expect(layout.panels.first { $0.id == skills.id }?.isCollapsed == true)
+        layout.toggleCollapsed(UUID())
+        #expect(layout.panels.count == 3)
+
+        layout.remove(.files)
+        #expect(layout.panels.map(\.id) == [skills.id])
+        #expect(layout.panels[0].isCollapsed)
+    }
+
     // MARK: - Codable round-trip (persistence)
 
     @Test("A layout survives an encode/decode round-trip")
@@ -85,6 +102,54 @@ internal struct DashboardLayoutTests {
         let data = try JSONEncoder().encode(layout)
         let decoded = try JSONDecoder().decode(DashboardLayout.self, from: data)
         #expect(decoded == layout)
+    }
+
+    @Test("stored layouts round-trip while empty and corrupt values reseed")
+    internal func storedLayoutOutcomes() throws {
+        let key = "DashboardLayoutTests.\(UUID().uuidString)"
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+        let layout = DashboardLayout(panels: [
+            DashboardPanel(kind: .conversation, frame: CGRect(x: 1, y: 2, width: 300, height: 200))
+        ])
+
+        #expect(DashboardLayout.loadStored(key: key) == nil)
+        layout.store(key: key)
+        #expect(DashboardLayout.loadStored(key: key) == layout)
+
+        let empty = try JSONEncoder().encode(DashboardLayout())
+        UserDefaults.standard.set(empty, forKey: key)
+        #expect(DashboardLayout.loadStored(key: key) == nil)
+
+        UserDefaults.standard.set(Data("not json".utf8), forKey: key)
+        #expect(DashboardLayout.loadStored(key: key) == nil)
+    }
+
+    @Test("chat mode layout falls back to legacy storage until its own layout exists")
+    internal func chatModeLayoutMigrationFallback() {
+        let defaults = UserDefaults.standard
+        let modeKey = "DashboardLayoutTests.chatMode.\(UUID().uuidString)"
+        let legacyData = defaults.data(forKey: DashboardLayout.chatCanvasKey)
+        defer {
+            defaults.removeObject(forKey: modeKey)
+            if let legacyData {
+                defaults.set(legacyData, forKey: DashboardLayout.chatCanvasKey)
+            } else {
+                defaults.removeObject(forKey: DashboardLayout.chatCanvasKey)
+            }
+        }
+
+        let legacy = DashboardLayout(panels: [
+            DashboardPanel(kind: .conversation, frame: CGRect(x: 1, y: 2, width: 300, height: 200))
+        ])
+        let mode = DashboardLayout(panels: [
+            DashboardPanel(kind: .sessionGraph, frame: CGRect(x: 3, y: 4, width: 500, height: 400))
+        ])
+
+        legacy.store(key: DashboardLayout.chatCanvasKey)
+        #expect(DashboardLayout.loadStoredChatMode(modeKey) == legacy)
+
+        mode.store(key: modeKey)
+        #expect(DashboardLayout.loadStoredChatMode(modeKey) == mode)
     }
 
     @Test("An unknown panel kind decodes without loss (forward-compatible)")
@@ -293,7 +358,23 @@ internal struct DashboardLayoutTests {
         #expect(flame != nil)
     }
 
-    @Test("Seeded cron dashboard is dataflow-first: graph + summary + volume")
+    @Test("seeded sessions dashboard contains every panel in bounds")
+    internal func seededSessionsDashboardFitsBounds() {
+        let bounds = CGSize(width: 1200, height: 800)
+        let layout = DashboardLayout.seededSessionsDashboard(for: bounds)
+
+        #expect(Set(layout.panels.map(\.kind)) == [
+            .sessionsList, .sessionsStats, .sessionsSourceBreakdown, .sessionsTimeline,
+        ])
+        for panel in layout.panels {
+            #expect(panel.frame.minX >= 0)
+            #expect(panel.frame.minY >= 0)
+            #expect(panel.frame.maxX <= bounds.width)
+            #expect(panel.frame.maxY <= bounds.height)
+        }
+    }
+
+    @Test("Seeded cron dashboard is summary over volume; dataflow lives in Graphs")
     internal func seededCronDashboardFitsBounds() {
         let bounds = CGSize(width: 1200, height: 800)
         let layout = DashboardLayout.seededCronDashboard(for: bounds)
@@ -306,26 +387,21 @@ internal struct DashboardLayoutTests {
             #expect(panel.frame.width >= DashboardPanel.minSize.width)
             #expect(panel.frame.height >= DashboardPanel.minSize.height)
         }
-        // Only the three seeded lenses — jobs/timeline/per-job stay addable but
-        // are no longer part of the default (dataflow is now the centerpiece).
+        // Summary + volume only. Jobs/timeline/per-job stay addable; the dataflow
+        // graph is no longer a cron-activity panel (it lives on the Graphs page).
         let kinds = Set(layout.panels.map(\.kind))
-        #expect(kinds == [.cronGraph, .cronSummary, .cronVolume])
-        #expect(layout.panels.count == 3)
+        #expect(kinds == [.cronSummary, .cronVolume])
+        #expect(layout.panels.count == 2)
 
-        // The dataflow graph is the dominant panel: widest, and taller than the
-        // stacked right column's two panels.
-        let graph = layout.panels.first { $0.kind == .cronGraph }
         let summary = layout.panels.first { $0.kind == .cronSummary }
         let volume = layout.panels.first { $0.kind == .cronVolume }
-        #expect(graph != nil)
         #expect(summary != nil)
         #expect(volume != nil)
-        if let graph, let summary, let volume {
-            #expect(graph.frame.width > summary.frame.width)
-            // Summary sits above volume in the right column, no overlap.
+        if let summary, let volume {
+            // Summary sits above volume, no overlap; both span the full width.
             #expect(summary.frame.maxY <= volume.frame.minY + 0.5)
-            // The two right-column panels share the graph's right edge.
-            #expect(summary.frame.minX > graph.frame.maxX - 0.5)
+            #expect(volume.frame.width >= summary.frame.width - 0.5)
+            #expect(volume.frame.height > summary.frame.height)
         }
     }
 

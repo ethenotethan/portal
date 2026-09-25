@@ -13,6 +13,17 @@ final class ChatHistoryStore {
     private let fileManager = FileManager.default
     private let sessionsDir: URL
 
+    /// Which sessions have a transcript on disk. Built from one directory
+    /// listing and then kept current by our own writes and deletes.
+    ///
+    /// `hasLocalMessages` is read from `body`: each sidebar row's `contextMenu`
+    /// asks it whether to offer "Export Markdown", and SwiftUI builds
+    /// context-menu content eagerly along with the row. So a sidebar render
+    /// issued one blocking `fileExists` — a real `lstat` — per session, on the
+    /// main thread, and it surfaced as frame 0 of a main-thread hang. nil means
+    /// "not built yet".
+    private var localIndex: Set<String>?
+
     private init() {
         sessionsDir = Self.resolveSessionsDir(fileManager: fileManager)
         try? fileManager.createDirectory(at: sessionsDir, withIntermediateDirectories: true)
@@ -60,6 +71,7 @@ final class ChatHistoryStore {
     /// Save messages for a session. Called after every message change.
     func saveMessages(_ messages: [ChatMessage], forSession sessionID: String) {
         let file = sessionsDir.appendingPathComponent("\(sessionID).json")
+        localIndex?.insert(sessionID)
         Task.detached(priority: .background) {
             do {
                 let data = try JSONEncoder().encode(messages)
@@ -105,6 +117,7 @@ final class ChatHistoryStore {
     /// Delete local history for a session.
     func deleteMessages(forSession sessionID: String) {
         let file = sessionsDir.appendingPathComponent("\(sessionID).json")
+        localIndex?.remove(sessionID)
         Task.detached(priority: .background) { [file] in
             try? FileManager.default.removeItem(at: file)
         }
@@ -112,8 +125,15 @@ final class ChatHistoryStore {
 
     // MARK: - List
 
-    /// List all session IDs with local history.
+    /// List all session IDs with local history. Reads the directory, and
+    /// refreshes the index while it is there.
     func localSessionIDs() -> [String] {
+        let ids = listSessionIDsOnDisk()
+        localIndex = Set(ids)
+        return ids
+    }
+
+    private func listSessionIDsOnDisk() -> [String] {
         guard let contents = try? fileManager.contentsOfDirectory(at: sessionsDir, includingPropertiesForKeys: nil) else {
             return []
         }
@@ -123,9 +143,12 @@ final class ChatHistoryStore {
     }
 
     /// Check if a session has local history on disk without loading it.
+    /// Answered from `localIndex` — see its note; this is called from `body`.
     func hasLocalMessages(forSession sessionID: String) -> Bool {
-        let file = sessionsDir.appendingPathComponent("\(sessionID).json")
-        return fileManager.fileExists(atPath: file.path)
+        if let localIndex { return localIndex.contains(sessionID) }
+        let index = Set(listSessionIDsOnDisk())
+        localIndex = index
+        return index.contains(sessionID)
     }
 
     /// Extract the first user message content from local history for display as fallback title.

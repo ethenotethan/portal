@@ -1,12 +1,12 @@
 import SwiftUI
 
-struct WikiPathPickerSheet: View {
-    @Binding var selectedPath: String?
-    var onSelect: (String?) -> Void
+internal struct WikiPathPickerSheet: View {
+    @Binding internal var selectedPath: String?
+    internal var onSelect: (String?) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var customPath: String = ""
 
-    var body: some View {
+    internal var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
                 Text("Select Wiki")

@@ -5,11 +5,11 @@ import SwiftMath
 /// port of iosMath — real math typesetting, no webview). Falls back to the
 /// monospaced source when the TeX fails to parse, with the parse error
 /// surfaced so the user (or the model, pasted back) can fix it.
-struct MathView: View {
-    let tex: String
+internal struct MathView: View {
+    internal let tex: String
     @State private var isCopied = false
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "function")
@@ -154,7 +154,7 @@ private struct MathLabel: UIViewRepresentable {
 // extension is a trap: inside it, `NSColor(color)` resolves back to the
 // extension itself (MTColor IS NSColor) and recurses forever.
 @MainActor
-func mtColor(_ color: Color) -> MTColor {
+internal func mtColor(_ color: Color) -> MTColor {
     #if os(macOS)
     NSColor(color)
     #else

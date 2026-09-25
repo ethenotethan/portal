@@ -105,7 +105,6 @@ private final class ModelBadgeBackendSpy: AgentBackend {
     internal var onReconnected: (() async -> Void)?
     internal let apiKey = ""
     internal var activeSessionID: String?
-    internal let capabilities = BackendCapabilities.hermes
 
     /// Catalog the gateway answers with, keyed by the session asked about.
     internal var catalogBySession: [String: ModelCatalog] = [:]
@@ -219,6 +218,24 @@ internal struct ModelBadgeSessionSwitchTests {
         #expect(vm.messages.count == 2)
         // The transcript is what a resume refreshes — not the session's identity.
         #expect(vm.currentModel == "claude-opus-5")
+    }
+
+    @Test("resumeSessionDetailed's default delegates to resumeSession with no in-flight turn")
+    internal func defaultResumeDetailedReportsNoInflight() async throws {
+        // A backend that can't resume INTO a running turn (Centaur, and every
+        // test spy that doesn't override) inherits the AgentBackend default:
+        // resume the transcript, report no in-flight turn.
+        let backend = ModelBadgeBackendSpy()
+        let sid = "badge-detailed-\(UUID().uuidString)"
+        backend.runtimeIDBySession[sid] = "rt-\(UUID().uuidString)"
+        backend.historyBySession[sid] = [
+            ["role": AnyCodable("user"), "text": AnyCodable("hi")]
+        ]
+
+        let resumed = try await backend.resumeSessionDetailed(key: sid)
+        #expect(resumed.sessionID == backend.runtimeIDBySession[sid])
+        #expect(resumed.messages.count == 1)
+        #expect(resumed.inflight == nil)
     }
 
     @Test("a routed session fills its badge from model.options")

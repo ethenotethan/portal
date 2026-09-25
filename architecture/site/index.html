@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Portal's continuously maintained, source-backed architecture model.">
   <title>Portal Architecture</title>
+  <script>
+    // Theme before first paint: ?theme=light|dark wins, then the saved choice,
+    // then the OS preference. app.js owns the toggle; this only avoids a flash.
+    (() => {
+      const wanted = new URLSearchParams(location.search).get("theme");
+      let theme = wanted === "light" || wanted === "dark" ? wanted : null;
+      if (!theme) { try { theme = localStorage.getItem("portal.architecture.theme"); } catch (_e) { theme = null; } }
+      if (theme !== "light" && theme !== "dark") theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -26,68 +37,134 @@
       <a href="../">Overview</a>
       <a href="../#features">Features</a>
       <a href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">Repository ↗</a>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode" title="Switch to light mode"><span aria-hidden="true">☾</span></button>
     </div>
   </header>
 
   <nav class="section-nav" aria-label="Architecture views">
-    <button class="nav-item active" data-view="graph" type="button">System map</button>
-    <button class="nav-item" data-view="specifications" type="button">Specifications</button>
+    <button class="nav-item active" data-view="systemmap" type="button">System map</button>
+    <button class="nav-item" data-view="extraction" type="button">Extraction map</button>
     <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
+    <button class="nav-item" data-view="gates" type="button">CI gates</button>
   </nav>
 
   <main id="main">
-    <section class="view active" id="graph-view" aria-labelledby="graph-title">
+    <section class="view active" id="systemmap-view" aria-labelledby="interplay-title">
       <div class="intro-row">
         <div>
-          <p class="eyebrow">LIVE ARCHITECTURE MODEL</p>
-          <h2 id="graph-title">The shape of Portal</h2>
-          <p class="lede">A hierarchical view of product surfaces, state orchestration, backend seams, foundations, and external systems. Select any component to trace its evidence.</p>
+          <p class="eyebrow">DETERMINISTIC SYSTEM MAP</p>
+          <h2 id="interplay-title">System map</h2>
+          <p class="lede">The application boundary with its navigation pages inside, the one transport core that owns the pool, lock and socket every page competes for, the client extensions that route through it, the namespaces it dispatches at the gateway, the on-device engines, the event bus and its subscribers, and the external systems orbiting the application. Every node deep-links to its source; the constructions the map assumes are declared as invariants and checked on every build.</p>
         </div>
-        <div class="stats" id="stats" aria-label="Repository statistics"></div>
       </div>
-
-      <div class="graph-toolbar" aria-label="Graph controls">
+      <div class="authority-banner" role="note">Extracted by static source rules, explained by <code>architecture/interplay/overlay.json</code>, and gated by <code>architecture/interplay/invariants.json</code>. Edges are ownership, lifecycle, and wiring—not runtime topology or live connection counts.</div>
+      <div class="graph-toolbar" aria-label="System map controls">
         <label class="search-control">
-          <span class="sr-only">Search components</span>
-          <input id="graph-search" type="search" placeholder="Search components or declarations…" autocomplete="off">
+          <span class="sr-only">Search system map nodes</span>
+          <input id="interplay-search" type="search" placeholder="Search pages, owners, endpoints, resources, or engines…" autocomplete="off">
         </label>
-        <label class="select-control">
-          <span>Edges</span>
-          <select id="edge-mode">
-            <option value="specified">Architectural</option>
-            <option value="all">Architectural + code references</option>
-          </select>
-        </label>
-        <button id="reset-graph" class="quiet-button" type="button">Reset selection</button>
+        <button id="interplay-expand-all" class="quiet-button" type="button">Expand all</button>
+        <button id="interplay-collapse-all" class="quiet-button" type="button">Collapse all</button>
+        <button id="interplay-fullscreen" class="quiet-button" type="button">Full screen</button>
+        <button id="reset-interplay" class="quiet-button" type="button">Reset view</button>
       </div>
-
-      <div class="graph-workspace">
-        <div class="graph-scroll" id="graph-scroll">
-          <svg id="architecture-graph" role="img" aria-label="Portal architecture component graph"></svg>
-        </div>
-        <aside class="inspector" id="inspector" aria-live="polite">
-          <div class="inspector-empty">
-            <span class="inspector-index">01</span>
-            <h3>Select a component</h3>
-            <p>Inspect responsibility, source ownership, declarations, relationships, and evidence.</p>
+      <p class="graph-hint" aria-hidden="true">Click a box to expand it, its label to collapse it · drag the canvas to pan · scroll to zoom · click a node for its metadata</p>
+      <div class="graph-workspace" id="interplay-workspace">
+        <div class="graph-scroll" id="interplay-scroll">
+          <svg id="interplay-graph" role="img" preserveAspectRatio="xMidYMin meet" aria-label="Portal connection-pool and on-device-model interplay graph"></svg>
+          <div class="legend-overlay" id="interplay-legend" aria-label="Interplay legend">
+            <button type="button" class="legend-toggle" id="interplay-legend-toggle" aria-expanded="true" aria-controls="interplay-legend-items">Legend</button>
+            <div class="legend legend-items" id="interplay-legend-items"></div>
           </div>
-        </aside>
+          <!-- The history slider: the same map at every commit, from the opt-in
+               history.js artifact (make architecture-history). Hidden without it;
+               inert until touched, so the landing page is the head revision. -->
+          <div class="timeline-overlay" id="timeline" aria-label="System map history" hidden>
+            <div class="timeline-head">
+              <button type="button" class="legend-toggle" id="timeline-toggle" aria-expanded="true" aria-controls="timeline-body">History</button>
+              <span class="timeline-readout">
+                <strong id="timeline-date"></strong>
+                <a id="timeline-rev" target="_blank" rel="noreferrer"></a>
+                <span id="timeline-pos"></span>
+              </span>
+            </div>
+            <div class="timeline-body" id="timeline-body">
+              <div class="timeline-row">
+                <button type="button" class="timeline-play" id="timeline-play" title="Play the history forward" aria-pressed="false">▶</button>
+                <div class="timeline-track">
+                  <svg class="timeline-spark" id="timeline-spark" aria-hidden="true"></svg>
+                  <input type="range" id="timeline-range" min="0" max="0" value="0" step="1" aria-label="Commit position in the app's history">
+                </div>
+                <button type="button" class="quiet-button timeline-now" id="timeline-now" title="Back to the head revision">Now</button>
+              </div>
+              <div class="timeline-readout">
+                <span id="timeline-counts"></span>
+                <span class="timeline-delta" id="timeline-delta"></span>
+              </div>
+              <div class="timeline-subject" id="timeline-subject"></div>
+              <div class="timeline-diff" id="timeline-diff"></div>
+              <p class="timeline-note" id="timeline-note"></p>
+            </div>
+          </div>
+        </div>
+        <aside class="inspector" id="interplay-inspector" aria-live="polite" hidden></aside>
       </div>
-      <div class="legend" id="legend" aria-label="Architecture layers"></div>
+      <!-- System flows: LLM-identified, compiler-validated paths over edges the map
+           draws (architecture/semantic/flows.json). Trace on map lights the path. -->
+      <section class="invariants flows" id="flows" aria-labelledby="flows-title">
+        <h3 id="flows-title">System flows</h3>
+        <p class="invariants-lede" id="flows-lede"></p>
+        <div class="flows-list" id="flows-list"></div>
+      </section>
+      <!-- The constructions the map assumes, declared in architecture/interplay/invariants.json
+           and checked on every build. Plain text: reading them never touches the graph. -->
+      <section class="invariants" id="invariants" aria-labelledby="invariants-title">
+        <h3 id="invariants-title">Invariants</h3>
+        <p class="invariants-lede" id="invariants-lede"></p>
+        <ol class="invariants-list" id="invariants-list"></ol>
+      </section>
     </section>
 
-    <section class="view" id="specifications-view" aria-labelledby="specifications-title">
-      <div class="intro-row compact">
+    <section class="view" id="extraction-view" aria-labelledby="extraction-title">
+      <div class="intro-row">
         <div>
-          <p class="eyebrow">HUMAN-CONTROLLED AUTHORITY</p>
-          <h2 id="specifications-title">Specifications</h2>
-          <p class="lede">Normative architecture remains reviewable prose. Generated observations may inform it, but cannot silently redefine it.</p>
+          <p class="eyebrow">THE EXTRACTOR AS A PROJECTION</p>
+          <h2 id="extraction-title">Extraction map</h2>
+          <p class="lede">The system map is the output of a function over the source tree: each compiler pass reads every Swift file and emits what its grammar recognises. This page shows the projection itself. On the left is the implementation's file schema, the directories and files as they sit in the repository. On the right is every construction the map drew, grouped by kind. Each wire is one extraction: it runs from the file and line a rule fired on to the entity that rule produced, coloured by the family of the rule. Files no wire leaves were read by every pass and cited by none. Whatever the grammar does not know does not exist on the map, so those files are exactly the region the invariants do not cover.</p>
         </div>
+        <div class="stats" id="extraction-stats" aria-label="Extraction statistics"></div>
       </div>
-      <div class="document-workspace">
-        <nav class="document-list" id="spec-list" aria-label="Specifications"></nav>
-        <article class="document" id="spec-document"></article>
+      <div class="authority-banner" role="note">Every wire is a <code>(file, line, rule)</code> the compiled model already carries, joined to the entity whose citation it is, so this page can never disagree with the map. Untouched is a fact about the extractor's grammar, not about the code. Citations written by a person (construct records, flows) are counted separately and never drawn as extraction.</div>
+      <div class="graph-toolbar" aria-label="Extraction map controls">
+        <label class="search-control">
+          <span class="sr-only">Search files, entities, or rules</span>
+          <input id="extraction-search" type="search" placeholder="Search files, entities, declarations, or rules…" autocomplete="off">
+        </label>
+        <button id="provenance-expand-all" class="quiet-button" type="button">Expand all</button>
+        <button id="provenance-collapse-all" class="quiet-button" type="button">Collapse all</button>
+        <button id="reset-extraction" class="quiet-button" type="button">Reset selection</button>
       </div>
+      <div class="graph-workspace provenance-workspace" id="provenance-workspace">
+        <div class="graph-scroll" id="provenance-scroll">
+          <svg id="extraction-provenance" role="img" aria-label="The repository's file tree wired to every construction on the system map by the rule that extracted it"></svg>
+        </div>
+        <aside class="inspector" id="provenance-inspector" aria-live="polite" hidden></aside>
+      </div>
+      <div class="legend" id="provenance-legend" aria-label="Extraction rule families"></div>
+      <div class="behavior-content" id="extraction-coverage">
+        <section class="behavior-group">
+          <h3>Coverage by file</h3>
+          <p class="group-note">The same projection as area: every analysed file is a cell sized by its lines; the fill is the share of its declarations a mechanical pass cited; hatched cells were read and cited by nothing.</p>
+          <div class="graph-workspace extraction-workspace" id="extraction-workspace">
+            <div class="graph-scroll" id="extraction-scroll">
+              <svg id="extraction-treemap" role="img" aria-label="Every analysed Swift file sized by lines and shaded by how much of it the extractor cited"></svg>
+            </div>
+            <aside class="inspector" id="extraction-inspector" aria-live="polite" hidden></aside>
+          </div>
+          <div class="legend" id="extraction-legend" aria-label="Coverage legend"></div>
+        </section>
+      </div>
+      <div class="behavior-content" id="extraction-content"></div>
     </section>
 
     <section class="view" id="inventory-view" aria-labelledby="inventory-title">
@@ -108,6 +185,34 @@
         </table>
       </div>
     </section>
+
+    <section class="view" id="gates-view" aria-labelledby="gates-title">
+      <div class="intro-row">
+        <div>
+          <p class="eyebrow">DETERMINISTIC PIPELINE MODEL</p>
+          <h2 id="gates-title">CI gates</h2>
+          <p class="lede">Every GitHub Actions job drawn as a logic gate: a pull request is the input signal, each job either passes it or blocks it, <code>needs</code> and artifact hand-offs are the wires between jobs, and every gate that runs on pull requests feeds one AND gate, the merge. What runs only after a merge or by hand sits downstream. Beneath the circuit, the gates are sorted by what they defend: ratchets that hold a metric floor, architectural checks that pin the shape of the code, and static compiler checks that fail on drift between the tree and its generated artifacts.</p>
+        </div>
+        <div class="stats" id="gates-stats" aria-label="Pipeline statistics"></div>
+      </div>
+      <div class="authority-banner" role="note">Jobs, <code>needs</code>, artifacts and triggers are read from <code>.github/workflows</code>; the family of each workflow and what each ratchet measures are declared in <code>architecture/config.json</code>; the numbers are the committed baselines CI compares against. The diagram does not read branch protection: a gate here is a job that runs on pull requests, not a proof that GitHub requires it.</div>
+      <div class="graph-toolbar" aria-label="CI gate controls">
+        <label class="search-control">
+          <span class="sr-only">Search CI jobs</span>
+          <input id="gates-search" type="search" placeholder="Search workflows, jobs, scripts, or artifacts…" autocomplete="off">
+        </label>
+        <button id="reset-gates" class="quiet-button" type="button">Reset selection</button>
+      </div>
+      <p class="graph-hint" aria-hidden="true">Click a gate for its steps, scripts, pins and artifacts · every gate links to its line in the workflow file</p>
+      <div class="graph-workspace gates-workspace" id="gates-workspace">
+        <div class="graph-scroll" id="gates-scroll">
+          <svg id="gates-graph" role="img" aria-label="Portal CI pipeline drawn as logic gates"></svg>
+        </div>
+        <aside class="inspector" id="gates-inspector" aria-live="polite" hidden></aside>
+      </div>
+      <div class="legend" id="gates-legend" aria-label="CI gate families"></div>
+      <div class="behavior-content" id="gates-content"></div>
+    </section>
   </main>
 
   <footer>
@@ -116,6 +221,20 @@
   </footer>
 
   <script src="data.js"></script>
+  <!-- Optional: written by `make architecture-history`, absent otherwise. -->
+  <script src="history.js"></script>
   <script src="app.js"></script>
+  <!-- Mermaid renders the system-flow sequence diagrams generated in app.js from
+       compiler-validated steps. Loaded after the page works without it: if the
+       CDN is unreachable the diagrams stay as their text source. -->
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    // The diagram theme follows the page theme; app.js calls __mermaidInit again
+    // when the reader toggles, then re-renders the open diagrams.
+    window.__mermaidInit = (theme) => mermaid.initialize({ startOnLoad: false, theme: theme === "light" ? "neutral" : "dark", securityLevel: "strict", sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 24, messageMargin: 28 } });
+    window.__mermaidInit(document.documentElement.dataset.theme);
+    window.__mermaid = mermaid;
+    window.dispatchEvent(new Event("mermaid-ready"));
+  </script>
 </body>
 </html>

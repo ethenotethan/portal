@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Portal is a native macOS and iOS client for AI agent backends — chat, canvas, thought graph, wiki, cron, and learning in one Swift app.">
-  <title>Portal — a native client for AI agent backends</title>
+  <title>Portal — the native client for Harness, an opinionated Hermes Agent fork</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -30,30 +30,37 @@
 
     <!-- ───────────────────────── Hero ───────────────────────── -->
     <section class="hero" id="overview">
-      <div class="hero-copy">
-        <p class="eyebrow">MACOS 14 · IOS 17 · SWIFT 6</p>
-        <h2>The agent you run<br>somewhere else,<br>on a Mac that feels<br>like it lives here.</h2>
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-copy" data-reveal>
+        <p class="badge"><span class="badge-dot" aria-hidden="true"></span> Open source · MIT · Swift 6 · macOS&nbsp;14 + iOS&nbsp;17</p>
+        <h2>The agent you run<br>somewhere else,<br>on a Mac that feels<br>like it <span class="grad">lives here.</span></h2>
         <p class="lede">
-          Portal is a native macOS and iOS client for AI agent backends. It talks to
-          a <strong>Hermes</strong> gateway over a WebSocket JSON-RPC connection and
-          to <strong>Centaur</strong> over REST + SSE — from one app, with no local
-          server, no CLI, and no Electron. What arrives over that socket is not
-          just text: tool calls, reasoning traces, subagent spawns, artifacts and
-          approvals all get a real surface built for them.
+          Portal is the native macOS and iOS client for
+          <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer"><strong>Harness</strong></a>,
+          an opinionated fork of Hermes Agent. Harness adds the WebSocket JSON-RPC
+          gateway and the agent-side machinery a rich client needs; Portal is the
+          surface built for it — no local server, no CLI, no Electron. What arrives
+          over that socket is not just text: tool calls, reasoning traces, subagent
+          spawns, artifacts, cron dataflow and approvals all get a real surface
+          built for them. (It also speaks Centaur, over REST + SSE, for the
+          reduced surface that backend allows.)
         </p>
         <div class="cta-row">
           <a class="button primary" href="#features">See the surfaces</a>
           <a class="button" href="architecture/">Architecture Observatory ↗</a>
+          <a class="button ghost" href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">GitHub ↗</a>
         </div>
       </div>
-      <!-- Counts come from architecture/model/model.json, which the
-           architecture compiler regenerates from source; keep them in step with
-           the observatory's own header rather than counting by hand. -->
-      <ul class="hero-stats" aria-label="Repository scale">
-        <li><strong>335</strong><span>Swift files</span></li>
-        <li><strong>97,890</strong><span>lines</span></li>
-        <li><strong>1,055</strong><span>tests</span></li>
-        <li><strong>87</strong><span>RPC methods &amp; events</span></li>
+      <!-- File and line counts come from architecture/model/model.json; the test
+           count comes from `swift test list`, and the RPC count from the outbound
+           and inbound catalogs in docs/rpc-reference.md. The rendered text is the
+           source of truth; data-count only drives the optional count-up animation
+           and is ignored when JS is off or reduced motion is requested. -->
+      <ul class="hero-stats" aria-label="Repository scale" data-reveal>
+        <li><strong data-count="392">392</strong><span>Swift files</span></li>
+        <li><strong data-count="120055">120,055</strong><span>lines</span></li>
+        <li><strong data-count="1912">1,912</strong><span>tests</span></li>
+        <li><strong data-count="98">98</strong><span>RPC methods &amp; events</span></li>
       </ul>
     </section>
 
@@ -74,15 +81,21 @@
           </p>
         </article>
         <article class="card">
-          <h4>Two backends, one app</h4>
+          <h4>Built for Harness</h4>
           <p>
-            The Hermes gateway is
-            <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer">ethenotethan/harness</a>,
-            which speaks WebSocket JSON-RPC and serves the full surface;
+            <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer">Harness</a>
+            is a fork of
+            <a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noreferrer">Hermes Agent</a>
+            whose every change exists to serve this client: the
+            <code>/v1/ws</code> gateway, a wiki API with an edit history, a cron
+            <em>dataflow</em> graph, living artifacts, learning, a file browser.
+            The full set is published as a
+            <a href="https://ethenotethan.github.io/harness/" target="_blank" rel="noreferrer">fork diff</a>
+            that Harness's CI keeps current.
             <a href="https://github.com/paradigmxyz/centaur" target="_blank" rel="noreferrer">Centaur</a>
-            is a session-scoped REST + SSE control plane; Hermes Standard is a
-            management-scoped HTTP API. Each declares its own capabilities, so the
-            UI only offers what the backend can actually honour.
+            (REST + SSE) and Hermes Standard (management HTTP) are also supported;
+            each declares its capabilities, so the UI only offers what the
+            connected backend can honour.
           </p>
         </article>
         <article class="card">
@@ -232,15 +245,6 @@
         </figure>
       </article>
 
-      <!-- Full width: three x-aligned plots at half-column width would be
-           unreadable, the same reason the appearance proofs get their own row. -->
-      <div class="wide-shot">
-        <figure class="shot">
-          <img src="img/wikiaccrued.png" alt="The wiki's knowledge-accrued pane: four stat tiles, a cumulative revisions curve seeded from a pre-window baseline, and two x-aligned bar charts showing input events by kind above output page edits per day." loading="lazy" width="1800" height="1272">
-          <figcaption>Input against output on one shared time axis — events ingested per day above page edits per day, never dual-axed onto a single plot. The cumulative curve seeds at the revision count from before the window, so the height it starts at is true rather than zeroed.</figcaption>
-        </figure>
-      </div>
-
       <!-- Activity -->
       <article class="feature" id="activity">
         <div class="feature-copy">
@@ -289,10 +293,10 @@
         </figure>
       </article>
 
-      <!-- Living artifacts / intents. Prose only for now: an honest capture is a
-           real generated world running against a live gateway, and the norm on
-           this page is that every figure is a real render of shipping code.
-           When that capture exists, drop it in as a figure here. -->
+      <!-- Living artifacts / intents. The copy stays two-column prose; the
+           capture is a full-window 3D world and would be illegible in a
+           half-column, so it gets its own `.wide-shot` row below, like the
+           wiki's accrued-knowledge figure. -->
       <article class="feature prose-only" id="artifacts">
         <div class="feature-copy">
           <p class="kicker">08 — LIVING ARTIFACTS</p>
@@ -326,6 +330,13 @@
           </p>
         </div>
       </article>
+
+      <div class="wide-shot">
+        <figure class="shot">
+          <img src="img/world.png" alt="A generated 3D world artifact, Ethen's Living Constellation: a robot guardian named Rook stands on a horizon under a starfield, a card at lower left describes Rook, the Muay Thai Tiger, with four checklist tasks, and a WASD and mouse control hint sits top right with a Click scene to enter prompt." loading="lazy" width="2000" height="1233">
+          <figcaption>A real generated world running against a live gateway — a daily map whose guardians are objects with declared intents. Click the scene to capture the mouse, walk up to a guardian with WASD, and pressing E marks a task through the backend rather than in the page.</figcaption>
+        </figure>
+      </div>
 
       <!-- Learning -->
       <article class="feature" id="learning">
@@ -420,7 +431,7 @@
         </div>
         <div class="layer" data-layer="external">
           <div class="layer-label"><span>External systems</span><em>4 runtime boundaries</em></div>
-          <p>The <code>harness</code> Hermes gateway, Hermes Standard, the Centaur API, and OS device services.</p>
+          <p>The Harness gateway, Hermes Standard, the Centaur API, and OS device services.</p>
         </div>
       </div>
 
@@ -430,19 +441,22 @@
            truth for anything asserted here. -->
       <div class="card-grid two">
         <article class="card wide">
-          <h4>Hermes — <code>ethenotethan/harness</code></h4>
+          <h4>Harness — <code>ethenotethan/harness</code>, the opinionated Hermes Agent fork</h4>
           <p>
-            The gateway Portal was built against is
+            Portal is the client half of Harness. The gateway is
             <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer">ethenotethan/harness</a>,
             a fork of
-            <a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noreferrer">NousResearch/hermes-agent</a>.
-            The fork is what matters: <strong>stock hermes-agent has no
-            <code>/v1/ws</code></strong>. Upstream exposes only an
-            OpenAI-compatible HTTP API, so the WebSocket JSON-RPC endpoint —
-            and with it the wiki, feed, cron, skills, artifact and
-            push-notification RPCs this app is built on — exists only in the
-            fork. Point Portal at a stock install and the health probe passes
-            while the socket upgrade fails.
+            <a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noreferrer">NousResearch/hermes-agent</a>
+            that is rebased onto upstream periodically and documents everything it
+            changes on a
+            <a href="https://ethenotethan.github.io/harness/" target="_blank" rel="noreferrer">fork-diff page</a>
+            its CI refuses to let go stale. The fork is what matters:
+            <strong>stock hermes-agent has no <code>/v1/ws</code></strong>.
+            Upstream exposes only an OpenAI-compatible HTTP API, so the WebSocket
+            JSON-RPC endpoint — and with it the wiki, cron-graph, artifact,
+            learning, file-browser, feed and push-notification RPCs this app is
+            built on — exists only in Harness. Point Portal at a stock install
+            and the health probe passes while the socket upgrade fails.
           </p>
           <p>
             Everything served over that one endpoint: session lifecycle,
@@ -561,7 +575,7 @@
             networking dependencies, native backpressure, and it inherits
             <code>URLSession</code>'s proxy, TLS and cookie handling — which is
             what makes Cloudflare Access work at all. The third-party packages are
-            for presentation and on-device inference: Lottie, Highlightr, a Mermaid
+            for presentation and on-device inference: Highlightr, a Mermaid
             renderer, and MLX with swift-transformers.
           </p>
         </article>
@@ -617,5 +631,10 @@ make run        <span class="c"># build and launch</span></code></pre>
       <a href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">GitHub</a>
     </p>
   </footer>
+
+  <!-- Progressive enhancement only: scroll-reveal + stat count-up. Every element
+       is fully visible with no JS and when reduced motion is requested; the
+       script never adds content, only animates what the markup already shows. -->
+  <script src="enhance.js" defer></script>
 </body>
 </html>

@@ -3,7 +3,7 @@ import Foundation
 /// Best-effort parser that converts mermaid flowchart / graph / mindmap
 /// sources into a `WikiGraph` so they can be explored as a force-directed graph.
 /// Unparseable lines are silently skipped; the parser never throws.
-enum MermaidGraphParser {
+internal enum MermaidGraphParser {
 
     private enum Kind {
         case flowchart
@@ -13,14 +13,14 @@ enum MermaidGraphParser {
     // MARK: - Public API
 
     /// True when the (fence-stripped) source begins with a diagram type we can explore.
-    static func canExplore(_ source: String) -> Bool {
+    internal static func canExplore(_ source: String) -> Bool {
         guard let header = cleanedLines(source).first else { return false }
         return diagramKind(of: header) != nil
     }
 
     /// Parses the source into a WikiGraph. Returns nil for unsupported diagram
     /// types or graphs with fewer than 2 nodes.
-    static func parse(_ source: String) -> WikiGraph? {
+    internal static func parse(_ source: String) -> WikiGraph? {
         let lines = cleanedLines(source)
         guard let header = lines.first, let kind = diagramKind(of: header) else { return nil }
 

@@ -2,8 +2,8 @@ import Foundation
 
 @MainActor
 extension GatewayClient {
-    func feedGet(sources: [String]? = nil, since: String? = nil,
-                 limit: Int = 50, offset: Int = 0) async throws -> FeedResponse {
+    internal func feedGet(sources: [String]? = nil, since: String? = nil,
+                          limit: Int = 50, offset: Int = 0) async throws -> FeedResponse {
         var params: [String: AnyCodable] = [:]
         if let s = sources { params["sources"] = .array(s.map(AnyCodable.init)) }
         if let d = since { params["since"] = AnyCodable(d) }
@@ -93,7 +93,7 @@ extension GatewayClient {
         )
     }
 
-    func feedSources() async throws -> FeedSourcesResponse {
+    internal func feedSources() async throws -> FeedSourcesResponse {
         let response = try await call("feed.sources", params: [:])
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))

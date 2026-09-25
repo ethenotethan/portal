@@ -238,6 +238,12 @@ internal struct WikiProvenanceTests {
         #expect(WikiEventRef(key: ".hidden").shortLabel == ".hidden")
     }
 
+    @Test("an event ref uses its stable provenance key as its identity")
+    internal func eventRefIdentity() {
+        let ref = WikiEventRef(key: "raw/articles/llama-cpp-release.md")
+        #expect(ref.id == ref.key)
+    }
+
     @Test("the wire key matches the backend contract")
     internal func wireKeyIsPinned() {
         #expect(WikiProvenance.wireKey == "source_event_keys")
