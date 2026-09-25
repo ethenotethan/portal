@@ -58,13 +58,10 @@ internal final class CronGraphViewModel: ObservableObject {
     /// opens it once it appears and then clears this. Lives on the shared view
     /// model because the two surfaces are otherwise unaware of each other.
     @Published internal var requestedSourceFile: CronSourceFile?
-    /// A service whose code knowledge graph someone asked to open from a surface
-    /// that can't present it — the inline detail dock — handed to the full-screen
-    /// graph, which presents `WikiGraphView` backed by a `CodeGraphSource` and
-    /// then clears this. Mirrors `requestedSourceFile`; same cross-surface reason.
-    @Published internal var requestedCodeGraph: CodeGraphRequest?
     /// An architecture model asked for from the inline dock, which can't present
-    /// it; the full-screen surface consumes and clears it, like `requestedCodeGraph`.
+    /// it; the full-screen surface consumes and clears it, like `requestedSourceFile`.
+    /// The service's code graph rides along inside the request and is offered
+    /// from the architecture surface itself.
     @Published internal var requestedArchitecture: ArchitectureRequest?
     /// Group scheme keys currently collapsed into a single super-node. Persists
     /// across reloads (stale keys are ignored) so a folded-away cluster stays

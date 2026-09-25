@@ -182,7 +182,7 @@ internal struct ArchitectureHullTree: Hashable {
         }
 
         private mutating func ensurePage(_ pageID: String) -> String {
-            ensure(ArchitectureHullTree.applicationID, label: "Portal application", kind: .application, parent: nil)
+            ensure(ArchitectureHullTree.applicationID, label: document.applicationLabel, kind: .application, parent: nil)
             let id = pageID == "shared" ? ArchitectureHullTree.sharedPageID : "hull:page:\(pageID)"
             let label = document.pages.first { $0.id == pageID }?.label ?? "Shared core"
             ensure(id, label: label, kind: .page, parent: ArchitectureHullTree.applicationID)

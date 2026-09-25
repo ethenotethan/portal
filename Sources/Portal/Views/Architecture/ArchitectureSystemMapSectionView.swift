@@ -228,6 +228,16 @@ internal struct ArchitectureSystemMapSectionView: View {
         )
         return DisclosureGroup(isExpanded: isOpen) {
             VStack(alignment: .leading, spacing: 6) {
+                if isOpen.wrappedValue {
+                    // The flow as a sequence diagram, generated from its validated
+                    // steps, so it can only show wiring the map has.
+                    MermaidDiagramView(
+                        mermaidCode: ArchitectureSystemMapFlowDiagram.mermaid(for: flow, document: model.document),
+                        isStreaming: false
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 4)
+                }
                 if !flow.summary.isEmpty {
                     Text(flow.summary).font(.caption).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                 }

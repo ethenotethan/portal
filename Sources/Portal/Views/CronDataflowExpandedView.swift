@@ -47,12 +47,10 @@ internal struct CronDataflowExpandedView: View {
     @State private var ledgers: [String: [CronRunRecord]] = [:]
     /// The source-file explorer + reader state for the selected job.
     @StateObject private var sourceVM = CronSourceFilesViewModel()
-    /// The service whose code knowledge graph is presented over the surface, if
-    /// any — set from the resource card's button or a request handed up from the
-    /// inline dock. Presented on its own code-topology surface.
-    @State private var presentedCodeGraph: CodeGraphRequest?
-    /// The service whose architecture model is presented over the surface, if
-    /// any — from the resource card's button or a request from the inline dock.
+    /// The service whose architecture model fills the surface, if any — from the
+    /// resource card's button or a request from the inline dock. On macOS it is
+    /// an opaque layer over the whole graph (growing in from the card's side); on
+    /// iOS a full-screen cover. The service's code graph is offered from inside it.
     @State private var presentedArchitecture: ArchitectureRequest?
 
     internal init(
@@ -81,29 +79,52 @@ internal struct CronDataflowExpandedView: View {
                 graphVM.requestedSourceFile = nil
                 await sourceVM.open(file)
             }
-            // A code graph asked for from the inline dock, before this surface
-            // existed: present it here, then clear the request so re-selecting
-            // the service later doesn't replay it.
-            .task(id: graphVM.requestedCodeGraph) {
-                guard let request = graphVM.requestedCodeGraph else { return }
-                graphVM.requestedCodeGraph = nil
-                presentedCodeGraph = request
-            }
+            // An architecture model asked for from the inline dock, before this
+            // surface existed: present it here, then clear the request so
+            // re-selecting the service later doesn't replay it.
             .task(id: graphVM.requestedArchitecture) {
                 guard let request = graphVM.requestedArchitecture else { return }
                 graphVM.requestedArchitecture = nil
-                presentedArchitecture = request
+                presentArchitecture(request)
             }
             // Selecting another node retires the reader: a file from job A open
             // beside job B's card would read as B's code.
             .onChange(of: graphVM.selectedNodeIndex) { _, _ in sourceVM.close() }
-            .sheet(item: $presentedCodeGraph) { request in
-                CodeGraphSurfaceView(request: request, client: gatewayClientWrapper.client)
-            }
-            .sheet(item: $presentedArchitecture) { request in
+            #if os(iOS)
+            .fullScreenCover(item: $presentedArchitecture) { request in
                 ArchitectureSurfaceView(request: request, client: gatewayClientWrapper.client)
             }
+            #else
+            .overlay { architectureLayer }
+            #endif
     }
+
+    /// Show a service's architecture: the surface grows in from the card's side
+    /// and takes the whole window; Done shrinks it away again.
+    private func presentArchitecture(_ request: ArchitectureRequest) {
+        withAnimation(.easeOut(duration: 0.22)) { presentedArchitecture = request }
+    }
+
+    #if os(macOS)
+    /// The architecture surface as an opaque layer over the graph. Opaque and
+    /// topmost, so the graph beneath receives no pointer events while it is up.
+    @ViewBuilder
+    private var architectureLayer: some View {
+        if let request = presentedArchitecture {
+            ArchitectureSurfaceView(
+                request: request,
+                client: gatewayClientWrapper.client,
+                onDismiss: { withAnimation(.easeIn(duration: 0.18)) { presentedArchitecture = nil } }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
+            .contentShape(Rectangle())
+            .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .opacity))
+            .zIndex(10)
+            .accessibilityIdentifier("runtime.graph.architecture-surface")
+        }
+    }
+    #endif
 
     private func openSourceFile(_ file: CronSourceFile) {
         Task { await sourceVM.open(file) }
@@ -347,20 +368,6 @@ internal struct CronDataflowExpandedView: View {
             if node.kind == "service", !node.description.isEmpty {
                 MarkdownContentView(text: node.description)
             }
-            if node.kind == "service", let codeGraph = node.codeGraph {
-                Button {
-                    presentedCodeGraph = CodeGraphRequest(
-                        service: codeGraph.ref,
-                        label: node.label,
-                        digest: codeGraph.digest
-                    )
-                } label: {
-                    Label("View code graph", systemImage: "point.3.connected.trianglepath.dotted")
-                        .font(.caption.weight(.semibold))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Theme.accent)
-            }
             if node.wikiPagePath != nil, let onOpenWikiResource {
                 Button {
                     onOpenWikiResource(node)
@@ -374,11 +381,12 @@ internal struct CronDataflowExpandedView: View {
             }
             if node.kind == "service", let architecture = node.architecture {
                 Button {
-                    presentedArchitecture = ArchitectureRequest(
+                    presentArchitecture(ArchitectureRequest(
                         service: architecture.ref,
                         label: node.label,
-                        revision: architecture.revision
-                    )
+                        revision: architecture.revision,
+                        codeGraph: node.codeGraph
+                    ))
                 } label: {
                     Label("View architecture", systemImage: "square.3.layers.3d")
                         .font(.caption.weight(.semibold))

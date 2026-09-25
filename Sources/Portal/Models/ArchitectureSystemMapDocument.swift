@@ -287,6 +287,9 @@ internal enum ArchitectureFlowEndpoint: Hashable {
 /// invariants that hold over them. Decoded tolerantly from the `interplay`
 /// section; anything malformed is dropped, never fatal.
 internal struct ArchitectureSystemMapDocument: Hashable {
+    /// The model's title: what the application hull is called. Empty when the
+    /// section was decoded on its own; the layout then says "Application".
+    internal let title: String
     internal let nodes: [ArchitectureMapNode]
     internal let edges: [ArchitectureMapEdge]
     internal let pages: [ArchitectureMapPage]
@@ -298,6 +301,7 @@ internal struct ArchitectureSystemMapDocument: Hashable {
     private let nodeByHistoryKey: [String: ArchitectureMapNode]
 
     internal init(
+        title: String = "",
         nodes: [ArchitectureMapNode],
         edges: [ArchitectureMapEdge],
         pages: [ArchitectureMapPage],
@@ -306,6 +310,7 @@ internal struct ArchitectureSystemMapDocument: Hashable {
         flows: [ArchitectureFlow],
         invariants: [ArchitectureInvariant]
     ) {
+        self.title = title
         self.nodes = nodes
         self.edges = edges
         self.pages = pages
@@ -323,8 +328,9 @@ internal struct ArchitectureSystemMapDocument: Hashable {
         nodeByHistoryKey = byKey
     }
 
-    internal static func decode(_ section: [String: AnyCodable]) -> ArchitectureSystemMapDocument {
+    internal static func decode(_ section: [String: AnyCodable], title: String = "") -> ArchitectureSystemMapDocument {
         ArchitectureSystemMapDocument(
+            title: title,
             nodes: (section["nodes"]?.arrayValue ?? []).compactMap(ArchitectureMapNode.decode),
             edges: (section["edges"]?.arrayValue ?? []).compactMap(ArchitectureMapEdge.decode),
             pages: (section["pages"]?.arrayValue ?? []).compactMap(ArchitectureMapPage.decode),
@@ -336,8 +342,16 @@ internal struct ArchitectureSystemMapDocument: Hashable {
     }
 
     /// The map of a whole document, or nil when it has no `interplay` section.
+    /// The application hull takes the model's own title (the summary's title is
+    /// the same value as the gateway derived it).
     internal static func decode(document: ArchitectureModelDocument) -> ArchitectureSystemMapDocument? {
-        document.section(.interplay).map(decode)
+        let title = document.model.dictionaryValue?["title"]?.stringValue ?? document.summary.title
+        return document.section(.interplay).map { decode($0, title: title) }
+    }
+
+    /// What the application hull is called: the model's title, or a neutral word.
+    internal var applicationLabel: String {
+        title.trimmingCharacters(in: .whitespaces).isEmpty ? "Application" : title
     }
 
     internal func node(id: String) -> ArchitectureMapNode? {
