@@ -12185,9 +12185,10 @@
       "line_count": 5278
     },
     {
-      "declaration_count": 34,
+      "declaration_count": 41,
       "declarations": [
         "ActivityInboxViewModel",
+        "ArchitectureGatesLayout",
         "ArchitectureReading",
         "ArchitectureSurfaceModel",
         "Availability",
@@ -12208,8 +12209,13 @@
         "FilesBrowserViewModel",
         "FilterStatus",
         "GatewayRestartController",
+        "Lane",
+        "LaneKind",
+        "Metrics",
         "MilestoneLevel",
+        "Node",
         "NodeGlyph",
+        "NodeKind",
         "Phase",
         "QuizMode",
         "QuizViewModel",
@@ -12220,13 +12226,15 @@
         "SkillsViewModel",
         "SortOrder",
         "SoundEffects",
-        "TimeWindow"
+        "TimeWindow",
+        "Wire"
       ],
       "description": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines.",
       "external": false,
-      "file_count": 18,
+      "file_count": 19,
       "files": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
+        "Sources/Portal/ViewModels/ArchitectureGatesLayout.swift",
         "Sources/Portal/ViewModels/ArchitectureSurfaceModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
         "Sources/Portal/ViewModels/CodeGraphSource.swift",
@@ -12248,7 +12256,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 4779,
+      "line_count": 5102,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -12682,7 +12690,7 @@
       }
     },
     {
-      "declaration_count": 292,
+      "declaration_count": 311,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -12695,15 +12703,34 @@
         "AnyCodable",
         "AppFontTheme",
         "ApprovalQueue",
+        "ArchitectureArchitecturalChecks",
         "ArchitectureCheckResult",
+        "ArchitectureCheckedInvariant",
         "ArchitectureContractRef",
+        "ArchitectureGateJob",
+        "ArchitectureGatePin",
+        "ArchitectureGateRole",
+        "ArchitectureGateStep",
+        "ArchitectureGateTrigger",
+        "ArchitectureGateWire",
+        "ArchitectureGateWireKind",
+        "ArchitectureGateWorkflow",
+        "ArchitectureGatesDocument",
+        "ArchitectureGatesSummary",
+        "ArchitectureLintRule",
+        "ArchitectureMergeGate",
         "ArchitectureModelDocument",
         "ArchitectureModelSummary",
         "ArchitectureObservatoryAssets",
         "ArchitecturePanelPage",
+        "ArchitectureRatchet",
+        "ArchitectureRatchetEntry",
         "ArchitectureRequest",
         "ArchitectureSection",
         "ArchitectureServiceRef",
+        "ArchitectureSourceLine",
+        "ArchitectureStaticCheck",
+        "ArchitectureTestCase",
         "ArtifactGateway",
         "ArtifactMerge",
         "ArtifactQuery",
@@ -12979,13 +13006,14 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 90,
+      "file_count": 91,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
         "Sources/Portal/Models/AgentModel.swift",
         "Sources/Portal/Models/AppFontTheme.swift",
         "Sources/Portal/Models/ApprovalQueue.swift",
+        "Sources/Portal/Models/ArchitectureGatesDocument.swift",
         "Sources/Portal/Models/ArchitectureModelDocument.swift",
         "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ArchitecturePanelPage.swift",
@@ -13075,7 +13103,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 21945,
+      "line_count": 22500,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13119,8 +13147,9 @@
       }
     },
     {
-      "declaration_count": 96,
+      "declaration_count": 97,
       "declarations": [
+        "ANDGateShape",
         "AppFontSettingsSection",
         "ApprovalBanner",
         "ArchitectureExtractionSectionView",
@@ -13272,7 +13301,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 8075,
+      "line_count": 8595,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13955,7 +13984,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 50 declaration(s) owned by domain-models.",
+      "description": "References 49 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
@@ -13987,7 +14016,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 83
+      "weight": 82
     },
     {
       "authority": "observed",
@@ -14229,7 +14258,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 52 declaration(s) owned by domain-models.",
+      "description": "References 51 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ChatViewModel.swift",
         "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift",
@@ -14253,7 +14282,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 56
+      "weight": 55
     },
     {
       "authority": "observed",
@@ -14300,18 +14329,19 @@
     },
     {
       "authority": "observed",
-      "description": "References 2 declaration(s) owned by operations-state.",
+      "description": "References 3 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/ViewModels/ChatViewModel.swift"
       ],
       "source": "chat-state",
       "symbols": [
         "CelebrationManager",
-        "SessionListViewModel"
+        "SessionListViewModel",
+        "Wire"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 3
+      "weight": 4
     },
     {
       "authority": "observed",
@@ -14509,18 +14539,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 2 declaration(s) owned by operations-state.",
+      "description": "References 3 declaration(s) owned by operations-state.",
       "evidence": [
-        "Sources/Portal/Views/ChatView.swift"
+        "Sources/Portal/Views/ChatView.swift",
+        "Sources/Portal/Views/ModelPickerMenu.swift"
       ],
       "source": "chat-ui",
       "symbols": [
         "QuizViewModel",
-        "SettingsViewModel"
+        "SettingsViewModel",
+        "Wire"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 3
+      "weight": 5
     },
     {
       "authority": "observed",
@@ -14822,18 +14854,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 7 declaration(s) owned by operations-state.",
+      "description": "References 9 declaration(s) owned by operations-state.",
       "evidence": [
+        "Sources/Portal/Models/AgentModel.swift",
         "Sources/Portal/Models/CelebrationBeat.swift",
         "Sources/Portal/Models/CelebrationPreferences.swift",
         "Sources/Portal/Models/CodeGraph.swift",
         "Sources/Portal/Models/CronCategory.swift",
+        "Sources/Portal/Models/CronChangeset.swift",
         "Sources/Portal/Models/CronGraphDigest.swift",
         "Sources/Portal/Models/CronGraphRevisionStore.swift",
+        "Sources/Portal/Models/DashboardPanel.swift",
+        "Sources/Portal/Models/FileBrowseModels.swift",
         "Sources/Portal/Models/Learning/Curriculum.swift",
-        "Sources/Portal/Models/PortalBootstrapConfiguration.swift",
-        "Sources/Portal/Models/SavedGateway.swift",
-        "Sources/Portal/Models/SessionFolder.swift"
+        "Sources/Portal/Models/ModelCatalog.swift"
       ],
       "source": "domain-models",
       "symbols": [
@@ -14841,13 +14875,15 @@
         "CodeGraphSource",
         "CronFilterState",
         "CronGraphViewModel",
+        "Lane",
         "QuizViewModel",
         "SessionListViewModel",
-        "SettingsViewModel"
+        "SettingsViewModel",
+        "Wire"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 17
+      "weight": 26
     },
     {
       "authority": "observed",
@@ -15049,11 +15085,12 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by operations-state.",
+      "description": "References 5 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
         "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
+        "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClientWrapper.swift"
       ],
       "source": "hermes-services",
@@ -15061,11 +15098,12 @@
         "ArchitectureReading",
         "CodeGraphSource",
         "CronChangesetFeed",
-        "SettingsViewModel"
+        "SettingsViewModel",
+        "Wire"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 8
+      "weight": 10
     },
     {
       "authority": "observed",
@@ -15197,7 +15235,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 44 declaration(s) owned by domain-models.",
+      "description": "References 43 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CronChangesetSource.swift",
@@ -15229,7 +15267,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 78
+      "weight": 77
     },
     {
       "authority": "observed",
@@ -15357,9 +15395,10 @@
     },
     {
       "authority": "observed",
-      "description": "References 66 declaration(s) owned by domain-models.",
+      "description": "References 69 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
+        "Sources/Portal/ViewModels/ArchitectureGatesLayout.swift",
         "Sources/Portal/ViewModels/ArchitectureSurfaceModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
         "Sources/Portal/ViewModels/CodeGraphSource.swift",
@@ -15369,8 +15408,7 @@
         "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/CronListViewModel.swift",
         "Sources/Portal/ViewModels/CronSourceFilesViewModel.swift",
-        "Sources/Portal/ViewModels/FeedViewModel.swift",
-        "Sources/Portal/ViewModels/FilesBrowserViewModel.swift"
+        "Sources/Portal/ViewModels/FeedViewModel.swift"
       ],
       "source": "operations-state",
       "symbols": [
@@ -15379,17 +15417,17 @@
         "ActivityStore",
         "AnyCodable",
         "ArchitectureCheckResult",
+        "ArchitectureGateJob",
+        "ArchitectureGateRole",
+        "ArchitectureGateWireKind",
+        "ArchitectureGatesDocument",
         "ArchitectureModelDocument",
         "ArchitecturePanelPage",
-        "ArchitectureRequest",
-        "Category",
-        "CelebrationBeat",
-        "CelebrationIntensity",
-        "CelebrationPreferences"
+        "ArchitectureRequest"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 84
+      "weight": 88
     },
     {
       "authority": "observed",
@@ -15470,6 +15508,7 @@
       "authority": "observed",
       "description": "References 2 declaration(s) owned by shared-ui.",
       "evidence": [
+        "Sources/Portal/ViewModels/ArchitectureGatesLayout.swift",
         "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/SessionListViewModel.swift"
       ],
@@ -15480,7 +15519,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 4
+      "weight": 5
     },
     {
       "authority": "observed",
@@ -15700,10 +15739,11 @@
     },
     {
       "authority": "observed",
-      "description": "References 16 declaration(s) owned by operations-state.",
+      "description": "References 18 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryTree.swift",
+        "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
         "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronGraphCanvas.swift",
@@ -15712,8 +15752,7 @@
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronNodeGlyphShape.swift",
         "Sources/Portal/Views/CronRevisionTimelineDrawer.swift",
-        "Sources/Portal/Views/CronSearchBar.swift",
-        "Sources/Portal/Views/CronSessionNavigation.swift"
+        "Sources/Portal/Views/CronSearchBar.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -15727,12 +15766,12 @@
         "CurriculumViewModel",
         "FeedViewModel",
         "FilesBrowserViewModel",
-        "NodeGlyph",
-        "QuizMode"
+        "Lane",
+        "Metrics"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 53
+      "weight": 56
     },
     {
       "authority": "observed",
@@ -15844,6 +15883,7 @@
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureSectionPlaceholder.swift",
         "Sources/Portal/Views/ArchitectureSurfaceView.swift",
         "Sources/Portal/Views/AsyncDelegationBatchView.swift",
@@ -15852,8 +15892,7 @@
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GatewayAvatarPicker.swift",
-        "Sources/Portal/Views/GatewayDebugPanelView.swift",
-        "Sources/Portal/Views/GatewayRestartSection.swift"
+        "Sources/Portal/Views/GatewayDebugPanelView.swift"
       ],
       "source": "shared-ui",
       "symbols": [
@@ -15864,7 +15903,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 37
+      "weight": 38
     },
     {
       "authority": "observed",
@@ -15933,7 +15972,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 45 declaration(s) owned by domain-models.",
+      "description": "References 48 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -15952,20 +15991,20 @@
       "symbols": [
         "AppFontTheme",
         "ApprovalQueue",
+        "ArchitectureArchitecturalChecks",
         "ArchitectureCheckResult",
+        "ArchitectureGateJob",
+        "ArchitectureGatesDocument",
         "ArchitectureModelDocument",
         "ArchitectureRequest",
         "ArchitectureSection",
         "AvatarState",
         "ButtonTheme",
-        "Card",
-        "CelebrationBeat",
-        "CelebrationIntensity",
-        "CelebrationPreferences"
+        "Card"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 89
+      "weight": 92
     },
     {
       "authority": "observed",
@@ -16027,8 +16066,9 @@
     },
     {
       "authority": "observed",
-      "description": "References 8 declaration(s) owned by operations-state.",
+      "description": "References 9 declaration(s) owned by operations-state.",
       "evidence": [
+        "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
         "Sources/Portal/Views/ArchitectureSurfaceView.swift",
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
         "Sources/Portal/Views/CelebrationStage.swift",
@@ -16040,6 +16080,7 @@
       ],
       "source": "shared-ui",
       "symbols": [
+        "ArchitectureGatesLayout",
         "ArchitectureSurfaceModel",
         "CelebrationEvent",
         "CelebrationManager",
@@ -16051,7 +16092,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 16
+      "weight": 18
     },
     {
       "authority": "observed",
@@ -16210,7 +16251,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 36 declaration(s) owned by domain-models.",
+      "description": "References 35 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AgentPanel.swift",
         "Sources/Portal/Views/DelegationBatchNoticeView.swift",
@@ -16242,7 +16283,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 55
+      "weight": 54
     },
     {
       "authority": "observed",
@@ -16279,6 +16320,23 @@
       "target": "local-services",
       "type": "references",
       "weight": 9
+    },
+    {
+      "authority": "observed",
+      "description": "References 2 declaration(s) owned by operations-state.",
+      "evidence": [
+        "Sources/Portal/Views/ThoughtGraph/SessionThoughtGraphView.swift",
+        "Sources/Portal/Views/ThoughtGraph/ThoughtGraphLayoutEngine.swift",
+        "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift"
+      ],
+      "source": "thought-graph-ui",
+      "symbols": [
+        "Lane",
+        "Metrics"
+      ],
+      "target": "operations-state",
+      "type": "references",
+      "weight": 5
     },
     {
       "authority": "observed",
@@ -16458,7 +16516,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 9 declaration(s) owned by domain-models.",
+      "description": "References 8 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/WikiGraphViewModel+EventTypes.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel+Provenance.swift",
@@ -16468,7 +16526,6 @@
       "source": "wiki-state",
       "symbols": [
         "Event",
-        "Node",
         "Source",
         "Task",
         "TaxonomyNode",
@@ -16479,7 +16536,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 13
+      "weight": 12
     },
     {
       "authority": "observed",
@@ -16591,7 +16648,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 16 declaration(s) owned by domain-models.",
+      "description": "References 15 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/Wiki/WikiChangesetInlineDiff.swift",
         "Sources/Portal/Views/Wiki/WikiDockedReader.swift",
@@ -16611,7 +16668,6 @@
         "Event",
         "EventType",
         "GraphSurface",
-        "Node",
         "Source",
         "Task",
         "Trigger",
@@ -16619,11 +16675,12 @@
         "WikiEventChangesetRef",
         "WikiEventKind",
         "WikiEventRef",
-        "WikiEventTimeline"
+        "WikiEventTimeline",
+        "WikiEventTypeRegistry"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 31
+      "weight": 30
     },
     {
       "authority": "observed",
@@ -16665,6 +16722,23 @@
         "WikiSource"
       ],
       "target": "local-services",
+      "type": "references",
+      "weight": 5
+    },
+    {
+      "authority": "observed",
+      "description": "References 3 declaration(s) owned by operations-state.",
+      "evidence": [
+        "Sources/Portal/Views/Wiki/WikiEventTimelineCharts.swift",
+        "Sources/Portal/Views/Wiki/WikiGraphView.swift"
+      ],
+      "source": "wiki-ui",
+      "symbols": [
+        "CodeGraphSource",
+        "Lane",
+        "Wire"
+      ],
+      "target": "operations-state",
       "type": "references",
       "weight": 5
     },
@@ -24792,7 +24866,254 @@
       {
         "citations": 0,
         "component": "domain-models",
-        "declaration_count": 14,
+        "declaration_count": 39,
+        "declarations": [
+          {
+            "kind": "enum",
+            "line": 7,
+            "name": "ArchitectureGateRole",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 50,
+            "name": "ArchitectureGateWireKind",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 82,
+            "name": "ArchitectureSourceLine",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 88,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 95,
+            "name": "ArchitectureGateStep",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 102,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 117,
+            "name": "ArchitectureGatePin",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 123,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 136,
+            "name": "ArchitectureGateJob",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 154,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 179,
+            "name": "ArchitectureGateWorkflow",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 189,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 206,
+            "name": "ArchitectureGateWire",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 212,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 224,
+            "name": "ArchitectureGateTrigger",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 229,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 240,
+            "name": "ArchitectureMergeGate",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 245,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 256,
+            "name": "ArchitectureRatchetEntry",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 263,
+            "name": "ArchitectureRatchet",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 279,
+            "name": "hash",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 324,
+            "name": "grouped",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 333,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 349,
+            "name": "ArchitectureStaticCheck",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 358,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 371,
+            "name": "ArchitectureLintRule",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 379,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 393,
+            "name": "ArchitectureTestCase",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 399,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 406,
+            "name": "ArchitectureCheckedInvariant",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 414,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 426,
+            "name": "ArchitectureArchitecturalChecks",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 438,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 452,
+            "name": "ArchitectureGatesSummary",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 464,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 482,
+            "name": "ArchitectureGatesDocument",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 504,
+            "name": "job",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 509,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 532,
+            "name": "strings",
+            "passes": []
+          }
+        ],
+        "line_count": 535,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Models/ArchitectureGatesDocument.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "domain-models",
+        "declaration_count": 15,
         "declarations": [
           {
             "kind": "struct",
@@ -24856,30 +25177,36 @@
           },
           {
             "kind": "func",
-            "line": 208,
+            "line": 205,
+            "name": "hash",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 228,
             "name": "has",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 213,
+            "line": 233,
             "name": "section",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 233,
+            "line": 253,
             "name": "decodeGatewayValue",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 262,
+            "line": 282,
             "name": "ArchitectureRequest",
             "passes": []
           }
         ],
-        "line_count": 268,
+        "line_count": 288,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/ArchitectureModelDocument.swift",
@@ -38489,6 +38816,115 @@
       {
         "citations": 0,
         "component": "operations-state",
+        "declaration_count": 16,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 13,
+            "name": "ArchitectureGatesLayout",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 14,
+            "name": "NodeKind",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 20,
+            "name": "LaneKind",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 26,
+            "name": "Node",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 39,
+            "name": "Lane",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 50,
+            "name": "Wire",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 62,
+            "name": "Metrics",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 89,
+            "name": "node",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 93,
+            "name": "wires",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 98,
+            "name": "upstream",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 111,
+            "name": "downstream",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 124,
+            "name": "connected",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 132,
+            "name": "depth",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 143,
+            "name": "familyRank",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 149,
+            "name": "layout",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 155,
+            "name": "place",
+            "passes": []
+          }
+        ],
+        "line_count": 323,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/ViewModels/ArchitectureGatesLayout.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "operations-state",
         "declaration_count": 8,
         "declarations": [
           {
@@ -42523,16 +42959,154 @@
       {
         "citations": 0,
         "component": "shared-ui",
-        "declaration_count": 1,
+        "declaration_count": 24,
         "declarations": [
           {
             "kind": "struct",
-            "line": 5,
+            "line": 10,
             "name": "ArchitectureGatesSectionView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 51,
+            "name": "stats",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 107,
+            "name": "drawLanes",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 125,
+            "name": "drawWires",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 149,
+            "name": "nodeView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 169,
+            "name": "jobLabel",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 191,
+            "name": "triggerLabel",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 203,
+            "name": "mergeLabel",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 223,
+            "name": "legend",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 247,
+            "name": "inspector",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 277,
+            "name": "mergeInspector",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 289,
+            "name": "triggerInspector",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 308,
+            "name": "jobInspector",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 369,
+            "name": "ratchets",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 400,
+            "name": "architectural",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 411,
+            "name": "staticChecks",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 439,
+            "name": "group",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 455,
+            "name": "sectionTitle",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 463,
+            "name": "jobLink",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 471,
+            "name": "bulletList",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 492,
+            "name": "chipRow",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 515,
+            "name": "familyColor",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 522,
+            "name": "ANDGateShape",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 523,
+            "name": "path",
             "passes": []
           }
         ],
-        "line_count": 15,
+        "line_count": 534,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
@@ -42614,7 +43188,7 @@
             "passes": []
           }
         ],
-        "line_count": 15,
+        "line_count": 16,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
@@ -56266,7 +56840,7 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 267
+          "total": 271
         },
         "extension": {
           "mapped": 18,
@@ -56274,7 +56848,7 @@
         },
         "func": {
           "mapped": 402,
-          "total": 2817
+          "total": 2869
         },
         "protocol": {
           "mapped": 1,
@@ -56282,17 +56856,17 @@
         },
         "struct": {
           "mapped": 94,
-          "total": 730
+          "total": 753
         }
       },
       "citations": 1208,
-      "declarations": 4061,
+      "declarations": 4140,
       "entities": 155,
       "entities_with_origin": 155,
-      "files": 381,
+      "files": 383,
       "functions": {
         "mapped": 402,
-        "total": 2817
+        "total": 2869
       },
       "mapped_declarations": 594,
       "passes": 50,
@@ -56300,9 +56874,9 @@
       "touched_files": 150,
       "types": {
         "mapped": 192,
-        "total": 1244
+        "total": 1271
       },
-      "untouched_files": 231
+      "untouched_files": 233
     }
   },
   "interplay": {
@@ -71600,7 +72174,7 @@
           "stale": false,
           "summary": "The Cron page has two roots. CronListView lists cron jobs from a CronListViewModel, filtered and optionally grouped by category, with pause, resume, remove, rename and prompt-update actions and error banners. CronDashboardView shows the job hierarchy plus run-history metrics from CronRunHistoryStore over a selectable time horizon, refreshing jobs and seeding history on appear and pull-to-refresh."
         },
-        "type_count": 28
+        "type_count": 29
       },
       {
         "components": [],
@@ -71926,7 +72500,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 98
+        "type_count": 99
       },
       {
         "components": [],
@@ -75839,10 +76413,10 @@
     "unattributed_triggers": 447
   },
   "inventory": {
-    "assigned_files": 379,
-    "declarations": 1112,
-    "swift_files": 379,
-    "swift_lines": 114349,
+    "assigned_files": 381,
+    "declarations": 1139,
+    "swift_files": 381,
+    "swift_lines": 115747,
     "unassigned_files": []
   },
   "layers": [
@@ -75874,7 +76448,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "a37bc94179e1c8d3cf412f23d548fde9bd3ba3d18c81fb4b81cc2461e2730372",
+  "source_tree_sha256": "9e6a6d112915f354cf37c23c39a860e33819b59d80adc2f0eae2f8bcbd5dbc51",
   "stores": {
     "by_persistence": {
       "defaults": 6,
