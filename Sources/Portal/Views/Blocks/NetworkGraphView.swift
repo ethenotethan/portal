@@ -247,7 +247,7 @@ private struct GraphCanvas: View {
                 guard visible.contains(edge.from), visible.contains(edge.to),
                       let from = layout.positions[edge.from],
                       let to = layout.positions[edge.to] else { continue }
-                let isLit = lit == nil || (lit!.contains(edge.from) && lit!.contains(edge.to))
+                let isLit = lit.map { $0.contains(edge.from) && $0.contains(edge.to) } ?? true
                 let appearance = NetworkGraphVisualSemantics.appearance(for: edge)
                 let color = GraphVisualStyle.edgeColor(type: edge.type, appearance: appearance)
                     .opacity(isLit ? 0.8 : 0.18)
@@ -299,7 +299,7 @@ private struct GraphCanvas: View {
         let color = node.kind.map(GraphVisualStyle.nodeColor(forKind:))
             ?? node.group.flatMap { groupColors[$0] }
             ?? Theme.accent
-        let isLit = lit == nil || lit!.contains(node.id)
+        let isLit = lit.map { $0.contains(node.id) } ?? true
         let isSelected = selectedNodeID == node.id
         let radius = 11 * node.size
 
