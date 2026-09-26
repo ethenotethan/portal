@@ -11796,7 +11796,7 @@
       "line_count": 7077
     },
     {
-      "declaration_count": 136,
+      "declaration_count": 137,
       "declarations": [
         "ActivityArtifactView",
         "ActivityDetailView",
@@ -11811,6 +11811,7 @@
         "CronCategoryTree",
         "CronDashboardCanvas",
         "CronDashboardView",
+        "CronDataflowCardPresentation",
         "CronDataflowExpandedView",
         "CronEmptyChart",
         "CronGraphCanvas",
@@ -11996,7 +11997,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17962,
+      "line_count": 17979,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -50407,52 +50408,64 @@
       {
         "citations": 0,
         "component": "operations-ui",
-        "declaration_count": 7,
+        "declaration_count": 9,
         "declarations": [
           {
+            "kind": "enum",
+            "line": 7,
+            "name": "CronDataflowCardPresentation",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 10,
+            "name": "compactLabel",
+            "passes": []
+          },
+          {
             "kind": "struct",
-            "line": 8,
+            "line": 23,
             "name": "CronJobCard",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 260,
+            "line": 275,
             "name": "statTile",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 334,
+            "line": 349,
             "name": "detailRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 375,
+            "line": 390,
             "name": "dataflowRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 394,
+            "line": 409,
             "name": "endpointChip",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 406,
+            "line": 421,
             "name": "endpointChipLabel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 433,
+            "line": 450,
             "name": "dataflowColor",
             "passes": []
           }
         ],
-        "line_count": 687,
+        "line_count": 704,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/CronJobCard.swift",
@@ -59801,7 +59814,7 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 291
+          "total": 292
         },
         "extension": {
           "mapped": 19,
@@ -59809,7 +59822,7 @@
         },
         "func": {
           "mapped": 409,
-          "total": 3123
+          "total": 3124
         },
         "protocol": {
           "mapped": 1,
@@ -59821,13 +59834,13 @@
         }
       },
       "citations": 1228,
-      "declarations": 4503,
+      "declarations": 4505,
       "entities": 158,
       "entities_with_origin": 158,
       "files": 401,
       "functions": {
         "mapped": 409,
-        "total": 3123
+        "total": 3124
       },
       "mapped_declarations": 606,
       "passes": 50,
@@ -59835,7 +59848,7 @@
       "touched_files": 155,
       "types": {
         "mapped": 197,
-        "total": 1380
+        "total": 1381
       },
       "untouched_files": 246
     }
@@ -79512,11 +79525,11 @@
   },
   "inventory": {
     "assigned_files": 399,
-    "declarations": 1243,
+    "declarations": 1244,
     "files": 399,
-    "lines": 116620,
+    "lines": 116637,
     "swift_files": 399,
-    "swift_lines": 116620,
+    "swift_lines": 116637,
     "unassigned_files": []
   },
   "layers": [
@@ -79548,7 +79561,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "c0b4c280a78ed4ecd075c38b81f59e30666ad3bd6352786a26b1cc77e20362e7",
+  "source_tree_sha256": "328bc0bd3247c7f2e7558aea049ad3c46b0b9530d30d5e307285117af70fe4f6",
   "stores": {
     "by_persistence": {
       "defaults": 6,
