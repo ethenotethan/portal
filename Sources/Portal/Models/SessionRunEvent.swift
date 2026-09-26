@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SessionRunEventStore")
+private let log = PortalLogger(category: "SessionRunEventStore")
 
 struct SessionRunEvent: Identifiable, Codable, TokenAccountable {
     let id: UUID

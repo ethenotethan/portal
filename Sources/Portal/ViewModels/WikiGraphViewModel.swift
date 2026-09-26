@@ -1,9 +1,9 @@
 import SwiftUI
 import Combine
-import os.log
+import os
 import simd
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "WikiGraphViewModel")
+private let log = PortalLogger(category: "WikiGraphViewModel")
 
 @MainActor
 final class WikiGraphViewModel: ObservableObject {

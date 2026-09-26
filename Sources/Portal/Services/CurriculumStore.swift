@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CurriculumStore")
+private let log = PortalLogger(category: "CurriculumStore")
 
 /// Persists curricula to local disk, one JSON file per course in
 /// Application Support/portal/curricula/<id>.json.

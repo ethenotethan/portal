@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ReasoningGraphIntegrator")
+private let log = PortalLogger(category: "ReasoningGraphIntegrator")
 
 // MARK: - Reasoning Graph Integrator
 

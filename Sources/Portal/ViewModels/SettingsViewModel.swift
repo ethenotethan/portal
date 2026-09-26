@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SettingsViewModel")
+private let log = PortalLogger(category: "SettingsViewModel")
 
 /// Manages connection settings: gateway URL, API key, and CF Access auth state.
 @MainActor

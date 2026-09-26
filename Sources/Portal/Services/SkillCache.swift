@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillCache")
+private let log = PortalLogger(category: "SkillCache")
 
 // MARK: - Disk Persistence (legacy static interface)
 

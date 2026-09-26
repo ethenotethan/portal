@@ -189,6 +189,31 @@ bump in the same PR — never one side alone. Required sections (`components`,
 `interplay`, `extraction`, `ci`, `inventory`, `evidence_metadata`) are what
 makes a service conforming; the gateway refuses anything less with error 4033.
 
+**Log capture.** The standard also requires a local service to declare where its
+logs land (a `logs` sink in the manifest under `~/.hermes/services/architecture/`),
+and Harness reads only those declared sinks over `architecture.logs`. Portal's
+declared sink is `~/Library/Logs/Portal/portal.log` (on iOS the sandbox's own
+`Library/Logs/Portal/portal.log`), and it is written at the call site: every log
+line in Portal goes through `PortalLogger` (`Sources/Portal/Utilities/PortalLogger.swift`),
+which emits to the unified log **and** hands the line to the process-wide
+`PortalLogSink`. The sink formats `ISO8601 [level] Category: message` (message
+line breaks escaped), appends on its own serial queue so no caller blocks, bounds
+its queue at 5,000 lines and records drops in the file, rotates once at 8 MiB
+(`portal.log.1` keeps the previous generation), writes a startup line at launch
+and flushes on termination. Messages interpolate exactly like `OSLogMessage`
+(`privacy:` and `format:` arguments compile unchanged) but every value renders in
+the clear: the same text lands in the user's own file, so secrets are never
+logged rather than masked. The rule is mechanical: the SwiftLint custom rule
+`no_direct_os_logger` rejects any `Logger(subsystem:` outside the facade, and an
+architecture test pins that no other source file imports `OSLog`/`os.log`.
+
+Why not mirror the unified log instead? It was tried and measured on a real
+launch: `OSLogStore(scope: .currentProcessIdentifier)` throws `nilError` for the
+unentitled app, and `/usr/bin/log stream` exits 77 ("Must be admin to run
+'stream' command"). A user-level app cannot read its own unified log back, so
+the only way to make the declared sink real is to write it where the line is
+produced.
+
 ## The metric ratchet (self-improving benchmarks)
 
 The lint baseline is one instance of a general pattern — a **ratchet**: a

@@ -2,9 +2,9 @@
 // Legacy giant — split tracked as debt; do not add to this file.
 import Foundation
 import Combine
-import os.log
+import os
 
-private let log = Logger(subsystem: "com.portal", category: "Gateway")
+private let log = PortalLogger(category: "Gateway")
 
 /// Resolves a liveness probe exactly once when its ping callback and timeout
 /// race. `NSLock` provides the synchronization promised by `@unchecked

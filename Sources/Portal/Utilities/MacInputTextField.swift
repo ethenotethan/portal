@@ -4,7 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "MacInputTextField")
+private let log = PortalLogger(category: "MacInputTextField")
 
 // MARK: - MacInputTextField
 

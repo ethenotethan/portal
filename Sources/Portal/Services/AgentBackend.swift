@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "AgentBackend")
+private let log = PortalLogger(category: "AgentBackend")
 
 internal enum AgentBackendError: LocalizedError {
     case voiceNotSupported

@@ -7,7 +7,7 @@ import AppKit
 import UIKit
 #endif
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "PushRegistration")
+private let log = PortalLogger(category: "PushRegistration")
 
 /// Bridges APNs device-token registration to the gateway.
 ///

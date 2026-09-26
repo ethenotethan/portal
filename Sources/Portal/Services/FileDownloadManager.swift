@@ -1,7 +1,7 @@
 import Foundation
-import os.log
+import os
 
-private let log = Logger(subsystem: "com.portal", category: "FileDownload")
+private let log = PortalLogger(category: "FileDownload")
 
 /// Manages downloading of remote file attachments with progress tracking.
 /// Each attachment download is tracked by its UUID, and progress/result

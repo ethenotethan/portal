@@ -7,7 +7,7 @@ import MediaPlayer
 import AVFAudio
 #endif
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SpeechPlaybackSession")
+private let log = PortalLogger(category: "SpeechPlaybackSession")
 
 /// A transport control that arrived from outside the app: the lock screen, a
 /// headphone button, the Mac's media keys, or the Now Playing widget.

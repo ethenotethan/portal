@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "LongResponseView")
+private let log = PortalLogger(category: "LongResponseView")
 
 /// Presentation wrapper for long assistant responses.
 ///

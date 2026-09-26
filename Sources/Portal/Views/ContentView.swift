@@ -4,7 +4,7 @@ import SwiftUI
 import Combine
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ContentView")
+private let log = PortalLogger(category: "ContentView")
 
 /// Root content view — TabView on iOS with first-class app surfaces,
 /// custom split layout on macOS with app-owned chrome.
