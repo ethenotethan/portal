@@ -33,6 +33,8 @@ extension UnifiedLogReading {
 /// process demonstrably logs.
 internal protocol UnifiedLogFallbackSwitching: UnifiedLogReading {
     func switchToFallback(reason: String)
+    /// Why the last hand-over happened, for the file's diagnostics.
+    func handoverReason() -> String?
 }
 
 /// Appends lines to the log file, creating its directory and rotating the file
@@ -278,7 +280,8 @@ internal actor UnifiedLogMirror {
         let current = reader.name
         guard current != readerName else { return }
         readerName = current
-        writeDiagnostic(level: "notice", "reader handed over to \(current)")
+        let why = (reader as? UnifiedLogFallbackSwitching)?.handoverReason().map { ": \($0)" } ?? ""
+        writeDiagnostic(level: "notice", "reader handed over to \(current)\(why)")
     }
 
     private func isUnseen(_ line: UnifiedLogLine) -> Bool {
@@ -336,18 +339,15 @@ internal actor UnifiedLogMirror {
 /// Reads this process's own entries from the unified log (`OSLogStore`, macOS 12
 /// and iOS 15 onwards; the process scope needs no entitlement on either).
 internal struct OSLogStoreReader: UnifiedLogReading {
-    internal let subsystem: String
     internal var name: String { "OSLogStore" }
-
-    internal init(subsystem: String = UnifiedLogMirror.subsystem) {
-        self.subsystem = subsystem
-    }
 
     internal func entries(after: Date?) throws -> [UnifiedLogLine] {
         let store = try OSLogStore(scope: .currentProcessIdentifier)
         let position = after.map { store.position(date: $0) } ?? store.position(timeIntervalSinceLatestBoot: 0)
-        let predicate = NSPredicate(format: "subsystem == %@", subsystem)
-        return try store.getEntries(at: position, matching: predicate).compactMap { entry in
+        // The process scope already restricts the store to this process; no
+        // subsystem predicate, so loggers declared under other subsystems are
+        // captured too.
+        return try store.getEntries(at: position).compactMap { entry in
             guard let record = entry as? OSLogEntryLog else { return nil }
             return UnifiedLogLine(
                 date: record.date,
@@ -381,25 +381,34 @@ internal struct OSLogStoreReader: UnifiedLogReading {
 /// Pull-based like the store reader: the child's lines accumulate in a locked
 /// buffer and `entries(after:)` drains it.
 internal final class LogStreamProcessReader: UnifiedLogReading, @unchecked Sendable {
-    internal let subsystem: String
     internal let processIdentifier: Int32
     internal var name: String { "log stream" }
     private let lock = NSLock()
     private var buffer: [UnifiedLogLine] = []
     private var process: Process?
     private var pipe: Pipe?
+    private var errorPipe: Pipe?
     private var partial = Data()
+    private var stderrText = ""
+    private var exitStatus: Int32?
+
+    /// The child ended: its exit status and what it said on stderr.
+    internal struct Exited: Error, CustomStringConvertible {
+        internal let status: Int32
+        internal let stderr: String
+        internal var description: String {
+            "log stream exited with status \(status)" + (stderr.isEmpty ? "" : ": \(stderr)")
+        }
+    }
 
     /// `spawnsProcess: false` keeps the child unlaunched so a test can feed
     /// `ingest(_:)` directly and drain the buffer.
     private let spawnsProcess: Bool
 
     internal init(
-        subsystem: String = UnifiedLogMirror.subsystem,
         processIdentifier: Int32 = ProcessInfo.processInfo.processIdentifier,
         spawnsProcess: Bool = true
     ) {
-        self.subsystem = subsystem
         self.processIdentifier = processIdentifier
         self.spawnsProcess = spawnsProcess
     }
@@ -416,15 +425,21 @@ internal final class LogStreamProcessReader: UnifiedLogReading, @unchecked Senda
         defer { lock.unlock() }
         let drained = buffer
         buffer.removeAll(keepingCapacity: true)
+        if let status = exitStatus {
+            // Report the death once; the next call relaunches the child.
+            exitStatus = nil
+            let said = stderrText.trimmingCharacters(in: .whitespacesAndNewlines)
+            stderrText = ""
+            throw Exited(status: status, stderr: String(said.suffix(400)))
+        }
         return drained
     }
 
     /// The `log stream` invocation, exposed so a test can pin the exact command.
-    internal static func arguments(subsystem: String, processIdentifier: Int32) -> [String] {
-        [
-            "stream", "--style", "ndjson", "--level", "debug", "--process", String(processIdentifier),
-            "--predicate", "subsystem == \"\(subsystem)\"",
-        ]
+    /// `--process` already restricts the stream to this process; no subsystem
+    /// predicate, so loggers under other subsystems are captured too.
+    internal static func arguments(processIdentifier: Int32) -> [String] {
+        ["stream", "--style", "ndjson", "--level", "debug", "--process", String(processIdentifier)]
     }
 
     private func startIfNeeded() throws {
@@ -433,16 +448,38 @@ internal final class LogStreamProcessReader: UnifiedLogReading, @unchecked Senda
         if let process, process.isRunning { return }
         let child = Process()
         child.executableURL = URL(fileURLWithPath: "/usr/bin/log")
-        child.arguments = Self.arguments(subsystem: subsystem, processIdentifier: processIdentifier)
-        child.standardError = FileHandle.nullDevice
+        child.arguments = Self.arguments(processIdentifier: processIdentifier)
         let output = Pipe()
+        let errors = Pipe()
         child.standardOutput = output
+        child.standardError = errors
         output.fileHandleForReading.readabilityHandler = { [weak self] handle in
             self?.ingest(handle.availableData)
+        }
+        errors.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            self?.ingestStderr(handle.availableData)
+        }
+        child.terminationHandler = { [weak self] ended in
+            self?.noteExit(ended.terminationStatus)
         }
         try child.run()
         process = child
         pipe = output
+        errorPipe = errors
+    }
+
+    private func ingestStderr(_ data: Data) {
+        guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        stderrText = String((stderrText + text).suffix(2_000))
+    }
+
+    /// Recorded for the next `entries(after:)` to throw; testable without a child.
+    internal func noteExit(_ status: Int32) {
+        lock.lock()
+        defer { lock.unlock() }
+        exitStatus = status
     }
 
     /// Feeds raw child output: complete lines become entries, a trailing partial
@@ -456,7 +493,7 @@ internal final class LogStreamProcessReader: UnifiedLogReading, @unchecked Senda
             let chunk = partial.subdata(in: partial.startIndex..<newline)
             partial.removeSubrange(partial.startIndex...newline)
             guard let text = String(bytes: chunk, encoding: .utf8) else { continue }
-            if let line = Self.parseLine(text), line.subsystem == subsystem {
+            if let line = Self.parseLine(text) {
                 buffer.append(line.line)
             }
         }
@@ -514,6 +551,7 @@ internal final class SwitchingLogReader: UnifiedLogFallbackSwitching, @unchecked
     private let fallback: any UnifiedLogReading
     private let lock = NSLock()
     private var usingFallback = false
+    private var reason: String?
 
     internal init(primary: any UnifiedLogReading, fallback: any UnifiedLogReading) {
         self.primary = primary
@@ -530,10 +568,17 @@ internal final class SwitchingLogReader: UnifiedLogFallbackSwitching, @unchecked
 
     internal var name: String { isUsingFallback() ? fallback.name : primary.name }
 
+    internal func handoverReason() -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return reason
+    }
+
     internal func switchToFallback(reason: String) {
         lock.lock()
         let already = usingFallback
         usingFallback = true
+        if !already { self.reason = reason }
         lock.unlock()
         if !already {
             mirrorLog.notice("switching to \(self.fallback.name, privacy: .public): \(reason, privacy: .public)")

@@ -55,6 +55,12 @@ private final class SwitchableFakeReader: UnifiedLogFallbackSwitching, @unchecke
         reasons.append(reason)
     }
 
+    func handoverReason() -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return reasons.first
+    }
+
     func entries(after: Date?) throws -> [UnifiedLogLine] {
         lock.lock()
         defer { lock.unlock() }
@@ -327,15 +333,15 @@ internal struct UnifiedLogMirrorTests {
         #expect(LogStreamProcessReader.levelName("Fault") == "fault")
         #expect(LogStreamProcessReader.levelName("") == "unknown")
         #expect(LogStreamProcessReader.levelName("Signpost") == "signpost")
-        let arguments = LogStreamProcessReader.arguments(subsystem: "com.ethenotethan.Portal", processIdentifier: 42)
+        let arguments = LogStreamProcessReader.arguments(processIdentifier: 42)
         #expect(arguments.contains("--process") && arguments.contains("42"))
-        #expect(arguments.last == "subsystem == \"com.ethenotethan.Portal\"")
+        #expect(!arguments.contains("--predicate"), "every subsystem this process logs under is captured")
         #expect(arguments.first == "stream")
     }
 
-    @Test("the log stream reader buffers partial lines, keeps only its subsystem, and drains on read")
+    @Test("the log stream reader buffers partial lines, keeps every subsystem, reports a dead child, and drains on read")
     internal func logStreamBuffering() throws {
-        let reader = LogStreamProcessReader(subsystem: "com.ethenotethan.Portal", processIdentifier: 1, spawnsProcess: false)
+        let reader = LogStreamProcessReader(processIdentifier: 1, spawnsProcess: false)
         #expect(try reader.entries(after: nil).isEmpty)
         let first = """
         {"timestamp":"2026-09-26 10:00:00.000000+0000","messageType":"Default","category":"A","subsystem":"com.ethenotethan.Portal","eventMessage":"one"}
@@ -345,7 +351,7 @@ internal struct UnifiedLogMirrorTests {
         reader.ingest(Data(first.utf8))
         reader.ingest(Data())
         let drained = try reader.entries(after: nil)
-        #expect(drained.map(\.message) == ["one"], "the foreign subsystem is dropped and the partial record waits")
+        #expect(drained.map(\.message) == ["one", "foreign"], "every subsystem this process logs under is kept; the partial record waits")
         reader.ingest(Data("ror\",\"category\":\"C\",\"subsystem\":\"com.ethenotethan.Portal\",\"eventMessage\":\"two\"}\n".utf8))
         let rest = try reader.entries(after: nil)
         #expect(rest.map(\.message) == ["two"])
@@ -353,11 +359,17 @@ internal struct UnifiedLogMirrorTests {
         #expect(rest.first?.category == "C")
         #expect(try reader.entries(after: nil).isEmpty, "a drain empties the buffer")
         #expect(reader.processIdentifier == 1)
+        // A child that died is reported once, with its status, then the reader recovers.
+        reader.noteExit(64)
+        let died = #expect(throws: LogStreamProcessReader.Exited.self) { try reader.entries(after: nil) }
+        #expect(died?.status == 64)
+        #expect(String(describing: died ?? LogStreamProcessReader.Exited(status: 0, stderr: "")).contains("exited with status 64"))
+        #expect(try reader.entries(after: nil).isEmpty, "reported once")
     }
 
     @Test("the real reader sees this process's own entries for the subsystem, or fails the way the mirror tolerates")
     internal func realReader() {
-        let reader = OSLogStoreReader(subsystem: UnifiedLogMirror.subsystem)
+        let reader = OSLogStoreReader()
         // The unified log store is not reachable from every test host (`swift test`
         // runs under xctest, where opening it throws); the mirror treats that as a
         // logged, backed-off failure, so here it is a known, intermittent issue.
