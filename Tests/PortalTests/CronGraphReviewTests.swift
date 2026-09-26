@@ -43,6 +43,9 @@ internal struct CronGraphReviewTests {
         vm.setGraphForTesting(onScreen)
         vm.canvasSize = CGSize(width: 600, height: 400)
         vm.setupSimulation()
+        for groupKey in vm.collapsedGroups.sorted() {
+            vm.toggleGroupCollapsed(groupKey)
+        }
         return (vm, recorded)
     }
 

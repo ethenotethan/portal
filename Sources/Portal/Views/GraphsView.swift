@@ -64,6 +64,12 @@ internal struct GraphSurfaceMenu: View {
 
 // MARK: - GraphsView
 
+internal enum GraphSurfaceChromePlacement: Equatable {
+    case none
+    case reservedTopBar
+    case embedded
+}
+
 /// The **Graphs** section: one door onto both of Portal's graphs.
 ///
 /// The wiki knowledge graph and the cron dataflow graph describe the same
@@ -90,14 +96,19 @@ internal struct GraphsView: View {
     /// Persisted so the section reopens on the graph you left it on.
     @AppStorage("graphs.surface") private var storedSurface = GraphSurface.wiki.rawValue
 
-    @StateObject private var cronGraphVM = CronGraphViewModel()
+    @StateObject private var cronGraphVM: CronGraphViewModel
     @State private var cronListVM = CronListViewModel()
     @ObservedObject private var runHistory = CronRunHistoryStore.shared
 
     @MainActor
-    internal init(wikiViewModel: WikiGraphViewModel, overrideSource: (any WikiSource)? = nil) {
+    internal init(
+        wikiViewModel: WikiGraphViewModel,
+        cronGraphStore: CronGraphStore,
+        overrideSource: (any WikiSource)? = nil
+    ) {
         self.wikiViewModel = wikiViewModel
         self.overrideSource = overrideSource
+        _cronGraphVM = StateObject(wrappedValue: CronGraphViewModel(graphStore: cronGraphStore))
     }
 
     /// A code-graph override has no cron dataflow behind it, so the section
@@ -130,7 +141,35 @@ internal struct GraphsView: View {
         return .wiki
     }
 
+    internal static func chromePlacement(
+        offersSwitcher: Bool,
+        reservesTopBar: Bool
+    ) -> GraphSurfaceChromePlacement {
+        guard offersSwitcher else { return .none }
+        return reservesTopBar ? .reservedTopBar : .embedded
+    }
+
+    private var embeddedSurfaceSelection: Binding<GraphSurface>? {
+        #if os(macOS)
+        let placement = Self.chromePlacement(offersSwitcher: offersSwitcher, reservesTopBar: true)
+        #else
+        let placement = Self.chromePlacement(offersSwitcher: offersSwitcher, reservesTopBar: false)
+        #endif
+        return placement == .embedded ? surfaceBinding : nil
+    }
+
     internal var body: some View {
+        #if os(macOS)
+        framedContent
+            .safeAreaInset(edge: .top, spacing: 0) {
+                graphSwitcherBar
+            }
+        #else
+        framedContent
+        #endif
+    }
+
+    private var framedContent: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.background)
@@ -143,6 +182,23 @@ internal struct GraphsView: View {
             }
     }
 
+    #if os(macOS)
+    @ViewBuilder
+    private var graphSwitcherBar: some View {
+        if Self.chromePlacement(offersSwitcher: offersSwitcher, reservesTopBar: true) == .reservedTopBar,
+           let selection = surfaceBinding {
+            HStack {
+                GraphSurfaceMenu(selection: selection)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 44)
+            .background(Theme.background)
+            .overlay(alignment: .bottom) { Divider() }
+        }
+    }
+    #endif
+
     @ViewBuilder
     private var content: some View {
         switch surface {
@@ -150,7 +206,7 @@ internal struct GraphsView: View {
             WikiGraphView(
                 viewModel: wikiViewModel,
                 overrideSource: overrideSource,
-                surfaceSelection: surfaceBinding
+                surfaceSelection: embeddedSurfaceSelection
             )
             .environmentObject(gatewayClientWrapper)
         case .runtime:
@@ -158,7 +214,7 @@ internal struct GraphsView: View {
                 graphVM: cronGraphVM,
                 listVM: cronListVM,
                 onDismiss: nil,
-                surfaceSelection: surfaceBinding,
+                surfaceSelection: embeddedSurfaceSelection,
                 onOpenWikiResource: { node in
                     guard let destination = Self.openWikiResource(node, in: wikiViewModel) else { return }
                     storedSurface = destination.rawValue

@@ -3322,12 +3322,28 @@
         "enclosing_function": "setGatewayClient",
         "enclosing_type": "CronPoller",
         "evidence": {
-          "excerpt": "Task { @MainActor [weak self] in",
-          "line": 25,
+          "excerpt": "Task { [weak self] in",
+          "line": 26,
           "path": "Sources/Portal/Services/CronPoller.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0188a2812a42",
+        "id": "task-site-c3287752521c",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "hermes-services",
+        "enclosing_function": "setGatewayClient",
+        "enclosing_type": "CronPoller",
+        "evidence": {
+          "excerpt": "Task { @MainActor [weak self] in",
+          "line": 30,
+          "path": "Sources/Portal/Services/CronPoller.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-e67c21aefb97",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7019,11 +7035,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await sessionList.refreshSessions() }",
-          "line": 154,
+          "line": 161,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-dc8168198e0f",
+        "id": "task-site-93b5db06af8b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7035,22 +7051,6 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await capabilitiesStore.refresh(using: gatewayClientWrapper.client) }",
-          "line": 155,
-          "path": "Sources/Portal/Views/ContentView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-add7e51c5eae",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "app-shell",
-        "enclosing_function": null,
-        "enclosing_type": "ContentView",
-        "evidence": {
-          "excerpt": "Task { await wikiViewModel.load(client: gatewayClientWrapper.client) }",
           "line": 162,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
@@ -7066,12 +7066,12 @@
         "enclosing_function": null,
         "enclosing_type": "ContentView",
         "evidence": {
-          "excerpt": "Task {",
-          "line": 175,
+          "excerpt": "Task { await wikiViewModel.load(client: gatewayClientWrapper.client) }",
+          "line": 169,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7012eb05f98e",
+        "id": "task-site-ac1199195757",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7083,11 +7083,27 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 183,
+          "line": 182,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-dbe6376792fe",
+        "id": "task-site-c94862add17c",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "app-shell",
+        "enclosing_function": null,
+        "enclosing_type": "ContentView",
+        "evidence": {
+          "excerpt": "Task {",
+          "line": 190,
+          "path": "Sources/Portal/Views/ContentView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-547cc3ceecf9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7099,11 +7115,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "settingsReconnectTask = Task {",
-          "line": 252,
+          "line": 259,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f18d5c5d4699",
+        "id": "task-site-6ab9dda39bb9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7115,11 +7131,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 279,
+          "line": 286,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9bd6f1184f89",
+        "id": "task-site-bd5a44545e4d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7131,11 +7147,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 371,
+          "line": 378,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-803198350184",
+        "id": "task-site-8ef737575a24",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7147,11 +7163,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 836,
+          "line": 843,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-051c5bb2b8b1",
+        "id": "task-site-dea356e038e6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7163,11 +7179,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1022,
+          "line": 1029,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-846fb41a2e23",
+        "id": "task-site-a18ece8cb49d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7176,22 +7192,6 @@
         "authority": "observed",
         "component": "app-shell",
         "enclosing_function": "handleSelectionChangeAfterViewUpdate",
-        "enclosing_type": "ContentView",
-        "evidence": {
-          "excerpt": "Task { @MainActor in",
-          "line": 1256,
-          "path": "Sources/Portal/Views/ContentView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-ec874091b9bb",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "app-shell",
-        "enclosing_function": "handleTitleChangeAfterViewUpdate",
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
@@ -7207,15 +7207,15 @@
       {
         "authority": "observed",
         "component": "app-shell",
-        "enclosing_function": "handleSessionSelection",
+        "enclosing_function": "handleTitleChangeAfterViewUpdate",
         "enclosing_type": "ContentView",
         "evidence": {
-          "excerpt": "Task {",
-          "line": 1314,
+          "excerpt": "Task { @MainActor in",
+          "line": 1270,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-290e506d45a6",
+        "id": "task-site-2dd63ce01c3c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7227,11 +7227,27 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1334,
+          "line": 1321,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ec046c1aa886",
+        "id": "task-site-ee7cffdfd318",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "app-shell",
+        "enclosing_function": "handleSessionSelection",
+        "enclosing_type": "ContentView",
+        "evidence": {
+          "excerpt": "Task {",
+          "line": 1341,
+          "path": "Sources/Portal/Views/ContentView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-e8d9f100c5d8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7243,11 +7259,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1373,
+          "line": 1380,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-364d7910028e",
+        "id": "task-site-a3951b283f91",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7259,11 +7275,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1457,
+          "line": 1464,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-67880b268991",
+        "id": "task-site-b9312782cc01",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7275,11 +7291,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1529,
+          "line": 1536,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2b81fd00cfee",
+        "id": "task-site-ba663d3820a8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7291,11 +7307,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1595,
+          "line": 1602,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2272196e517d",
+        "id": "task-site-573012c96de5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7307,11 +7323,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1600,
+          "line": 1607,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a5fa5ca66752",
+        "id": "task-site-0ae859071e79",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7323,11 +7339,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await xAuth.handleCallback(code: code, state: state) }",
-          "line": 1608,
+          "line": 1615,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a14faf829c03",
+        "id": "task-site-418b86e4e584",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7339,11 +7355,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1648,
+          "line": 1655,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-aa7d6f54b5df",
+        "id": "task-site-452731448477",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -11678,7 +11694,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4119
+      "line_count": 4126
     },
     {
       "declaration_count": 74,
@@ -12553,7 +12569,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 6994,
+      "line_count": 7032,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -12702,7 +12718,7 @@
       "id": "hermes-services",
       "label": "Harness services",
       "layer": "integration",
-      "line_count": 4720,
+      "line_count": 4737,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -12809,7 +12825,7 @@
       "line_count": 92
     },
     {
-      "declaration_count": 106,
+      "declaration_count": 108,
       "declarations": [
         "AVAudioEngineMicrophone",
         "AgentRun",
@@ -12823,6 +12839,8 @@
         "ConversationVisual",
         "CronChangesetDiff",
         "CronChangesetSource",
+        "CronGraphFetching",
+        "CronGraphStore",
         "CurriculumStore",
         "Document",
         "Entry",
@@ -12920,10 +12938,11 @@
       ],
       "description": "Persistence, export, media, notifications, caching, reasoning, and device-local support services.",
       "external": false,
-      "file_count": 38,
+      "file_count": 39,
       "files": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CronChangesetSource.swift",
+        "Sources/Portal/Services/CronGraphStore.swift",
         "Sources/Portal/Services/CurriculumStore.swift",
         "Sources/Portal/Services/FileDownloadManager.swift",
         "Sources/Portal/Services/GitHubContentService.swift",
@@ -12964,7 +12983,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 9391,
+      "line_count": 9424,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13493,7 +13512,7 @@
       }
     },
     {
-      "declaration_count": 104,
+      "declaration_count": 105,
       "declarations": [
         "ANDGateShape",
         "AppFontSettingsSection",
@@ -13552,6 +13571,7 @@
         "GitHubMarkView",
         "GitHubReleaseCard",
         "GitHubReleaseCard_Previews",
+        "GraphSurfaceChromePlacement",
         "GraphSurfaceMenu",
         "GraphSurfaceTitle",
         "GraphsView",
@@ -13659,7 +13679,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 10971,
+      "line_count": 11027,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14078,7 +14098,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by local-services.",
+      "description": "References 6 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/HermesNativeApp.swift",
         "Sources/Portal/Views/ContentView.swift",
@@ -14086,6 +14106,7 @@
       ],
       "source": "app-shell",
       "symbols": [
+        "CronGraphStore",
         "LearningStore",
         "NotificationService",
         "SkillStore",
@@ -14094,7 +14115,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 8
+      "weight": 9
     },
     {
       "authority": "observed",
@@ -15427,8 +15448,9 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by local-services.",
+      "description": "References 7 declaration(s) owned by local-services.",
       "evidence": [
+        "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
         "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Wiki.swift",
@@ -15438,13 +15460,15 @@
       "symbols": [
         "CronChangesetDiff",
         "CronChangesetSource",
+        "CronGraphFetching",
+        "CronGraphStore",
         "LearningStore",
         "Page",
         "SessionMetaSyncService"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 9
+      "weight": 12
     },
     {
       "authority": "observed",
@@ -15605,6 +15629,7 @@
       "evidence": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CronChangesetSource.swift",
+        "Sources/Portal/Services/CronGraphStore.swift",
         "Sources/Portal/Services/CurriculumStore.swift",
         "Sources/Portal/Services/FileDownloadManager.swift",
         "Sources/Portal/Services/GitHubContentService.swift",
@@ -15613,8 +15638,7 @@
         "Sources/Portal/Services/LocalChatEngine.swift",
         "Sources/Portal/Services/LocalChatService.swift",
         "Sources/Portal/Services/LocalVoiceEngine.swift",
-        "Sources/Portal/Services/LocalVoiceService.swift",
-        "Sources/Portal/Services/NeuralSpeechEngine.swift"
+        "Sources/Portal/Services/LocalVoiceService.swift"
       ],
       "source": "local-services",
       "symbols": [
@@ -15633,12 +15657,13 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 77
+      "weight": 78
     },
     {
       "authority": "observed",
       "description": "References 2 declaration(s) owned by hermes-services.",
       "evidence": [
+        "Sources/Portal/Services/CronGraphStore.swift",
         "Sources/Portal/Services/SessionMetaSyncService.swift",
         "Sources/Portal/Services/SkillCache.swift",
         "Sources/Portal/Services/SkillStore.swift",
@@ -15651,7 +15676,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 6
+      "weight": 7
     },
     {
       "authority": "observed",
@@ -15847,11 +15872,12 @@
     },
     {
       "authority": "observed",
-      "description": "References 14 declaration(s) owned by local-services.",
+      "description": "References 15 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CodeGraphSource.swift",
         "Sources/Portal/ViewModels/CronChangesetFeed.swift",
+        "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
         "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift",
         "Sources/Portal/ViewModels/Quiz/QuizViewModel.swift",
@@ -15863,6 +15889,7 @@
       "symbols": [
         "ChatHistoryStore",
         "CronChangesetSource",
+        "CronGraphStore",
         "CurriculumStore",
         "Document",
         "KeychainStore",
@@ -15871,12 +15898,11 @@
         "Metadata",
         "NotificationService",
         "SessionMetaSyncService",
-        "SkillStore",
-        "SkillSummaryService"
+        "SkillStore"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 23
+      "weight": 25
     },
     {
       "authority": "observed",
@@ -16421,7 +16447,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 15 declaration(s) owned by local-services.",
+      "description": "References 16 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GitHubReleaseCard.swift",
@@ -16436,6 +16462,7 @@
       "source": "shared-ui",
       "symbols": [
         "ConversationVisual",
+        "CronGraphStore",
         "ExportImageRow",
         "GitHubContentService",
         "GitHubReleaseEmbed",
@@ -16445,12 +16472,11 @@
         "Metadata",
         "SessionPDFExporter",
         "TTSService",
-        "TweetContentService",
-        "TweetEmbed"
+        "TweetContentService"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 24
+      "weight": 25
     },
     {
       "authority": "observed",
@@ -18772,7 +18798,7 @@
             "evidence": [
               {
                 "excerpt": "@AppStorage(\"macTopChromeCollapsed\") private var isMacTopChromeCollapsed = false",
-                "line": 39,
+                "line": 40,
                 "path": "Sources/Portal/Views/ContentView.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -18780,7 +18806,7 @@
               },
               {
                 "excerpt": "@AppStorage(\"chatSkin\") private var activeSkin: ChatSkin = .tui",
-                "line": 59,
+                "line": 60,
                 "path": "Sources/Portal/Views/ContentView.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -19240,7 +19266,7 @@
             "evidence": [
               {
                 "excerpt": "@AppStorage(\"graphs.surface\") private var storedSurface = GraphSurface.wiki.rawValue",
-                "line": 91,
+                "line": 97,
                 "path": "Sources/Portal/Views/GraphsView.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -20529,91 +20555,91 @@
           },
           {
             "family": "trigger",
-            "line": 173,
+            "line": 180,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 181,
+            "line": 188,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 189,
+            "line": 196,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 433,
+            "line": 440,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 442,
+            "line": 449,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 445,
+            "line": 452,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 552,
+            "line": 559,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 561,
+            "line": 568,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 564,
+            "line": 571,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 835,
+            "line": 842,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1008,
+            "line": 1015,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1372,
+            "line": 1379,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1456,
+            "line": 1463,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -20697,7 +20723,7 @@
           },
           {
             "family": "trigger",
-            "line": 214,
+            "line": 221,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -20718,21 +20744,21 @@
           },
           {
             "family": "trigger",
-            "line": 173,
+            "line": 180,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 181,
+            "line": 188,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 835,
+            "line": 842,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -20872,28 +20898,28 @@
           },
           {
             "family": "trigger",
-            "line": 173,
+            "line": 180,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 181,
+            "line": 188,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 189,
+            "line": 196,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 835,
+            "line": 842,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -21089,7 +21115,7 @@
           },
           {
             "family": "trigger",
-            "line": 140,
+            "line": 179,
             "path": "Sources/Portal/Views/GraphsView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -21250,133 +21276,133 @@
           },
           {
             "family": "trigger",
-            "line": 152,
+            "line": 159,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 173,
+            "line": 180,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 181,
+            "line": 188,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 189,
+            "line": 196,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 197,
+            "line": 204,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 209,
+            "line": 216,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 219,
+            "line": 226,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 433,
+            "line": 440,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 436,
+            "line": 443,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 445,
+            "line": 452,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 451,
+            "line": 458,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 552,
+            "line": 559,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 555,
+            "line": 562,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 564,
+            "line": 571,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 570,
+            "line": 577,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 835,
+            "line": 842,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1008,
+            "line": 1015,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1372,
+            "line": 1379,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1456,
+            "line": 1463,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -21579,14 +21605,14 @@
           },
           {
             "family": "trigger",
-            "line": 152,
+            "line": 159,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 189,
+            "line": 196,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -22874,91 +22900,91 @@
           },
           {
             "family": "trigger",
-            "line": 173,
+            "line": 180,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 181,
+            "line": 188,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 189,
+            "line": 196,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 433,
+            "line": 440,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 442,
+            "line": 449,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 445,
+            "line": 452,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 552,
+            "line": 559,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 561,
+            "line": 568,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 564,
+            "line": 571,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 835,
+            "line": 842,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1008,
+            "line": 1015,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1372,
+            "line": 1379,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1456,
+            "line": 1463,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -23966,35 +23992,35 @@
           },
           {
             "family": "trigger",
-            "line": 152,
+            "line": 159,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 189,
+            "line": 196,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 197,
+            "line": 204,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 209,
+            "line": 216,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 219,
+            "line": 226,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -24071,7 +24097,7 @@
           },
           {
             "family": "trigger",
-            "line": 472,
+            "line": 479,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -24092,7 +24118,7 @@
           },
           {
             "family": "trigger",
-            "line": 140,
+            "line": 179,
             "path": "Sources/Portal/Views/GraphsView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -24151,6 +24177,20 @@
             "family": "store",
             "line": 10,
             "path": "Sources/Portal/Services/ChatHistoryStore.swift",
+            "rule": "swift.store.declaration"
+          }
+        ]
+      },
+      {
+        "component": "local-services",
+        "id": "store:local-services:CronGraphStore",
+        "kind": "store",
+        "label": "CronGraphStore",
+        "origins": [
+          {
+            "family": "store",
+            "line": 16,
+            "path": "Sources/Portal/Services/CronGraphStore.swift",
             "rule": "swift.store.declaration"
           }
         ]
@@ -24336,28 +24376,28 @@
           },
           {
             "family": "trigger",
-            "line": 173,
+            "line": 180,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 181,
+            "line": 188,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 189,
+            "line": 196,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 835,
+            "line": 842,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -24557,133 +24597,133 @@
           },
           {
             "family": "trigger",
-            "line": 152,
+            "line": 159,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 173,
+            "line": 180,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 181,
+            "line": 188,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 189,
+            "line": 196,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 197,
+            "line": 204,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 209,
+            "line": 216,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 219,
+            "line": 226,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 433,
+            "line": 440,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 436,
+            "line": 443,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 445,
+            "line": 452,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 451,
+            "line": 458,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 552,
+            "line": 559,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 555,
+            "line": 562,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 564,
+            "line": 571,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 570,
+            "line": 577,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 835,
+            "line": 842,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1008,
+            "line": 1015,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1372,
+            "line": 1379,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1456,
+            "line": 1463,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -24794,42 +24834,42 @@
           },
           {
             "family": "trigger",
-            "line": 173,
+            "line": 180,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 181,
+            "line": 188,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 835,
+            "line": 842,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1008,
+            "line": 1015,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1372,
+            "line": 1379,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1456,
+            "line": 1463,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -32980,8 +33020,51 @@
       },
       {
         "citations": 2,
+        "component": "local-services",
+        "declaration_count": 4,
+        "declarations": [
+          {
+            "kind": "protocol",
+            "line": 4,
+            "name": "CronGraphFetching",
+            "passes": []
+          },
+          {
+            "kind": "extension",
+            "line": 8,
+            "name": "GatewayClient",
+            "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 16,
+            "name": "CronGraphStore",
+            "passes": [
+              "map.store",
+              "swift.store.declaration"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 28,
+            "name": "refresh",
+            "passes": []
+          }
+        ],
+        "line_count": 33,
+        "mapped_declarations": 1,
+        "passes": [
+          "map.store",
+          "swift.store.declaration"
+        ],
+        "path": "Sources/Portal/Services/CronGraphStore.swift",
+        "semantic_citations": 0,
+        "touched": true
+      },
+      {
+        "citations": 3,
         "component": "hermes-services",
-        "declaration_count": 3,
+        "declaration_count": 4,
         "declarations": [
           {
             "kind": "class",
@@ -32994,7 +33077,7 @@
           },
           {
             "kind": "func",
-            "line": 20,
+            "line": 22,
             "name": "setGatewayClient",
             "passes": [
               "swift.task.structured"
@@ -33002,12 +33085,18 @@
           },
           {
             "kind": "func",
-            "line": 41,
+            "line": 46,
+            "name": "pollGraph",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 58,
             "name": "stampMaintainerForJob",
             "passes": []
           }
         ],
-        "line_count": 61,
+        "line_count": 78,
         "mapped_declarations": 2,
         "passes": [
           "map.caller",
@@ -42603,7 +42692,7 @@
       {
         "citations": 1,
         "component": "operations-state",
-        "declaration_count": 54,
+        "declaration_count": 56,
         "declarations": [
           {
             "kind": "class",
@@ -42627,312 +42716,324 @@
           },
           {
             "kind": "func",
-            "line": 161,
+            "line": 179,
             "name": "toggleReview",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 173,
+            "line": 191,
             "name": "toggleReview",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 184,
+            "line": 202,
             "name": "updateReviewedDiff",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 189,
+            "line": 207,
             "name": "isReviewing",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 193,
+            "line": 211,
             "name": "clearReview",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 198,
+            "line": 216,
             "name": "diff",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 205,
-            "name": "load",
+            "line": 222,
+            "name": "receiveStoredGraph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 220,
-            "name": "refreshRuntimeState",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 248,
+            "line": 238,
             "name": "adopt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 256,
+            "line": 246,
             "name": "setGraphForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 263,
+            "line": 253,
             "name": "setupSimulation",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 291,
+            "line": 284,
             "name": "rebuildTopology",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 320,
+            "line": 313,
             "name": "settle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 336,
+            "line": 329,
             "name": "tick",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 348,
+            "line": 341,
             "name": "step",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 415,
+            "line": 408,
             "name": "recomputeDrawOrder",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 424,
+            "line": 417,
             "name": "clusterIndexSets",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 443,
+            "line": 436,
             "name": "fitToView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 461,
+            "line": 454,
             "name": "resetView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 471,
+            "line": 464,
             "name": "zoomAtPoint",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 483,
+            "line": 476,
             "name": "zoomAtCenter",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 490,
+            "line": 483,
             "name": "hitTest",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 500,
+            "line": 493,
             "name": "startDragging",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 507,
+            "line": 500,
             "name": "dragNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 517,
+            "line": 510,
             "name": "stopDragging",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 522,
+            "line": 515,
             "name": "updateHover",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 527,
+            "line": 520,
             "name": "clearHover",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 531,
+            "line": 524,
             "name": "handleTap",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 550,
+            "line": 543,
             "name": "selectNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 565,
+            "line": 558,
             "name": "isGroupCollapsed",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 571,
+            "line": 564,
             "name": "groupKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 581,
+            "line": 574,
             "name": "toggleGroupCollapsed",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 595,
+            "line": 588,
             "name": "effectiveGraph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 627,
+            "line": 620,
             "name": "applyGrouping",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 655,
+            "line": 648,
             "name": "seedPosition",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 679,
+            "line": 672,
             "name": "isNodeConnectedToSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 685,
+            "line": 678,
             "name": "linkIsConnectedToSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 690,
+            "line": 683,
             "name": "selectedNodeNeighbors",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 701,
+            "line": 694,
             "name": "serviceHealth",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 707,
+            "line": 700,
             "name": "color",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 727,
+            "line": 720,
             "name": "nodeColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 737,
+            "line": 730,
             "name": "categoryColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 744,
+            "line": 737,
             "name": "nodeColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 752,
+            "line": 745,
             "name": "groupColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 757,
+            "line": 750,
             "name": "categoryFolder",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 766,
+            "line": 759,
             "name": "stableHue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 825,
+            "line": 818,
             "name": "displayLabel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 832,
+            "line": 825,
             "name": "radius",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 849,
+            "line": 842,
             "name": "glyph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 865,
+            "line": 858,
             "name": "edgeColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 885,
+            "line": 878,
             "name": "edgeIsContainment",
+            "passes": []
+          },
+          {
+            "kind": "extension",
+            "line": 920,
+            "name": "CronGraphViewModel",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 923,
+            "name": "load",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 942,
+            "name": "refreshRuntimeState",
             "passes": []
           }
         ],
-        "line_count": 925,
+        "line_count": 963,
         "mapped_declarations": 1,
         "passes": [
           "map.caller"
@@ -49550,7 +49651,7 @@
           },
           {
             "kind": "func",
-            "line": 249,
+            "line": 256,
             "name": "scheduleSettingsReconnect",
             "passes": [
               "swift.task.structured"
@@ -49558,7 +49659,7 @@
           },
           {
             "kind": "func",
-            "line": 270,
+            "line": 277,
             "name": "handleGatewaySwitch",
             "passes": [
               "swift.task.structured"
@@ -49566,25 +49667,25 @@
           },
           {
             "kind": "func",
-            "line": 702,
+            "line": 709,
             "name": "closeAllOverlays",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 791,
+            "line": 798,
             "name": "chipLabel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 810,
+            "line": 817,
             "name": "switchToGateway",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1249,
+            "line": 1256,
             "name": "handleSelectionChangeAfterViewUpdate",
             "passes": [
               "swift.task.structured"
@@ -49592,7 +49693,7 @@
           },
           {
             "kind": "func",
-            "line": 1262,
+            "line": 1269,
             "name": "handleTitleChangeAfterViewUpdate",
             "passes": [
               "swift.task.structured"
@@ -49600,13 +49701,13 @@
           },
           {
             "kind": "func",
-            "line": 1269,
+            "line": 1276,
             "name": "pushOwnedSessionOnIOS",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1283,
+            "line": 1290,
             "name": "handleSessionSelection",
             "passes": [
               "swift.task.structured"
@@ -49614,37 +49715,37 @@
           },
           {
             "kind": "func",
-            "line": 1389,
+            "line": 1396,
             "name": "createAndSwitchToNewSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1468,
+            "line": 1475,
             "name": "wireUpClient",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1488,
+            "line": 1495,
             "name": "refreshPersona",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1499,
+            "line": 1506,
             "name": "observeChatRunState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1514,
+            "line": 1521,
             "name": "updateSelectedSessionTitle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1520,
+            "line": 1527,
             "name": "switchToSession",
             "passes": [
               "swift.task.structured"
@@ -49652,19 +49753,19 @@
           },
           {
             "kind": "func",
-            "line": 1562,
+            "line": 1569,
             "name": "revealChatSurface",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1576,
+            "line": 1583,
             "name": "resolveAndSelectSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1588,
+            "line": 1595,
             "name": "handleDeepLink",
             "passes": [
               "swift.task.structured"
@@ -49672,13 +49773,13 @@
           },
           {
             "kind": "func",
-            "line": 1615,
+            "line": 1622,
             "name": "handleCurriculumReady",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1627,
+            "line": 1634,
             "name": "handleScenePhaseChange",
             "passes": [
               "swift.task.structured"
@@ -49686,12 +49787,12 @@
           },
           {
             "kind": "func",
-            "line": 1711,
+            "line": 1718,
             "name": "resyncActiveChatSession",
             "passes": []
           }
         ],
-        "line_count": 1718,
+        "line_count": 1725,
         "mapped_declarations": 9,
         "passes": [
           "swift.boundary.external_signature",
@@ -51809,7 +51910,7 @@
       {
         "citations": 2,
         "component": "shared-ui",
-        "declaration_count": 5,
+        "declaration_count": 7,
         "declarations": [
           {
             "kind": "struct",
@@ -51824,8 +51925,14 @@
             "passes": []
           },
           {
+            "kind": "enum",
+            "line": 67,
+            "name": "GraphSurfaceChromePlacement",
+            "passes": []
+          },
+          {
             "kind": "struct",
-            "line": 80,
+            "line": 86,
             "name": "GraphsView",
             "passes": [
               "swift.boundary.external_signature",
@@ -51834,18 +51941,24 @@
           },
           {
             "kind": "func",
-            "line": 123,
+            "line": 134,
             "name": "openWikiResource",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 173,
+            "line": 144,
+            "name": "chromePlacement",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 229,
             "name": "seedJobsIfNeeded",
             "passes": []
           }
         ],
-        "line_count": 180,
+        "line_count": 236,
         "mapped_declarations": 1,
         "passes": [
           "swift.boundary.external_signature",
@@ -59416,10 +59529,10 @@
         "id": "map.section"
       },
       {
-        "citations": 16,
+        "citations": 17,
         "class": "mechanical",
         "description": "A store construction on the system map cites the declaration it was extracted from",
-        "files": 16,
+        "files": 17,
         "id": "map.store"
       },
       {
@@ -59612,10 +59725,10 @@
         "id": "swift.store.artifact_literal"
       },
       {
-        "citations": 21,
+        "citations": 22,
         "class": "mechanical",
         "description": "A class, struct, actor, or enum whose name ends in Store, Cache, Inventory, or Ledger",
-        "files": 21,
+        "files": 22,
         "id": "swift.store.declaration"
       },
       {
@@ -59668,7 +59781,7 @@
         "id": "swift.task.stored_handle"
       },
       {
-        "citations": 301,
+        "citations": 302,
         "class": "mechanical",
         "description": "Task initializer with closure",
         "files": 88,
@@ -59696,46 +59809,46 @@
           "total": 4
         },
         "class": {
-          "mapped": 68,
-          "total": 113
+          "mapped": 69,
+          "total": 114
         },
         "enum": {
           "mapped": 8,
-          "total": 291
+          "total": 292
         },
         "extension": {
           "mapped": 19,
-          "total": 113
+          "total": 115
         },
         "func": {
           "mapped": 409,
-          "total": 3120
+          "total": 3124
         },
         "protocol": {
           "mapped": 1,
-          "total": 24
+          "total": 25
         },
         "struct": {
           "mapped": 96,
           "total": 831
         }
       },
-      "citations": 1225,
-      "declarations": 4496,
-      "entities": 157,
-      "entities_with_origin": 157,
-      "files": 400,
+      "citations": 1228,
+      "declarations": 4505,
+      "entities": 158,
+      "entities_with_origin": 158,
+      "files": 401,
       "functions": {
         "mapped": 409,
-        "total": 3120
+        "total": 3124
       },
-      "mapped_declarations": 605,
+      "mapped_declarations": 606,
       "passes": 50,
       "semantic_citations": 254,
-      "touched_files": 154,
+      "touched_files": 155,
       "types": {
-        "mapped": 196,
-        "total": 1376
+        "mapped": 197,
+        "total": 1381
       },
       "untouched_files": 246
     }
@@ -59929,6 +60042,14 @@
         "id": "interplay-cluster-3f357e4b3664",
         "node_ids": [
           "store:domain-models:ActivityStore"
+        ],
+        "owner_type": "Data stores"
+      },
+      {
+        "component": "local-services",
+        "id": "interplay-cluster-40e334af5cf6",
+        "node_ids": [
+          "store:local-services:CronGraphStore"
         ],
         "owner_type": "Data stores"
       },
@@ -60205,7 +60326,7 @@
     ],
     "constructs": {
       "described": 102,
-      "stale": 70
+      "stale": 71
     },
     "edges": [
       {
@@ -60590,6 +60711,12 @@
         "class": "usage",
         "relation": "uses",
         "source": "caller:hermes-services:CronPoller",
+        "target": "store:local-services:CronGraphStore"
+      },
+      {
+        "class": "usage",
+        "relation": "uses",
+        "source": "caller:hermes-services:CronPoller",
         "target": "subscriber:ArtifactStore"
       },
       {
@@ -60789,6 +60916,12 @@
         "relation": "uses",
         "source": "caller:operations-state:CronGraphViewModel",
         "target": "store:domain-models:CronGraphRevisionStore"
+      },
+      {
+        "class": "usage",
+        "relation": "uses",
+        "source": "caller:operations-state:CronGraphViewModel",
+        "target": "store:local-services:CronGraphStore"
       },
       {
         "class": "usage",
@@ -66023,7 +66156,7 @@
         "why": "Every namespace box is dispatched by a transport core; a namespace reached any other way is a new construction, not a variant of this one."
       },
       {
-        "checked": 21,
+        "checked": 22,
         "id": "stores-mapped",
         "kind": "stores_mapped",
         "status": "holds",
@@ -67538,6 +67671,33 @@
         "system_id": "file-system"
       },
       {
+        "cluster": "interplay-cluster-40e334af5cf6",
+        "component": "local-services",
+        "history_key": "store:local-services:CronGraphStore",
+        "id": "store:local-services:CronGraphStore",
+        "kind": "store",
+        "label": "CronGraphStore",
+        "line": 16,
+        "owner_type": null,
+        "page": "graphs",
+        "page_resolution": "reachability",
+        "path": "Sources/Portal/Services/CronGraphStore.swift",
+        "store": {
+          "artifacts": [],
+          "line": 16,
+          "mechanism_count": 0,
+          "path": "Sources/Portal/Services/CronGraphStore.swift",
+          "persistence": [
+            "unobserved"
+          ]
+        },
+        "sub_kind": "class",
+        "triggers": {
+          "lifecycle": 0,
+          "user_action": 0
+        }
+      },
+      {
         "cluster": "interplay-cluster-6d7f034d539c",
         "component": "hermes-services",
         "history_key": "caller:hermes-services:CronPoller",
@@ -67600,7 +67760,7 @@
             "Who calls setGatewayClient and when the poller is created is not visible here."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": false,
+          "stale": true,
           "summary": "CronPoller is an ObservableObject that, once given a GatewayClient, schedules a repeating 60-second Timer. Each tick, when the client is connected, it lists cron jobs, hands them to CronRunHistoryStore.shared.detectNewRuns, and stamps a cron maintainer ref onto any ArtifactStore artifact whose updatedBy mentions the job id or name. The timer is invalidated on client change and in deinit."
         },
         "sub_kind": "page",
@@ -75387,8 +75547,8 @@
               "trigger-033147a7f5cb",
               "trigger-11409a0cdcb4",
               "trigger-1434d39d0082",
-              "trigger-156d765a203f",
               "trigger-173f8ac250bd",
+              "trigger-1d9f5423e657",
               "trigger-21e14661ae99",
               "trigger-26ee296bf6c6",
               "trigger-337e22ddac9c",
@@ -75403,7 +75563,6 @@
               "trigger-4f9c46a20d70",
               "trigger-5477692195e5",
               "trigger-56f686776e42",
-              "trigger-6f4bfb424ffa",
               "trigger-801347710668",
               "trigger-8a590206c277",
               "trigger-8bd0cb87f885",
@@ -75412,15 +75571,17 @@
               "trigger-9bbd1c7fea7a",
               "trigger-a07c4d25bb15",
               "trigger-aa3b2de0a929",
+              "trigger-b33899858efc",
               "trigger-b56cfc782a40",
-              "trigger-b6b83e7e0d22",
+              "trigger-b5df18fc4b9f",
               "trigger-b8886d3b90fe",
               "trigger-bdbe3a47c64a",
               "trigger-bdc3090c9679",
               "trigger-d09036b2aaab",
               "trigger-d2e4694d32bf",
               "trigger-d5ae4140b3a5",
-              "trigger-e34733d96d2f",
+              "trigger-e113c5e2a08d",
+              "trigger-e29336e54632",
               "trigger-e47061d7f608",
               "trigger-e728c9c6595f",
               "trigger-e791301e6c80",
@@ -75450,7 +75611,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 148
+        "type_count": 151
       },
       {
         "components": [],
@@ -76450,9 +76611,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-160e3f6ecd62",
+        "id": "trigger-e3fce69d36a8",
         "kind": "lifecycle",
-        "line": 152,
+        "line": 159,
         "method": "refresh",
         "namespaces": [],
         "page": null,
@@ -76465,9 +76626,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d8586a5b7651",
+        "id": "trigger-147969dbe40d",
         "kind": "lifecycle",
-        "line": 152,
+        "line": 159,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -76482,9 +76643,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-dd9145be5d24",
+        "id": "trigger-4ae4bcbc6d00",
         "kind": "lifecycle",
-        "line": 152,
+        "line": 159,
         "method": "load",
         "namespaces": [],
         "page": null,
@@ -76497,9 +76658,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-183683a7ec81",
+        "id": "trigger-b7c0f44610be",
         "kind": "lifecycle",
-        "line": 173,
+        "line": 180,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -76512,9 +76673,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-9bd0075c0a16",
+        "id": "trigger-254014579837",
         "kind": "lifecycle",
-        "line": 173,
+        "line": 180,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -76527,9 +76688,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-066c6cfb1e5e",
+        "id": "trigger-bd5bb9fd3156",
         "kind": "lifecycle",
-        "line": 173,
+        "line": 180,
         "method": "setGatewayClient",
         "namespaces": [
           "cron"
@@ -76544,9 +76705,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-55e10f9f9b74",
+        "id": "trigger-e330760a5c8e",
         "kind": "lifecycle",
-        "line": 173,
+        "line": 180,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -76559,9 +76720,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-cffbabcda2a9",
+        "id": "trigger-b7b51236a698",
         "kind": "lifecycle",
-        "line": 173,
+        "line": 180,
         "method": "subscribe",
         "namespaces": [],
         "page": null,
@@ -76574,9 +76735,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-9856c187a9fb",
+        "id": "trigger-94c345ef32df",
         "kind": "lifecycle",
-        "line": 181,
+        "line": 188,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -76589,9 +76750,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-efe3685e9a95",
+        "id": "trigger-3104a6f66941",
         "kind": "lifecycle",
-        "line": 181,
+        "line": 188,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -76604,9 +76765,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-9dae1bdd08f0",
+        "id": "trigger-89268f7bec27",
         "kind": "lifecycle",
-        "line": 181,
+        "line": 188,
         "method": "setGatewayClient",
         "namespaces": [
           "cron"
@@ -76621,9 +76782,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-8c065cbbd0c5",
+        "id": "trigger-22e0c48866be",
         "kind": "lifecycle",
-        "line": 181,
+        "line": 188,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -76636,9 +76797,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-8c958b613c24",
+        "id": "trigger-42c61ae4fcca",
         "kind": "lifecycle",
-        "line": 181,
+        "line": 188,
         "method": "subscribe",
         "namespaces": [],
         "page": null,
@@ -76651,9 +76812,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-775b31051a2a",
+        "id": "trigger-4fc64395b94d",
         "kind": "lifecycle",
-        "line": 189,
+        "line": 196,
         "method": "clearAll",
         "namespaces": [],
         "page": null,
@@ -76666,9 +76827,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-c4d5cf1c0ba7",
+        "id": "trigger-3717ce579163",
         "kind": "lifecycle",
-        "line": 189,
+        "line": 196,
         "method": "resetForGatewaySwitch",
         "namespaces": [],
         "page": null,
@@ -76681,9 +76842,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d011f2d7aaf9",
+        "id": "trigger-de7557ff59d3",
         "kind": "lifecycle",
-        "line": 189,
+        "line": 196,
         "method": "saveHistory",
         "namespaces": [],
         "page": null,
@@ -76696,9 +76857,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-62753a6bae45",
+        "id": "trigger-81e93a29ac09",
         "kind": "lifecycle",
-        "line": 189,
+        "line": 196,
         "method": "refresh",
         "namespaces": [],
         "page": null,
@@ -76711,9 +76872,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-52f4a4c25040",
+        "id": "trigger-874e49c56433",
         "kind": "lifecycle",
-        "line": 189,
+        "line": 196,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -76728,9 +76889,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-cdd44d11699a",
+        "id": "trigger-c8bc633cec04",
         "kind": "lifecycle",
-        "line": 189,
+        "line": 196,
         "method": "resetForGatewaySwitch",
         "namespaces": [],
         "page": null,
@@ -76743,9 +76904,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-cccaa549b11f",
+        "id": "trigger-dc87f30ae622",
         "kind": "lifecycle",
-        "line": 189,
+        "line": 196,
         "method": "resetForGatewaySwitch",
         "namespaces": [],
         "page": null,
@@ -76758,9 +76919,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-f8d80d6cbaf4",
+        "id": "trigger-f4a42b42b4f9",
         "kind": "lifecycle",
-        "line": 197,
+        "line": 204,
         "method": "refresh",
         "namespaces": [],
         "page": null,
@@ -76773,9 +76934,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-0742b3e1c280",
+        "id": "trigger-c3d7bd57e9eb",
         "kind": "lifecycle",
-        "line": 197,
+        "line": 204,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -76790,9 +76951,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-fbc51d0778cb",
+        "id": "trigger-67651e55056a",
         "kind": "lifecycle",
-        "line": 209,
+        "line": 216,
         "method": "refresh",
         "namespaces": [],
         "page": null,
@@ -76805,9 +76966,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-91423c921434",
+        "id": "trigger-767dc260527c",
         "kind": "lifecycle",
-        "line": 209,
+        "line": 216,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -76822,9 +76983,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-461f233c80cf",
+        "id": "trigger-2e3592aec925",
         "kind": "lifecycle",
-        "line": 214,
+        "line": 221,
         "method": "adoptGatewayPersona",
         "namespaces": [],
         "page": null,
@@ -76837,9 +76998,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-6ade1cd15b89",
+        "id": "trigger-499d941dc1a2",
         "kind": "lifecycle",
-        "line": 219,
+        "line": 226,
         "method": "refresh",
         "namespaces": [],
         "page": null,
@@ -76852,9 +77013,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-38006d5b66d9",
+        "id": "trigger-b84c0a15c165",
         "kind": "lifecycle",
-        "line": 219,
+        "line": 226,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -76869,9 +77030,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-389fd5949849",
+        "id": "trigger-4a3687cdddbf",
         "kind": "lifecycle",
-        "line": 433,
+        "line": 440,
         "method": "showTransientStatus",
         "namespaces": [],
         "page": null,
@@ -76884,9 +77045,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-879c9ceda71a",
+        "id": "trigger-11c642f4b380",
         "kind": "lifecycle",
-        "line": 433,
+        "line": 440,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -76901,9 +77062,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-bb264d4aa0ca",
+        "id": "trigger-3c6ed26a7b2f",
         "kind": "lifecycle",
-        "line": 436,
+        "line": 443,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -76918,9 +77079,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-e2ac9fa1dde8",
+        "id": "trigger-6371ea2608a6",
         "kind": "lifecycle",
-        "line": 442,
+        "line": 449,
         "method": "clearCurriculumSignal",
         "namespaces": [],
         "page": null,
@@ -76933,9 +77094,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-fff76bd9244f",
+        "id": "trigger-a11bb7b68dfc",
         "kind": "lifecycle",
-        "line": 445,
+        "line": 452,
         "method": "saveHistory",
         "namespaces": [],
         "page": null,
@@ -76948,9 +77109,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-9a45303c09d1",
+        "id": "trigger-90a96b07213c",
         "kind": "lifecycle",
-        "line": 445,
+        "line": 452,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -76965,9 +77126,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-01807769ee36",
+        "id": "trigger-887ee5e92c90",
         "kind": "lifecycle",
-        "line": 451,
+        "line": 458,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -76982,9 +77143,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-5b20abaf988f",
+        "id": "trigger-d48e8ff6bc7d",
         "kind": "lifecycle",
-        "line": 472,
+        "line": 479,
         "method": "markAllCronRunsRead",
         "namespaces": [],
         "page": null,
@@ -76997,9 +77158,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-1cf3487c039b",
+        "id": "trigger-96ed2fbd1a7a",
         "kind": "lifecycle",
-        "line": 552,
+        "line": 559,
         "method": "showTransientStatus",
         "namespaces": [],
         "page": null,
@@ -77012,9 +77173,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-b435692b004d",
+        "id": "trigger-cf57fc965efa",
         "kind": "lifecycle",
-        "line": 552,
+        "line": 559,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -77029,9 +77190,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-886c5bb168c7",
+        "id": "trigger-3ae04a8c3e9e",
         "kind": "lifecycle",
-        "line": 555,
+        "line": 562,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -77046,9 +77207,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-7c9ed8a65b6d",
+        "id": "trigger-48596115e67d",
         "kind": "lifecycle",
-        "line": 561,
+        "line": 568,
         "method": "clearCurriculumSignal",
         "namespaces": [],
         "page": null,
@@ -77061,9 +77222,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-9ef2e830306e",
+        "id": "trigger-9c4ebf7c34e3",
         "kind": "lifecycle",
-        "line": 564,
+        "line": 571,
         "method": "saveHistory",
         "namespaces": [],
         "page": null,
@@ -77076,9 +77237,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-45fba12a48f8",
+        "id": "trigger-a1dd096c7728",
         "kind": "lifecycle",
-        "line": 564,
+        "line": 571,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -77093,9 +77254,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-7b0db3e6144e",
+        "id": "trigger-fd2939a0a05c",
         "kind": "lifecycle",
-        "line": 570,
+        "line": 577,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -77110,9 +77271,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-ebf24a45feff",
+        "id": "trigger-86b715ceb9cf",
         "kind": "user_action",
-        "line": 835,
+        "line": 842,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -77125,9 +77286,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-7a87371d481b",
+        "id": "trigger-91cf0cd52dff",
         "kind": "user_action",
-        "line": 835,
+        "line": 842,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -77140,9 +77301,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-8c30aadac5a7",
+        "id": "trigger-f5b9b08e46c9",
         "kind": "user_action",
-        "line": 835,
+        "line": 842,
         "method": "setGatewayClient",
         "namespaces": [
           "cron"
@@ -77157,9 +77318,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d713d15fbfec",
+        "id": "trigger-de2fb57adb1e",
         "kind": "user_action",
-        "line": 835,
+        "line": 842,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -77172,9 +77333,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-375eb73bb149",
+        "id": "trigger-6f953eb0db89",
         "kind": "user_action",
-        "line": 835,
+        "line": 842,
         "method": "subscribe",
         "namespaces": [],
         "page": null,
@@ -77187,9 +77348,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-87583921a05f",
+        "id": "trigger-03dcb8fe41bd",
         "kind": "user_action",
-        "line": 1008,
+        "line": 1015,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -77202,9 +77363,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-a0b9bd3f9f37",
+        "id": "trigger-d99b505e97f6",
         "kind": "user_action",
-        "line": 1008,
+        "line": 1015,
         "method": "createSession",
         "namespaces": [
           "session"
@@ -77219,9 +77380,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-cc2b6434c88b",
+        "id": "trigger-990685c2a202",
         "kind": "user_action",
-        "line": 1008,
+        "line": 1015,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -77236,9 +77397,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-8764c2ee254e",
+        "id": "trigger-d31b4ae4cafa",
         "kind": "user_action",
-        "line": 1008,
+        "line": 1015,
         "method": "selectSession",
         "namespaces": [],
         "page": null,
@@ -77251,9 +77412,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-ea2c43272d70",
+        "id": "trigger-774be49eab54",
         "kind": "user_action",
-        "line": 1008,
+        "line": 1015,
         "method": "setRunState",
         "namespaces": [],
         "page": null,
@@ -77266,9 +77427,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-4200fa40a1a1",
+        "id": "trigger-f0727152c89a",
         "kind": "user_action",
-        "line": 1008,
+        "line": 1015,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -77281,9 +77442,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-346d4d5a1cb7",
+        "id": "trigger-836d24c81787",
         "kind": "user_action",
-        "line": 1008,
+        "line": 1015,
         "method": "createTree",
         "namespaces": [],
         "page": null,
@@ -77296,9 +77457,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-6e52ee417560",
+        "id": "trigger-c7ae4a301d0d",
         "kind": "user_action",
-        "line": 1372,
+        "line": 1379,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -77311,9 +77472,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-62a60a4b2bcc",
+        "id": "trigger-f9d8eeb3eb89",
         "kind": "user_action",
-        "line": 1372,
+        "line": 1379,
         "method": "createSession",
         "namespaces": [
           "session"
@@ -77328,9 +77489,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-71217072efb5",
+        "id": "trigger-73bc5eec7056",
         "kind": "user_action",
-        "line": 1372,
+        "line": 1379,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -77345,9 +77506,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-8125fd4b9dda",
+        "id": "trigger-145b327e9bc9",
         "kind": "user_action",
-        "line": 1372,
+        "line": 1379,
         "method": "selectSession",
         "namespaces": [],
         "page": null,
@@ -77360,9 +77521,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-de3361a174d2",
+        "id": "trigger-4a8a5a40bb0b",
         "kind": "user_action",
-        "line": 1372,
+        "line": 1379,
         "method": "setRunState",
         "namespaces": [],
         "page": null,
@@ -77375,9 +77536,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-42e575d55c13",
+        "id": "trigger-1b548ca14ca1",
         "kind": "user_action",
-        "line": 1372,
+        "line": 1379,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -77390,9 +77551,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-6c26014d387b",
+        "id": "trigger-9044a09b86e1",
         "kind": "user_action",
-        "line": 1372,
+        "line": 1379,
         "method": "createTree",
         "namespaces": [],
         "page": null,
@@ -77405,9 +77566,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-88d813c97c2b",
+        "id": "trigger-62fa72448f94",
         "kind": "user_action",
-        "line": 1456,
+        "line": 1463,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -77420,9 +77581,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-e78ee7b93add",
+        "id": "trigger-b24c5985036c",
         "kind": "user_action",
-        "line": 1456,
+        "line": 1463,
         "method": "createSession",
         "namespaces": [
           "session"
@@ -77437,9 +77598,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-549b8c7e0359",
+        "id": "trigger-7a2c58bc13fc",
         "kind": "user_action",
-        "line": 1456,
+        "line": 1463,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -77454,9 +77615,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-083dbcd17b6f",
+        "id": "trigger-c721e783c23e",
         "kind": "user_action",
-        "line": 1456,
+        "line": 1463,
         "method": "selectSession",
         "namespaces": [],
         "page": null,
@@ -77469,9 +77630,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-bb9238e87462",
+        "id": "trigger-dbfb8c06602e",
         "kind": "user_action",
-        "line": 1456,
+        "line": 1463,
         "method": "setRunState",
         "namespaces": [],
         "page": null,
@@ -77484,9 +77645,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-36f15987c581",
+        "id": "trigger-c2c1309601bc",
         "kind": "user_action",
-        "line": 1456,
+        "line": 1463,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -77499,9 +77660,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-3f659bfa42a4",
+        "id": "trigger-de1611683d67",
         "kind": "user_action",
-        "line": 1456,
+        "line": 1463,
         "method": "createTree",
         "namespaces": [],
         "page": null,
@@ -78223,9 +78384,9 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-e34733d96d2f",
+        "id": "trigger-b5df18fc4b9f",
         "kind": "lifecycle",
-        "line": 140,
+        "line": 179,
         "method": "refreshJobs",
         "namespaces": [
           "cron"
@@ -78240,9 +78401,9 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-6f4bfb424ffa",
+        "id": "trigger-e29336e54632",
         "kind": "lifecycle",
-        "line": 140,
+        "line": 179,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": "graphs",
@@ -78255,9 +78416,9 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-b6b83e7e0d22",
+        "id": "trigger-1d9f5423e657",
         "kind": "lifecycle",
-        "line": 140,
+        "line": 179,
         "method": "detectNewRuns",
         "namespaces": [],
         "page": "graphs",
@@ -78270,9 +78431,9 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-156d765a203f",
+        "id": "trigger-e113c5e2a08d",
         "kind": "lifecycle",
-        "line": 140,
+        "line": 179,
         "method": "seedFromJobs",
         "namespaces": [],
         "page": "graphs",
@@ -79363,12 +79524,12 @@
     "unattributed_triggers": 444
   },
   "inventory": {
-    "assigned_files": 398,
-    "declarations": 1241,
-    "files": 398,
-    "lines": 116486,
-    "swift_files": 398,
-    "swift_lines": 116486,
+    "assigned_files": 399,
+    "declarations": 1244,
+    "files": 399,
+    "lines": 116637,
+    "swift_files": 399,
+    "swift_lines": 116637,
     "unassigned_files": []
   },
   "layers": [
@@ -79400,15 +79561,15 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "196805bcb561d2c6050adcc678a8b5f20b50500cfb555c3cedbc0e38a14bee60",
+  "source_tree_sha256": "328bc0bd3247c7f2e7558aea049ad3c46b0b9530d30d5e307285117af70fe4f6",
   "stores": {
     "by_persistence": {
       "defaults": 6,
       "file": 13,
       "keychain": 1,
-      "unobserved": 6
+      "unobserved": 7
     },
-    "count": 21,
+    "count": 22,
     "items": [
       {
         "artifacts": [
@@ -80299,6 +80460,30 @@
           "class ChatHistoryStore"
         ],
         "type_name": "ChatHistoryStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal final class CronGraphStore: ObservableObject {",
+          "line": 16,
+          "path": "Sources/Portal/Services/CronGraphStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-c16ad26e9e82",
+        "kind": "class",
+        "label": "CronGraphStore",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class CronGraphStore"
+        ],
+        "type_name": "CronGraphStore"
       },
       {
         "artifacts": [
