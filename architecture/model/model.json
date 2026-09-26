@@ -9375,7 +9375,7 @@
           "severity": "error"
         },
         {
-          "baselined": 133,
+          "baselined": 132,
           "evidence": {
             "line": 166,
             "path": ".swiftlint.yml"
@@ -11269,17 +11269,17 @@
         "current": {
           "counts": {
             "discouraged_optional_boolean": 7,
-            "explicit_acl": 2744,
+            "explicit_acl": 2738,
             "force_cast": 8,
             "force_try": 6,
-            "force_unwrapping": 98,
+            "force_unwrapping": 94,
             "implicitly_unwrapped_optional": 8,
-            "no_swallowed_try": 133,
+            "no_swallowed_try": 132,
             "no_sync_io_on_main": 3
           },
           "kind": "count",
-          "sites": 3007,
-          "total": 3007
+          "sites": 2996,
+          "total": 2996
         },
         "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
         "id": "lint",
@@ -13500,7 +13500,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 18522,
+      "line_count": 18524,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -30838,7 +30838,7 @@
             "passes": []
           }
         ],
-        "line_count": 354,
+        "line_count": 356,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/NetworkGraphSpec.swift",
@@ -79856,9 +79856,9 @@
     "assigned_files": 400,
     "declarations": 1252,
     "files": 400,
-    "lines": 117064,
+    "lines": 117066,
     "swift_files": 400,
-    "swift_lines": 117064,
+    "swift_lines": 117066,
     "unassigned_files": []
   },
   "layers": [
@@ -79890,7 +79890,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "720fbd51d4feeea716741e837393acf0c4d0f96733018c3c925af94cebebee09",
+  "source_tree_sha256": "2c35c366795dc1b9ed46e4ce2cdd35b9ba7897732dc9579b299902c7b851d1e7",
   "stores": {
     "by_persistence": {
       "defaults": 6,
