@@ -148,12 +148,12 @@ internal struct ConceptLinkerTests {
         #expect(tokens.contains("refactoring"))
     }
 
-    @Test("short snake-case and dotted identifiers remain salient compounds")
+    @Test("short snake-case, dotted, and hyphenated identifiers remain salient compounds")
     internal func salientTokensKeepShortCompounds() {
         let node = ThoughtGraphNode(
             id: "r1",
             name: "reasoning",
-            context: "Compare a_b with x.y and abc",
+            context: "Compare a_b with x.y, a-b, and abc",
             isComplete: true,
             startedAt: Date()
         )
@@ -162,6 +162,7 @@ internal struct ConceptLinkerTests {
 
         #expect(tokens.contains("a_b"))
         #expect(tokens.contains("x.y"))
+        #expect(tokens.contains("a-b"))
         #expect(!tokens.contains("abc"))
     }
 

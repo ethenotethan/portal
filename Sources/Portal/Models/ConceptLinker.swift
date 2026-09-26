@@ -95,9 +95,9 @@ internal enum ConceptLinker {
     private static func addToken(_ raw: String, to set: inout Set<String>) {
         let t = raw.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".-_"))
         // Keep tokens that are specific: ≥4 chars and not a stopword, OR any
-        // multi-word compound (camelCase/snake/dotted) which is inherently
+        // multi-word compound (camelCase/snake/dotted/hyphenated) which is inherently
         // specific even if short.
-        let isCompound = raw.contains("_") || raw.contains(".")
+        let isCompound = raw.contains("_") || raw.contains(".") || raw.contains("-")
             || raw.rangeOfCharacter(from: .uppercaseLetters) != nil
                 && raw.rangeOfCharacter(from: .lowercaseLetters) != nil
         guard !t.isEmpty, !stopwords.contains(t) else { return }
