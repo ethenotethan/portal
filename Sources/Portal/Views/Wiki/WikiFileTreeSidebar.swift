@@ -25,10 +25,10 @@ private func buildFolderNode(name: String, id: String, entries: [(page: WikiPage
             grouped[entry.comps[depth], default: []].append(entry)
         }
     }
-    let subfolders = grouped.keys
-        .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        .map { key in
-            buildFolderNode(name: key, id: id.isEmpty ? key : id + "/" + key, entries: grouped[key]!, depth: depth + 1)
+    let subfolders = grouped
+        .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+        .map { key, childEntries in
+            buildFolderNode(name: key, id: id.isEmpty ? key : id + "/" + key, entries: childEntries, depth: depth + 1)
         }
     files.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     return WikiFolderNode(id: id, name: name, subfolders: subfolders, files: files)
