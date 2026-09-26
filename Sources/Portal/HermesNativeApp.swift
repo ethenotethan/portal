@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "PortalApp")
+private let log = PortalLogger(category: "PortalApp")
 
 /// Shared app helpers used by the platform-specific @main entry points.
 ///
@@ -20,6 +20,16 @@ func requestPortalNotificationAuthorization() {
 @MainActor
 func startPortalPerfInstrumentation() {
     PerfInstrumentation.bootstrap()
+}
+
+/// Starts Portal's declared architecture log sink (`~/Library/Logs/Portal/portal.log`;
+/// on iOS the sandbox's own `Library/Logs/Portal/portal.log`): the file every
+/// `PortalLogger` line is appended to. Writes the startup line and arranges the
+/// final flush; the sink itself works on its own queue, never the main actor.
+@MainActor
+internal func startPortalLogSink() {
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    portalLogSink.start(appVersion: version)
 }
 
 #if os(macOS)

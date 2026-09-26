@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "GatewayCapabilities")
+private let log = PortalLogger(category: "GatewayCapabilities")
 
 @MainActor
 final class GatewayCapabilitiesStore: ObservableObject {

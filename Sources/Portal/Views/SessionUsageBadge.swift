@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SessionUsageBadge")
+private let log = PortalLogger(category: "SessionUsageBadge")
 
 /// Persistent top-of-session usage metric: cumulative input/output tokens and
 /// cost for the active session. This is where the retired Mission Control

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Combine
 @testable import Portal
 
 @MainActor
@@ -10,6 +11,25 @@ private final class StubArchitectureReader: ArchitectureReading {
     var checkError: Error?
     var describeCalls: [(service: String, revision: String?)] = []
     var checkCalls = 0
+    let events = PassthroughSubject<GatewayEvent, Never>()
+
+    var architectureEvents: AnyPublisher<GatewayEvent, Never> { events.eraseToAnyPublisher() }
+
+    func serviceLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail {
+        throw GatewayError.invalidResponse("logs not stubbed")
+    }
+
+    func serviceLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState {
+        throw GatewayError.invalidResponse("follow not stubbed")
+    }
+
+    func architectureHistory(service: String, limit: Int?) async throws -> ArchitectureRevisionHistory {
+        throw GatewayError.invalidResponse("history not stubbed")
+    }
+
+    func architectureDiff(service: String, from: String?, to: String?) async throws -> ArchitectureRevisionDiff {
+        throw GatewayError.invalidResponse("diff not stubbed")
+    }
 
     func architectureDescribe(service: String, revision: String?) async throws -> ArchitectureModelDocument {
         describeCalls.append((service, revision))
@@ -42,7 +62,7 @@ internal struct ArchitectureSurfaceModelTests {
         )
     }
 
-    @Test("loading builds the page around the fetched model")
+    @Test("loading fetches the document for the native renderers")
     internal func loadsAndBuildsPage() async {
         let reader = StubArchitectureReader()
         reader.document = document(repository: "ethenotethan/portal")
@@ -52,8 +72,6 @@ internal struct ArchitectureSurfaceModelTests {
         await model.load()
         #expect(model.phase == .loaded)
         #expect(model.document?.service.id == "arch:portal")
-        #expect(model.pageHTML.contains("window.PORTAL_ARCHITECTURE={\"model\":{\"schema_version\":\"1.0.0\"}}"))
-        #expect(model.baseURL?.absoluteString == "https://github.com/ethenotethan/portal/")
         #expect(model.canRunCheck)
         #expect(reader.describeCalls.count == 1)
         #expect(reader.describeCalls.first?.revision == "abc")
@@ -67,12 +85,29 @@ internal struct ArchitectureSurfaceModelTests {
         await model.load()
         #expect(model.phase == .failed)
         #expect(model.errorMessage == "model not found at /x; run the service's compiler first")
-        #expect(model.pageHTML.isEmpty)
         reader.describeError = nil
         reader.document = document()
         await model.load()
         #expect(model.phase == .loaded)
         #expect(model.errorMessage == nil)
+    }
+
+    @Test("load(revision:) fetches a stored snapshot and flags the surface as viewing an older revision; nil returns to latest")
+    internal func revisionSwitching() async {
+        let reader = StubArchitectureReader()
+        reader.document = document()
+        let model = ArchitectureSurfaceModel(service: "arch:portal", reader: reader)
+        await model.load()
+        #expect(!model.isViewingOlderRevision)
+        await model.load(revision: "older")
+        #expect(model.revision == "older")
+        #expect(model.isViewingOlderRevision)
+        #expect(reader.describeCalls.last?.revision == "older")
+        await model.load(revision: nil)
+        #expect(model.revision == nil)
+        #expect(!model.isViewingOlderRevision)
+        #expect(reader.describeCalls.last?.revision == nil)
+        #expect(reader.describeCalls.count == 3)
     }
 
     @Test("a non-conforming model refused by the gateway (4033) fails with the gateway's words")

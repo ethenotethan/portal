@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 import os
 
-private let layoutLog = Logger(subsystem: "com.researchoors.HermesNative", category: "DashboardLayout")
+private let layoutLog = PortalLogger(category: "DashboardLayout")
 
 /// The user's arrangement of panels on the thought-graph dashboard canvas.
 /// Persisted as one personal layout (not per-session yet) so the composition a

@@ -4,7 +4,7 @@ import Foundation
 import Combine
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ChatViewModel")
+private let log = PortalLogger(category: "ChatViewModel")
 
 private let MIMETypeMap: [String: String] = [
     "pdf": "application/pdf",
@@ -3754,7 +3754,7 @@ client.eventStream
         }
 
         switch event {
-        case .artifactChanged, .artifactQueryChanged, .learningChanged, .architectureChanged, .unknown:
+        case .artifactChanged, .artifactQueryChanged, .learningChanged, .architectureChanged, .serviceLog, .unknown:
             // Store-level concerns; ArtifactStore/LearningStore subscribe
             // directly. .unknown never reaches consumers (GatewayClient
             // drops it).
@@ -4261,7 +4261,7 @@ client.eventStream
 
         switch event {
         case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary, .artifactChanged,
-             .artifactQueryChanged, .learningChanged, .architectureChanged, .sessionTitle, .unknown:
+             .artifactQueryChanged, .learningChanged, .architectureChanged, .serviceLog, .sessionTitle, .unknown:
             break
 
         case .sessionInfo(let info):

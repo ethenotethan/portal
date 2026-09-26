@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "LearningStore")
+private let log = PortalLogger(category: "LearningStore")
 
 /// The Learning surface's single owner: courses, quizzes, and flashcard
 /// decks, held in memory (`@Published`), cached to the SAME disk files the

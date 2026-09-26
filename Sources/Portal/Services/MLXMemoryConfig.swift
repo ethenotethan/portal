@@ -2,7 +2,7 @@ import Foundation
 import MLX
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "MLXMemoryConfig")
+private let log = PortalLogger(category: "MLXMemoryConfig")
 
 /// A process-wide bound on MLX's Metal buffer cache.
 ///

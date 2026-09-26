@@ -1,14 +1,14 @@
 import Foundation
 import CryptoKit
 import Combine
-import os.log
+import os
 #if canImport(UIKit)
 import UIKit
 #else
 import AppKit
 #endif
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "XAuthService")
+private let log = PortalLogger(category: "XAuthService")
 
 /// X (Twitter) sign-in via OAuth 2.0 PKCE — the browser flow that lets the
 /// app read tweets with the user's own account (full tweet detail + comments,

@@ -819,7 +819,7 @@ struct VideoPlayerView: View {
 /// Logger for digest video playback. Filter the console with
 /// `category == "video"` to trace URL resolution and AVPlayerItem status.
 enum VideoLog {
-    static let shared = Logger(subsystem: "com.ethenotethan.Portal", category: "video")
+    static let shared = PortalLogger(category: "video")
 }
 
 /// Large, window-filling video player presented as a sheet — our reliable

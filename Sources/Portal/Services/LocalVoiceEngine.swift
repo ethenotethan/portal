@@ -5,7 +5,7 @@ import FluidAudio
 import Foundation
 import os
 
-private let voiceEngineLog = Logger(subsystem: "com.ethenotethan.Portal", category: "LocalVoiceEngine")
+private let voiceEngineLog = PortalLogger(category: "LocalVoiceEngine")
 
 /// FluidAudio-backed on-device transcriber: Parakeet EOU 120M streaming with
 /// 160 ms chunks (lowest-latency tier), English-only. Downloads its CoreML

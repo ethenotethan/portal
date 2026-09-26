@@ -225,6 +225,34 @@ internal struct ArchitectureTests {
         )
     }
 
+    // MARK: - Every log line goes through PortalLogger
+
+    /// The architecture standard requires Portal's declared log sink
+    /// (`~/Library/Logs/Portal/portal.log`) to be real. A raw `os.Logger`
+    /// reaches only the unified log, which a user-level app cannot read back
+    /// (`OSLogStore` refuses the process scope, `log stream` is admin-only), so
+    /// every line must go through `PortalLogger`, which writes both. The
+    /// SwiftLint rule `no_direct_os_logger` says the same; this pins it in the
+    /// suite, and also pins that no other file reaches for the logging module
+    /// directly (`import os` stays allowed: it carries the locks too).
+    @Test("Every log line goes through PortalLogger — no raw os.Logger or OSLog import outside the facade")
+    internal func loggingGoesThroughTheFacade() throws {
+        let facade = Self.sourcesRoot.appendingPathComponent("Utilities/PortalLogger.swift")
+        #expect(FileManager.default.fileExists(atPath: facade.path), "the facade must exist at Utilities/PortalLogger.swift")
+        var offenders: [String] = []
+        for file in Self.swiftFiles(under: Self.sourcesRoot) where file.path != facade.path {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            let relative = file.path.replacingOccurrences(of: Self.sourcesRoot.path + "/", with: "")
+            if source.contains("Logger(subsystem:") {
+                offenders.append("\(relative): constructs an os.Logger — declare a PortalLogger(category:)")
+            }
+            for line in source.components(separatedBy: "\n") where line == "import OSLog" || line == "import os.log" {
+                offenders.append("\(relative): \(line) — only the facade talks to the logging module")
+            }
+        }
+        #expect(offenders.isEmpty, "Logging must go through PortalLogger so the declared log sink is written: \(offenders.joined(separator: "; "))")
+    }
+
     // MARK: - GatewayEvent wire types are documented
 
     @Test("Every GatewayEvent wire type appears in docs/rpc-reference.md")

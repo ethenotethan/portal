@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import os.log
+import os
 
 @MainActor
 @Observable
@@ -23,7 +23,7 @@ internal final class SkillsViewModel {
     private var hasLoaded = false
 
     private var gatewayClient: GatewayClient?
-    private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillsViewModel")
+    private let log = PortalLogger(category: "SkillsViewModel")
 
     internal func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client

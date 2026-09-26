@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "QuizViewModel")
+private let log = PortalLogger(category: "QuizViewModel")
 
 /// ViewModel for the Quiz Mode feature. Manages quiz state, answer evaluation,
 /// and progression through questions. All evaluation is local — no further

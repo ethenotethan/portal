@@ -1,7 +1,7 @@
 import Foundation
-import os.log
+import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "WikiGraphCache")
+private let log = PortalLogger(category: "WikiGraphCache")
 
 /// On-disk cache of the last-known wiki graph, keyed by gateway identity and
 /// wiki selection. It exists to kill the "click the wiki and wait for a blank

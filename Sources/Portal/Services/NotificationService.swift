@@ -8,7 +8,7 @@ import AppKit
 import UIKit
 #endif
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "NotificationService")
+private let log = PortalLogger(category: "NotificationService")
 
 /// Posts local notifications for gateway events that require user action.
 /// Fires when the app is backgrounded or the event is for a non-active session.

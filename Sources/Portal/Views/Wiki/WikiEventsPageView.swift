@@ -1,7 +1,7 @@
 import SwiftUI
-import os.log
+import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "WikiEventsPage")
+private let log = PortalLogger(category: "WikiEventsPage")
 
 // MARK: - WikiEventsPageView
 

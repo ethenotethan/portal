@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "QuizStore")
+private let log = PortalLogger(category: "QuizStore")
 
 /// Persists completed quiz sessions to local disk for the Learning Dashboard.
 /// Files live in Application Support/portal/quizzes/<id>.json

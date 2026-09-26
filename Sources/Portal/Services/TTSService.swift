@@ -2,7 +2,7 @@ import AVFoundation
 import Combine
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "TTSService")
+private let log = PortalLogger(category: "TTSService")
 
 /// The slice of `AVSpeechSynthesizer` the service uses, as a protocol so a
 /// test can stand in a recorder. `AVSpeechSynthesizer` conforms as-is: every
