@@ -17,6 +17,22 @@ internal struct ArchitectureServiceRef: Hashable {
     internal let ref: String?
     internal let modelPath: String
     internal let checkConfigured: Bool
+    /// The log sinks the manifest declares (local services); empty when none.
+    internal let logs: [ArchitectureLogSink]
+
+    internal init(id: String, label: String, description: String, source: String, root: String?, repository: String?,
+                  ref: String?, modelPath: String, checkConfigured: Bool, logs: [ArchitectureLogSink] = []) {
+        self.id = id
+        self.label = label
+        self.description = description
+        self.source = source
+        self.root = root
+        self.repository = repository
+        self.ref = ref
+        self.modelPath = modelPath
+        self.checkConfigured = checkConfigured
+        self.logs = logs
+    }
 
     internal var isLocal: Bool { source == "local" }
 
@@ -39,7 +55,8 @@ internal struct ArchitectureServiceRef: Hashable {
             repository: d["repository"]?.stringValue,
             ref: d["ref"]?.stringValue,
             modelPath: d["model_path"]?.stringValue ?? "architecture/model/model.json",
-            checkConfigured: d["check_configured"]?.boolValue ?? false
+            checkConfigured: d["check_configured"]?.boolValue ?? false,
+            logs: ArchitectureLogSink.decodeList(d["logs"])
         )
     }
 }
@@ -205,6 +222,23 @@ internal struct ArchitectureModelDocument: Hashable {
     internal let contract: ArchitectureContractRef
     internal let model: AnyCodable
     internal let modelJSON: String
+    /// Whether this is the service's latest stored revision (a describe with a
+    /// `revision` may return an older snapshot). Absent from older gateways: latest.
+    internal let isLatest: Bool
+
+    internal init(service: ArchitectureServiceRef, revision: String, source: String, storedAt: String?, summary: ArchitectureModelSummary,
+                  check: ArchitectureCheckResult?, contract: ArchitectureContractRef, model: AnyCodable, modelJSON: String, isLatest: Bool = true) {
+        self.service = service
+        self.revision = revision
+        self.source = source
+        self.storedAt = storedAt
+        self.summary = summary
+        self.check = check
+        self.contract = contract
+        self.model = model
+        self.modelJSON = modelJSON
+        self.isLatest = isLatest
+    }
 
     // `AnyCodable` is not Hashable; the JSON text is the model's identity (sorted
     // keys, so equal models serialize identically), which keeps the document
@@ -212,7 +246,7 @@ internal struct ArchitectureModelDocument: Hashable {
     internal static func == (lhs: ArchitectureModelDocument, rhs: ArchitectureModelDocument) -> Bool {
         lhs.service == rhs.service && lhs.revision == rhs.revision && lhs.source == rhs.source
             && lhs.storedAt == rhs.storedAt && lhs.summary == rhs.summary && lhs.check == rhs.check
-            && lhs.contract == rhs.contract && lhs.modelJSON == rhs.modelJSON
+            && lhs.contract == rhs.contract && lhs.modelJSON == rhs.modelJSON && lhs.isLatest == rhs.isLatest
     }
 
     internal func hash(into hasher: inout Hasher) {
@@ -224,6 +258,7 @@ internal struct ArchitectureModelDocument: Hashable {
         hasher.combine(check)
         hasher.combine(contract)
         hasher.combine(modelJSON)
+        hasher.combine(isLatest)
     }
 
     /// The sections present on the model, in contract order.
@@ -286,7 +321,8 @@ internal struct ArchitectureModelDocument: Hashable {
             check: d["check"].flatMap(ArchitectureCheckResult.decodeGatewayValue),
             contract: ArchitectureContractRef.decodeGatewayValue(d["contract"]),
             model: model,
-            modelJSON: modelJSON
+            modelJSON: modelJSON,
+            isLatest: d["is_latest"]?.boolValue ?? true
         )
     }
 }
