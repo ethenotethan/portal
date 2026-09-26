@@ -2,7 +2,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SettingsView")
+private let log = PortalLogger(category: "SettingsView")
 
 /// Full-window settings overlay. Sections are listed in a sidebar and
 /// render into the main pane — same pattern as macOS System Settings.

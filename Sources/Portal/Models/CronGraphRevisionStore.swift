@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CronGraphRevisionStore")
+private let log = PortalLogger(category: "CronGraphRevisionStore")
 
 // MARK: - CronGraphRevisionStore
 

@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ReasoningSummarizer")
+private let log = PortalLogger(category: "ReasoningSummarizer")
 
 
 // MARK: - Regex Helper

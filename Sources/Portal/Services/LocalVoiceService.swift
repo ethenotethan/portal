@@ -3,7 +3,7 @@ import Combine
 import Foundation
 import os
 
-private let voiceLog = Logger(subsystem: "com.ethenotethan.Portal", category: "LocalVoiceService")
+private let voiceLog = PortalLogger(category: "LocalVoiceService")
 
 /// Microphone capture seam. The real implementation (AVAudioEngine) lives in
 /// `LocalVoiceEngine.swift` behind `#if canImport(FluidAudio)`, so tests inject

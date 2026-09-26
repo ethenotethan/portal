@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ArtifactPanel")
+private let log = PortalLogger(category: "ArtifactPanel")
 
 // MARK: - Artifact
 

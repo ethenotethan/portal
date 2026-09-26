@@ -5,7 +5,7 @@ import os
 @preconcurrency import MLXLLM
 @preconcurrency import MLXLMCommon
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "LocalChatEngine")
+private let log = PortalLogger(category: "LocalChatEngine")
 
 /// MLX text generation for local discussions — the real engine behind
 /// `LocalChatService`'s `LocalChatGenerating` seam.

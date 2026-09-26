@@ -4,7 +4,7 @@ import Foundation
 import Combine
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ChatViewModel")
+private let log = PortalLogger(category: "ChatViewModel")
 
 private let MIMETypeMap: [String: String] = [
     "pdf": "application/pdf",

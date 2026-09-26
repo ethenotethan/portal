@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "DelegationBatchHistoryStore")
+private let log = PortalLogger(category: "DelegationBatchHistoryStore")
 
 /// Durable store of finished delegation batches, keyed by session — the batch
 /// analogue of `CronRunHistoryStore`. `SpawnTreeStore` trees are in-memory and

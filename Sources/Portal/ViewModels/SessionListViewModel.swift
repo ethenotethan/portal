@@ -3,7 +3,7 @@ import Combine
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SessionListViewModel")
+private let log = PortalLogger(category: "SessionListViewModel")
 
 /// Manages the list of sessions and session creation/resumption/killing.
 /// Tracks the mapping between database IDs (from session.list) and

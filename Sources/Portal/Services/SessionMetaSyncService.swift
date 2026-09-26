@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SessionMetaSync")
+private let log = PortalLogger(category: "SessionMetaSync")
 
 /// Syncs session organization metadata (custom titles, pinned, archived,
 /// tags) across devices through the gateway's generic config KV store.

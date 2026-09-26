@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CronRunHistoryStore")
+private let log = PortalLogger(category: "CronRunHistoryStore")
 
 struct CronRunRecord: Identifiable, Codable {
     let id: UUID

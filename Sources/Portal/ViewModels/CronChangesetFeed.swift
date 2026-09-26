@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CronChangesetFeed")
+private let log = PortalLogger(category: "CronChangesetFeed")
 
 // MARK: - CronChangesetFeed
 

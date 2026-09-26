@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "PortalApp")
+private let log = PortalLogger(category: "PortalApp")
 
 /// Shared app helpers used by the platform-specific @main entry points.
 ///
@@ -22,36 +22,14 @@ func startPortalPerfInstrumentation() {
     PerfInstrumentation.bootstrap()
 }
 
-/// The unified-log mirror that makes Portal's declared architecture log sink
-/// (`~/Library/Logs/Portal/portal.log`; on iOS the sandbox's own
-/// `Library/Logs/Portal/portal.log`) real. One per process, started at launch
-/// beside the perf instrumentation.
+/// Starts Portal's declared architecture log sink (`~/Library/Logs/Portal/portal.log`;
+/// on iOS the sandbox's own `Library/Logs/Portal/portal.log`): the file every
+/// `PortalLogger` line is appended to. Writes the startup line and arranges the
+/// final flush; the sink itself works on its own queue, never the main actor.
 @MainActor
-private let portalLogMirror: UnifiedLogMirror = {
-    #if os(macOS)
-    // The store refuses the process scope on some hosts; the `log stream` tool
-    // then reads on the app's behalf.
-    let reader: any UnifiedLogReading = SwitchingLogReader(primary: OSLogStoreReader(), fallback: LogStreamProcessReader())
-    #else
-    let reader: any UnifiedLogReading = OSLogStoreReader()
-    #endif
-    // Anchor the first read a few seconds before this point (the property is
-    // first touched in the App's init) so everything the process logs from
-    // launch on, the startup notice included, is captured.
-    return UnifiedLogMirror(
-        reader: reader,
-        appender: LogFileAppender(fileURL: UnifiedLogMirror.defaultLogURL()),
-        since: Date().addingTimeInterval(-5)
-    )
-}()
-
-/// Begins mirroring this process's unified log into the declared sink. All of
-/// the work happens on the mirror actor, never on the main actor.
-@MainActor
-internal func startPortalLogMirror() {
+internal func startPortalLogSink() {
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
-    let mirror = portalLogMirror
-    Task { await mirror.start(appVersion: version) }
+    portalLogSink.start(appVersion: version)
 }
 
 #if os(macOS)

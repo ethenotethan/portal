@@ -17,7 +17,7 @@ struct PortalAppIOS: App {
     init() {
         requestPortalNotificationAuthorization()
         startPortalPerfInstrumentation()
-        startPortalLogMirror()
+        startPortalLogSink()
     }
 
     var body: some Scene {

@@ -3,7 +3,7 @@ import Combine
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CelebrationManager")
+private let log = PortalLogger(category: "CelebrationManager")
 
 /// Manages positive reinforcement celebrations using variable-ratio reward
 /// scheduling — the most effective reinforcement pattern for habit formation.

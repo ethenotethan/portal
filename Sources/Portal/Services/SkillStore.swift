@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillStore")
+private let log = PortalLogger(category: "SkillStore")
 
 // MARK: - Disk Persistence
 

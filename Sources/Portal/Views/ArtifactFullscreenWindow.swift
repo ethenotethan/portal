@@ -5,7 +5,7 @@ import AppKit
 import Combine
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ArtifactFullscreen")
+private let log = PortalLogger(category: "ArtifactFullscreen")
 
 // MARK: - Shared interactive web configuration
 

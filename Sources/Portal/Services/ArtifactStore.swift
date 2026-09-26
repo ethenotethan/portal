@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ArtifactStore")
+private let log = PortalLogger(category: "ArtifactStore")
 
 /// Store for living artifacts: named models ANY writer maintains — chat
 /// turns here, agent tool calls, cron jobs, workflows — synced through the

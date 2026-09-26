@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CurriculumViewModel")
+private let log = PortalLogger(category: "CurriculumViewModel")
 
 /// Drives one course: which step is open, quiz state for quiz steps, and
 /// progress writes back to `CurriculumStore`.

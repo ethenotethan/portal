@@ -1,7 +1,7 @@
 import Foundation
-import os.log
+import os
 
-private let storeLog = Logger(subsystem: "com.ethenotethan.Portal", category: "ActivityStore")
+private let storeLog = PortalLogger(category: "ActivityStore")
 
 @MainActor
 final class ActivityStore {

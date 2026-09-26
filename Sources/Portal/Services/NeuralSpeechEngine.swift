@@ -4,7 +4,7 @@ import FluidAudio
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "NeuralSpeechEngine")
+private let log = PortalLogger(category: "NeuralSpeechEngine")
 
 /// FluidAudio's PocketTTS as a Portal voice: Kyutai's flow-matching model,
 /// streamed 80 ms at a time from CoreML into an `AVAudioPlayerNode`.

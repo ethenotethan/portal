@@ -147,8 +147,22 @@ trailing_whitespace:
 custom_rules:
   no_nslog:
     regex: "\\bNSLog\\("
-    message: "Use Logger from os.log instead of NSLog"
+    message: "Use PortalLogger instead of NSLog"
     severity: warning
+
+  no_direct_os_logger:
+    included: ".*/Sources/.*\\.swift"
+    # Every log line goes through PortalLogger (Utilities/PortalLogger.swift):
+    # it writes the unified log AND Portal's declared architecture log sink
+    # (~/Library/Logs/Portal/portal.log). A raw os.Logger reaches only the
+    # unified log, which a user-level app cannot read back, so the line would
+    # never appear in the file Harness serves over architecture.logs.
+    regex: "\\bLogger\\(subsystem:"
+    message: "Declare a PortalLogger(category:) — a raw os.Logger never reaches the declared log sink"
+    severity: error
+    excluded:
+      # The facade itself is the one place a raw Logger is constructed.
+      - ".*/Utilities/PortalLogger\\.swift"
 
   no_swallowed_try:
     included: ".*/Sources/.*\\.swift"

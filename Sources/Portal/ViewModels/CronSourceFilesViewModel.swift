@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CronSourceFilesViewModel")
+private let log = PortalLogger(category: "CronSourceFilesViewModel")
 
 /// The two reads the explorer needs from the gateway's file browser. A protocol
 /// so the view model never names the concrete client and a test can hand it a

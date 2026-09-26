@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ChatHistoryStore")
+private let log = PortalLogger(category: "ChatHistoryStore")
 
 /// Persists chat message history per session to local disk.
 /// Files live in Application Support/portal/sessions/<id>.json
