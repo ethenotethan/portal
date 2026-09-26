@@ -29,6 +29,40 @@ private final class ScriptedLogReader: UnifiedLogReading, @unchecked Sendable {
     }
 }
 
+/// A primary that yields nothing and a fallback that yields, switched on request.
+private final class SwitchableFakeReader: UnifiedLogFallbackSwitching, @unchecked Sendable {
+    private let lock = NSLock()
+    private var switched = false
+    private(set) var reasons: [String] = []
+    private var fallbackBatches: [[UnifiedLogLine]]
+
+    init(fallbackBatches: [[UnifiedLogLine]]) {
+        self.fallbackBatches = fallbackBatches
+    }
+
+    var name: String { isSwitched ? "Fallback" : "Primary" }
+
+    var isSwitched: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return switched
+    }
+
+    func switchToFallback(reason: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        switched = true
+        reasons.append(reason)
+    }
+
+    func entries(after: Date?) throws -> [UnifiedLogLine] {
+        lock.lock()
+        defer { lock.unlock() }
+        guard switched, !fallbackBatches.isEmpty else { return [] }
+        return fallbackBatches.removeFirst()
+    }
+}
+
 @Suite("Unified log mirror — Portal's declared log sink")
 internal struct UnifiedLogMirrorTests {
     private static let epoch = Date(timeIntervalSince1970: 1_790_000_000)
@@ -178,6 +212,79 @@ internal struct UnifiedLogMirrorTests {
         #expect(await mirror.fileURL == url)
     }
 
+    @Test("start writes the startup line to the file directly and the first read is anchored at the launch date")
+    internal func startupLineAndAnchor() async throws {
+        let url = try temporaryLog()
+        let anchor = Self.epoch
+        let reader = ScriptedLogReader(batches: [[line(1, "after launch")]])
+        let mirror = UnifiedLogMirror(reader: reader, appender: LogFileAppender(fileURL: url), cadence: .seconds(60), since: anchor)
+        await mirror.start(appVersion: "9.9")
+        // The direct line exists before any read has completed.
+        let immediately = try String(contentsOf: url, encoding: .utf8)
+        let expectedStartup = "[notice] UnifiedLogMirror: Portal 9.9 started; reader=ScriptedLogReader; "
+            + "pid=\(ProcessInfo.processInfo.processIdentifier); since=2026-09-21T14:13:20.000Z"
+        #expect(immediately.contains(expectedStartup))
+        try await Task.sleep(for: .milliseconds(150))
+        await mirror.stop()
+        #expect(reader.calls.first == anchor, "the first read asks for everything since launch, so the startup notice logged during start is captured")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let lines = text.components(separatedBy: "\n").filter { !$0.isEmpty }
+        #expect(lines.count == 2)
+        #expect(lines[0].contains("UnifiedLogMirror: Portal 9.9 started"))
+        #expect(lines[1].contains("Test: after launch"))
+    }
+
+    @Test("a read failure leaves a direct diagnostic line in the file, not only the unified log")
+    internal func readFailureDiagnostic() async throws {
+        let url = try temporaryLog()
+        let reader = ScriptedLogReader(batches: [], failures: 1)
+        let mirror = UnifiedLogMirror(reader: reader, appender: LogFileAppender(fileURL: url))
+        await mirror.flush()
+        let text = try String(contentsOf: url, encoding: .utf8)
+        #expect(text.contains("[error] UnifiedLogMirror: unified log read failed ("))
+        #expect(text.contains("backing off 1 cycle(s); reader=ScriptedLogReader"))
+        #expect(await mirror.readErrorCount == 1)
+    }
+
+    @Test("fifteen empty cycles with a heartbeat out hand the reader over, once, with a diagnostic")
+    internal func zeroYieldHandOver() async throws {
+        let url = try temporaryLog()
+        let reader = SwitchableFakeReader(fallbackBatches: [[line(1, "from fallback")], [line(2, "still fallback")]])
+        let mirror = UnifiedLogMirror(reader: reader, appender: LogFileAppender(fileURL: url))
+        for _ in 0..<14 { await mirror.flush() }
+        #expect(!reader.isSwitched)
+        #expect(await mirror.heartbeatsLogged == 1, "one heartbeat after ten empty cycles")
+        await mirror.flush() // the fifteenth
+        #expect(reader.isSwitched)
+        #expect(await mirror.handedOver)
+        #expect(reader.reasons == ["no entries for 15 cycles although 1 heartbeat(s) were logged"])
+        let afterHandOver = try String(contentsOf: url, encoding: .utf8)
+        #expect(afterHandOver.contains("[notice] UnifiedLogMirror: no entries for 15 cycles although 1 heartbeat(s) were logged; handed over to Fallback"))
+        await mirror.flush()
+        await mirror.flush()
+        for _ in 0..<20 { await mirror.flush() } // empty again: no second hand-over
+        #expect(reader.reasons.count == 1)
+        let text = try String(contentsOf: url, encoding: .utf8)
+        #expect(text.contains("Test: from fallback"))
+        #expect(text.contains("Test: still fallback"))
+        #expect(await mirror.linesWritten == 2)
+    }
+
+    @Test("two distinct entries sharing one timestamp both survive; only a byte-identical re-delivery is dropped")
+    internal func sameTimestampDistinctEntries() async throws {
+        let url = try temporaryLog()
+        let reader = ScriptedLogReader(batches: [
+            [line(5, "alpha", level: "info"), line(5, "alpha", level: "error"), line(5, "beta")],
+            [line(5, "beta"), line(5, "gamma")],
+        ])
+        let mirror = UnifiedLogMirror(reader: reader, appender: LogFileAppender(fileURL: url))
+        await mirror.flush()
+        await mirror.flush()
+        let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: "\n").filter { !$0.isEmpty }
+        #expect(lines.map { $0.components(separatedBy: "] Test: ").last ?? "" } == ["alpha", "alpha", "beta", "gamma"])
+        #expect(lines[0].contains("[info]") && lines[1].contains("[error]"))
+    }
+
     @Test("the switching reader stays on the primary until it throws, then uses the fallback for good")
     internal func switching() throws {
         let primary = ScriptedLogReader(batches: [[line(1, "p1")]], failures: 0)
@@ -191,6 +298,12 @@ internal struct UnifiedLogMirrorTests {
         #expect(switching.isUsingFallback())
         #expect(try switching.entries(after: nil).map(\.message) == ["f2"])
         #expect(failing.calls.count == 1, "the primary is never asked again")
+        #expect(switching.name == "ScriptedLogReader", "the fallback's name once switched")
+        let requested = SwitchingLogReader(primary: ScriptedLogReader(batches: [[line(1, "p")]]), fallback: ScriptedLogReader(batches: [[line(2, "f")]]))
+        requested.switchToFallback(reason: "asked")
+        requested.switchToFallback(reason: "asked again")
+        #expect(requested.isUsingFallback())
+        #expect(try requested.entries(after: nil).map(\.message) == ["f"], "a requested hand-over skips the primary")
     }
 
     #if os(macOS)

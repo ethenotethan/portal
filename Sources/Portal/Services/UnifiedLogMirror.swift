@@ -20,6 +20,19 @@ internal protocol UnifiedLogReading: Sendable {
     /// Entries for the app's subsystem newer than `after` (all of them when nil),
     /// oldest first.
     func entries(after: Date?) throws -> [UnifiedLogLine]
+    /// What the file's diagnostics call this reader (`OSLogStore`, `log stream`).
+    var name: String { get }
+}
+
+extension UnifiedLogReading {
+    internal var name: String { String(describing: Self.self) }
+}
+
+/// A reader that can abandon its primary source for a fallback on request: the
+/// mirror asks for it when the primary keeps yielding nothing although the
+/// process demonstrably logs.
+internal protocol UnifiedLogFallbackSwitching: UnifiedLogReading {
+    func switchToFallback(reason: String)
 }
 
 /// Appends lines to the log file, creating its directory and rotating the file
@@ -93,29 +106,54 @@ internal struct LogFileAppender: Sendable {
 /// polls on a fixed cadence while started, flushes on demand, and fails open:
 /// a reader or writer error is logged once and the mirror backs off, doubling
 /// its wait up to a minute, rather than failing the app.
+///
+/// The file speaks from the first second: `start` writes its own line directly
+/// (not through the unified log), and every reader error, hand-over and back-off
+/// writes one direct diagnostic line under the `UnifiedLogMirror` category, so
+/// an empty file is never the only evidence.
 internal actor UnifiedLogMirror {
     internal static let subsystem = "com.ethenotethan.Portal"
     internal static let category = "LogMirror"
+    internal static let diagnosticCategory = "UnifiedLogMirror"
     internal static let maxBackoffCycles = 30
+    /// A heartbeat goes through the unified log every this many empty cycles…
+    internal static let heartbeatEvery = 10
+    /// …and after this many consecutive empty cycles with at least one heartbeat
+    /// out, the reader is asked to hand over to its fallback.
+    internal static let zeroYieldCycles = 15
 
     private let reader: any UnifiedLogReading
     private let appender: LogFileAppender
     private let cadence: Duration
+    private let since: Date?
     private var lastDate: Date?
     /// Signatures of the entries that share `lastDate`, so a batch boundary that
-    /// falls inside one timestamp does not duplicate or drop an entry.
+    /// falls inside one timestamp does not duplicate or drop an entry. Two
+    /// distinct entries at one timestamp differ in message (or level/category)
+    /// and both survive; only a byte-identical re-delivery is dropped.
     private var lastDateSignatures: Set<String> = []
     private var backoffCycles = 0
     private var backoffStep = 0
+    private var emptyCycles = 0
+    private var readerName: String
     private var loop: Task<Void, Never>?
     internal private(set) var readErrorCount = 0
     internal private(set) var writeErrorCount = 0
     internal private(set) var linesWritten = 0
+    internal private(set) var heartbeatsLogged = 0
+    internal private(set) var handedOver = false
 
-    internal init(reader: any UnifiedLogReading, appender: LogFileAppender, cadence: Duration = .seconds(2)) {
+    /// `since` anchors the first read: everything the process logged from that
+    /// moment on is captured, including the startup notice `start` writes
+    /// through the unified log. Without it the first read starts at the store's
+    /// oldest position.
+    internal init(reader: any UnifiedLogReading, appender: LogFileAppender, cadence: Duration = .seconds(2), since: Date? = nil) {
         self.reader = reader
         self.appender = appender
         self.cadence = cadence
+        self.since = since
+        self.lastDate = since
+        self.readerName = reader.name
     }
 
     internal var fileURL: URL { appender.fileURL }
@@ -157,10 +195,14 @@ internal actor UnifiedLogMirror {
         return formatter
     }
 
-    /// Starts the polling loop and writes the startup line through the unified
-    /// log, so the file is never empty while the app runs.
+    /// Starts the polling loop. The startup line is written to the file directly
+    /// first (so the file exists and says which reader is in use), then also
+    /// through the unified log, where the anchored first read will find it.
     internal func start(appVersion: String) {
         guard loop == nil else { return }
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let anchor = since.map { Self.timestampFormatter().string(from: $0) } ?? "store-oldest"
+        writeDiagnostic(level: "notice", "Portal \(appVersion) started; reader=\(readerName); pid=\(pid); since=\(anchor)")
         mirrorLog.notice("Portal \(appVersion, privacy: .public) started; mirroring unified log to \(self.appender.fileURL.path, privacy: .public)")
         loop = Task { [cadence] in
             while !Task.isCancelled {
@@ -180,12 +222,13 @@ internal actor UnifiedLogMirror {
     }
 
     /// One pass: read what is new, append it, advance the position. Honours the
-    /// back-off after an error.
+    /// back-off after an error; counts empty passes towards the zero-yield hand-over.
     internal func flush() {
         if backoffCycles > 0 {
             backoffCycles -= 1
             return
         }
+        noteReaderName()
         let fresh: [UnifiedLogLine]
         do {
             fresh = try reader.entries(after: lastDate).filter(isUnseen)
@@ -196,8 +239,10 @@ internal actor UnifiedLogMirror {
         }
         guard !fresh.isEmpty else {
             backoffStep = 0
+            registerEmptyCycle()
             return
         }
+        emptyCycles = 0
         do {
             try appender.append(fresh.map(Self.formatEntry))
             linesWritten += fresh.count
@@ -207,6 +252,33 @@ internal actor UnifiedLogMirror {
             writeErrorCount += 1
             backOff(after: "log file write", error: error)
         }
+    }
+
+    /// Every `heartbeatEvery` empty cycles a notice goes through the unified log;
+    /// a reader that then still yields nothing for `zeroYieldCycles` cycles is
+    /// asked to hand over, once and for good.
+    private func registerEmptyCycle() {
+        emptyCycles += 1
+        if emptyCycles.isMultiple(of: Self.heartbeatEvery) {
+            heartbeatsLogged += 1
+            mirrorLog.notice("heartbeat \(self.heartbeatsLogged, privacy: .public): \(self.emptyCycles, privacy: .public) empty cycles")
+        }
+        guard emptyCycles >= Self.zeroYieldCycles, heartbeatsLogged > 0, !handedOver,
+              let switching = reader as? UnifiedLogFallbackSwitching else { return }
+        let reason = "no entries for \(emptyCycles) cycles although \(heartbeatsLogged) heartbeat(s) were logged"
+        switching.switchToFallback(reason: reason)
+        handedOver = true
+        emptyCycles = 0
+        noteReaderName()
+        writeDiagnostic(level: "notice", "\(reason); handed over to \(readerName)")
+    }
+
+    /// A reader that switched on its own (a thrown error) shows as a new name.
+    private func noteReaderName() {
+        let current = reader.name
+        guard current != readerName else { return }
+        readerName = current
+        writeDiagnostic(level: "notice", "reader handed over to \(current)")
     }
 
     private func isUnseen(_ line: UnifiedLogLine) -> Bool {
@@ -232,13 +304,30 @@ internal actor UnifiedLogMirror {
     }
 
     /// Doubles the wait each consecutive failure (1, 2, 4, … up to 30 cycles);
-    /// the first failure of a run is logged, the rest stay quiet.
+    /// every failure writes one direct line to the file, the first of a run is
+    /// also logged through the unified log.
     private func backOff(after what: String, error: Error) {
-        if backoffStep == 0 {
-            mirrorLog.error("\(what, privacy: .public) failed; backing off: \(String(describing: error), privacy: .public)")
-        }
         backoffCycles = min(Self.maxBackoffCycles, 1 << min(backoffStep, 5))
+        let detail = String(describing: error)
+        if backoffStep == 0 {
+            mirrorLog.error("\(what, privacy: .public) failed; backing off: \(detail, privacy: .public)")
+        }
         backoffStep += 1
+        if what != "log file write" {
+            writeDiagnostic(level: "error", "\(what) failed (\(detail)); backing off \(backoffCycles) cycle(s); reader=\(readerName)")
+        }
+    }
+
+    /// A line the mirror writes about itself, straight to the file. A failure
+    /// here is counted and logged, never retried in a loop.
+    private func writeDiagnostic(level: String, _ message: String) {
+        let line = UnifiedLogLine(date: Date(), level: level, category: Self.diagnosticCategory, message: message)
+        do {
+            try appender.append([Self.formatEntry(line)])
+        } catch {
+            writeErrorCount += 1
+            mirrorLog.error("diagnostic write failed: \(String(describing: error), privacy: .public)")
+        }
     }
 }
 
@@ -248,6 +337,7 @@ internal actor UnifiedLogMirror {
 /// and iOS 15 onwards; the process scope needs no entitlement on either).
 internal struct OSLogStoreReader: UnifiedLogReading {
     internal let subsystem: String
+    internal var name: String { "OSLogStore" }
 
     internal init(subsystem: String = UnifiedLogMirror.subsystem) {
         self.subsystem = subsystem
@@ -293,6 +383,7 @@ internal struct OSLogStoreReader: UnifiedLogReading {
 internal final class LogStreamProcessReader: UnifiedLogReading, @unchecked Sendable {
     internal let subsystem: String
     internal let processIdentifier: Int32
+    internal var name: String { "log stream" }
     private let lock = NSLock()
     private var buffer: [UnifiedLogLine] = []
     private var process: Process?
@@ -415,9 +506,10 @@ internal final class LogStreamProcessReader: UnifiedLogReading, @unchecked Senda
 }
 #endif
 
-/// Uses the primary reader until it throws once, then the fallback for the rest
-/// of the process's life. The switch is logged once.
-internal final class SwitchingLogReader: UnifiedLogReading, @unchecked Sendable {
+/// Uses the primary reader until it throws once — or until the mirror asks for
+/// the hand-over because the primary yields nothing — then the fallback for the
+/// rest of the process's life. The switch is logged once.
+internal final class SwitchingLogReader: UnifiedLogFallbackSwitching, @unchecked Sendable {
     private let primary: any UnifiedLogReading
     private let fallback: any UnifiedLogReading
     private let lock = NSLock()
@@ -436,15 +528,24 @@ internal final class SwitchingLogReader: UnifiedLogReading, @unchecked Sendable 
         return usingFallback
     }
 
+    internal var name: String { isUsingFallback() ? fallback.name : primary.name }
+
+    internal func switchToFallback(reason: String) {
+        lock.lock()
+        let already = usingFallback
+        usingFallback = true
+        lock.unlock()
+        if !already {
+            mirrorLog.notice("switching to \(self.fallback.name, privacy: .public): \(reason, privacy: .public)")
+        }
+    }
+
     internal func entries(after: Date?) throws -> [UnifiedLogLine] {
         if !isUsingFallback() {
             do {
                 return try primary.entries(after: after)
             } catch {
-                lock.lock()
-                usingFallback = true
-                lock.unlock()
-                mirrorLog.notice("unified log store unavailable (\(String(describing: error), privacy: .public)); switching to the log stream fallback")
+                switchToFallback(reason: "\(primary.name) threw \(String(describing: error))")
             }
         }
         return try fallback.entries(after: after)

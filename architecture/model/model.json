@@ -751,15 +751,15 @@
         "enclosing_function": "entries",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 324,
+          "line": 415,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-a4ace3dff517",
+        "id": "lifecycle-operation-4abc50ed1b1c",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -769,15 +769,15 @@
         "enclosing_function": "entries",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 324,
+          "line": 415,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-a4ace3dff517",
+        "id": "lifecycle-operation-4abc50ed1b1c",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -787,15 +787,15 @@
         "enclosing_function": "entries",
         "evidence": {
           "excerpt": "defer { lock.unlock() }",
-          "line": 325,
+          "line": 416,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-07a8dd70a6d3",
+        "id": "lifecycle-operation-5c3cdbbd1e15",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -805,15 +805,15 @@
         "enclosing_function": "entries",
         "evidence": {
           "excerpt": "defer { lock.unlock() }",
-          "line": 325,
+          "line": 416,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-07a8dd70a6d3",
+        "id": "lifecycle-operation-5c3cdbbd1e15",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -823,15 +823,15 @@
         "enclosing_function": "startIfNeeded",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 340,
+          "line": 431,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-b5fc81afa192",
+        "id": "lifecycle-operation-3e4e1806ae3b",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -841,15 +841,15 @@
         "enclosing_function": "startIfNeeded",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 340,
+          "line": 431,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-b5fc81afa192",
+        "id": "lifecycle-operation-3e4e1806ae3b",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -859,15 +859,15 @@
         "enclosing_function": "startIfNeeded",
         "evidence": {
           "excerpt": "defer { lock.unlock() }",
-          "line": 341,
+          "line": 432,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-326a1e518c50",
+        "id": "lifecycle-operation-4e6a645df431",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -877,15 +877,15 @@
         "enclosing_function": "startIfNeeded",
         "evidence": {
           "excerpt": "defer { lock.unlock() }",
-          "line": 341,
+          "line": 432,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-326a1e518c50",
+        "id": "lifecycle-operation-4e6a645df431",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -895,15 +895,15 @@
         "enclosing_function": "ingest",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 361,
+          "line": 452,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-1abbcaccc079",
+        "id": "lifecycle-operation-e75f93f8db0a",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -913,15 +913,15 @@
         "enclosing_function": "ingest",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 361,
+          "line": 452,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-1abbcaccc079",
+        "id": "lifecycle-operation-e75f93f8db0a",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -931,15 +931,15 @@
         "enclosing_function": "ingest",
         "evidence": {
           "excerpt": "defer { lock.unlock() }",
-          "line": 362,
+          "line": 453,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-dc80480623e3",
+        "id": "lifecycle-operation-98a08dc7baed",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -949,15 +949,15 @@
         "enclosing_function": "ingest",
         "evidence": {
           "excerpt": "defer { lock.unlock() }",
-          "line": 362,
+          "line": 453,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-dc80480623e3",
+        "id": "lifecycle-operation-98a08dc7baed",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LogStreamProcessReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -967,15 +967,15 @@
         "enclosing_function": "isUsingFallback",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 434,
+          "line": 526,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-40d34d08c9d3",
+        "id": "lifecycle-operation-843120290413",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "SwitchingLogReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -985,15 +985,15 @@
         "enclosing_function": "isUsingFallback",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 434,
+          "line": 526,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-40d34d08c9d3",
+        "id": "lifecycle-operation-843120290413",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "SwitchingLogReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -1003,15 +1003,15 @@
         "enclosing_function": "isUsingFallback",
         "evidence": {
           "excerpt": "defer { lock.unlock() }",
-          "line": 435,
+          "line": 527,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-e858d9264902",
+        "id": "lifecycle-operation-9f7124eaf22d",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "SwitchingLogReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -1021,87 +1021,87 @@
         "enclosing_function": "isUsingFallback",
         "evidence": {
           "excerpt": "defer { lock.unlock() }",
-          "line": 435,
+          "line": 527,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-e858d9264902",
+        "id": "lifecycle-operation-9f7124eaf22d",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "SwitchingLogReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
       {
         "authority": "observed",
         "component": "local-services",
-        "enclosing_function": "entries",
+        "enclosing_function": "switchToFallback",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 444,
+          "line": 534,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-75748ce5b1b4",
+        "id": "lifecycle-operation-e6c72c78955a",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "SwitchingLogReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
       {
         "authority": "observed",
         "component": "local-services",
-        "enclosing_function": "entries",
+        "enclosing_function": "switchToFallback",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 444,
+          "line": 534,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-75748ce5b1b4",
+        "id": "lifecycle-operation-e6c72c78955a",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "SwitchingLogReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
       {
         "authority": "observed",
         "component": "local-services",
-        "enclosing_function": "entries",
+        "enclosing_function": "switchToFallback",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 446,
+          "line": 537,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-20bad50b1348",
+        "id": "lifecycle-operation-8a2ca938149b",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "SwitchingLogReader",
-        "resource_id": "resource-baff33cec86d",
+        "resource_id": "resource-596f34a87297",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
       {
         "authority": "observed",
         "component": "local-services",
-        "enclosing_function": "entries",
+        "enclosing_function": "switchToFallback",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 446,
+          "line": 537,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-20bad50b1348",
+        "id": "lifecycle-operation-8a2ca938149b",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "SwitchingLogReader",
-        "resource_id": "resource-c345604ca38d",
+        "resource_id": "resource-ddc4a1ad6e83",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2428,16 +2428,16 @@
         "evidence_class": "static_source",
         "id": "connectivity-pocket-d54f15c3a17a",
         "operation_ids": [
-          "lifecycle-operation-07a8dd70a6d3",
-          "lifecycle-operation-1abbcaccc079",
-          "lifecycle-operation-326a1e518c50",
-          "lifecycle-operation-a4ace3dff517",
-          "lifecycle-operation-b5fc81afa192",
-          "lifecycle-operation-dc80480623e3"
+          "lifecycle-operation-3e4e1806ae3b",
+          "lifecycle-operation-4abc50ed1b1c",
+          "lifecycle-operation-4e6a645df431",
+          "lifecycle-operation-5c3cdbbd1e15",
+          "lifecycle-operation-98a08dc7baed",
+          "lifecycle-operation-e75f93f8db0a"
         ],
         "owner_type": "LogStreamProcessReader",
         "resource_ids": [
-          "resource-baff33cec86d"
+          "resource-596f34a87297"
         ],
         "task_handle_ids": []
       },
@@ -2580,14 +2580,14 @@
         "evidence_class": "static_source",
         "id": "connectivity-pocket-3ad614b361ab",
         "operation_ids": [
-          "lifecycle-operation-20bad50b1348",
-          "lifecycle-operation-40d34d08c9d3",
-          "lifecycle-operation-75748ce5b1b4",
-          "lifecycle-operation-e858d9264902"
+          "lifecycle-operation-843120290413",
+          "lifecycle-operation-8a2ca938149b",
+          "lifecycle-operation-9f7124eaf22d",
+          "lifecycle-operation-e6c72c78955a"
         ],
         "owner_type": "SwitchingLogReader",
         "resource_ids": [
-          "resource-c345604ca38d"
+          "resource-ddc4a1ad6e83"
         ],
         "task_handle_ids": []
       },
@@ -2630,7 +2630,7 @@
         "owner_type": "UnifiedLogMirror",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-4e1d4febb886"
+          "task-site-56e1cfa92deb"
         ]
       },
       {
@@ -3016,11 +3016,11 @@
         "component": "local-services",
         "evidence": {
           "excerpt": "private let lock = NSLock()",
-          "line": 296,
+          "line": 387,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-baff33cec86d",
+        "id": "resource-596f34a87297",
         "kind": "lock",
         "label": "lock",
         "owner_type": "LogStreamProcessReader",
@@ -3032,11 +3032,11 @@
         "component": "local-services",
         "evidence": {
           "excerpt": "private let lock = NSLock()",
-          "line": 423,
+          "line": 515,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-c345604ca38d",
+        "id": "resource-ddc4a1ad6e83",
         "kind": "lock",
         "label": "lock",
         "owner_type": "SwitchingLogReader",
@@ -3243,11 +3243,11 @@
         "enclosing_type": null,
         "evidence": {
           "excerpt": "Task { await mirror.start(appVersion: version) }",
-          "line": 47,
+          "line": 54,
           "path": "Sources/Portal/HermesNativeApp.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e3ef3d170aa4",
+        "id": "task-site-9e6beb566552",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5547,11 +5547,11 @@
         "enclosing_type": "UnifiedLogMirror",
         "evidence": {
           "excerpt": "private var loop: Task<Void, Never>?",
-          "line": 110,
+          "line": 139,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-4e1d4febb886",
+        "id": "task-site-56e1cfa92deb",
         "kind": "stored_task_handle",
         "label": "loop",
         "rule_id": "swift.task.stored_handle"
@@ -5563,11 +5563,11 @@
         "enclosing_type": "UnifiedLogMirror",
         "evidence": {
           "excerpt": "loop = Task { [cadence] in",
-          "line": 165,
+          "line": 207,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-05726bd1cb35",
+        "id": "task-site-57c0327e8779",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5579,11 +5579,11 @@
         "enclosing_type": "UnifiedLogMirror",
         "evidence": {
           "excerpt": "loop?.cancel()",
-          "line": 178,
+          "line": 220,
           "path": "Sources/Portal/Services/UnifiedLogMirror.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f0027f2a2fc7",
+        "id": "task-site-23b216adab5a",
         "kind": "task_cancellation",
         "label": "loop",
         "rule_id": "swift.task.cancel"
@@ -11961,7 +11961,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4134
+      "line_count": 4141
     },
     {
       "declaration_count": 74,
@@ -13085,7 +13085,7 @@
       "line_count": 92
     },
     {
-      "declaration_count": 113,
+      "declaration_count": 114,
       "declarations": [
         "AVAudioEngineMicrophone",
         "AgentRun",
@@ -13184,6 +13184,7 @@
         "TweetEmbed",
         "TweetEmbedText",
         "TweetFields",
+        "UnifiedLogFallbackSwitching",
         "UnifiedLogLine",
         "UnifiedLogMirror",
         "UnifiedLogReading",
@@ -13248,7 +13249,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 9843,
+      "line_count": 9944,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -25126,7 +25127,7 @@
           },
           {
             "kind": "func",
-            "line": 44,
+            "line": 51,
             "name": "startPortalLogMirror",
             "passes": [
               "swift.task.structured"
@@ -25134,48 +25135,48 @@
           },
           {
             "kind": "func",
-            "line": 54,
+            "line": 61,
             "name": "configurePortalMacApplication",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 62,
+            "line": 69,
             "name": "MacWindowConfigurator",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 63,
+            "line": 70,
             "name": "makeNSView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 69,
+            "line": 76,
             "name": "updateNSView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 73,
+            "line": 80,
             "name": "configure",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 98,
+            "line": 105,
             "name": "logWindowDiagnostics",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 128,
+            "line": 135,
             "name": "dump",
             "passes": []
           }
         ],
-        "line_count": 141,
+        "line_count": 148,
         "mapped_declarations": 2,
         "passes": [
           "swift.task.structured"
@@ -38291,7 +38292,7 @@
       {
         "citations": 15,
         "component": "local-services",
-        "declaration_count": 31,
+        "declaration_count": 37,
         "declarations": [
           {
             "kind": "struct",
@@ -38306,32 +38307,44 @@
             "passes": []
           },
           {
+            "kind": "extension",
+            "line": 27,
+            "name": "UnifiedLogReading",
+            "passes": []
+          },
+          {
+            "kind": "protocol",
+            "line": 34,
+            "name": "UnifiedLogFallbackSwitching",
+            "passes": []
+          },
+          {
             "kind": "struct",
-            "line": 28,
+            "line": 41,
             "name": "LogFileAppender",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 48,
+            "line": 61,
             "name": "append",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 68,
+            "line": 81,
             "name": "currentSize",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 77,
+            "line": 90,
             "name": "rotate",
             "passes": []
           },
           {
             "kind": "actor",
-            "line": 96,
+            "line": 114,
             "name": "UnifiedLogMirror",
             "passes": [
               "swift.task.cancel",
@@ -38341,25 +38354,25 @@
           },
           {
             "kind": "func",
-            "line": 127,
+            "line": 165,
             "name": "defaultLogURL",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 143,
+            "line": 181,
             "name": "formatEntry",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 153,
+            "line": 191,
             "name": "timestampFormatter",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 162,
+            "line": 201,
             "name": "start",
             "passes": [
               "swift.task.structured"
@@ -38367,7 +38380,7 @@
           },
           {
             "kind": "func",
-            "line": 177,
+            "line": 219,
             "name": "stop",
             "passes": [
               "swift.task.cancel"
@@ -38375,55 +38388,73 @@
           },
           {
             "kind": "func",
-            "line": 184,
+            "line": 226,
             "name": "flush",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 212,
+            "line": 260,
+            "name": "registerEmptyCycle",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 277,
+            "name": "noteReaderName",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 284,
             "name": "isUnseen",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 219,
+            "line": 291,
             "name": "advance",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 230,
+            "line": 302,
             "name": "signature",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 236,
+            "line": 309,
             "name": "backOff",
             "passes": []
           },
           {
+            "kind": "func",
+            "line": 323,
+            "name": "writeDiagnostic",
+            "passes": []
+          },
+          {
             "kind": "struct",
-            "line": 249,
+            "line": 338,
             "name": "OSLogStoreReader",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 256,
+            "line": 346,
             "name": "entries",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 271,
+            "line": 361,
             "name": "levelName",
             "passes": []
           },
           {
             "kind": "class",
-            "line": 293,
+            "line": 383,
             "name": "LogStreamProcessReader",
             "passes": [
               "swift.lifecycle.acquire",
@@ -38433,7 +38464,7 @@
           },
           {
             "kind": "func",
-            "line": 320,
+            "line": 411,
             "name": "entries",
             "passes": [
               "swift.lifecycle.acquire",
@@ -38442,13 +38473,13 @@
           },
           {
             "kind": "func",
-            "line": 332,
+            "line": 423,
             "name": "arguments",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 339,
+            "line": 430,
             "name": "startIfNeeded",
             "passes": [
               "swift.lifecycle.acquire",
@@ -38457,7 +38488,7 @@
           },
           {
             "kind": "func",
-            "line": 359,
+            "line": 450,
             "name": "ingest",
             "passes": [
               "swift.lifecycle.acquire",
@@ -38466,25 +38497,25 @@
           },
           {
             "kind": "func",
-            "line": 376,
+            "line": 467,
             "name": "parseLine",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 398,
+            "line": 489,
             "name": "parseTimestamp",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 405,
+            "line": 496,
             "name": "levelName",
             "passes": []
           },
           {
             "kind": "class",
-            "line": 420,
+            "line": 512,
             "name": "SwitchingLogReader",
             "passes": [
               "swift.lifecycle.acquire",
@@ -38494,7 +38525,7 @@
           },
           {
             "kind": "func",
-            "line": 433,
+            "line": 525,
             "name": "isUsingFallback",
             "passes": [
               "swift.lifecycle.acquire",
@@ -38503,15 +38534,21 @@
           },
           {
             "kind": "func",
-            "line": 439,
-            "name": "entries",
+            "line": 533,
+            "name": "switchToFallback",
             "passes": [
               "swift.lifecycle.acquire",
               "swift.lifecycle.release"
             ]
+          },
+          {
+            "kind": "func",
+            "line": 543,
+            "name": "entries",
+            "passes": []
           }
         ],
-        "line_count": 452,
+        "line_count": 553,
         "mapped_declarations": 10,
         "passes": [
           "swift.lifecycle.acquire",
@@ -59299,15 +59336,15 @@
         },
         "extension": {
           "mapped": 18,
-          "total": 112
+          "total": 113
         },
         "func": {
           "mapped": 410,
-          "total": 3060
+          "total": 3064
         },
         "protocol": {
           "mapped": 1,
-          "total": 25
+          "total": 26
         },
         "struct": {
           "mapped": 94,
@@ -59315,13 +59352,13 @@
         }
       },
       "citations": 1224,
-      "declarations": 4414,
+      "declarations": 4420,
       "entities": 155,
       "entities_with_origin": 155,
       "files": 395,
       "functions": {
         "mapped": 410,
-        "total": 3060
+        "total": 3064
       },
       "mapped_declarations": 605,
       "passes": 50,
@@ -59329,7 +59366,7 @@
       "touched_files": 151,
       "types": {
         "mapped": 195,
-        "total": 1354
+        "total": 1356
       },
       "untouched_files": 244
     }
@@ -78869,11 +78906,11 @@
   },
   "inventory": {
     "assigned_files": 393,
-    "declarations": 1220,
+    "declarations": 1221,
     "files": 393,
-    "lines": 120532,
+    "lines": 120640,
     "swift_files": 393,
-    "swift_lines": 120532,
+    "swift_lines": 120640,
     "unassigned_files": []
   },
   "layers": [
@@ -78905,7 +78942,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "9ed25341bfd7bc94bf8907a5acdf0eda4ced3d394027dfeefd9e8356b0f9d718",
+  "source_tree_sha256": "51fe2258dc2693969cb1949f98a8a3e38c3db2b7b85331ba55efc48863f235c5",
   "stores": {
     "by_persistence": {
       "defaults": 6,

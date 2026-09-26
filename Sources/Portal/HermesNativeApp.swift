@@ -35,7 +35,14 @@ private let portalLogMirror: UnifiedLogMirror = {
     #else
     let reader: any UnifiedLogReading = OSLogStoreReader()
     #endif
-    return UnifiedLogMirror(reader: reader, appender: LogFileAppender(fileURL: UnifiedLogMirror.defaultLogURL()))
+    // Anchor the first read a few seconds before this point (the property is
+    // first touched in the App's init) so everything the process logs from
+    // launch on, the startup notice included, is captured.
+    return UnifiedLogMirror(
+        reader: reader,
+        appender: LogFileAppender(fileURL: UnifiedLogMirror.defaultLogURL()),
+        since: Date().addingTimeInterval(-5)
+    )
 }()
 
 /// Begins mirroring this process's unified log into the declared sink. All of
