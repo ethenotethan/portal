@@ -11272,14 +11272,14 @@
             "explicit_acl": 2738,
             "force_cast": 8,
             "force_try": 6,
-            "force_unwrapping": 80,
+            "force_unwrapping": 79,
             "implicitly_unwrapped_optional": 8,
             "no_swallowed_try": 132,
             "no_sync_io_on_main": 3
           },
           "kind": "count",
-          "sites": 2982,
-          "total": 2982
+          "sites": 2981,
+          "total": 2981
         },
         "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
         "id": "lint",
@@ -79890,7 +79890,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "1720e190e344e8cc7bfeba314c0d990825c3489746b286c0a44760919138a3d1",
+  "source_tree_sha256": "2f1b89a9ebf6d9ef6d1d140dec1fb8e74f05bc545dce2c3a7c645f64bb436565",
   "stores": {
     "by_persistence": {
       "defaults": 6,

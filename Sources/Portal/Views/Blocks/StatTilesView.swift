@@ -83,7 +83,7 @@ private struct StatTileCard: View {
         // Color = direction × whether up is good; zero is neutral.
         let up = delta > 0
         let good = delta == 0 ? nil : (up == tile.upIsGood)
-        let color: Color = good == nil ? Theme.secondary : (good! ? .green : .red)
+        let color: Color = good.map { $0 ? .green : .red } ?? Theme.secondary
         return HStack(spacing: 4) {
             if delta != 0 {
                 Image(systemName: up ? "arrow.up.right" : "arrow.down.right")
