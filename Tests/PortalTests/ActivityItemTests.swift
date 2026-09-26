@@ -89,6 +89,32 @@ struct ActivityItemTests {
         #expect(item?.isDismissed == true)
     }
 
+    @Test("minimal activity payload uses safe defaults and drops malformed children")
+    internal func minimalPayloadDefaultsAndFiltering() throws {
+        let item = try #require(ActivityItem.from([
+            "id": AnyCodable("act_minimal"),
+            "severity": AnyCodable("future-severity"),
+            "session_id": AnyCodable(""),
+            "actions": .array([.dictionary(["label": AnyCodable("Missing type")])]),
+            "artifacts": .array([.dictionary(["id": AnyCodable("")])]),
+            "external_refs": .array([.dictionary(["label": AnyCodable("Missing URL")])]),
+        ]))
+
+        #expect(item.kind == "activity")
+        #expect(item.severity == .info)
+        #expect(item.source == "gateway")
+        #expect(item.title == "Activity")
+        #expect(item.summary.isEmpty)
+        #expect(item.sessionID == nil)
+        #expect(!item.isRead)
+        #expect(!item.isDismissed)
+        #expect(item.actions.isEmpty)
+        #expect(item.artifacts.isEmpty)
+        #expect(item.externalRefs.isEmpty)
+        #expect(ActivityItem.from([:]) == nil)
+        #expect(ActivityItem.from(["id": AnyCodable("")]) == nil)
+    }
+
     @Test("activity presentation exposes readable status and severity cues")
     internal func presentationCues() {
         var item = ActivityItem(
