@@ -42,7 +42,7 @@ struct MermaidDiagramView: View {
     let isStreaming: Bool
     /// Inline rows scale within their frame; the expanded sheet gets a
     /// pannable canvas that grows past the viewport (see DiagramZoomCanvas).
-    var presentation: DiagramPresentation = .inline
+    internal var presentation: DiagramPresentation = .inline
 
     var body: some View {
         MermaidRendererCoordinator(source: mermaidCode, isStreaming: isStreaming, presentation: presentation)
