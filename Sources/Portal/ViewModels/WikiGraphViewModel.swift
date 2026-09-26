@@ -240,16 +240,16 @@ final class WikiGraphViewModel: ObservableObject {
 
     func color(for type: String) -> Color {
         switch type {
-        case "entity": return Color(hex: "7c7cff")!
-        case "concept", "topic": return Color(hex: "5cb85c")!
-        case "comparison": return Color(hex: "e8a838")!
-        case "query": return Color(hex: "ff6b9d")!
-        case "raw": return Color(hex: "888888")!
-        case "meta", "index", "log": return Color(hex: "5ad4e6")!  // root pages (index.md, log.md)
+        case "entity": return Color(hex: "7c7cff") ?? .purple
+        case "concept", "topic": return Color(hex: "5cb85c") ?? .green
+        case "comparison": return Color(hex: "e8a838") ?? .orange
+        case "query": return Color(hex: "ff6b9d") ?? .pink
+        case "raw": return Color(hex: "888888") ?? .gray
+        case "meta", "index", "log": return Color(hex: "5ad4e6") ?? .cyan  // root pages (index.md, log.md)
         // Additional page kinds beyond the core set.
-        case "glossary": return Color(hex: "5ad4e6")!   // taxonomy definitions
-        case "project": return Color(hex: "e8a838")!
-        case "goal": return Color(hex: "ff6b9d")!
+        case "glossary": return Color(hex: "5ad4e6") ?? .cyan   // taxonomy definitions
+        case "project": return Color(hex: "e8a838") ?? .orange
+        case "goal": return Color(hex: "ff6b9d") ?? .pink
         // Code-graph kinds (CodeGraphSource). Distinct hues, no wiki type
         // collides; modules are the hub hue, externals muted.
         case "module": return Color(hex: "4a9eff") ?? .blue
@@ -257,7 +257,7 @@ final class WikiGraphViewModel: ObservableObject {
         case "func": return Color(hex: "56d364") ?? .green
         case "symbol": return Color(hex: "d19a66") ?? .orange
         case "external": return Color(hex: "6a6a6a") ?? .gray
-        default: return Color(hex: "aaaaaa")!
+        default: return Color(hex: "aaaaaa") ?? .gray
         }
     }
 
