@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CronListViewModel")
+private let log = PortalLogger(category: "CronListViewModel")
 
 @MainActor
 @Observable

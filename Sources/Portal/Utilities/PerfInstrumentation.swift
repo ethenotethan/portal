@@ -27,7 +27,7 @@ import MetricKit
 // Arguments) to start live sampling + console logging. The in-app overlay is
 // toggled separately via PerfOverlayState.shared.
 
-let perfLog = Logger(subsystem: "com.ethenotethan.Portal", category: "perf")
+let perfLog = PortalLogger(category: "perf")
 
 /// Whether live perf instrumentation was requested at launch (`--perf`).
 let perfInstrumentationEnabled: Bool = {

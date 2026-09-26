@@ -1,8 +1,8 @@
 import SwiftUI
 import Combine
-import os.log
+import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "FeedViewModel")
+private let log = PortalLogger(category: "FeedViewModel")
 
 @MainActor
 final class FeedViewModel: ObservableObject {

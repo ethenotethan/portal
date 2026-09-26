@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "LocalChatService")
+private let log = PortalLogger(category: "LocalChatService")
 
 /// Which on-device model backs local discussions.
 ///

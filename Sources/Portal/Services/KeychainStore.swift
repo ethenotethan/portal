@@ -2,7 +2,7 @@ import Foundation
 import Security
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "KeychainStore")
+private let log = PortalLogger(category: "KeychainStore")
 
 /// macOS Keychain wrapper for storing the gateway API key and URL.
 /// Uses kSecClassGenericPassword with a fixed service identifier.

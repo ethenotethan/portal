@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ArtifactIntents")
+private let log = PortalLogger(category: "ArtifactIntents")
 
 // The one place that decides how an artifact of any kind is drawn, and — for
 // interactive HTML worlds — whether the host captures the mouse for it. Lifted

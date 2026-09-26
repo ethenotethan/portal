@@ -4,7 +4,7 @@ import AppKit
 import SwiftMath
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SessionPDFExporter")
+private let log = PortalLogger(category: "SessionPDFExporter")
 
 /// Renders a chat session — user messages plus all agent output, including
 /// native Swift Charts and mermaid diagrams — into a paginated US-Letter PDF

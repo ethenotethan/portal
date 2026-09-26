@@ -17,7 +17,7 @@ import os
 final class VideoCache {
     static let shared = VideoCache()
 
-    private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "video")
+    private let log = PortalLogger(category: "video")
     private let session: URLSession
     /// In-flight + completed downloads keyed by remote URL, so repeated taps on
     /// the same card reuse one download instead of stacking concurrent fetches.

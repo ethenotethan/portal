@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
-import OSLog
+import os
 
-private let toolbarIconLog = Logger(subsystem: "com.ethenotethan.Portal", category: "ToolbarIconTheme")
+private let toolbarIconLog = PortalLogger(category: "ToolbarIconTheme")
 
 // The top-right chrome icons (Settings, Sessions, Cron, …) are their own
 // appearance axis. They are icon-only and sit on the window background rather

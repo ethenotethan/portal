@@ -8,7 +8,7 @@ import HuggingFace
 import Tokenizers
 #endif
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillSummaryService")
+private let log = PortalLogger(category: "SkillSummaryService")
 
 enum SkillSummaryError: LocalizedError {
     case modelUnavailable

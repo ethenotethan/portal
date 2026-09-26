@@ -1,7 +1,7 @@
 import SwiftUI
-import os.log
+import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "WikiTimelineViewModel")
+private let log = PortalLogger(category: "WikiTimelineViewModel")
 
 /// Drives the wiki changeset timeline: paginated fetch + action filter.
 @MainActor

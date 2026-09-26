@@ -5,7 +5,7 @@ import os
 import UIKit
 #endif
 
-private let logger = Logger(subsystem: "com.ethenotethan.Portal", category: "GatewayClientWrapper")
+private let logger = PortalLogger(category: "GatewayClientWrapper")
 
 /// Observable wrapper for the app-level GatewayClient lifecycle.
 ///

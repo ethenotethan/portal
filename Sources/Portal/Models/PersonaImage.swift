@@ -1,7 +1,7 @@
 import SwiftUI
 import os
 
-private let personaImageLog = Logger(subsystem: "com.ethenotethan.Portal", category: "PersonaImage")
+private let personaImageLog = PortalLogger(category: "PersonaImage")
 
 /// Load and store persona avatar images on disk.
 ///

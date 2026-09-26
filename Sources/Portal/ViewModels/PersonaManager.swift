@@ -3,7 +3,7 @@ import Combine
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "PersonaManager")
+private let log = PortalLogger(category: "PersonaManager")
 
 /// Manages persona identity: auto-derives from the gateway's PERSONA.md + config.
 @MainActor

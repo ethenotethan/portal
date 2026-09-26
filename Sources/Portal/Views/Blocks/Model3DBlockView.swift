@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 import os
 
-private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Model3DBlockView")
+private let log = PortalLogger(category: "Model3DBlockView")
 
 /// Renders a `model3d` living artifact. Parses the artifact content JSON,
 /// generates a Three.js HTML document via `Model3DTemplate`, and loads it
