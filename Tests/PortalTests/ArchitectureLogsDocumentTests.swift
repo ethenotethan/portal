@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Portal
 
-@Suite("Architecture logs — architecture.logs / follow wire shapes")
+@Suite("Architecture logs — service.logs / follow wire shapes")
 internal struct ArchitectureLogsDocumentTests {
     private func decode(_ json: String) throws -> AnyCodable {
         try JSONDecoder().decode(AnyCodable.self, from: Data(json.utf8))
@@ -94,12 +94,12 @@ internal struct ArchitectureLogsDocumentTests {
         #expect(!bare.rotated)
         #expect(bare.stopped == nil)
         // The gateway event enum routes the wire type to the typed payload.
-        if case .architectureLog(let decoded) = GatewayEvent.from(type: "architecture.log", payload: .dictionary(payload)) {
+        if case .serviceLog(let decoded) = GatewayEvent.from(type: "service.log", payload: .dictionary(payload)) {
             #expect(decoded == event)
         } else {
-            Issue.record("architecture.log did not decode to .architectureLog")
+            Issue.record("service.log did not decode to .serviceLog")
         }
-        #expect(GatewayEvent.architectureLog(event).debugName == "architecture.log")
+        #expect(GatewayEvent.serviceLog(event).debugName == "service.log")
     }
 
     @Test("the service ref carries its declared sinks and the document its is_latest flag")

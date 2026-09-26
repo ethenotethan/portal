@@ -48,7 +48,7 @@ enum GatewayEvent {
         case .artifactQueryChanged: "artifact.query.changed"
         case .learningChanged: "learning.changed"
         case .architectureChanged: "architecture.changed"
-        case .architectureLog: "architecture.log"
+        case .serviceLog: "service.log"
         }
     }
 
@@ -195,10 +195,10 @@ enum GatewayEvent {
     // (`reason: "check"`, `status`). Clients refetch via architecture.describe.
     case architectureChanged(service: String, revision: String, reason: String, status: String)
 
-    // New complete lines on a followed log sink (architecture.logs.follow):
+    // New complete lines on a followed log sink (service.logs.follow):
     // appended lines and the cursor after them, `rotated` when the file shrank
     // and the tail restarted, `stopped` when the gateway ended the follow.
-    case architectureLog(ArchitectureLogEvent)
+    case serviceLog(ArchitectureLogEvent)
 
     /// Parse from raw JSON-RPC event params.
     static func from(type: String, payload: AnyCodable?) -> GatewayEvent {
@@ -392,8 +392,8 @@ enum GatewayEvent {
                 status: p["status"]?.stringValue ?? ""
             )
 
-        case "architecture.log":
-            return .architectureLog(ArchitectureLogEvent.decodePayload(p))
+        case "service.log":
+            return .serviceLog(ArchitectureLogEvent.decodePayload(p))
 
         case "review.summary":
             return .reviewSummary(text: p["text"]?.stringValue ?? "")

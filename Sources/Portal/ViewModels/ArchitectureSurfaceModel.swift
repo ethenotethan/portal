@@ -7,11 +7,11 @@ import Combine
 internal protocol ArchitectureReading: AnyObject {
     func architectureDescribe(service: String, revision: String?) async throws -> ArchitectureModelDocument
     func architectureCheck(service: String) async throws -> ArchitectureCheckResult
-    func architectureLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail
-    func architectureLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState
+    func serviceLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail
+    func serviceLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState
     func architectureHistory(service: String, limit: Int?) async throws -> ArchitectureRevisionHistory
     func architectureDiff(service: String, from: String?, to: String?) async throws -> ArchitectureRevisionDiff
-    /// Global gateway events, for surfaces that follow `architecture.log`.
+    /// Global gateway events, for surfaces that follow `service.log`.
     var architectureEvents: AnyPublisher<GatewayEvent, Never> { get }
 }
 

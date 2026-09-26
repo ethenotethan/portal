@@ -6237,11 +6237,11 @@
         "enclosing_type": "ArchitectureLogsSectionView",
         "evidence": {
           "excerpt": ".onDisappear { Task { await model.teardown() } }",
-          "line": 32,
+          "line": 34,
           "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-32d103b0514b",
+        "id": "task-site-da4fb51abf13",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6253,11 +6253,11 @@
         "enclosing_type": "ArchitectureLogsSectionView",
         "evidence": {
           "excerpt": "set: { id in Task { await model.select(sinkID: id) } }",
-          "line": 39,
+          "line": 41,
           "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a1d6be3d5294",
+        "id": "task-site-a072d5fc791c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6269,11 +6269,11 @@
         "enclosing_type": "ArchitectureLogsSectionView",
         "evidence": {
           "excerpt": "set: { enabled in Task { await model.setFollowing(enabled) } }",
-          "line": 60,
+          "line": 62,
           "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9509b4d5568c",
+        "id": "task-site-b196e4ad4d52",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6285,11 +6285,11 @@
         "enclosing_type": "ArchitectureLogsSectionView",
         "evidence": {
           "excerpt": "Button(\"Refresh\") { Task { await model.fetchMore() } }",
-          "line": 64,
+          "line": 66,
           "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e5ba4621780e",
+        "id": "task-site-b8659c749841",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -12629,7 +12629,7 @@
       ],
       "description": "Harness WebSocket JSON-RPC transport, cron polling, and push registration.",
       "external": false,
-      "file_count": 14,
+      "file_count": 15,
       "files": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
@@ -12641,6 +12641,7 @@
         "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Push.swift",
         "Sources/Portal/Services/GatewayClient+Restart.swift",
+        "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
         "Sources/Portal/Services/GatewayClient+Wiki.swift",
         "Sources/Portal/Services/GatewayClient.swift",
         "Sources/Portal/Services/GatewayClientWrapper.swift",
@@ -12649,7 +12650,7 @@
       "id": "hermes-services",
       "label": "Harness services",
       "layer": "integration",
-      "line_count": 4708,
+      "line_count": 4720,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13606,7 +13607,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 10969,
+      "line_count": 10971,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -15326,8 +15327,8 @@
         "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Push.swift",
         "Sources/Portal/Services/GatewayClient+Restart.swift",
-        "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "Sources/Portal/Services/GatewayClient.swift"
+        "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+        "Sources/Portal/Services/GatewayClient+Wiki.swift"
       ],
       "source": "hermes-services",
       "symbols": [
@@ -15346,7 +15347,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 85
+      "weight": 86
     },
     {
       "authority": "observed",
@@ -21818,6 +21819,20 @@
       },
       {
         "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+ServiceLogs",
+        "kind": "client",
+        "label": "GatewayClient+ServiceLogs",
+        "origins": [
+          {
+            "family": "wiring",
+            "line": 19,
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+            "rule": "map.client"
+          }
+        ]
+      },
+      {
+        "component": "hermes-services",
         "id": "client:hermes-services:GatewayClient+Wiki",
         "kind": "client",
         "label": "GatewayClient+Wiki",
@@ -21934,6 +21949,26 @@
             "family": "wiring",
             "line": 2280,
             "path": "Sources/Portal/Services/GatewayClient.swift",
+            "rule": "map.endpoint"
+          }
+        ]
+      },
+      {
+        "component": "hermes-services",
+        "id": "endpoint:2323b19d99c5",
+        "kind": "endpoint",
+        "label": "service",
+        "origins": [
+          {
+            "family": "wiring",
+            "line": 19,
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+            "rule": "map.endpoint"
+          },
+          {
+            "family": "wiring",
+            "line": 34,
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
             "rule": "map.endpoint"
           }
         ]
@@ -22340,25 +22375,13 @@
           },
           {
             "family": "wiring",
-            "line": 49,
+            "line": 48,
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
             "line": 64,
-            "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
-            "rule": "map.endpoint"
-          },
-          {
-            "family": "wiring",
-            "line": 79,
-            "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
-            "rule": "map.endpoint"
-          },
-          {
-            "family": "wiring",
-            "line": 95,
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
             "rule": "map.endpoint"
           }
@@ -33037,9 +33060,9 @@
         "touched": true
       },
       {
-        "citations": 7,
+        "citations": 5,
         "component": "hermes-services",
-        "declaration_count": 8,
+        "declaration_count": 6,
         "declarations": [
           {
             "kind": "extension",
@@ -33070,22 +33093,6 @@
           {
             "kind": "func",
             "line": 45,
-            "name": "architectureLogs",
-            "passes": [
-              "map.endpoint"
-            ]
-          },
-          {
-            "kind": "func",
-            "line": 61,
-            "name": "architectureLogsFollow",
-            "passes": [
-              "map.endpoint"
-            ]
-          },
-          {
-            "kind": "func",
-            "line": 76,
             "name": "architectureHistory",
             "passes": [
               "map.endpoint"
@@ -33093,7 +33100,7 @@
           },
           {
             "kind": "func",
-            "line": 91,
+            "line": 60,
             "name": "architectureDiff",
             "passes": [
               "map.endpoint"
@@ -33101,13 +33108,13 @@
           },
           {
             "kind": "extension",
-            "line": 112,
+            "line": 81,
             "name": "GatewayClient",
             "passes": []
           }
         ],
-        "line_count": 112,
-        "mapped_declarations": 7,
+        "line_count": 81,
+        "mapped_declarations": 5,
         "passes": [
           "map.client",
           "map.endpoint"
@@ -33608,6 +33615,48 @@
         ],
         "path": "Sources/Portal/Services/GatewayClient+Restart.swift",
         "semantic_citations": 2,
+        "touched": true
+      },
+      {
+        "citations": 3,
+        "component": "hermes-services",
+        "declaration_count": 3,
+        "declarations": [
+          {
+            "kind": "extension",
+            "line": 11,
+            "name": "GatewayClient",
+            "passes": [
+              "map.client",
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 15,
+            "name": "serviceLogs",
+            "passes": [
+              "map.client",
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 31,
+            "name": "serviceLogsFollow",
+            "passes": [
+              "map.endpoint"
+            ]
+          }
+        ],
+        "line_count": 43,
+        "mapped_declarations": 3,
+        "passes": [
+          "map.client",
+          "map.endpoint"
+        ],
+        "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+        "semantic_citations": 0,
         "touched": true
       },
       {
@@ -45307,7 +45356,7 @@
         "declarations": [
           {
             "kind": "struct",
-            "line": 12,
+            "line": 14,
             "name": "ArchitectureLogsSectionView",
             "passes": [
               "swift.task.structured"
@@ -45315,24 +45364,24 @@
           },
           {
             "kind": "func",
-            "line": 73,
+            "line": 75,
             "name": "sinkCaption",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 149,
+            "line": 151,
             "name": "copyToClipboard",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 158,
+            "line": 160,
             "name": "emptyState",
             "passes": []
           }
         ],
-        "line_count": 175,
+        "line_count": 177,
         "mapped_declarations": 1,
         "passes": [
           "swift.task.structured"
@@ -58933,17 +58982,17 @@
         "id": "map.caller"
       },
       {
-        "citations": 10,
+        "citations": 11,
         "class": "mechanical",
         "description": "A client construction on the system map cites the declaration it was extracted from",
-        "files": 10,
+        "files": 11,
         "id": "map.client"
       },
       {
         "citations": 76,
         "class": "mechanical",
         "description": "An endpoint construction on the system map cites the declaration it was extracted from",
-        "files": 11,
+        "files": 12,
         "id": "map.endpoint"
       },
       {
@@ -59291,8 +59340,8 @@
           "total": 288
         },
         "extension": {
-          "mapped": 18,
-          "total": 112
+          "mapped": 19,
+          "total": 113
         },
         "func": {
           "mapped": 409,
@@ -59307,22 +59356,22 @@
           "total": 826
         }
       },
-      "citations": 1223,
-      "declarations": 4457,
-      "entities": 155,
-      "entities_with_origin": 155,
-      "files": 398,
+      "citations": 1224,
+      "declarations": 4458,
+      "entities": 157,
+      "entities_with_origin": 157,
+      "files": 399,
       "functions": {
         "mapped": 409,
         "total": 3091
       },
-      "mapped_declarations": 603,
+      "mapped_declarations": 604,
       "passes": 50,
       "semantic_citations": 254,
-      "touched_files": 152,
+      "touched_files": 153,
       "types": {
-        "mapped": 194,
-        "total": 1366
+        "mapped": 195,
+        "total": 1367
       },
       "untouched_files": 246
     }
@@ -59526,6 +59575,7 @@
           "endpoint:00d6875c0625",
           "endpoint:162f92a74671",
           "endpoint:1f147016b905",
+          "endpoint:2323b19d99c5",
           "endpoint:24738b20b0b3",
           "endpoint:275a028db300",
           "endpoint:2e6276e9cf3e",
@@ -59722,6 +59772,7 @@
           "client:hermes-services:GatewayClient+Learning",
           "client:hermes-services:GatewayClient+Push",
           "client:hermes-services:GatewayClient+Restart",
+          "client:hermes-services:GatewayClient+ServiceLogs",
           "client:hermes-services:GatewayClient+Wiki"
         ],
         "owner_type": "GatewayClient · client files"
@@ -60708,6 +60759,18 @@
       {
         "class": "structure",
         "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+ServiceLogs",
+        "target": "endpoint:2323b19d99c5"
+      },
+      {
+        "class": "structure",
+        "relation": "routes-through",
+        "source": "client:hermes-services:GatewayClient+ServiceLogs",
+        "target": "owner:hermes-services:GatewayClient"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
         "source": "client:hermes-services:GatewayClient+Wiki",
         "target": "endpoint:7e90ead53b58"
       },
@@ -60751,6 +60814,18 @@
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:1f147016b905",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:2323b19d99c5",
+        "target": "external:harness-gateway"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:2323b19d99c5",
         "target": "resource:resource-f4c4baad5555"
       },
       {
@@ -61232,6 +61307,12 @@
         "relation": "dispatches",
         "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:1f147016b905"
+      },
+      {
+        "class": "structure",
+        "relation": "dispatches",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:2323b19d99c5"
       },
       {
         "class": "structure",
@@ -65571,7 +65652,7 @@
         "why": "Sections are assembled per enclosing function; an operation with no resolved scope would silently drop out of its section."
       },
       {
-        "checked": 25,
+        "checked": 26,
         "id": "endpoints-dispatched",
         "kind": "endpoints_dispatched_by_transport",
         "status": "holds",
@@ -67514,7 +67595,7 @@
         "kind": "endpoint",
         "label": "architecture",
         "line": 18,
-        "method_count": 6,
+        "method_count": 4,
         "methods": [
           {
             "line": 31,
@@ -67527,23 +67608,13 @@
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
           },
           {
-            "line": 95,
+            "line": 64,
             "method": "architecture.diff",
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
           },
           {
-            "line": 79,
+            "line": 48,
             "method": "architecture.history",
-            "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
-          },
-          {
-            "line": 49,
-            "method": "architecture.logs",
-            "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
-          },
-          {
-            "line": 64,
-            "method": "architecture.logs.follow",
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
           }
         ],
@@ -68293,6 +68364,53 @@
           "stale": false,
           "summary": "The `gateway` JSON-RPC namespace exposes one method on the Harness gateway. GatewayClient dispatches it, the GatewayClient+Restart extension implements the client-side call, and GatewayRestartController is the sole recorded caller. Requests are correlated via pendingRequests."
         },
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "endpoint_ids": [
+          "endpoint:2323b19d99c5"
+        ],
+        "history_key": "client:hermes-services:GatewayClient+ServiceLogs",
+        "id": "client:hermes-services:GatewayClient+ServiceLogs",
+        "kind": "client",
+        "label": "GatewayClient+ServiceLogs",
+        "line": 19,
+        "namespaces": [
+          "service"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+        "sub_kind": "client_extension"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+ServiceLogs.swift"
+        ],
+        "history_key": "endpoint:jsonrpc:service",
+        "id": "endpoint:2323b19d99c5",
+        "kind": "endpoint",
+        "label": "service",
+        "line": 19,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 19,
+            "method": "service.logs",
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift"
+          },
+          {
+            "line": 34,
+            "method": "service.logs.follow",
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+        "protocol": "jsonrpc",
         "sub_kind": "rpc_namespace"
       },
       {
@@ -78881,12 +78999,12 @@
     "unattributed_triggers": 444
   },
   "inventory": {
-    "assigned_files": 396,
+    "assigned_files": 397,
     "declarations": 1232,
-    "files": 396,
-    "lines": 116089,
-    "swift_files": 396,
-    "swift_lines": 116089,
+    "files": 397,
+    "lines": 116103,
+    "swift_files": 397,
+    "swift_lines": 116103,
     "unassigned_files": []
   },
   "layers": [
@@ -78918,7 +79036,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "e54f30608d2cdfff14720c1fcaf5af12a85c0c1e2c69d92c4fc257e402399db8",
+  "source_tree_sha256": "a84523a63b665de9016d8e89493a1037ece229cbcf3f61d005df4448c2a762c1",
   "stores": {
     "by_persistence": {
       "defaults": 6,

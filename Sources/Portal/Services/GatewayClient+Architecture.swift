@@ -40,37 +40,6 @@ extension GatewayClient {
         return check
     }
 
-    /// The tail of a declared log sink (`architecture.logs`): the last `lines`
-    /// lines without a cursor, or every complete line appended since `cursor`.
-    internal func architectureLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail {
-        var params: [String: AnyCodable] = ["service": .string(service), "lines": .int(lines)]
-        if let sink, !sink.isEmpty { params["sink"] = .string(sink) }
-        if let cursor, !cursor.isEmpty { params["cursor"] = .string(cursor) }
-        let response = try await call("architecture.logs", params: params, timeout: 60)
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-        guard let result = response.result else {
-            throw GatewayError.invalidResponse("architecture.logs returned no result")
-        }
-        return try ArchitectureLogTail.decodeGatewayValue(result)
-    }
-
-    /// Start or stop following a sink (`architecture.logs.follow`); new lines
-    /// then arrive as `architecture.log` events.
-    internal func architectureLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState {
-        var params: [String: AnyCodable] = ["service": .string(service), "enabled": .bool(enabled)]
-        if let sink, !sink.isEmpty { params["sink"] = .string(sink) }
-        let response = try await call("architecture.logs.follow", params: params, timeout: 30)
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-        guard let result = response.result else {
-            throw GatewayError.invalidResponse("architecture.logs.follow returned no result")
-        }
-        return try ArchitectureLogFollowState.decodeGatewayValue(result)
-    }
-
     /// Every stored revision of a service's model (`architecture.history`),
     /// with the commits behind them for a local checkout.
     internal func architectureHistory(service: String, limit: Int?) async throws -> ArchitectureRevisionHistory {
@@ -103,7 +72,7 @@ extension GatewayClient {
     }
 
     /// The gateway's event stream without its session tag, for surfaces that
-    /// follow global events such as `architecture.log`.
+    /// follow global events such as `service.log`.
     internal var architectureEvents: AnyPublisher<GatewayEvent, Never> {
         eventStream.map(\.0).eraseToAnyPublisher()
     }

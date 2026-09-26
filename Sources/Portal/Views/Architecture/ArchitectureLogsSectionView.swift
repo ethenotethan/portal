@@ -6,8 +6,10 @@ import UIKit
 #endif
 
 /// The Logs tab: the declared sinks of a local service, the tail of the chosen
-/// one, a follow switch that streams new lines as they land, and a filter over
-/// what is buffered. Only sinks the manifest declares are ever read.
+/// one (`service.logs`), a follow switch that streams new lines as they land
+/// (`service.logs.follow` + `service.log` events), and a filter over what is
+/// buffered. Only sinks the manifest declares are ever read; a provider without
+/// log capture answers 4042 and its message is shown verbatim as the empty state.
 @MainActor
 internal struct ArchitectureLogsSectionView: View {
     @StateObject private var model: ArchitectureLogsModel

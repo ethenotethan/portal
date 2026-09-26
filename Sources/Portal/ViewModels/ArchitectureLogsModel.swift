@@ -2,8 +2,8 @@ import Foundation
 import Combine
 
 /// Drives the Logs tab for one service: which declared sink is shown, its tail
-/// (`architecture.logs`), the lines appended since (by cursor or, while
-/// following, by `architecture.log` events), and a filter over the buffer.
+/// (`service.logs`), the lines appended since (by cursor or, while
+/// following, by `service.log` events), and a filter over the buffer.
 /// The buffer is bounded so a chatty service cannot grow memory without limit.
 @MainActor
 internal final class ArchitectureLogsModel: ObservableObject {
@@ -34,7 +34,7 @@ internal final class ArchitectureLogsModel: ObservableObject {
         self.selectedSinkID = sinks.first?.id
         reader.architectureEvents
             .sink { [weak self] event in
-                guard case .architectureLog(let payload) = event else { return }
+                guard case .serviceLog(let payload) = event else { return }
                 self?.handle(payload)
             }
             .store(in: &cancellables)
@@ -63,7 +63,7 @@ internal final class ArchitectureLogsModel: ObservableObject {
         errorMessage = nil
         defer { if generation == loadGeneration { isLoading = false } }
         do {
-            let tail = try await reader.architectureLogs(service: service, sink: sinkID, lines: Self.tailLines, cursor: nil)
+            let tail = try await reader.serviceLogs(service: service, sink: sinkID, lines: Self.tailLines, cursor: nil)
             guard generation == loadGeneration else { return }
             apply(tail, replacing: true)
         } catch {
@@ -84,7 +84,7 @@ internal final class ArchitectureLogsModel: ObservableObject {
         errorMessage = nil
         defer { if generation == loadGeneration { isLoading = false } }
         do {
-            let tail = try await reader.architectureLogs(service: service, sink: sinkID, lines: Self.tailLines, cursor: cursor)
+            let tail = try await reader.serviceLogs(service: service, sink: sinkID, lines: Self.tailLines, cursor: cursor)
             guard generation == loadGeneration else { return }
             apply(tail, replacing: tail.rotated)
         } catch {
@@ -112,7 +112,7 @@ internal final class ArchitectureLogsModel: ObservableObject {
     internal func setFollowing(_ enabled: Bool) async {
         guard let sinkID = selectedSinkID, enabled != isFollowing else { return }
         do {
-            let state = try await reader.architectureLogsFollow(service: service, sink: sinkID, enabled: enabled)
+            let state = try await reader.serviceLogsFollow(service: service, sink: sinkID, enabled: enabled)
             isFollowing = state.following
             if state.following, !state.cursor.isEmpty { cursor = state.cursor }
             statusMessage = state.following ? "Following \(selectedSink?.displayLabel ?? sinkID)" : nil

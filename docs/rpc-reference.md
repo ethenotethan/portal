@@ -150,8 +150,6 @@ tab per contract section (system map, extraction map, CI gates, inventory). Cont
 | `architecture.list` | — | Every manifest service with its `status` (the node annotation, which now also carries `conforming`, `contract` and the resolved `logs` sinks) — not called by Portal yet |
 | `architecture.history` | `service`, `limit?` | `{service, latest, revisions: [{revision, stored_at, source, summary, contract?, check?, commit?: {sha, author, date, subject}, commits_since_previous?: [...], deployed?, deployed_at?}], runtime?: {graph_id, provider, started_at?, pid?, revision?}}` — every stored revision with the git commit behind it and the commits since the previous stored one (local checkouts); `deployed` marks the revision the checkout is at now. Drives the Revisions tab |
 | `architecture.diff` | `service`, `from?`, `to?` | `{service, from, to, nodes: {added, removed}, edges: {added, removed}, invariants: {added, removed, changed: [{id, from, to}]}, files: {added, removed, changed: [{path, lines_from, lines_to}]}, gates: {jobs_added, jobs_removed, ratchets_added, ratchets_removed}, summary: {from, to}, git?: {commits, stat: [{path, additions, deletions}], truncated}}` — a structural diff between two stored revisions by stable identity (`history_key`); `to` defaults to the latest, `from` to the one before. **4404** unknown revision |
-| `architecture.logs` | `service`, `sink?`, `lines?` (default 200, max 2000), `cursor?` | `{service, sink, sinks, lines, cursor, truncated, rotated?, encoding}` — the last `lines` lines of a declared log sink, or every complete line appended since `cursor`; only sinks the manifest declares are readable. **4040** unknown sink, **4041** sink missing, **4030** unknown service, **4001** bad params |
-| `architecture.logs.follow` | `service`, `sink?`, `enabled` | `{following, sink, cursor}` — start or stop following a sink; new lines then arrive as `architecture.log` events (one follower per sink, stopped after ten idle minutes) |
 
 `cron.graph` service nodes declared by a manifest carry an `architecture`
 annotation `{ref, source, revision, model, snapshots, check?: {status, checked_at}, summary?, conforming?, contract?}`
@@ -161,6 +159,19 @@ manifest's resolved `logs` sinks (`{id, kind: file|directory|launchd_stdout|laun
 label, path, exists, size_bytes, modified_at}`; local services must declare at
 least one or they are non-conforming) and the envelope carries `is_latest` so a
 described older snapshot can say so.
+
+### service.*
+
+Log capture for a service node on the dataflow graph. Sinks are a runtime
+property declared in the service's architecture manifest (a local service must
+declare at least one or it is non-conforming), so the methods take the graph
+service id rather than a model, and only declared sinks are ever read. Drives the
+Logs tab of `ArchitectureSurfaceView`.
+
+| Method | Params | Description |
+|--------|--------|-------------|
+| `service.logs` | `service`, `sink?`, `lines?` (default 200, max 2000), `cursor?` | `{service, sink, sinks, lines, cursor, truncated, rotated?, encoding}` — the last `lines` lines of a declared log sink, or every complete line appended since `cursor`; only sinks the manifest declares are readable. `service` is the graph service id (`arch:<id>`; `launchd:<label>` nodes later). **4042** log capture not implemented for this provider (docker/nomad/process) — shown verbatim in the Logs tab, **4040** unknown sink, **4041** sink missing, **4030** unknown service, **4001** bad params |
+| `service.logs.follow` | `service`, `sink?`, `enabled` | `{following, sink, cursor}` — start or stop following a sink; new lines then arrive as `service.log` events (one follower per sink, stopped after ten idle minutes) |
 
 ### wiki.*
 
@@ -344,7 +355,7 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `artifact.query.changed` | `artifactQueryChanged(artifactID, queryID, status, reason)` | A subscribed query's result changed (`status: "ok"` — re-fetch via `artifact.query.invoke`) or its slot was dropped server-side (`"unsupported"` + `reason`). Etag-diffed: identical data emits nothing |
 | `learning.changed` | `learningChanged(entity, id, rev, deleted)` | Learning store mutation (course/deck) — id + rev only; clients refetch via `learning.course.get` / `learning.deck.get` |
 | `architecture.changed` | `architectureChanged(service, revision, reason, status)` | A service's architecture model moved: a newly stored revision (`reason: "snapshot"`) or a finished check (`reason: "check"` + `status`). Clients refetch via `architecture.describe` |
-| `architecture.log` | `architectureLog(ArchitectureLogEvent)` | New complete lines on a followed log sink (`architecture.logs.follow`): `{service, sink, lines, cursor, rotated?, stopped?}` — `rotated` when the file shrank and the tail restarted, `stopped: "idle-timeout"` when the gateway ended the follow. Max 500 lines per event |
+| `service.log` | `serviceLog(ArchitectureLogEvent)` | New complete lines on a followed log sink (`service.logs.follow`): `{service, sink, lines, cursor, rotated?, stopped?}` — `rotated` when the file shrank and the tail restarted, `stopped: "idle-timeout"` when the gateway ended the follow. Max 500 lines per event |
 | `review.summary` | `reviewSummary(text)` | Summary / review content |
 
 ## Errors

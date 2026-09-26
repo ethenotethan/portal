@@ -35,14 +35,14 @@ internal final class ArchitectureLogsRevisionsStub: ArchitectureReading {
         throw GatewayError.invalidResponse("check not stubbed")
     }
 
-    internal func architectureLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail {
+    internal func serviceLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail {
         logCalls.append((sink, lines, cursor))
         if let tailError { throw tailError }
         guard !tails.isEmpty else { throw GatewayError.invalidResponse("no tail queued") }
         return tails.removeFirst()
     }
 
-    internal func architectureLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState {
+    internal func serviceLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState {
         followCalls.append((sink, enabled))
         if let followError { throw followError }
         guard !followStates.isEmpty else {

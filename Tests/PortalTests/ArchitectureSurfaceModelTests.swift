@@ -15,11 +15,11 @@ private final class StubArchitectureReader: ArchitectureReading {
 
     var architectureEvents: AnyPublisher<GatewayEvent, Never> { events.eraseToAnyPublisher() }
 
-    func architectureLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail {
+    func serviceLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail {
         throw GatewayError.invalidResponse("logs not stubbed")
     }
 
-    func architectureLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState {
+    func serviceLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState {
         throw GatewayError.invalidResponse("follow not stubbed")
     }
 

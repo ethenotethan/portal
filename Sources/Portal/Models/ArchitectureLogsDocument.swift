@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Log capture (architecture.logs / architecture.logs.follow)
+// MARK: - Log capture (service.logs / service.logs.follow)
 
 /// One log sink a local service's manifest declares, resolved by the gateway at
 /// call time: a file, a directory of rotating files (the newest is the active
@@ -64,7 +64,7 @@ internal struct ArchitectureLogSink: Hashable, Identifiable {
     }
 }
 
-/// What `architecture.logs` returns: the last lines of a sink (no cursor) or the
+/// What `service.logs` returns: the last lines of a sink (no cursor) or the
 /// complete lines appended since a cursor, with the cursor to continue from.
 internal struct ArchitectureLogTail: Hashable {
     internal let service: String
@@ -78,7 +78,7 @@ internal struct ArchitectureLogTail: Hashable {
 
     internal static func decodeGatewayValue(_ value: AnyCodable) throws -> ArchitectureLogTail {
         guard let d = value.dictionaryValue, let lines = d["lines"]?.arrayValue else {
-            throw GatewayError.invalidResponse("architecture.logs returned no lines")
+            throw GatewayError.invalidResponse("service.logs returned no lines")
         }
         return ArchitectureLogTail(
             service: d["service"]?.stringValue ?? "",
@@ -93,7 +93,7 @@ internal struct ArchitectureLogTail: Hashable {
     }
 }
 
-/// What `architecture.logs.follow` returns: whether the gateway is now
+/// What `service.logs.follow` returns: whether the gateway is now
 /// following the sink, and the cursor its first event will continue from.
 internal struct ArchitectureLogFollowState: Hashable {
     internal let following: Bool
@@ -102,7 +102,7 @@ internal struct ArchitectureLogFollowState: Hashable {
 
     internal static func decodeGatewayValue(_ value: AnyCodable) throws -> ArchitectureLogFollowState {
         guard let d = value.dictionaryValue, let following = d["following"]?.boolValue else {
-            throw GatewayError.invalidResponse("architecture.logs.follow returned no follow state")
+            throw GatewayError.invalidResponse("service.logs.follow returned no follow state")
         }
         return ArchitectureLogFollowState(
             following: following,
@@ -112,7 +112,7 @@ internal struct ArchitectureLogFollowState: Hashable {
     }
 }
 
-/// The `architecture.log` event a followed sink emits: new complete lines and
+/// The `service.log` event a followed sink emits: new complete lines and
 /// the cursor after them; `rotated` when the file shrank and the tail restarted;
 /// `stopped` when the gateway ended the follow (`"idle-timeout"`).
 internal struct ArchitectureLogEvent: Hashable {
