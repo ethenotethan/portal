@@ -1,6 +1,21 @@
 import Charts
 import SwiftUI
 
+/// Presentation policy for endpoint chips inside the narrow expanded-job card.
+/// The graph keeps the full endpoint label; the card preserves both identifying
+/// ends while bounding the chip so one filesystem path cannot escape its panel.
+internal enum CronDataflowCardPresentation {
+    internal static let maximumLabelCharacters = 24
+
+    internal static func compactLabel(_ label: String) -> String {
+        guard label.count > maximumLabelCharacters else { return label }
+        let visibleCharacters = maximumLabelCharacters - 1
+        let prefixCount = visibleCharacters / 2
+        let suffixCount = visibleCharacters - prefixCount
+        return "\(label.prefix(prefixCount))…\(label.suffix(suffixCount))"
+    }
+}
+
 // MARK: - Cron Job Card
 
 /// One expandable job row: header (name + schedule + status), and on expand a
@@ -379,7 +394,7 @@ internal struct CronJobCard: View {
                     .labelStyle(.titleAndIcon)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(Theme.secondary)
-                    .frame(width: 96, alignment: .leading)
+                    .frame(width: 72, alignment: .leading)
                 FlowLayout(spacing: 5) {
                     ForEach(items) { endpoint in
                         endpointChip(endpoint)
@@ -407,10 +422,11 @@ internal struct CronJobCard: View {
         let tint = dataflowColor(forKind: endpoint.kind)
         return HStack(spacing: 4) {
             Circle().fill(tint).frame(width: 6, height: 6)
-            Text(endpoint.label)
+            Text(CronDataflowCardPresentation.compactLabel(endpoint.label))
                 .font(.caption2)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
+                .truncationMode(.middle)
             if !endpoint.type.isEmpty, endpoint.type != endpoint.kind, endpoint.type != "cron" {
                 Text(endpoint.type)
                     .font(.system(size: 9, weight: .medium))
@@ -425,6 +441,7 @@ internal struct CronJobCard: View {
         .background(Theme.background, in: Capsule())
         .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 1))
         .contentShape(Capsule())
+        .help(endpoint.label)
     }
 
     /// The graph's node palette, mirrored so a chip reads the same color as its

@@ -501,3 +501,18 @@ internal struct CronDataflowExpandedLayoutTests {
         #expect(CronDataflowExpandedView.layoutMode(isCompactWidth: false) == .regularSidebar)
     }
 }
+
+@Suite("Cron dataflow card presentation")
+internal struct CronDataflowCardPresentationTests {
+    @Test("long endpoint labels compact to a bounded chip label while preserving both ends")
+    internal func longEndpointLabelsAreBounded() {
+        let label = "/Users/inference2/.local/share/smart-mirror/models/Qwen3-Thinking/model.gguf"
+
+        let compact = CronDataflowCardPresentation.compactLabel(label)
+
+        #expect(compact.count == CronDataflowCardPresentation.maximumLabelCharacters)
+        #expect(compact.hasPrefix("/Users/"))
+        #expect(compact.hasSuffix("model.gguf"))
+        #expect(compact.contains("…"))
+    }
+}
