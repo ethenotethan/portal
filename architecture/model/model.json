@@ -11272,14 +11272,14 @@
             "explicit_acl": 2738,
             "force_cast": 8,
             "force_try": 6,
-            "force_unwrapping": 75,
+            "force_unwrapping": 74,
             "implicitly_unwrapped_optional": 8,
             "no_swallowed_try": 132,
             "no_sync_io_on_main": 3
           },
           "kind": "count",
-          "sites": 2977,
-          "total": 2977
+          "sites": 2976,
+          "total": 2976
         },
         "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
         "id": "lint",
@@ -13500,7 +13500,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 18524,
+      "line_count": 18526,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -18607,8 +18607,8 @@
                 "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
               },
               {
-                "excerpt": "let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!",
-                "line": 549,
+                "excerpt": "let base = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first",
+                "line": 550,
                 "path": "Sources/Portal/Models/ChatMessage.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -27291,54 +27291,54 @@
           },
           {
             "kind": "func",
-            "line": 576,
+            "line": 578,
             "name": "persistToDisk",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 581,
+            "line": 583,
             "name": "persistToCache",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 594,
+            "line": 596,
             "name": "clearDiskCache",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 600,
+            "line": 602,
             "name": "CodingKeys",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 630,
+            "line": 632,
             "name": "setLocalCacheOnly",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 634,
+            "line": 636,
             "name": "encode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 648,
+            "line": 650,
             "name": "MediaParser",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 683,
+            "line": 685,
             "name": "stripMediaTags",
             "passes": []
           }
         ],
-        "line_count": 691,
+        "line_count": 693,
         "mapped_declarations": 1,
         "passes": [
           "swift.boundary.external_signature"
@@ -79856,9 +79856,9 @@
     "assigned_files": 400,
     "declarations": 1252,
     "files": 400,
-    "lines": 117066,
+    "lines": 117068,
     "swift_files": 400,
-    "swift_lines": 117066,
+    "swift_lines": 117068,
     "unassigned_files": []
   },
   "layers": [
@@ -79890,7 +79890,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "cbd4bf190a2e8efe4a035532236cd1fe4b6dc98b12dc150dc66c76a9e059ccdd",
+  "source_tree_sha256": "ec01a38cd9b8e03046ea20c2825d6da6963bb27d510ed9d7e825e18ba5939c38",
   "stores": {
     "by_persistence": {
       "defaults": 6,
