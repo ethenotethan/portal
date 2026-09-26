@@ -546,7 +546,9 @@ struct FileAttachment: Identifiable, Codable {
     /// Base directory for persisted remote attachment downloads.
     /// Files survive app restarts so downloaded attachments stay ready.
     static var cacheDirectory: URL {
-        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let fileManager = FileManager.default
+        let base = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
         return base.appendingPathComponent("com.ethenotethan.Portal/attachments", isDirectory: true)
     }
 
