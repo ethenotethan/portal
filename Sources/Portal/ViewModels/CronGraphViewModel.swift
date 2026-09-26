@@ -67,6 +67,10 @@ internal final class CronGraphViewModel: ObservableObject {
     /// across reloads (stale keys are ignored) so a folded-away cluster stays
     /// folded when the graph refreshes.
     @Published internal private(set) var collapsedGroups: Set<String> = []
+    /// Groups whose initial presentation has already been chosen. A newly seen
+    /// resource scheme starts folded, while a group the user explicitly expanded
+    /// stays expanded across polling refreshes.
+    private var initializedGroups: Set<String> = []
     @Published internal var zoom: CGFloat = 1.0
     @Published internal var panOffset: CGSize = .zero
     @Published internal private(set) var isLoading = false
@@ -108,9 +112,23 @@ internal final class CronGraphViewModel: ObservableObject {
     /// graph card and the full-screen graph are two view models watching a single
     /// dataflow — two logs would each hold half the story.
     private let revisionStore: CronGraphRevisionStore
+    private let graphStore: CronGraphStore?
+    private var graphStoreCancellable: AnyCancellable?
 
-    internal init(revisionStore: CronGraphRevisionStore = .shared) {
+    internal init(
+        graphStore: CronGraphStore? = nil,
+        revisionStore: CronGraphRevisionStore = .shared
+    ) {
+        self.graphStore = graphStore
         self.revisionStore = revisionStore
+        guard let graphStore else { return }
+        graph = graphStore.graph
+        setupSimulation()
+        graphStoreCancellable = graphStore.$graph
+            .dropFirst()
+            .sink { [weak self] graph in
+                self?.receiveStoredGraph(graph)
+            }
     }
 
     /// What the revision log can honestly claim — how much of it there is, and
@@ -199,40 +217,12 @@ internal final class CronGraphViewModel: ObservableObject {
         revisionStore.diff(for: revision)
     }
 
-
-    // MARK: - Load
-
-    internal func load(client: GatewayClient) async {
-        isLoading = true
-        error = nil
-        do {
-            adopt(try await client.cronGraph())
-            setupSimulation()
-        } catch {
-            self.error = (error as? LocalizedError)?.errorDescription ?? "\(error)"
-        }
-        isLoading = false
-    }
-
-    /// Refresh runtime health without scrambling a settled graph. A topology
-    /// change still rebuilds the simulation, while health-only updates preserve
-    /// positions, zoom, and the selected service inspector.
-    internal func refreshRuntimeState(client: GatewayClient) async {
-        guard !isRefreshing, !graph.isEmpty else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
-        do {
-            let updated = try await client.cronGraph()
-            // Layout form, not the digest: a schedule edit is a new revision but
-            // moves no node, so rebuilding for it would scramble a settled graph
-            // for nothing. `CronGraphDigest` holds both field sets side by side.
-            let topologyChanged = CronGraphDigest.layoutForm(graph) != CronGraphDigest.layoutForm(updated)
-            adopt(updated)
-            if topologyChanged { setupSimulation() }
-        } catch {
-            // Keep the last known graph visible. The manual Retry path remains
-            // responsible for surfacing transport failures.
-        }
+    /// Project app-scoped store updates into this surface without rebuilding a
+    /// settled layout for runtime-only changes such as service health.
+    private func receiveStoredGraph(_ updated: CronGraph) {
+        let topologyChanged = CronGraphDigest.layoutForm(graph) != CronGraphDigest.layoutForm(updated)
+        graph = updated
+        if topologyChanged || simNodes.isEmpty { setupSimulation() }
     }
 
     /// Take a freshly fetched graph as current, and record having observed it.
@@ -261,6 +251,9 @@ internal final class CronGraphViewModel: ObservableObject {
     // MARK: - Simulation setup
 
     internal func setupSimulation() {
+        let groupKeys = Set(groups.map(\.key))
+        collapsedGroups.formUnion(groupKeys.subtracting(initializedGroups))
+        initializedGroups.formUnion(groupKeys)
         let effective = effectiveGraph()
         guard !effective.nodes.isEmpty else {
             simNodes = []; simLinks = []; simLinkTypes = []; adjacency = []; drawOrder = []
@@ -922,4 +915,49 @@ internal final class CronGraphViewModel: ObservableObject {
         ("service", "Service"),
         ("object", "Object"),
     ]
+}
+
+extension CronGraphViewModel {
+    // MARK: - Load
+
+    internal func load(client: GatewayClient) async {
+        isLoading = true
+        error = nil
+        do {
+            if let graphStore {
+                try await graphStore.refresh(from: client)
+            } else {
+                adopt(try await client.cronGraph())
+                setupSimulation()
+            }
+        } catch {
+            self.error = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+        }
+        isLoading = false
+    }
+
+    /// Refresh runtime health without scrambling a settled graph. A topology
+    /// change still rebuilds the simulation, while health-only updates preserve
+    /// positions, zoom, and the selected service inspector.
+    internal func refreshRuntimeState(client: GatewayClient) async {
+        guard !isRefreshing, !graph.isEmpty else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        do {
+            if let graphStore {
+                try await graphStore.refresh(from: client)
+                return
+            }
+            let updated = try await client.cronGraph()
+            // Layout form, not the digest: a schedule edit is a new revision but
+            // moves no node, so rebuilding for it would scramble a settled graph
+            // for nothing. `CronGraphDigest` holds both field sets side by side.
+            let topologyChanged = CronGraphDigest.layoutForm(graph) != CronGraphDigest.layoutForm(updated)
+            adopt(updated)
+            if topologyChanged { setupSimulation() }
+        } catch {
+            // Keep the last known graph visible. The manual Retry path remains
+            // responsible for surfacing transport failures.
+        }
+    }
 }

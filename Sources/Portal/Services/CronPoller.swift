@@ -6,6 +6,7 @@ import Foundation
 @MainActor
 final class CronPoller: ObservableObject {
     private weak var client: GatewayClient?
+    private let graphStore: CronGraphStore
     // nonisolated(unsafe) so the nonisolated deinit can invalidate it.
     // All reads/writes happen on the MainActor; deinit runs after the last
     // (MainActor-held) reference is released.
@@ -13,7 +14,8 @@ final class CronPoller: ObservableObject {
         didSet { oldValue?.invalidate() }
     }
 
-    init() {
+    internal init(graphStore: CronGraphStore) {
+        self.graphStore = graphStore
         LeakTracker.track(self)
     }
 
@@ -21,10 +23,14 @@ final class CronPoller: ObservableObject {
         guard self.client !== client else { return }
         self.client = client
         timer?.invalidate()
+        Task { [weak self] in
+            await self?.pollGraph(from: client)
+        }
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, let client = self.client else { return }
                 guard case .connected = client.connectionState else { return }
+                await self.pollGraph(from: client)
                 guard let jobs = try? await client.listCronJobs() else { return }
                 CronRunHistoryStore.shared.detectNewRuns(from: jobs)
                 // Auto-declare each job as a maintainer on any artifacts it wrote.
@@ -32,6 +38,17 @@ final class CronPoller: ObservableObject {
                     Self.stampMaintainerForJob(job)
                 }
             }
+        }
+    }
+
+    /// Keep the graph warm even when no graph surface has been opened. Poll
+    /// failures leave the cached graph visible and are retried on the next tick.
+    internal func pollGraph(from source: any CronGraphFetching) async {
+        do {
+            try await graphStore.refresh(from: source)
+        } catch {
+            // A background poll is best-effort; the graph surface's manual reload
+            // remains the user-visible error path.
         }
     }
 

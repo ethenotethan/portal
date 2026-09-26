@@ -26,7 +26,8 @@ internal struct ContentView: View {
     @EnvironmentObject internal var xAuth: XAuthService
     @ObservedObject private var cronRunStore = CronRunHistoryStore.shared
     @ObservedObject private var themeManager = ThemeManager.shared
-    @StateObject private var cronPoller = CronPoller()
+    @StateObject private var cronGraphStore: CronGraphStore
+    @StateObject private var cronPoller: CronPoller
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var showSettingsOverlay = false
@@ -73,6 +74,12 @@ internal struct ContentView: View {
     #if os(iOS)
     @State private var iOSNavigationPath: [String] = []
     #endif
+
+    internal init() {
+        let graphStore = CronGraphStore()
+        _cronGraphStore = StateObject(wrappedValue: graphStore)
+        _cronPoller = StateObject(wrappedValue: CronPoller(graphStore: graphStore))
+    }
 
     var body: some View {
         Group {
@@ -308,7 +315,7 @@ internal struct ContentView: View {
             }
             .tag(1)
 
-            GraphsView(wikiViewModel: wikiViewModel)
+            GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore)
                 .environmentObject(gatewayClientWrapper)
                 .tabItem {
                     Label("Graphs", systemImage: "network")
@@ -1175,7 +1182,7 @@ internal struct ContentView: View {
             }
 
             if showGraphs {
-                GraphsView(wikiViewModel: wikiViewModel)
+                GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore)
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)

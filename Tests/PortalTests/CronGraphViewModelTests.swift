@@ -120,6 +120,18 @@ internal struct CronGraphViewModelTests {
         #expect(effective.edges.first?.target == "group:wiki")
     }
 
+    @Test("the first graph projection starts every resource cluster collapsed")
+    internal func firstProjectionCollapsesResourceClusters() {
+        let vm = groupedVM()
+        vm.canvasSize = CGSize(width: 600, height: 400)
+
+        vm.setupSimulation()
+
+        #expect(vm.collapsedGroups == ["wiki"])
+        #expect(vm.simNodes.contains { $0.id == "group:wiki" })
+        #expect(!vm.simNodes.contains { $0.id == "wiki:a" || $0.id == "wiki:b" })
+    }
+
     @Test("toggling the same scheme twice restores the original graph")
     internal func collapseRoundTrips() {
         let vm = groupedVM()
