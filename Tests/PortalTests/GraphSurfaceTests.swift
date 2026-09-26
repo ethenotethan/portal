@@ -97,6 +97,14 @@ internal struct GraphSurfaceTests {
         #expect(GraphSurface.wiki.systemImage == ToolbarIconSlot.wiki.systemImage)
     }
 
+    @Test("the graph switcher reserves its own top bar instead of overlaying graph controls")
+    @MainActor
+    internal func switcherReservesTopBar() {
+        #expect(GraphsView.chromePlacement(offersSwitcher: true, reservesTopBar: true) == .reservedTopBar)
+        #expect(GraphsView.chromePlacement(offersSwitcher: true, reservesTopBar: false) == .embedded)
+        #expect(GraphsView.chromePlacement(offersSwitcher: false, reservesTopBar: true) == .none)
+    }
+
     @Test("a runtime wiki resource resolves to its wiki page path")
     internal func runtimeWikiResourceResolvesToPagePath() {
         let node = CronGraphNode(
