@@ -119,7 +119,7 @@ private struct SankeyCard: View {
                 for ribbon in result.ribbons {
                     guard let source = nodeRects[ribbon.from],
                           let target = nodeRects[ribbon.to] else { continue }
-                    let isLit = lit == nil || (lit!.contains(ribbon.from) && lit!.contains(ribbon.to))
+                    let isLit = lit.map { $0.contains(ribbon.from) && $0.contains(ribbon.to) } ?? true
                     let sourceColumn = result.nodes.first { $0.name == ribbon.from }?.column ?? 0
                     let baseColor = color(forNode: ribbon.from, column: sourceColumn)
 
@@ -145,7 +145,7 @@ private struct SankeyCard: View {
                 // Node bars.
                 for node in result.nodes {
                     guard let rect = nodeRects[node.name] else { continue }
-                    let isLit = lit == nil || lit!.contains(node.name)
+                    let isLit = lit?.contains(node.name) ?? true
                     context.fill(
                         Path(roundedRect: rect, cornerRadius: 2),
                         with: .color(color(forNode: node.name, column: node.column).opacity(isLit ? 1 : 0.25))
@@ -167,7 +167,7 @@ private struct SankeyCard: View {
     private func nodeLabel(_ node: SankeyLayout.Node, rect: CGRect, canvasSize: CGSize, lit: Set<String>?) -> some View {
         // Last-column labels lean left of the bar; all others to the right.
         let isLastColumn = node.column == layout.columnCount - 1
-        let isLit = lit == nil || lit!.contains(node.name)
+        let isLit = lit?.contains(node.name) ?? true
         return Text(node.name)
             .font(.system(size: 10, weight: selectedNode == node.name ? .semibold : .regular))
             .foregroundStyle(isLit ? Theme.primary : Theme.tertiary)
