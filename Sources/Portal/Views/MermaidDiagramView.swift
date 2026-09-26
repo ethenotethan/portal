@@ -40,9 +40,12 @@ private let knownDiagramKeywords: Set<String> = [
 struct MermaidDiagramView: View {
     let mermaidCode: String
     let isStreaming: Bool
+    /// Inline rows scale within their frame; the expanded sheet gets a
+    /// pannable canvas that grows past the viewport (see DiagramZoomCanvas).
+    var presentation: DiagramPresentation = .inline
 
     var body: some View {
-        MermaidRendererCoordinator(source: mermaidCode, isStreaming: isStreaming)
+        MermaidRendererCoordinator(source: mermaidCode, isStreaming: isStreaming, presentation: presentation)
     }
 
     /// Human-readable label for the diagram type declared on the first line
@@ -142,6 +145,7 @@ private func isNativelySupportedMermaid(_ cleanedSource: String) -> Bool {
 private struct MermaidRendererCoordinator: View {
     let source: String
     let isStreaming: Bool
+    let presentation: DiagramPresentation
     @State private var useFallback = false
 
     private var cleanedSource: String {
@@ -175,9 +179,9 @@ private struct MermaidRendererCoordinator: View {
     var body: some View {
         Group {
             if useFallback || !isNativeSupported {
-                WebMermaidRenderer(source: cleanedSource)
+                WebMermaidRenderer(source: cleanedSource, presentation: presentation)
             } else {
-                NativeMermaidRenderer(source: cleanedSource) {
+                NativeMermaidRenderer(source: cleanedSource, presentation: presentation) {
                     useFallback = true
                 }
             }
@@ -190,14 +194,16 @@ private struct MermaidRendererCoordinator: View {
 
 private struct NativeMermaidRenderer: View {
     let source: String
+    let presentation: DiagramPresentation
     let onFallback: () -> Void
 
     @State private var image: PlatformImage?
     @State private var errorText: String?
     @State private var didFallBack = false
 
-    init(source: String, onFallback: @escaping () -> Void) {
+    init(source: String, presentation: DiagramPresentation, onFallback: @escaping () -> Void) {
         self.source = source
+        self.presentation = presentation
         self.onFallback = onFallback
         // Seed from the shared cache so a remount (e.g. switching the canvas
         // between the Scroll and Turns boards, which tears down and rebuilds
@@ -224,7 +230,7 @@ private struct NativeMermaidRenderer: View {
     var body: some View {
         Group {
             if let image {
-                ZoomableDiagram(image: image)
+                ZoomableDiagram(image: image, presentation: presentation)
             } else if let error = errorText {
                 ErrorCard(error: error, source: source)
             } else {
@@ -702,14 +708,16 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
 
 private struct WebMermaidRenderer: View {
     let source: String
+    let presentation: DiagramPresentation
     @State private var cachedImage: PlatformImage?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var renderKey: String
     @State private var renderTask: Task<Void, Never>?
 
-    init(source: String) {
+    init(source: String, presentation: DiagramPresentation) {
         self.source = source
+        self.presentation = presentation
         // Theme id in the cache key so a re-themed diagram isn't served a stale
         // image rendered under the previous palette.
         _renderKey = State(initialValue: "\(Theme.active.id)\u{1F}\(source)")
@@ -720,7 +728,7 @@ private struct WebMermaidRenderer: View {
             if let error = errorMessage {
                 ErrorCard(error: error, source: source)
             } else if let image = cachedImage {
-                ZoomableDiagram(image: image)
+                ZoomableDiagram(image: image, presentation: presentation)
             } else {
                 VStack(spacing: 8) {
                     PortalProgressView()
@@ -863,6 +871,7 @@ private func makeMermaidHTML(source: String) -> String {
 
 private struct ZoomableDiagram: View {
     let image: PlatformImage
+    let presentation: DiagramPresentation
 
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -873,6 +882,19 @@ private struct ZoomableDiagram: View {
     private let maxScale: CGFloat = 8.0
 
     var body: some View {
+        switch presentation {
+        case .expanded:
+            // The sheet is a bounded frame, so the native canvas can fill it
+            // and let zoom grow the diagram past the viewport with real
+            // scrolling. The scaleEffect path below would only scale inside
+            // the fitted frame and clip — the "zoom doesn't expand" bug.
+            ExpandedZoomableDiagram(image: image)
+        case .inline:
+            inline
+        }
+    }
+
+    private var inline: some View {
         // Sized by the image's own aspect ratio so the fitted diagram defines
         // the view height (no fixed letterbox band around wide diagrams).
         platformImageView(for: image)

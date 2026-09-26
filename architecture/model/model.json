@@ -1507,42 +1507,6 @@
         "enclosing_function": "cachedNativeImage",
         "evidence": {
           "excerpt": "mermaidCacheLock.lock()",
-          "line": 280,
-          "path": "Sources/Portal/Views/MermaidDiagramView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "lifecycle-operation-f420b20fa876",
-        "kind": "acquire",
-        "label": "mermaidCacheLock.lock",
-        "owner_type": "NativeMermaidRenderer",
-        "resource_id": "resource-144f1b677661",
-        "resource_label": "mermaidCacheLock",
-        "rule_id": "swift.lifecycle.acquire"
-      },
-      {
-        "authority": "observed",
-        "component": "artifact-ui",
-        "enclosing_function": "cachedNativeImage",
-        "evidence": {
-          "excerpt": "defer { mermaidCacheLock.unlock() }",
-          "line": 281,
-          "path": "Sources/Portal/Views/MermaidDiagramView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "lifecycle-operation-e3abe1b34de0",
-        "kind": "release",
-        "label": "mermaidCacheLock.unlock",
-        "owner_type": "NativeMermaidRenderer",
-        "resource_id": "resource-144f1b677661",
-        "resource_label": "mermaidCacheLock",
-        "rule_id": "swift.lifecycle.release"
-      },
-      {
-        "authority": "observed",
-        "component": "artifact-ui",
-        "enclosing_function": "cacheNativeImage",
-        "evidence": {
-          "excerpt": "mermaidCacheLock.lock()",
           "line": 286,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
@@ -1551,14 +1515,14 @@
         "kind": "acquire",
         "label": "mermaidCacheLock.lock",
         "owner_type": "NativeMermaidRenderer",
-        "resource_id": "resource-144f1b677661",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.acquire"
       },
       {
         "authority": "observed",
         "component": "artifact-ui",
-        "enclosing_function": "cacheNativeImage",
+        "enclosing_function": "cachedNativeImage",
         "evidence": {
           "excerpt": "defer { mermaidCacheLock.unlock() }",
           "line": 287,
@@ -1569,50 +1533,50 @@
         "kind": "release",
         "label": "mermaidCacheLock.unlock",
         "owner_type": "NativeMermaidRenderer",
-        "resource_id": "resource-144f1b677661",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.release"
       },
       {
         "authority": "observed",
         "component": "artifact-ui",
-        "enclosing_function": "cachedWebImage",
+        "enclosing_function": "cacheNativeImage",
         "evidence": {
           "excerpt": "mermaidCacheLock.lock()",
-          "line": 398,
+          "line": 292,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-a112272f8f14",
+        "id": "lifecycle-operation-77ee6dc92b06",
         "kind": "acquire",
         "label": "mermaidCacheLock.lock",
-        "owner_type": "MermaidExportRenderer",
-        "resource_id": "resource-144f1b677661",
+        "owner_type": "NativeMermaidRenderer",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.acquire"
       },
       {
         "authority": "observed",
         "component": "artifact-ui",
-        "enclosing_function": "cachedWebImage",
+        "enclosing_function": "cacheNativeImage",
         "evidence": {
           "excerpt": "defer { mermaidCacheLock.unlock() }",
-          "line": 399,
+          "line": 293,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-654f9bb0b967",
+        "id": "lifecycle-operation-e691b9874e52",
         "kind": "release",
         "label": "mermaidCacheLock.unlock",
-        "owner_type": "MermaidExportRenderer",
-        "resource_id": "resource-144f1b677661",
+        "owner_type": "NativeMermaidRenderer",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.release"
       },
       {
         "authority": "observed",
         "component": "artifact-ui",
-        "enclosing_function": "cacheWebImage",
+        "enclosing_function": "cachedWebImage",
         "evidence": {
           "excerpt": "mermaidCacheLock.lock()",
           "line": 404,
@@ -1623,14 +1587,14 @@
         "kind": "acquire",
         "label": "mermaidCacheLock.lock",
         "owner_type": "MermaidExportRenderer",
-        "resource_id": "resource-144f1b677661",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.acquire"
       },
       {
         "authority": "observed",
         "component": "artifact-ui",
-        "enclosing_function": "cacheWebImage",
+        "enclosing_function": "cachedWebImage",
         "evidence": {
           "excerpt": "defer { mermaidCacheLock.unlock() }",
           "line": 405,
@@ -1641,7 +1605,43 @@
         "kind": "release",
         "label": "mermaidCacheLock.unlock",
         "owner_type": "MermaidExportRenderer",
-        "resource_id": "resource-144f1b677661",
+        "resource_id": "resource-a5ee975f7a39",
+        "resource_label": "mermaidCacheLock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "artifact-ui",
+        "enclosing_function": "cacheWebImage",
+        "evidence": {
+          "excerpt": "mermaidCacheLock.lock()",
+          "line": 410,
+          "path": "Sources/Portal/Views/MermaidDiagramView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-b340761c12e7",
+        "kind": "acquire",
+        "label": "mermaidCacheLock.lock",
+        "owner_type": "MermaidExportRenderer",
+        "resource_id": "resource-a5ee975f7a39",
+        "resource_label": "mermaidCacheLock",
+        "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "artifact-ui",
+        "enclosing_function": "cacheWebImage",
+        "evidence": {
+          "excerpt": "defer { mermaidCacheLock.unlock() }",
+          "line": 411,
+          "path": "Sources/Portal/Views/MermaidDiagramView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-dd5b5086892e",
+        "kind": "release",
+        "label": "mermaidCacheLock.unlock",
+        "owner_type": "MermaidExportRenderer",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -1651,15 +1651,15 @@
         "enclosing_function": "loadCachedOrRender",
         "evidence": {
           "excerpt": "mermaidCacheLock.lock()",
-          "line": 747,
+          "line": 755,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-47bb75ba9860",
+        "id": "lifecycle-operation-ba638328dbf4",
         "kind": "acquire",
         "label": "mermaidCacheLock.lock",
         "owner_type": "WebMermaidRenderer",
-        "resource_id": "resource-144f1b677661",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -1669,33 +1669,33 @@
         "enclosing_function": "loadCachedOrRender",
         "evidence": {
           "excerpt": "mermaidCacheLock.unlock()",
-          "line": 749,
-          "path": "Sources/Portal/Views/MermaidDiagramView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "lifecycle-operation-710584352bc9",
-        "kind": "release",
-        "label": "mermaidCacheLock.unlock",
-        "owner_type": "WebMermaidRenderer",
-        "resource_id": "resource-144f1b677661",
-        "resource_label": "mermaidCacheLock",
-        "rule_id": "swift.lifecycle.release"
-      },
-      {
-        "authority": "observed",
-        "component": "artifact-ui",
-        "enclosing_function": "loadCachedOrRender",
-        "evidence": {
-          "excerpt": "mermaidCacheLock.lock()",
           "line": 757,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-f1b10f70fce8",
+        "id": "lifecycle-operation-9d44508422fe",
+        "kind": "release",
+        "label": "mermaidCacheLock.unlock",
+        "owner_type": "WebMermaidRenderer",
+        "resource_id": "resource-a5ee975f7a39",
+        "resource_label": "mermaidCacheLock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "artifact-ui",
+        "enclosing_function": "loadCachedOrRender",
+        "evidence": {
+          "excerpt": "mermaidCacheLock.lock()",
+          "line": 765,
+          "path": "Sources/Portal/Views/MermaidDiagramView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-82c27dddcb79",
         "kind": "acquire",
         "label": "mermaidCacheLock.lock",
         "owner_type": "WebMermaidRenderer",
-        "resource_id": "resource-144f1b677661",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -1705,15 +1705,15 @@
         "enclosing_function": "loadCachedOrRender",
         "evidence": {
           "excerpt": "mermaidCacheLock.unlock()",
-          "line": 759,
+          "line": 767,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-50d3ccca9ae2",
+        "id": "lifecycle-operation-30546c5ea8ad",
         "kind": "release",
         "label": "mermaidCacheLock.unlock",
         "owner_type": "WebMermaidRenderer",
-        "resource_id": "resource-144f1b677661",
+        "resource_id": "resource-a5ee975f7a39",
         "resource_label": "mermaidCacheLock",
         "rule_id": "swift.lifecycle.release"
       }
@@ -1764,7 +1764,7 @@
         "operation_ids": [],
         "owner_type": null,
         "resource_ids": [
-          "resource-144f1b677661"
+          "resource-a5ee975f7a39"
         ],
         "task_handle_ids": []
       },
@@ -2792,11 +2792,11 @@
         "component": "artifact-ui",
         "evidence": {
           "excerpt": "private let mermaidCacheLock = NSLock()",
-          "line": 413,
+          "line": 419,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-144f1b677661",
+        "id": "resource-a5ee975f7a39",
         "kind": "lock",
         "label": "mermaidCacheLock",
         "owner_type": null,
@@ -7846,6 +7846,38 @@
       },
       {
         "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "publishPercent",
+        "enclosing_type": "Coordinator",
+        "evidence": {
+          "excerpt": "Task { @MainActor [controller] in controller.percent = percent }",
+          "line": 268,
+          "path": "Sources/Portal/Views/DiagramZoomCanvas.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-344687699cab",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "publishPercent",
+        "enclosing_type": "Coordinator",
+        "evidence": {
+          "excerpt": "Task { @MainActor [controller] in controller.percent = percent }",
+          "line": 400,
+          "path": "Sources/Portal/Views/DiagramZoomCanvas.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-b974421897dc",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
         "component": "operations-ui",
         "enclosing_function": null,
         "enclosing_type": "FeedView",
@@ -8155,11 +8187,11 @@
         "enclosing_type": "MermaidExportRenderer",
         "evidence": {
           "excerpt": "let native = await Task.detached(priority: .userInitiated) { () -> PlatformImage? in",
-          "line": 372,
+          "line": 378,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a81b57025e86",
+        "id": "task-site-edaf6c60d427",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -8171,11 +8203,11 @@
         "enclosing_type": "WebMermaidRenderer",
         "evidence": {
           "excerpt": "renderTask = Task { @MainActor in",
-          "line": 739,
+          "line": 747,
           "path": "Sources/Portal/Views/MermaidDiagramView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e8b35226921b",
+        "id": "task-site-eb02b6889f26",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -12265,7 +12297,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12134,
+      "line_count": 12156,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13512,7 +13544,7 @@
       }
     },
     {
-      "declaration_count": 105,
+      "declaration_count": 113,
       "declarations": [
         "ANDGateShape",
         "AppFontSettingsSection",
@@ -13541,22 +13573,30 @@
         "CelebrationOverlay",
         "CelebrationSettingsSection",
         "CelebrationStage",
+        "CenteringClipView",
         "ChatSkin",
         "ChatSkinProviding",
         "ClaudeOrb",
         "CommentsLoad",
         "ConfettiParticle",
         "ConversationOrb",
+        "Coordinator",
         "DarkMangaMessageBubble",
         "DarkMangaSkin",
         "DarkMangaStreamingIndicator",
         "DarkMangaThinkingBlock",
         "DelegationDuration",
         "DelegationTaskCardView",
+        "DiagramPresentation",
+        "DiagramScrollView",
+        "DiagramZoomCanvas",
+        "DiagramZoomController",
+        "DiagramZoomMath",
         "DiscussMessageKey",
         "DottedCanvasBackdrop",
         "EmptyTranscriptStateView",
         "ExpandableToolRow",
+        "ExpandedZoomableDiagram",
         "ExportCodeText",
         "ExportTableView",
         "FloatingBrowserCanvas",
@@ -13622,7 +13662,7 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 51,
+      "file_count": 52,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -13644,6 +13684,7 @@
         "Sources/Portal/Views/CelebrationOverlay.swift",
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
         "Sources/Portal/Views/CelebrationStage.swift",
+        "Sources/Portal/Views/DiagramZoomCanvas.swift",
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/FlowLayout.swift",
@@ -13679,7 +13720,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 11027,
+      "line_count": 11432,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14461,7 +14502,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by shared-ui.",
+      "description": "References 8 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExportMenu.swift",
@@ -14475,6 +14516,9 @@
       ],
       "source": "artifact-ui",
       "symbols": [
+        "DiagramPresentation",
+        "DiagramZoomCanvas",
+        "ExpandedZoomableDiagram",
         "ExportCodeText",
         "ExportTableView",
         "Layout",
@@ -14483,7 +14527,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 14
+      "weight": 17
     },
     {
       "authority": "observed",
@@ -16302,7 +16346,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 46
+      "weight": 47
     },
     {
       "authority": "observed",
@@ -16418,7 +16462,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 116
+      "weight": 117
     },
     {
       "authority": "observed",
@@ -51342,6 +51386,291 @@
         "touched": false
       },
       {
+        "citations": 2,
+        "component": "shared-ui",
+        "declaration_count": 43,
+        "declarations": [
+          {
+            "kind": "enum",
+            "line": 9,
+            "name": "DiagramPresentation",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 20,
+            "name": "DiagramZoomMath",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 29,
+            "name": "fitScale",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 34,
+            "name": "clamp",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 39,
+            "name": "percent",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 45,
+            "name": "centeringInset",
+            "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 53,
+            "name": "DiagramZoomController",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 62,
+            "name": "ExpandedZoomableDiagram",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 97,
+            "name": "zoomButton",
+            "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 115,
+            "name": "CenteringClipView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 116,
+            "name": "constrainBoundsRect",
+            "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 127,
+            "name": "DiagramScrollView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 130,
+            "name": "scrollWheel",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 140,
+            "name": "DiagramZoomCanvas",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 144,
+            "name": "makeCoordinator",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 148,
+            "name": "makeNSView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 180,
+            "name": "updateNSView",
+            "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 189,
+            "name": "Coordinator",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 200,
+            "name": "attach",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 214,
+            "name": "frameDidChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 218,
+            "name": "boundsDidChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 222,
+            "name": "handleDoubleClick",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 229,
+            "name": "refit",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 249,
+            "name": "zoom",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 257,
+            "name": "visibleCenter",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 262,
+            "name": "publishPercent",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "class",
+            "line": 277,
+            "name": "DiagramScrollView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 280,
+            "name": "layoutSubviews",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 286,
+            "name": "DiagramZoomCanvas",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 290,
+            "name": "makeCoordinator",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 294,
+            "name": "makeUIView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 319,
+            "name": "updateUIView",
+            "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 324,
+            "name": "Coordinator",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 335,
+            "name": "attach",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 343,
+            "name": "replaceImage",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 353,
+            "name": "viewportDidChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 367,
+            "name": "viewForZooming",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 371,
+            "name": "scrollViewDidZoom",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 376,
+            "name": "handleDoubleTap",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 380,
+            "name": "refit",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 384,
+            "name": "zoom",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 390,
+            "name": "center",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 396,
+            "name": "publishPercent",
+            "passes": [
+              "swift.task.structured"
+            ]
+          }
+        ],
+        "line_count": 405,
+        "mapped_declarations": 6,
+        "passes": [
+          "swift.task.structured"
+        ],
+        "path": "Sources/Portal/Views/DiagramZoomCanvas.swift",
+        "semantic_citations": 0,
+        "touched": true
+      },
+      {
         "citations": 0,
         "component": "shared-ui",
         "declaration_count": 3,
@@ -53378,37 +53707,37 @@
           },
           {
             "kind": "func",
-            "line": 50,
+            "line": 53,
             "name": "diagramTypeLabel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 95,
+            "line": 98,
             "name": "cleanMermaidSource",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 126,
+            "line": 129,
             "name": "mermaidDiagramType",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 135,
+            "line": 138,
             "name": "isNativelySupportedMermaid",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 142,
+            "line": 145,
             "name": "MermaidRendererCoordinator",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 191,
+            "line": 195,
             "name": "NativeMermaidRenderer",
             "passes": [
               "swift.lifecycle.acquire",
@@ -53417,19 +53746,19 @@
           },
           {
             "kind": "func",
-            "line": 219,
+            "line": 225,
             "name": "cacheKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 242,
+            "line": 248,
             "name": "render",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 279,
+            "line": 285,
             "name": "cachedNativeImage",
             "passes": [
               "swift.lifecycle.acquire",
@@ -53438,7 +53767,7 @@
           },
           {
             "kind": "func",
-            "line": 285,
+            "line": 291,
             "name": "cacheNativeImage",
             "passes": [
               "swift.lifecycle.acquire",
@@ -53447,13 +53776,13 @@
           },
           {
             "kind": "func",
-            "line": 294,
+            "line": 300,
             "name": "renderPositionedDiagramImage",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 364,
+            "line": 370,
             "name": "MermaidExportRenderer",
             "passes": [
               "swift.lifecycle.acquire",
@@ -53463,7 +53792,7 @@
           },
           {
             "kind": "func",
-            "line": 365,
+            "line": 371,
             "name": "renderImage",
             "passes": [
               "swift.task.detached"
@@ -53471,7 +53800,7 @@
           },
           {
             "kind": "func",
-            "line": 397,
+            "line": 403,
             "name": "cachedWebImage",
             "passes": [
               "swift.lifecycle.acquire",
@@ -53480,7 +53809,7 @@
           },
           {
             "kind": "func",
-            "line": 403,
+            "line": 409,
             "name": "cacheWebImage",
             "passes": [
               "swift.lifecycle.acquire",
@@ -53489,26 +53818,20 @@
           },
           {
             "kind": "class",
-            "line": 429,
+            "line": 435,
             "name": "MermaidSharedRenderer",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 457,
+            "line": 463,
             "name": "render",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 473,
+            "line": 479,
             "name": "processQueue",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 480,
-            "name": "webView",
             "passes": []
           },
           {
@@ -53519,79 +53842,85 @@
           },
           {
             "kind": "func",
-            "line": 491,
+            "line": 492,
+            "name": "webView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 497,
             "name": "pollForCompletion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 515,
+            "line": 521,
             "name": "snapshotContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 546,
+            "line": 552,
             "name": "finish",
             "passes": []
           },
           {
             "kind": "class",
-            "line": 554,
+            "line": 560,
             "name": "MermaidSharedRenderer",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 593,
+            "line": 599,
             "name": "attachToSceneIfNeeded",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 603,
+            "line": 609,
             "name": "render",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 620,
+            "line": 626,
             "name": "processQueue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 627,
+            "line": 633,
             "name": "webView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 632,
+            "line": 638,
             "name": "webView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 637,
+            "line": 643,
             "name": "pollForCompletion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 661,
+            "line": 667,
             "name": "snapshotContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 694,
+            "line": 700,
             "name": "finish",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 703,
+            "line": 709,
             "name": "WebMermaidRenderer",
             "passes": [
               "swift.lifecycle.acquire",
@@ -53601,7 +53930,7 @@
           },
           {
             "kind": "func",
-            "line": 737,
+            "line": 745,
             "name": "scheduleRender",
             "passes": [
               "swift.task.structured"
@@ -53609,7 +53938,7 @@
           },
           {
             "kind": "func",
-            "line": 746,
+            "line": 754,
             "name": "loadCachedOrRender",
             "passes": [
               "swift.lifecycle.acquire",
@@ -53618,36 +53947,36 @@
           },
           {
             "kind": "func",
-            "line": 769,
+            "line": 777,
             "name": "makeMermaidHTML",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 864,
+            "line": 872,
             "name": "ZoomableDiagram",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 932,
+            "line": 954,
             "name": "ErrorCard",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 993,
+            "line": 1015,
             "name": "platformImageView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1001,
+            "line": 1023,
             "name": "bmColor",
             "passes": []
           }
         ],
-        "line_count": 1011,
+        "line_count": 1033,
         "mapped_declarations": 10,
         "passes": [
           "swift.lifecycle.acquire",
@@ -59781,10 +60110,10 @@
         "id": "swift.task.stored_handle"
       },
       {
-        "citations": 302,
+        "citations": 304,
         "class": "mechanical",
         "description": "Task initializer with closure",
-        "files": 88,
+        "files": 89,
         "id": "swift.task.structured"
       },
       {
@@ -59809,46 +60138,46 @@
           "total": 4
         },
         "class": {
-          "mapped": 69,
-          "total": 114
+          "mapped": 71,
+          "total": 120
         },
         "enum": {
           "mapped": 8,
-          "total": 292
+          "total": 294
         },
         "extension": {
           "mapped": 19,
           "total": 115
         },
         "func": {
-          "mapped": 409,
-          "total": 3124
+          "mapped": 411,
+          "total": 3156
         },
         "protocol": {
           "mapped": 1,
           "total": 25
         },
         "struct": {
-          "mapped": 96,
-          "total": 831
+          "mapped": 98,
+          "total": 834
         }
       },
-      "citations": 1228,
-      "declarations": 4505,
+      "citations": 1230,
+      "declarations": 4548,
       "entities": 158,
       "entities_with_origin": 158,
-      "files": 401,
+      "files": 402,
       "functions": {
-        "mapped": 409,
-        "total": 3124
+        "mapped": 411,
+        "total": 3156
       },
-      "mapped_declarations": 606,
+      "mapped_declarations": 612,
       "passes": 50,
       "semantic_citations": 254,
-      "touched_files": 155,
+      "touched_files": 156,
       "types": {
-        "mapped": 197,
-        "total": 1381
+        "mapped": 201,
+        "total": 1392
       },
       "untouched_files": 246
     }
@@ -60326,7 +60655,7 @@
     ],
     "constructs": {
       "described": 102,
-      "stale": 71
+      "stale": 72
     },
     "edges": [
       {
@@ -74765,7 +75094,7 @@
             "No edges reach this node; which views call blocks(for:) is not visible in the packet."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": false,
+          "stale": true,
           "summary": "Process-wide, NSLock-guarded in-memory cache of parsed MarkdownBlock arrays keyed by input string hash. Holds a single last-input fast slot plus an LRU of 96 completed parses, evicting oldest on overflow. Populated on cache miss inside blocks(for:); never persisted. DEBUG builds expose a parse counter and reset hook for tests."
         },
         "store": {
@@ -79524,12 +79853,12 @@
     "unattributed_triggers": 444
   },
   "inventory": {
-    "assigned_files": 399,
-    "declarations": 1244,
-    "files": 399,
-    "lines": 116637,
-    "swift_files": 399,
-    "swift_lines": 116637,
+    "assigned_files": 400,
+    "declarations": 1252,
+    "files": 400,
+    "lines": 117064,
+    "swift_files": 400,
+    "swift_lines": 117064,
     "unassigned_files": []
   },
   "layers": [
@@ -79561,7 +79890,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "328bc0bd3247c7f2e7558aea049ad3c46b0b9530d30d5e307285117af70fe4f6",
+  "source_tree_sha256": "720fbd51d4feeea716741e837393acf0c4d0f96733018c3c925af94cebebee09",
   "stores": {
     "by_persistence": {
       "defaults": 6,

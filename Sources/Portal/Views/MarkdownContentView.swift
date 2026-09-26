@@ -1564,7 +1564,7 @@ struct OpenableBlockSheet: View {
                 // an opened HTML page uses the whole window, not a small box.
                 Group {
                     if isDiagram {
-                        MermaidDiagramView(mermaidCode: content, isStreaming: false)
+                        MermaidDiagramView(mermaidCode: content, isStreaming: false, presentation: .expanded)
                     } else {
                         InlineHTMLView(html: content)
                     }
