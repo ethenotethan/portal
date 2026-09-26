@@ -59,7 +59,7 @@
       "label": "Chat state",
       "layer": "orchestration",
       "description": "Conversation lifecycle, backend-normalized events, persona state, and capability-aware orchestration.",
-      "patterns": ["ViewModels/Chat*.swift", "ViewModels/Persona*.swift", "ViewModels/GatewayCapabilities*.swift", "ViewModels/SpawnTree*.swift"]
+      "patterns": ["ViewModels/Chat*.swift", "ViewModels/Persona*.swift", "ViewModels/GatewayCapabilities*.swift", "ViewModels/SpawnTree*.swift", "ViewModels/PageIntent*.swift"]
     },
     {
       "id": "operations-state",
