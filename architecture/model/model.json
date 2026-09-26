@@ -2342,20 +2342,6 @@
         "confidence": "mechanically_grouped",
         "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
         "evidence_class": "static_source",
-        "id": "connectivity-pocket-8cebfe789ed8",
-        "operation_ids": [],
-        "owner_type": "PortalLogSink",
-        "resource_ids": [
-          "resource-1111dbcb9739"
-        ],
-        "task_handle_ids": []
-      },
-      {
-        "authority": "observed",
-        "component": "utilities",
-        "confidence": "mechanically_grouped",
-        "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
-        "evidence_class": "static_source",
         "id": "connectivity-pocket-d8dfbd28617d",
         "operation_ids": [
           "lifecycle-operation-06a43cea6097",
@@ -2689,22 +2675,6 @@
         "label": "timer",
         "owner_type": "PerfSampler",
         "rule_id": "swift.resource.timer.stored"
-      },
-      {
-        "authority": "observed",
-        "cardinality": "one stored field per owner instance",
-        "component": "utilities",
-        "evidence": {
-          "excerpt": "private let state = OSAllocatedUnfairLock(initialState: Statistics())",
-          "line": 138,
-          "path": "Sources/Portal/Utilities/PortalLogger.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "resource-1111dbcb9739",
-        "kind": "lock",
-        "label": "state",
-        "owner_type": "PortalLogSink",
-        "rule_id": "swift.resource.lock.stored"
       },
       {
         "authority": "observed",
@@ -6264,14 +6234,190 @@
         "authority": "observed",
         "component": "shared-ui",
         "enclosing_function": null,
+        "enclosing_type": "ArchitectureLogsSectionView",
+        "evidence": {
+          "excerpt": ".onDisappear { Task { await model.teardown() } }",
+          "line": 34,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-da4fb51abf13",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": null,
+        "enclosing_type": "ArchitectureLogsSectionView",
+        "evidence": {
+          "excerpt": "set: { id in Task { await model.select(sinkID: id) } }",
+          "line": 41,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-a072d5fc791c",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": null,
+        "enclosing_type": "ArchitectureLogsSectionView",
+        "evidence": {
+          "excerpt": "set: { enabled in Task { await model.setFollowing(enabled) } }",
+          "line": 62,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-b196e4ad4d52",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": null,
+        "enclosing_type": "ArchitectureLogsSectionView",
+        "evidence": {
+          "excerpt": "Button(\"Refresh\") { Task { await model.fetchMore() } }",
+          "line": 66,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-b8659c749841",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "timelineRow",
+        "enclosing_type": "ArchitectureRevisionsSectionView",
+        "evidence": {
+          "excerpt": "Task { await model.select(revision: entry.revision) }",
+          "line": 78,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-023059e0fb10",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "timelineRow",
+        "enclosing_type": "ArchitectureRevisionsSectionView",
+        "evidence": {
+          "excerpt": "Button(\"Compare from here\") { Task { await model.setFrom(revision: entry.revision) } }",
+          "line": 133,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-87f2b6727411",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "timelineRow",
+        "enclosing_type": "ArchitectureRevisionsSectionView",
+        "evidence": {
+          "excerpt": "Button(\"Compare with previous\") { Task { await model.setFrom(revision: nil) } }",
+          "line": 134,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-3f978c2ff95c",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "diffHeader",
+        "enclosing_type": "ArchitectureRevisionsSectionView",
+        "evidence": {
+          "excerpt": "Task { await surface.load(revision: entry.revision) }",
+          "line": 204,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-b7271ad5afbb",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "diffHeader",
+        "enclosing_type": "ArchitectureRevisionsSectionView",
+        "evidence": {
+          "excerpt": "set: { value in Task { await model.setFrom(revision: value.isEmpty ? nil : value) } }",
+          "line": 216,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-1088fe40b2f5",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "diffHeader",
+        "enclosing_type": "ArchitectureRevisionsSectionView",
+        "evidence": {
+          "excerpt": "Button(\"Previous\") { Task { await model.setFrom(revision: nil) } }",
+          "line": 225,
+          "path": "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-6ed0c9f216ca",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": null,
         "enclosing_type": "ArchitectureSurfaceView",
         "evidence": {
           "excerpt": "Button(model.isChecking ? \"Checking…\" : \"Run check\") { Task { await model.runCheck() } }",
-          "line": 77,
+          "line": 84,
           "path": "Sources/Portal/Views/ArchitectureSurfaceView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-23c8ee526f1d",
+        "id": "task-site-d380fd2e1229",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "shared-ui",
+        "enclosing_function": "revisionBadge",
+        "enclosing_type": "ArchitectureSurfaceView",
+        "evidence": {
+          "excerpt": "Button(\"Back to latest\") { Task { await model.load(revision: nil) } }",
+          "line": 121,
+          "path": "Sources/Portal/Views/ArchitectureSurfaceView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-d01759987db2",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6283,11 +6429,11 @@
         "enclosing_type": "ArchitectureSurfaceView",
         "evidence": {
           "excerpt": "Button(\"Try Again\") { Task { await model.load() } }",
-          "line": 136,
+          "line": 160,
           "path": "Sources/Portal/Views/ArchitectureSurfaceView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-967fcb5a09d5",
+        "id": "task-site-28d7518bd87b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9127,33 +9273,19 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 148,
+            "line": 147,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
           "id": "no_nslog",
           "included": [],
-          "message": "Use PortalLogger instead of NSLog",
+          "message": "Use Logger from os.log instead of NSLog",
           "severity": "warning"
-        },
-        {
-          "baselined": 0,
-          "evidence": {
-            "line": 153,
-            "path": ".swiftlint.yml"
-          },
-          "excluded_count": 1,
-          "id": "no_direct_os_logger",
-          "included": [
-            ".*/Sources/.*\\.swift"
-          ],
-          "message": "Declare a PortalLogger(category:) — a raw os.Logger never reaches the declared log sink",
-          "severity": "error"
         },
         {
           "baselined": 133,
           "evidence": {
-            "line": 167,
+            "line": 152,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9167,7 +9299,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 183,
+            "line": 168,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9181,7 +9313,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 196,
+            "line": 181,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 4,
@@ -9195,7 +9327,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 211,
+            "line": 196,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9209,7 +9341,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 222,
+            "line": 207,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 28,
@@ -9221,7 +9353,7 @@
         {
           "baselined": 3,
           "evidence": {
-            "line": 277,
+            "line": 262,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9236,7 +9368,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 300,
+            "line": 285,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9250,7 +9382,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 317,
+            "line": 302,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9264,7 +9396,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 332,
+            "line": 317,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 1,
@@ -9278,7 +9410,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 360,
+            "line": 345,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9290,7 +9422,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 375,
+            "line": 360,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 2,
@@ -9304,7 +9436,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 399,
+            "line": 384,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 0,
@@ -9318,7 +9450,7 @@
         {
           "baselined": 0,
           "evidence": {
-            "line": 422,
+            "line": 407,
             "path": ".swiftlint.yml"
           },
           "excluded_count": 3,
@@ -9364,28 +9496,21 @@
         },
         {
           "evidence": {
-            "line": 238,
-            "path": "Tests/PortalTests/ArchitectureTests.swift"
-          },
-          "title": "Every log line goes through PortalLogger — no raw os.Logger or OSLog import outside the facade"
-        },
-        {
-          "evidence": {
-            "line": 258,
+            "line": 230,
             "path": "Tests/PortalTests/ArchitectureTests.swift"
           },
           "title": "Every GatewayEvent wire type appears in docs/rpc-reference.md"
         },
         {
           "evidence": {
-            "line": 325,
+            "line": 297,
             "path": "Tests/PortalTests/ArchitectureTests.swift"
           },
           "title": "monospaced text re-asserts itself against the app-wide typeface"
         },
         {
           "evidence": {
-            "line": 365,
+            "line": 337,
             "path": "Tests/PortalTests/ArchitectureTests.swift"
           },
           "title": "the container-level monospaced allowlist has no stale entries"
@@ -11072,17 +11197,17 @@
       {
         "current": {
           "counts": {
-            "architecture_tests": 8,
+            "architecture_tests": 7,
             "external_systems": 13,
             "invariants": 12,
-            "lint_rules": 15,
+            "lint_rules": 14,
             "pages": 11,
             "ratchets": 8,
             "specifications": 5
           },
           "kind": "count",
-          "sites": 72,
-          "total": 72
+          "sites": 70,
+          "total": 70
         },
         "floor": "Nothing declared on base may be removed or loosened: no invariant dropped or relaxed, no exception list grown, no rule removed or demoted, no gate step or job removed, no specification deleted. Tightening always passes; a deliberate loosening carries the constraints-loosened label.",
         "id": "constraints",
@@ -11177,11 +11302,11 @@
       }
     ],
     "summary": {
-      "architecture_tests": 8,
+      "architecture_tests": 7,
       "gates": 15,
       "invariants": 12,
       "jobs": 20,
-      "lint_rules": 15,
+      "lint_rules": 14,
       "ratchets": 8,
       "static_checks": 5,
       "workflows": 7
@@ -11502,7 +11627,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4119
+      "line_count": 4109
     },
     {
       "declaration_count": 74,
@@ -12258,7 +12383,7 @@
       "line_count": 5278
     },
     {
-      "declaration_count": 78,
+      "declaration_count": 81,
       "declarations": [
         "Accumulator",
         "ActivityInboxViewModel",
@@ -12268,10 +12393,12 @@
         "ArchitectureHullKind",
         "ArchitectureHullTree",
         "ArchitectureInventoryModel",
+        "ArchitectureLogsModel",
         "ArchitectureMapBundle",
         "ArchitectureMapElement",
         "ArchitectureMapFrame",
         "ArchitectureReading",
+        "ArchitectureRevisionsModel",
         "ArchitectureSurfaceModel",
         "ArchitectureSystemMapFlowDiagram",
         "ArchitectureSystemMapLayout",
@@ -12291,6 +12418,7 @@
         "CronSourceFileReading",
         "CronSourceFilesViewModel",
         "CurriculumViewModel",
+        "Delta",
         "DiagnosticTest",
         "DiffState",
         "DirectoryNode",
@@ -12341,12 +12469,14 @@
       ],
       "description": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines.",
       "external": false,
-      "file_count": 24,
+      "file_count": 26,
       "files": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/ArchitectureExtractionLayout.swift",
         "Sources/Portal/ViewModels/ArchitectureGatesLayout.swift",
         "Sources/Portal/ViewModels/ArchitectureInventoryModel.swift",
+        "Sources/Portal/ViewModels/ArchitectureLogsModel.swift",
+        "Sources/Portal/ViewModels/ArchitectureRevisionsModel.swift",
         "Sources/Portal/ViewModels/ArchitectureSurfaceModel.swift",
         "Sources/Portal/ViewModels/ArchitectureSystemMapFlowDiagram.swift",
         "Sources/Portal/ViewModels/ArchitectureSystemMapLayout.swift",
@@ -12371,7 +12501,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 6679,
+      "line_count": 6994,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -12462,7 +12592,7 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "line_count": 912
+      "line_count": 921
     },
     {
       "declaration_count": 29,
@@ -12499,7 +12629,7 @@
       ],
       "description": "Harness WebSocket JSON-RPC transport, cron polling, and push registration.",
       "external": false,
-      "file_count": 14,
+      "file_count": 15,
       "files": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
@@ -12511,6 +12641,7 @@
         "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Push.swift",
         "Sources/Portal/Services/GatewayClient+Restart.swift",
+        "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
         "Sources/Portal/Services/GatewayClient+Wiki.swift",
         "Sources/Portal/Services/GatewayClient.swift",
         "Sources/Portal/Services/GatewayClientWrapper.swift",
@@ -12519,7 +12650,7 @@
       "id": "hermes-services",
       "label": "Harness services",
       "layer": "integration",
-      "line_count": 4639,
+      "line_count": 4720,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -12805,7 +12936,7 @@
       }
     },
     {
-      "declaration_count": 342,
+      "declaration_count": 356,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -12822,6 +12953,7 @@
         "ArchitectureBoundaryGroup",
         "ArchitectureCheckResult",
         "ArchitectureCheckedInvariant",
+        "ArchitectureCommit",
         "ArchitectureComponentRecord",
         "ArchitectureContractRef",
         "ArchitectureEdgeClass",
@@ -12855,6 +12987,10 @@
         "ArchitectureInventoryDocument",
         "ArchitectureLayerRecord",
         "ArchitectureLintRule",
+        "ArchitectureLogEvent",
+        "ArchitectureLogFollowState",
+        "ArchitectureLogSink",
+        "ArchitectureLogTail",
         "ArchitectureMapCluster",
         "ArchitectureMapEdge",
         "ArchitectureMapNode",
@@ -12863,11 +12999,13 @@
         "ArchitectureModelDocument",
         "ArchitectureModelSummary",
         "ArchitectureNodeKind",
-        "ArchitectureObservatoryAssets",
-        "ArchitecturePanelPage",
         "ArchitectureRatchet",
         "ArchitectureRatchetEntry",
         "ArchitectureRequest",
+        "ArchitectureRevisionDiff",
+        "ArchitectureRevisionEntry",
+        "ArchitectureRevisionHistory",
+        "ArchitectureRuntimeInfo",
         "ArchitectureSection",
         "ArchitectureServiceRef",
         "ArchitectureSourceLine",
@@ -12970,6 +13108,7 @@
         "DroppedEventReason",
         "Edge",
         "EdgeAppearance",
+        "EdgeChange",
         "EdgeLegendEntry",
         "EdgeStatement",
         "Element",
@@ -12988,19 +13127,23 @@
         "FeedSourcesResponse",
         "FeedTweetDetail",
         "FileAttachment",
+        "FileChange",
         "FileContent",
         "FileEntry",
         "FileListing",
+        "FileStat",
         "FileTouchAction",
         "FileTreeAggregator",
         "FiveNumber",
         "Flashcard",
         "FlashcardDeck",
         "FlashcardResponse",
+        "GateChanges",
         "GatewayCapabilities",
         "GatewayDebugSnapshot",
         "GatewayRestartPhase",
         "GatewayRestartRequestOutcome",
+        "GitInfo",
         "GraphSurface",
         "HTMLArtifactQueryBridge",
         "HTMLArtifactQueryRequest",
@@ -13008,6 +13151,7 @@
         "Identicon",
         "IdenticonView",
         "IntegrationLink",
+        "InvariantChange",
         "Item",
         "JSONRPCError",
         "JSONRPCEventMessage",
@@ -13037,6 +13181,7 @@
         "NetworkGraphSpec",
         "NetworkGraphVisualSemantics",
         "Node",
+        "NodeChange",
         "NodeLegendEntry",
         "NodeStatus",
         "NodeToolCall",
@@ -13162,9 +13307,9 @@
         "Sources/Portal/Models/ArchitectureExtractionDocument.swift",
         "Sources/Portal/Models/ArchitectureGatesDocument.swift",
         "Sources/Portal/Models/ArchitectureInventoryDocument.swift",
+        "Sources/Portal/Models/ArchitectureLogsDocument.swift",
         "Sources/Portal/Models/ArchitectureModelDocument.swift",
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
-        "Sources/Portal/Models/ArchitecturePanelPage.swift",
+        "Sources/Portal/Models/ArchitectureRevisionsDocument.swift",
         "Sources/Portal/Models/ArchitectureSystemMapDocument.swift",
         "Sources/Portal/Models/ArtifactQueries.swift",
         "Sources/Portal/Models/BlueprintSpec.swift",
@@ -13252,7 +13397,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 23476,
+      "line_count": 18522,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13296,7 +13441,7 @@
       }
     },
     {
-      "declaration_count": 102,
+      "declaration_count": 104,
       "declarations": [
         "ANDGateShape",
         "AppFontSettingsSection",
@@ -13307,6 +13452,8 @@
         "ArchitectureExtractionWiringView",
         "ArchitectureGatesSectionView",
         "ArchitectureInventorySectionView",
+        "ArchitectureLogsSectionView",
+        "ArchitectureRevisionsSectionView",
         "ArchitectureSectionPlaceholder",
         "ArchitectureSurfaceTab",
         "ArchitectureSurfaceView",
@@ -13403,7 +13550,7 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 49,
+      "file_count": 51,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -13413,6 +13560,8 @@
         "Sources/Portal/Views/Architecture/ArchitectureExtractionWiringView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureInventorySectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureSectionPlaceholder.swift",
         "Sources/Portal/Views/Architecture/ArchitectureSurfaceTab.swift",
         "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
@@ -13458,7 +13607,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 10374,
+      "line_count": 10971,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13488,7 +13637,7 @@
       }
     },
     {
-      "declaration_count": 35,
+      "declaration_count": 27,
       "declarations": [
         "ChatLayoutMath",
         "ChatPaneClickMonitor",
@@ -13502,7 +13651,6 @@
         "InlineMath",
         "JSONObjectParse",
         "LeakTracker",
-        "LogFileAppender",
         "MacInputTextField",
         "MacScrollViewIntrospection",
         "MainThreadWatchdog",
@@ -13514,21 +13662,14 @@
         "PerfSampler",
         "PerfSignposter",
         "PortalDeepLink",
-        "PortalLogFloatFormat",
-        "PortalLogMessage",
-        "PortalLogPrivacy",
-        "PortalLogSink",
-        "PortalLogger",
         "ProcessMetrics",
         "RenderMemo",
         "StallKind",
-        "Statistics",
-        "StringInterpolation",
         "WeakBox"
       ],
       "description": "Platform compatibility, parsing, rendering memoization, diagnostics, and pure layout helpers.",
       "external": false,
-      "file_count": 16,
+      "file_count": 15,
       "files": [
         "Sources/Portal/Utilities/ChatLayoutMath.swift",
         "Sources/Portal/Utilities/Constants.swift",
@@ -13544,13 +13685,12 @@
         "Sources/Portal/Utilities/PerfCounter.swift",
         "Sources/Portal/Utilities/PerfInstrumentation.swift",
         "Sources/Portal/Utilities/PlatformCompat.swift",
-        "Sources/Portal/Utilities/PortalLogger.swift",
         "Sources/Portal/Utilities/RenderMemo.swift"
       ],
       "id": "utilities",
       "label": "Utilities",
       "layer": "foundation",
-      "line_count": 2695
+      "line_count": 2339
     },
     {
       "declaration_count": 0,
@@ -13971,22 +14111,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by utilities.",
+      "description": "References 2 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/HermesNativeApp.swift",
         "Sources/Portal/Views/ContentView.swift",
-        "Sources/Portal/Views/MenuBar/PortalMenuBarExtra.swift",
-        "Sources/Portal/Views/SettingsView.swift"
+        "Sources/Portal/Views/MenuBar/PortalMenuBarExtra.swift"
       ],
       "source": "app-shell",
       "symbols": [
         "PerfInstrumentation",
-        "PortalDeepLink",
-        "PortalLogger"
+        "PortalDeepLink"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 7
+      "weight": 5
     },
     {
       "authority": "observed",
@@ -14280,26 +14418,21 @@
     },
     {
       "authority": "observed",
-      "description": "References 2 declaration(s) owned by utilities.",
+      "description": "References 1 declaration(s) owned by utilities.",
       "evidence": [
-        "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
-        "Sources/Portal/Views/ArtifactKindRenderer.swift",
-        "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/DiffBlockView.swift",
         "Sources/Portal/Views/Blocks/FileTreeView.swift",
         "Sources/Portal/Views/Blocks/MapBlockView.swift",
-        "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
         "Sources/Portal/Views/Blocks/ModelBlockView.swift",
         "Sources/Portal/Views/Blocks/SankeyBlockView.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
-        "PortalLogger",
         "RenderMemo"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 11
+      "weight": 6
     },
     {
       "authority": "observed",
@@ -14318,7 +14451,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by domain-models.",
+      "description": "References 14 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Models/GatewayEvent.swift",
         "Sources/Portal/Services/AgentBackend.swift"
@@ -14329,18 +14462,18 @@
         "AgentModel",
         "AnyCodable",
         "ApprovalQueue",
+        "ArchitectureLogEvent",
         "Connection",
         "Event",
         "ModelCatalog",
         "ModelSwitchOutcome",
         "Provider",
         "Session",
-        "Source",
-        "TokenAccountable"
+        "Source"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 15
+      "weight": 16
     },
     {
       "authority": "observed",
@@ -14530,21 +14663,18 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by utilities.",
+      "description": "References 2 declaration(s) owned by utilities.",
       "evidence": [
-        "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift",
-        "Sources/Portal/ViewModels/PersonaManager.swift"
+        "Sources/Portal/ViewModels/ChatViewModel.swift"
       ],
       "source": "chat-state",
       "symbols": [
         "DocumentTextExtractor",
-        "LeakTracker",
-        "PortalLogger"
+        "LeakTracker"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 6
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -14788,10 +14918,9 @@
     },
     {
       "authority": "observed",
-      "description": "References 6 declaration(s) owned by utilities.",
+      "description": "References 5 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/Views/ChatView.swift",
-        "Sources/Portal/Views/LongResponseView.swift",
         "Sources/Portal/Views/MarkdownContentView.swift"
       ],
       "source": "chat-ui",
@@ -14800,12 +14929,11 @@
         "FocusableTextView",
         "InlineMath",
         "MacInputTextField",
-        "PortalLogger",
         "RenderMemo"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 9
+      "weight": 7
     },
     {
       "authority": "observed",
@@ -14826,7 +14954,6 @@
       "authority": "observed",
       "description": "References 3 declaration(s) owned by app-shell.",
       "evidence": [
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ButtonTheme.swift",
         "Sources/Portal/Models/CelebrationPreferences.swift",
         "Sources/Portal/Models/ToolbarIconTheme.swift"
@@ -14839,7 +14966,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 7
+      "weight": 6
     },
     {
       "authority": "observed",
@@ -14888,7 +15015,6 @@
       "description": "References 6 declaration(s) owned by backend-contract.",
       "evidence": [
         "Sources/Portal/Models/ApprovalQueue.swift",
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ChatMessage.swift",
         "Sources/Portal/Models/DomainProtocols.swift"
       ],
@@ -14903,7 +15029,7 @@
       ],
       "target": "backend-contract",
       "type": "references",
-      "weight": 10
+      "weight": 9
     },
     {
       "authority": "observed",
@@ -14951,7 +15077,9 @@
       "authority": "observed",
       "description": "References 8 declaration(s) owned by hermes-services.",
       "evidence": [
+        "Sources/Portal/Models/ArchitectureLogsDocument.swift",
         "Sources/Portal/Models/ArchitectureModelDocument.swift",
+        "Sources/Portal/Models/ArchitectureRevisionsDocument.swift",
         "Sources/Portal/Models/CodeGraph.swift",
         "Sources/Portal/Models/CronChangeset.swift",
         "Sources/Portal/Models/CronGraph.swift",
@@ -14974,13 +15102,12 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 17
+      "weight": 19
     },
     {
       "authority": "observed",
       "description": "References 12 declaration(s) owned by local-services.",
       "evidence": [
-        "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
         "Sources/Portal/Models/ArtifactQueries.swift",
         "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
@@ -14991,7 +15118,8 @@
         "Sources/Portal/Models/LocalDiscussion.swift",
         "Sources/Portal/Models/LocalDiscussionBriefing.swift",
         "Sources/Portal/Models/Quiz/FlashcardModels.swift",
-        "Sources/Portal/Models/SavedGateway.swift"
+        "Sources/Portal/Models/SavedGateway.swift",
+        "Sources/Portal/Models/SentenceChunker.swift"
       ],
       "source": "domain-models",
       "symbols": [
@@ -15010,7 +15138,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 27
+      "weight": 26
     },
     {
       "authority": "observed",
@@ -15109,32 +15237,29 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by utilities.",
+      "description": "References 4 declaration(s) owned by utilities.",
       "evidence": [
-        "Sources/Portal/Models/ActivityStore.swift",
         "Sources/Portal/Models/BlueprintSpec.swift",
         "Sources/Portal/Models/CalendarSpec.swift",
         "Sources/Portal/Models/ChartSpec.swift",
         "Sources/Portal/Models/ChecklistSpec.swift",
-        "Sources/Portal/Models/CronGraphRevisionStore.swift",
-        "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DashboardLayout.swift",
-        "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
         "Sources/Portal/Models/KanbanSpec.swift",
         "Sources/Portal/Models/NetworkGraphSpec.swift",
-        "Sources/Portal/Models/PersonaImage.swift"
+        "Sources/Portal/Models/SankeySpec.swift",
+        "Sources/Portal/Models/StatTileSpec.swift",
+        "Sources/Portal/Models/TimelineSpec.swift"
       ],
       "source": "domain-models",
       "symbols": [
         "ChatLayoutMath",
         "JSONObjectParse",
         "PerfCounter",
-        "PortalLogger",
         "RenderMemo"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 22
+      "weight": 14
     },
     {
       "authority": "observed",
@@ -15173,6 +15298,7 @@
       "authority": "observed",
       "description": "References 5 declaration(s) owned by backend-contract.",
       "evidence": [
+        "Sources/Portal/Services/GatewayClient+Architecture.swift",
         "Sources/Portal/Services/GatewayClient.swift"
       ],
       "source": "hermes-services",
@@ -15185,11 +15311,11 @@
       ],
       "target": "backend-contract",
       "type": "references",
-      "weight": 6
+      "weight": 7
     },
     {
       "authority": "observed",
-      "description": "References 67 declaration(s) owned by domain-models.",
+      "description": "References 71 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
@@ -15201,8 +15327,8 @@
         "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Push.swift",
         "Sources/Portal/Services/GatewayClient+Restart.swift",
-        "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "Sources/Portal/Services/GatewayClient.swift"
+        "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+        "Sources/Portal/Services/GatewayClient+Wiki.swift"
       ],
       "source": "hermes-services",
       "symbols": [
@@ -15210,18 +15336,18 @@
         "ActivityItem",
         "AnyCodable",
         "ArchitectureCheckResult",
+        "ArchitectureLogFollowState",
+        "ArchitectureLogTail",
         "ArchitectureModelDocument",
+        "ArchitectureRevisionDiff",
+        "ArchitectureRevisionHistory",
         "ArtifactQueryResult",
         "ArtifactRevision",
-        "ChatMessage",
-        "CodeGraph",
-        "Connection",
-        "CronChangeset",
-        "CronChangesetActor"
+        "ChatMessage"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 81
+      "weight": 86
     },
     {
       "authority": "observed",
@@ -15268,23 +15394,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by utilities.",
+      "description": "References 3 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
-        "Sources/Portal/Services/GatewayClient.swift",
-        "Sources/Portal/Services/GatewayClientWrapper.swift",
-        "Sources/Portal/Services/PushRegistrationService.swift"
+        "Sources/Portal/Services/GatewayClient.swift"
       ],
       "source": "hermes-services",
       "symbols": [
         "Constants",
         "LeakTracker",
-        "PerfSignposter",
-        "PortalLogger"
+        "PerfSignposter"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 8
+      "weight": 5
     },
     {
       "authority": "observed",
@@ -15510,30 +15633,19 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by utilities.",
+      "description": "References 2 declaration(s) owned by utilities.",
       "evidence": [
-        "Sources/Portal/Services/ChatHistoryStore.swift",
-        "Sources/Portal/Services/CurriculumStore.swift",
-        "Sources/Portal/Services/FileDownloadManager.swift",
         "Sources/Portal/Services/KeychainStore.swift",
-        "Sources/Portal/Services/LearningStore.swift",
-        "Sources/Portal/Services/LocalChatEngine.swift",
-        "Sources/Portal/Services/LocalChatService.swift",
-        "Sources/Portal/Services/LocalVoiceEngine.swift",
-        "Sources/Portal/Services/LocalVoiceService.swift",
-        "Sources/Portal/Services/MLXMemoryConfig.swift",
-        "Sources/Portal/Services/NeuralSpeechEngine.swift",
         "Sources/Portal/Services/NotificationService.swift"
       ],
       "source": "local-services",
       "symbols": [
         "Constants",
-        "PortalDeepLink",
-        "PortalLogger"
+        "PortalDeepLink"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 29
+      "weight": 4
     },
     {
       "authority": "observed",
@@ -15547,6 +15659,21 @@
         "ContentView"
       ],
       "target": "app-shell",
+      "type": "references",
+      "weight": 3
+    },
+    {
+      "authority": "observed",
+      "description": "References 1 declaration(s) owned by backend-contract.",
+      "evidence": [
+        "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
+        "Sources/Portal/ViewModels/ArchitectureSurfaceModel.swift"
+      ],
+      "source": "operations-state",
+      "symbols": [
+        "GatewayEvent"
+      ],
+      "target": "backend-contract",
       "type": "references",
       "weight": 3
     },
@@ -15568,20 +15695,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 89 declaration(s) owned by domain-models.",
+      "description": "References 96 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/ArchitectureExtractionLayout.swift",
         "Sources/Portal/ViewModels/ArchitectureGatesLayout.swift",
         "Sources/Portal/ViewModels/ArchitectureInventoryModel.swift",
+        "Sources/Portal/ViewModels/ArchitectureLogsModel.swift",
+        "Sources/Portal/ViewModels/ArchitectureRevisionsModel.swift",
         "Sources/Portal/ViewModels/ArchitectureSurfaceModel.swift",
         "Sources/Portal/ViewModels/ArchitectureSystemMapFlowDiagram.swift",
         "Sources/Portal/ViewModels/ArchitectureSystemMapLayout.swift",
         "Sources/Portal/ViewModels/ArchitectureSystemMapModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
-        "Sources/Portal/ViewModels/CodeGraphSource.swift",
-        "Sources/Portal/ViewModels/CronChangesetFeed.swift",
-        "Sources/Portal/ViewModels/CronFilterState.swift"
+        "Sources/Portal/ViewModels/CodeGraphSource.swift"
       ],
       "source": "operations-state",
       "symbols": [
@@ -15600,7 +15727,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 113
+      "weight": 122
     },
     {
       "authority": "observed",
@@ -15682,31 +15809,21 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by utilities.",
+      "description": "References 4 declaration(s) owned by utilities.",
       "evidence": [
-        "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
-        "Sources/Portal/ViewModels/CelebrationManager.swift",
-        "Sources/Portal/ViewModels/CronChangesetFeed.swift",
-        "Sources/Portal/ViewModels/CronListViewModel.swift",
-        "Sources/Portal/ViewModels/CronSourceFilesViewModel.swift",
         "Sources/Portal/ViewModels/FeedViewModel.swift",
-        "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift",
-        "Sources/Portal/ViewModels/Quiz/QuizViewModel.swift",
-        "Sources/Portal/ViewModels/SessionListViewModel.swift",
-        "Sources/Portal/ViewModels/SettingsViewModel.swift",
-        "Sources/Portal/ViewModels/SkillsViewModel.swift"
+        "Sources/Portal/ViewModels/SettingsViewModel.swift"
       ],
       "source": "operations-state",
       "symbols": [
         "Constants",
         "GatewayURL",
         "LeakTracker",
-        "PerfSignposter",
-        "PortalLogger"
+        "PerfSignposter"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 16
+      "weight": 6
     },
     {
       "authority": "observed",
@@ -15992,20 +16109,18 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by utilities.",
+      "description": "References 2 declaration(s) owned by utilities.",
       "evidence": [
-        "Sources/Portal/Views/FeedView.swift",
-        "Sources/Portal/Views/SessionUsageBadge.swift"
+        "Sources/Portal/Views/FeedView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
         "LeakTracker",
-        "PerfSignposter",
-        "PortalLogger"
+        "PerfSignposter"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 5
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -16045,10 +16160,10 @@
         "Sources/Portal/Views/Architecture/ArchitectureExtractionWiringView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureInventorySectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureSectionPlaceholder.swift",
-        "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
-        "Sources/Portal/Views/ArchitectureSurfaceView.swift",
-        "Sources/Portal/Views/AsyncDelegationBatchView.swift"
+        "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift"
       ],
       "source": "shared-ui",
       "symbols": [
@@ -16059,7 +16174,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 44
+      "weight": 46
     },
     {
       "authority": "observed",
@@ -16119,7 +16234,6 @@
       "authority": "observed",
       "description": "References 7 declaration(s) owned by chat-ui.",
       "evidence": [
-        "Sources/Portal/Views/ArchitectureSurfaceView.swift",
         "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
@@ -16140,11 +16254,11 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 15
+      "weight": 14
     },
     {
       "authority": "observed",
-      "description": "References 62 declaration(s) owned by domain-models.",
+      "description": "References 67 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -16154,10 +16268,10 @@
         "Sources/Portal/Views/Architecture/ArchitectureExtractionWiringView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureInventorySectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureSectionPlaceholder.swift",
-        "Sources/Portal/Views/Architecture/ArchitectureSurfaceTab.swift",
-        "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
-        "Sources/Portal/Views/ArchitectureSurfaceView.swift"
+        "Sources/Portal/Views/Architecture/ArchitectureSurfaceTab.swift"
       ],
       "source": "shared-ui",
       "symbols": [
@@ -16176,7 +16290,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 109
+      "weight": 116
     },
     {
       "authority": "observed",
@@ -16238,7 +16352,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 28 declaration(s) owned by operations-state.",
+      "description": "References 32 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Views/Architecture/ArchitectureExtractionPalette.swift",
         "Sources/Portal/Views/Architecture/ArchitectureExtractionSectionView.swift",
@@ -16246,12 +16360,12 @@
         "Sources/Portal/Views/Architecture/ArchitectureExtractionWiringView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureInventorySectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift",
+        "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
         "Sources/Portal/Views/ArchitectureSurfaceView.swift",
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
-        "Sources/Portal/Views/CelebrationStage.swift",
-        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
-        "Sources/Portal/Views/GatewayAvatarPicker.swift"
+        "Sources/Portal/Views/CelebrationStage.swift"
       ],
       "source": "shared-ui",
       "symbols": [
@@ -16259,18 +16373,18 @@
         "ArchitectureGatesLayout",
         "ArchitectureHullKind",
         "ArchitectureInventoryModel",
+        "ArchitectureLogsModel",
         "ArchitectureMapBundle",
         "ArchitectureMapFrame",
+        "ArchitectureReading",
+        "ArchitectureRevisionsModel",
         "ArchitectureSurfaceModel",
         "ArchitectureSystemMapFlowDiagram",
-        "ArchitectureSystemMapLayout",
-        "ArchitectureSystemMapModel",
-        "CelebrationEvent",
-        "CelebrationManager"
+        "ArchitectureSystemMapLayout"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 45
+      "weight": 51
     },
     {
       "authority": "observed",
@@ -16629,19 +16743,17 @@
     },
     {
       "authority": "observed",
-      "description": "References 6 declaration(s) owned by domain-models.",
+      "description": "References 5 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Utilities/Extensions.swift",
         "Sources/Portal/Utilities/MacInputTextField.swift",
         "Sources/Portal/Utilities/MainThreadWatchdog.swift",
         "Sources/Portal/Utilities/PerfCounter.swift",
-        "Sources/Portal/Utilities/PerfInstrumentation.swift",
-        "Sources/Portal/Utilities/PortalLogger.swift"
+        "Sources/Portal/Utilities/PerfInstrumentation.swift"
       ],
       "source": "utilities",
       "symbols": [
         "AnyCodable",
-        "Category",
         "Edge",
         "NetworkGraphLayout",
         "SankeyLayout",
@@ -16649,7 +16761,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 12
+      "weight": 10
     },
     {
       "authority": "observed",
@@ -16788,21 +16900,6 @@
       "target": "operations-state",
       "type": "references",
       "weight": 5
-    },
-    {
-      "authority": "observed",
-      "description": "References 1 declaration(s) owned by utilities.",
-      "evidence": [
-        "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
-        "Sources/Portal/ViewModels/WikiTimelineViewModel.swift"
-      ],
-      "source": "wiki-state",
-      "symbols": [
-        "PortalLogger"
-      ],
-      "target": "utilities",
-      "type": "references",
-      "weight": 3
     },
     {
       "authority": "observed",
@@ -21602,7 +21699,7 @@
         "origins": [
           {
             "family": "wiring",
-            "line": 17,
+            "line": 18,
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
             "rule": "map.client"
           }
@@ -21716,6 +21813,20 @@
             "family": "wiring",
             "line": 37,
             "path": "Sources/Portal/Services/GatewayClient+Restart.swift",
+            "rule": "map.client"
+          }
+        ]
+      },
+      {
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+ServiceLogs",
+        "kind": "client",
+        "label": "GatewayClient+ServiceLogs",
+        "origins": [
+          {
+            "family": "wiring",
+            "line": 19,
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
             "rule": "map.client"
           }
         ]
@@ -21838,6 +21949,26 @@
             "family": "wiring",
             "line": 2280,
             "path": "Sources/Portal/Services/GatewayClient.swift",
+            "rule": "map.endpoint"
+          }
+        ]
+      },
+      {
+        "component": "hermes-services",
+        "id": "endpoint:2323b19d99c5",
+        "kind": "endpoint",
+        "label": "service",
+        "origins": [
+          {
+            "family": "wiring",
+            "line": 19,
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+            "rule": "map.endpoint"
+          },
+          {
+            "family": "wiring",
+            "line": 34,
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
             "rule": "map.endpoint"
           }
         ]
@@ -22232,13 +22363,25 @@
         "origins": [
           {
             "family": "wiring",
-            "line": 17,
+            "line": 18,
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 30,
+            "line": 31,
+            "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
+            "rule": "map.endpoint"
+          },
+          {
+            "family": "wiring",
+            "line": 48,
+            "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
+            "rule": "map.endpoint"
+          },
+          {
+            "family": "wiring",
+            "line": 64,
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
             "rule": "map.endpoint"
           }
@@ -24599,30 +24742,30 @@
           },
           {
             "kind": "class",
-            "line": 44,
+            "line": 43,
             "name": "PortalIOSAppDelegate",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 45,
+            "line": 44,
             "name": "application",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 56,
+            "line": 55,
             "name": "application",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 63,
+            "line": 62,
             "name": "application",
             "passes": []
           }
         ],
-        "line_count": 69,
+        "line_count": 68,
         "mapped_declarations": 1,
         "passes": [
           "launch.unmapped",
@@ -24648,48 +24791,48 @@
           },
           {
             "kind": "class",
-            "line": 92,
+            "line": 91,
             "name": "PortalAppDelegate",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 93,
+            "line": 92,
             "name": "applicationDidFinishLaunching",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 100,
+            "line": 99,
             "name": "application",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 104,
+            "line": 103,
             "name": "application",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 108,
+            "line": 107,
             "name": "applicationShouldHandleReopen",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 123,
+            "line": 122,
             "name": "application",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 129,
+            "line": 128,
             "name": "applicationShouldTerminateAfterLastWindowClosed",
             "passes": []
           }
         ],
-        "line_count": 135,
+        "line_count": 134,
         "mapped_declarations": 1,
         "passes": [
           "launch.unmapped",
@@ -24702,7 +24845,7 @@
       {
         "citations": 1,
         "component": "app-shell",
-        "declaration_count": 10,
+        "declaration_count": 9,
         "declarations": [
           {
             "kind": "func",
@@ -24720,54 +24863,48 @@
           },
           {
             "kind": "func",
-            "line": 30,
-            "name": "startPortalLogSink",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 39,
+            "line": 29,
             "name": "configurePortalMacApplication",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 47,
+            "line": 37,
             "name": "MacWindowConfigurator",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 48,
+            "line": 38,
             "name": "makeNSView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 54,
+            "line": 44,
             "name": "updateNSView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 58,
+            "line": 48,
             "name": "configure",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 83,
+            "line": 73,
             "name": "logWindowDiagnostics",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 113,
+            "line": 103,
             "name": "dump",
             "passes": []
           }
         ],
-        "line_count": 126,
+        "line_count": 116,
         "mapped_declarations": 1,
         "passes": [
           "swift.task.structured"
@@ -25570,6 +25707,79 @@
       {
         "citations": 0,
         "component": "domain-models",
+        "declaration_count": 10,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 9,
+            "name": "ArchitectureLogSink",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 37,
+            "name": "formatBytes",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 48,
+            "name": "decodeGatewayValue",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 62,
+            "name": "decodeList",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 69,
+            "name": "ArchitectureLogTail",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 79,
+            "name": "decodeGatewayValue",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 98,
+            "name": "ArchitectureLogFollowState",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 103,
+            "name": "decodeGatewayValue",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 118,
+            "name": "ArchitectureLogEvent",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 126,
+            "name": "decodePayload",
+            "passes": []
+          }
+        ],
+        "line_count": 136,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Models/ArchitectureLogsDocument.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "domain-models",
         "declaration_count": 15,
         "declarations": [
           {
@@ -25580,90 +25790,90 @@
           },
           {
             "kind": "func",
-            "line": 31,
+            "line": 47,
             "name": "decodeGatewayValue",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 50,
+            "line": 67,
             "name": "ArchitectureCheckResult",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 74,
+            "line": 91,
             "name": "decodeGatewayValue",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 90,
+            "line": 107,
             "name": "ArchitectureModelSummary",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 123,
+            "line": 140,
             "name": "decodeGatewayValue",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 150,
+            "line": 167,
             "name": "ArchitectureContractRef",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 165,
+            "line": 182,
             "name": "decodeGatewayValue",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 182,
+            "line": 199,
             "name": "ArchitectureSection",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 198,
+            "line": 215,
             "name": "ArchitectureModelDocument",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 218,
+            "line": 252,
             "name": "hash",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 241,
+            "line": 276,
             "name": "has",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 246,
+            "line": 281,
             "name": "section",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 267,
+            "line": 302,
             "name": "decodeGatewayValue",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 298,
+            "line": 334,
             "name": "ArchitectureRequest",
             "passes": []
           }
         ],
-        "line_count": 317,
+        "line_count": 353,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/ArchitectureModelDocument.swift",
@@ -25673,62 +25883,187 @@
       {
         "citations": 0,
         "component": "domain-models",
-        "declaration_count": 1,
+        "declaration_count": 29,
         "declarations": [
           {
-            "kind": "enum",
-            "line": 9,
-            "name": "ArchitectureObservatoryAssets",
+            "kind": "struct",
+            "line": 6,
+            "name": "ArchitectureCommit",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 15,
+            "name": "decodeGatewayValue",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 25,
+            "name": "decodeList",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 33,
+            "name": "ArchitectureRevisionEntry",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 53,
+            "name": "decodeGatewayValue",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 71,
+            "name": "ArchitectureRuntimeInfo",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 78,
+            "name": "decodeGatewayValue",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 92,
+            "name": "ArchitectureRevisionHistory",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 110,
+            "name": "entry",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 115,
+            "name": "previous",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 121,
+            "name": "decodeGatewayValue",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 138,
+            "name": "ArchitectureRevisionDiff",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 139,
+            "name": "NodeChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 146,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 158,
+            "name": "EdgeChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 166,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 177,
+            "name": "InvariantChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 182,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 188,
+            "name": "FileChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 196,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 202,
+            "name": "GateChanges",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 212,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 223,
+            "name": "FileStat",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 231,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 237,
+            "name": "GitInfo",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 245,
+            "name": "decode",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 281,
+            "name": "byKind",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 298,
+            "name": "strings",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 302,
+            "name": "decodeGatewayValue",
             "passes": []
           }
         ],
-        "line_count": 5401,
+        "line_count": 331,
         "mapped_declarations": 0,
         "passes": [],
-        "path": "Sources/Portal/Models/ArchitectureObservatoryAssets.swift",
-        "semantic_citations": 0,
-        "touched": false
-      },
-      {
-        "citations": 0,
-        "component": "domain-models",
-        "declaration_count": 5,
-        "declarations": [
-          {
-            "kind": "enum",
-            "line": 13,
-            "name": "ArchitecturePanelPage",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 19,
-            "name": "html",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 28,
-            "name": "html",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 45,
-            "name": "scriptSafe",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 52,
-            "name": "baseURL",
-            "passes": []
-          }
-        ],
-        "line_count": 56,
-        "mapped_declarations": 0,
-        "passes": [],
-        "path": "Sources/Portal/Models/ArchitecturePanelPage.swift",
+        "path": "Sources/Portal/Models/ArchitectureRevisionsDocument.swift",
         "semantic_citations": 0,
         "touched": false
       },
@@ -28690,168 +29025,168 @@
           },
           {
             "kind": "func",
-            "line": 198,
+            "line": 204,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 404,
+            "line": 413,
             "name": "SessionInfo",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 415,
+            "line": 424,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 444,
+            "line": 453,
             "name": "UsageInfo",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 459,
+            "line": 468,
             "name": "CodingKeys",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 465,
+            "line": 474,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 475,
+            "line": 484,
             "name": "MCPServerInfo",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 480,
+            "line": 489,
             "name": "MessageCompletePayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 488,
+            "line": 497,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 500,
+            "line": 509,
             "name": "ToolStartPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 505,
+            "line": 514,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 514,
+            "line": 523,
             "name": "ToolCompletePayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 522,
+            "line": 531,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 546,
+            "line": 555,
             "name": "TodoItem",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 553,
+            "line": 562,
             "name": "ToolOutputRiskPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 560,
+            "line": 569,
             "name": "from",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 573,
+            "line": 582,
             "name": "ToolRiskLevel",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 579,
+            "line": 588,
             "name": "ApprovalPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 615,
+            "line": 624,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 630,
+            "line": 639,
             "name": "ClarifyPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 635,
+            "line": 644,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 644,
+            "line": 653,
             "name": "SubagentPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 653,
+            "line": 662,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 666,
+            "line": 675,
             "name": "SubagentCompletePayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 680,
+            "line": 689,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 698,
+            "line": 707,
             "name": "SubagentToolPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 707,
+            "line": 716,
             "name": "from",
             "passes": []
           }
         ],
-        "line_count": 718,
+        "line_count": 727,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/GatewayEvent.swift",
@@ -32725,13 +33060,13 @@
         "touched": true
       },
       {
-        "citations": 3,
+        "citations": 5,
         "component": "hermes-services",
-        "declaration_count": 4,
+        "declaration_count": 6,
         "declarations": [
           {
             "kind": "extension",
-            "line": 6,
+            "line": 7,
             "name": "GatewayClient",
             "passes": [
               "map.client",
@@ -32740,7 +33075,7 @@
           },
           {
             "kind": "func",
-            "line": 12,
+            "line": 13,
             "name": "architectureDescribe",
             "passes": [
               "map.client",
@@ -32749,21 +33084,37 @@
           },
           {
             "kind": "func",
-            "line": 29,
+            "line": 30,
             "name": "architectureCheck",
             "passes": [
               "map.endpoint"
             ]
           },
           {
+            "kind": "func",
+            "line": 45,
+            "name": "architectureHistory",
+            "passes": [
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 60,
+            "name": "architectureDiff",
+            "passes": [
+              "map.endpoint"
+            ]
+          },
+          {
             "kind": "extension",
-            "line": 43,
+            "line": 81,
             "name": "GatewayClient",
             "passes": []
           }
         ],
-        "line_count": 43,
-        "mapped_declarations": 3,
+        "line_count": 81,
+        "mapped_declarations": 5,
         "passes": [
           "map.client",
           "map.endpoint"
@@ -33264,6 +33615,48 @@
         ],
         "path": "Sources/Portal/Services/GatewayClient+Restart.swift",
         "semantic_citations": 2,
+        "touched": true
+      },
+      {
+        "citations": 3,
+        "component": "hermes-services",
+        "declaration_count": 3,
+        "declarations": [
+          {
+            "kind": "extension",
+            "line": 11,
+            "name": "GatewayClient",
+            "passes": [
+              "map.client",
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 15,
+            "name": "serviceLogs",
+            "passes": [
+              "map.client",
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 31,
+            "name": "serviceLogsFollow",
+            "passes": [
+              "map.endpoint"
+            ]
+          }
+        ],
+        "line_count": 43,
+        "mapped_declarations": 3,
+        "passes": [
+          "map.client",
+          "map.endpoint"
+        ],
+        "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+        "semantic_citations": 0,
         "touched": true
       },
       {
@@ -39333,233 +39726,6 @@
         "touched": false
       },
       {
-        "citations": 1,
-        "component": "utilities",
-        "declaration_count": 35,
-        "declarations": [
-          {
-            "kind": "struct",
-            "line": 19,
-            "name": "PortalLogger",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 32,
-            "name": "debug",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 33,
-            "name": "info",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 34,
-            "name": "notice",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 36,
-            "name": "log",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 38,
-            "name": "warning",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 39,
-            "name": "error",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 40,
-            "name": "fault",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 42,
-            "name": "emit",
-            "passes": []
-          },
-          {
-            "kind": "struct",
-            "line": 54,
-            "name": "PortalLogMessage",
-            "passes": []
-          },
-          {
-            "kind": "struct",
-            "line": 65,
-            "name": "StringInterpolation",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 72,
-            "name": "appendLiteral",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 76,
-            "name": "appendInterpolation",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 80,
-            "name": "appendInterpolation",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 84,
-            "name": "appendInterpolation",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 88,
-            "name": "appendInterpolation",
-            "passes": []
-          },
-          {
-            "kind": "enum",
-            "line": 96,
-            "name": "PortalLogPrivacy",
-            "passes": []
-          },
-          {
-            "kind": "enum",
-            "line": 104,
-            "name": "PortalLogFloatFormat",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 107,
-            "name": "render",
-            "passes": []
-          },
-          {
-            "kind": "class",
-            "line": 122,
-            "name": "PortalLogSink",
-            "passes": [
-              "swift.resource.lock.stored"
-            ]
-          },
-          {
-            "kind": "struct",
-            "line": 127,
-            "name": "Statistics",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 152,
-            "name": "defaultLogURL",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 168,
-            "name": "formatLine",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 178,
-            "name": "timestampFormatter",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 187,
-            "name": "record",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 194,
-            "name": "start",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 211,
-            "name": "flush",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 215,
-            "name": "snapshot",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 219,
-            "name": "enqueue",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 234,
-            "name": "write",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 270,
-            "name": "observeLifecycle",
-            "passes": []
-          },
-          {
-            "kind": "struct",
-            "line": 301,
-            "name": "LogFileAppender",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 321,
-            "name": "append",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 341,
-            "name": "currentSize",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 350,
-            "name": "rotate",
-            "passes": []
-          }
-        ],
-        "line_count": 356,
-        "mapped_declarations": 1,
-        "passes": [
-          "swift.resource.lock.stored"
-        ],
-        "path": "Sources/Portal/Utilities/PortalLogger.swift",
-        "semantic_citations": 0,
-        "touched": true
-      },
-      {
         "citations": 6,
         "component": "utilities",
         "declaration_count": 2,
@@ -40122,24 +40288,12 @@
       {
         "citations": 0,
         "component": "operations-state",
-        "declaration_count": 8,
+        "declaration_count": 10,
         "declarations": [
           {
-            "kind": "protocol",
-            "line": 7,
-            "name": "ArchitectureReading",
-            "passes": []
-          },
-          {
             "kind": "class",
-            "line": 16,
-            "name": "ArchitectureSurfaceModel",
-            "passes": []
-          },
-          {
-            "kind": "enum",
-            "line": 17,
-            "name": "Phase",
+            "line": 9,
+            "name": "ArchitectureLogsModel",
             "passes": []
           },
           {
@@ -40150,30 +40304,182 @@
           },
           {
             "kind": "func",
-            "line": 73,
-            "name": "runCheck",
+            "line": 76,
+            "name": "fetchMore",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 88,
-            "name": "checkSummary",
+            "line": 97,
+            "name": "select",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 108,
+            "name": "toggleFollow",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 112,
+            "name": "setFollowing",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 127,
+            "name": "teardown",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 134,
+            "name": "handle",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 149,
+            "name": "apply",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 164,
+            "name": "append",
+            "passes": []
+          }
+        ],
+        "line_count": 171,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/ViewModels/ArchitectureLogsModel.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "operations-state",
+        "declaration_count": 8,
+        "declarations": [
+          {
+            "kind": "class",
+            "line": 10,
+            "name": "ArchitectureRevisionsModel",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 12,
+            "name": "Delta",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 21,
+            "name": "between",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 67,
+            "name": "delta",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 72,
+            "name": "load",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 92,
+            "name": "select",
             "passes": []
           },
           {
             "kind": "func",
             "line": 100,
-            "name": "seconds",
+            "name": "setFrom",
             "passes": []
           },
           {
             "kind": "func",
             "line": 107,
+            "name": "loadDiff",
+            "passes": []
+          }
+        ],
+        "line_count": 132,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/ViewModels/ArchitectureRevisionsModel.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "operations-state",
+        "declaration_count": 9,
+        "declarations": [
+          {
+            "kind": "protocol",
+            "line": 7,
+            "name": "ArchitectureReading",
+            "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 22,
+            "name": "ArchitectureSurfaceModel",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 23,
+            "name": "Phase",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 61,
+            "name": "load",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 80,
+            "name": "load",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 85,
+            "name": "runCheck",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 100,
+            "name": "checkSummary",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 112,
+            "name": "seconds",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 119,
             "name": "friendly",
             "passes": []
           }
         ],
-        "line_count": 113,
+        "line_count": 125,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/ViewModels/ArchitectureSurfaceModel.swift",
@@ -45044,6 +45350,146 @@
         "touched": false
       },
       {
+        "citations": 4,
+        "component": "shared-ui",
+        "declaration_count": 4,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 14,
+            "name": "ArchitectureLogsSectionView",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 75,
+            "name": "sinkCaption",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 151,
+            "name": "copyToClipboard",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 160,
+            "name": "emptyState",
+            "passes": []
+          }
+        ],
+        "line_count": 177,
+        "mapped_declarations": 1,
+        "passes": [
+          "swift.task.structured"
+        ],
+        "path": "Sources/Portal/Views/Architecture/ArchitectureLogsSectionView.swift",
+        "semantic_citations": 0,
+        "touched": true
+      },
+      {
+        "citations": 6,
+        "component": "shared-ui",
+        "declaration_count": 13,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 9,
+            "name": "ArchitectureRevisionsSectionView",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 67,
+            "name": "runtimeCaption",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 74,
+            "name": "timelineRow",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 138,
+            "name": "deltaChips",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 148,
+            "name": "signed",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 150,
+            "name": "chip",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 160,
+            "name": "pill",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 196,
+            "name": "diffHeader",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 239,
+            "name": "diffBody",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 320,
+            "name": "nodeGroups",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 333,
+            "name": "section",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 344,
+            "name": "monoRow",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 353,
+            "name": "emptyState",
+            "passes": []
+          }
+        ],
+        "line_count": 370,
+        "mapped_declarations": 3,
+        "passes": [
+          "swift.task.structured"
+        ],
+        "path": "Sources/Portal/Views/Architecture/ArchitectureRevisionsSectionView.swift",
+        "semantic_citations": 0,
+        "touched": true
+      },
+      {
         "citations": 0,
         "component": "shared-ui",
         "declaration_count": 1,
@@ -45069,18 +45515,18 @@
         "declarations": [
           {
             "kind": "enum",
-            "line": 6,
+            "line": 7,
             "name": "ArchitectureSurfaceTab",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 46,
+            "line": 53,
             "name": "available",
             "passes": []
           }
         ],
-        "line_count": 52,
+        "line_count": 62,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/Architecture/ArchitectureSurfaceTab.swift",
@@ -45227,13 +45673,13 @@
         "touched": false
       },
       {
-        "citations": 2,
+        "citations": 3,
         "component": "shared-ui",
-        "declaration_count": 6,
+        "declaration_count": 8,
         "declarations": [
           {
             "kind": "struct",
-            "line": 9,
+            "line": 8,
             "name": "ArchitectureSurfaceView",
             "passes": [
               "swift.task.structured"
@@ -45241,37 +45687,51 @@
           },
           {
             "kind": "func",
-            "line": 44,
+            "line": 48,
             "name": "close",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 103,
+            "line": 111,
+            "name": "revisionBadge",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 127,
             "name": "checkBadge",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 145,
+            "line": 171,
             "name": "loadedContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 168,
+            "line": 185,
+            "name": "tabbedContent",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 206,
             "name": "sectionContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 183,
+            "line": 223,
             "name": "stateMessage",
             "passes": []
           }
         ],
-        "line_count": 210,
-        "mapped_declarations": 1,
+        "line_count": 250,
+        "mapped_declarations": 2,
         "passes": [
           "swift.task.structured"
         ],
@@ -58522,17 +58982,17 @@
         "id": "map.caller"
       },
       {
-        "citations": 10,
+        "citations": 11,
         "class": "mechanical",
         "description": "A client construction on the system map cites the declaration it was extracted from",
-        "files": 10,
+        "files": 11,
         "id": "map.client"
       },
       {
-        "citations": 72,
+        "citations": 76,
         "class": "mechanical",
         "description": "An endpoint construction on the system map cites the declaration it was extracted from",
-        "files": 11,
+        "files": 12,
         "id": "map.endpoint"
       },
       {
@@ -58718,10 +59178,10 @@
         "id": "swift.resource.combine_subject.stored"
       },
       {
-        "citations": 8,
+        "citations": 7,
         "class": "mechanical",
         "description": "Stored property declared or initialized as NSLock or OSAllocatedUnfairLock",
-        "files": 7,
+        "files": 6,
         "id": "swift.resource.lock.stored"
       },
       {
@@ -58844,10 +59304,10 @@
         "id": "swift.task.stored_handle"
       },
       {
-        "citations": 290,
+        "citations": 301,
         "class": "mechanical",
         "description": "Task initializer with closure",
-        "files": 86,
+        "files": 88,
         "id": "swift.task.structured"
       },
       {
@@ -58872,48 +59332,48 @@
           "total": 4
         },
         "class": {
-          "mapped": 68,
-          "total": 111
+          "mapped": 67,
+          "total": 112
         },
         "enum": {
           "mapped": 8,
-          "total": 292
+          "total": 288
         },
         "extension": {
-          "mapped": 18,
-          "total": 112
+          "mapped": 19,
+          "total": 113
         },
         "func": {
-          "mapped": 402,
-          "total": 3063
+          "mapped": 409,
+          "total": 3091
         },
         "protocol": {
           "mapped": 1,
           "total": 24
         },
         "struct": {
-          "mapped": 94,
-          "total": 812
+          "mapped": 96,
+          "total": 826
         }
       },
-      "citations": 1209,
-      "declarations": 4418,
-      "entities": 155,
-      "entities_with_origin": 155,
-      "files": 395,
+      "citations": 1224,
+      "declarations": 4458,
+      "entities": 157,
+      "entities_with_origin": 157,
+      "files": 399,
       "functions": {
-        "mapped": 402,
-        "total": 3063
+        "mapped": 409,
+        "total": 3091
       },
-      "mapped_declarations": 595,
+      "mapped_declarations": 604,
       "passes": 50,
       "semantic_citations": 254,
-      "touched_files": 151,
+      "touched_files": 153,
       "types": {
-        "mapped": 193,
-        "total": 1355
+        "mapped": 195,
+        "total": 1367
       },
-      "untouched_files": 244
+      "untouched_files": 246
     }
   },
   "interplay": {
@@ -59115,6 +59575,7 @@
           "endpoint:00d6875c0625",
           "endpoint:162f92a74671",
           "endpoint:1f147016b905",
+          "endpoint:2323b19d99c5",
           "endpoint:24738b20b0b3",
           "endpoint:275a028db300",
           "endpoint:2e6276e9cf3e",
@@ -59311,6 +59772,7 @@
           "client:hermes-services:GatewayClient+Learning",
           "client:hermes-services:GatewayClient+Push",
           "client:hermes-services:GatewayClient+Restart",
+          "client:hermes-services:GatewayClient+ServiceLogs",
           "client:hermes-services:GatewayClient+Wiki"
         ],
         "owner_type": "GatewayClient · client files"
@@ -59379,7 +59841,7 @@
     ],
     "constructs": {
       "described": 102,
-      "stale": 70
+      "stale": 15
     },
     "edges": [
       {
@@ -60297,6 +60759,18 @@
       {
         "class": "structure",
         "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+ServiceLogs",
+        "target": "endpoint:2323b19d99c5"
+      },
+      {
+        "class": "structure",
+        "relation": "routes-through",
+        "source": "client:hermes-services:GatewayClient+ServiceLogs",
+        "target": "owner:hermes-services:GatewayClient"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
         "source": "client:hermes-services:GatewayClient+Wiki",
         "target": "endpoint:7e90ead53b58"
       },
@@ -60340,6 +60814,18 @@
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:1f147016b905",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:2323b19d99c5",
+        "target": "external:harness-gateway"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:2323b19d99c5",
         "target": "resource:resource-f4c4baad5555"
       },
       {
@@ -60821,6 +61307,12 @@
         "relation": "dispatches",
         "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:1f147016b905"
+      },
+      {
+        "class": "structure",
+        "relation": "dispatches",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:2323b19d99c5"
       },
       {
         "class": "structure",
@@ -65160,7 +65652,7 @@
         "why": "Sections are assembled per enclosing function; an operation with no resolved scope would silently drop out of its section."
       },
       {
-        "checked": 25,
+        "checked": 26,
         "id": "endpoints-dispatched",
         "kind": "endpoints_dispatched_by_transport",
         "status": "holds",
@@ -65450,7 +65942,7 @@
             "load() runs in the singleton's private init; when ActivityStore.shared is first touched (launch vs. first inbox open) is not visible here."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Singleton holding the activity inbox as an in-memory array of ActivityItem, persisted as JSON to Application Support/portal/activity-items.json. Any mutation of items schedules a 2-second debounced background save. On init it loads from the file, or migrates a legacy UserDefaults blob once and records the migration in UserDefaults. Trims to 500 items, newest first."
         },
         "store": {
@@ -65538,7 +66030,7 @@
             "Which keys the stores and SkillCache/SkillStore write, and whether any are migration markers as the mechanical description says."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "UserDefaults is the platform preference store the app reaches through @AppStorage property wrappers and UserDefaults.standard. Views such as ContentView and ArtifactCanvasView bind small UI choices (chrome collapse, chat skin, artifact view and cell mode) to string keys with declared fallbacks, and stores, view models, and skill services also persist flags and markers to it."
         },
         "sub_kind": "platform-storage",
@@ -65838,7 +66330,7 @@
             "Whether graph snapshots contain sensitive job content (prompts, paths) is not determinable from this excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Shared singleton that keeps an append-only log of distinct cron graph configurations. `observe` hashes the configuration, appends a CronGraphRevision only when the digest differs from the last one, trims to 200 entries, and schedules a 5-second debounced atomic JSON write to Application Support. Exposes latest, parent-by-position, and diff helpers. A testing initializer makes it fully in-memory."
         },
         "store": {
@@ -65954,7 +66446,7 @@
             "unreadCronRunCount is in-memory only and resets each session; whether that is intentional is not stated."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Shared singleton recording one CronRunRecord per observed cron job firing. `detectNewRuns` and `seedFromJobs` compare each job's lastRunAt to a remembered value, append deduped records, trim to 500 per job, post a notification, bump an in-memory unread count, and debounce a 5-second atomic JSON write. Load migrates legacy UserDefaults data to the file once, tracked by a UserDefaults flag."
         },
         "store": {
@@ -66274,7 +66766,7 @@
             "recordRunEnd silently returns when no running event exists for the session; whether that case occurs after a relaunch mid-run is not addressed."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Shared singleton logging SessionRunEvent entries per chat session. `recordRunStart` appends a running event and trims to 200 per session; `recordRunEnd` finds the latest running event for that session and fills in end time, tokens, API calls, cost, and status. Both debounce a 5-second atomic JSON write to Application Support. Load migrates legacy UserDefaults data once, gated by a flag."
         },
         "store": {
@@ -66404,7 +66896,7 @@
             "Whether other conformers exist beyond GatewayClient is not shown in the edges."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "AgentBackend is a seam in the backend-contract component on the shared page. The map records GatewayClient conforming to it, ChatViewModel binding to and holding it, and the seam declaring an eventStream event-bus resource. No source excerpts were supplied, so its protocol requirements are not described here."
         }
       },
@@ -66504,7 +66996,7 @@
             "Whether syncAvailable is set by a probe or by the client wiring is not visible in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "ArtifactStore is a MainActor-style ObservableObject singleton holding living artifacts keyed by id, plus per-slot intent invocation and backend query states. It merges incoming fence bodies via upsert, applies user actions to dataset entries, runs and subscribes declared queries through a weak ArtifactGateway client, and writes the artifact map to portal/artifacts.json in Application Support."
         },
         "store": {
@@ -66633,7 +67125,7 @@
             "saveMessages is fire-and-forget on a detached task; ordering between rapid successive saves of the same session is not addressed."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Singleton that persists per-session chat transcripts as one JSON file per session ID under Application Support/portal/sessions (a per-process /tmp scratch dir in test processes). Saves and deletes run on detached background tasks; loads have sync and async variants. Keeps an in-memory Set of session IDs so hasLocalMessages can answer from SwiftUI body without touching disk."
         },
         "store": {
@@ -66821,7 +67313,7 @@
             "save writes on a detached task while load reads synchronously; whether callers guard against reading before the write lands is not shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "CurriculumStore persists Curriculum values as one JSON file per course id under Application Support/portal/curricula (falling back to /tmp/portal/curricula). save and delete run on detached background tasks with atomic writes; load(id:) and allCurricula() read synchronously, decoding each .json file and sorting newest first. All failures are logged and degrade to nil or an empty list."
         },
         "store": {
@@ -66913,7 +67405,7 @@
             "The class-level @MainActor annotation is not in the excerpt (line 9); main_actor is inferred from nonisolated delegates and Task { @MainActor in } hops."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "FileDownloadManager owns a continuations dictionary keyed by attachment UUID. fetch(url:token:attachmentID:) stores a CheckedContinuation and starts a URLSession download task; nonisolated delegate callbacks hop to the main actor, remove the continuation and resume it with Data or an error. cancel(attachmentID:) cancels the task and resumes the continuation throwing CancellationError."
         },
         "triggers": {
@@ -67084,7 +67576,7 @@
         "id": "client:hermes-services:GatewayClient+Architecture",
         "kind": "client",
         "label": "GatewayClient+Architecture",
-        "line": 17,
+        "line": 18,
         "namespaces": [
           "architecture"
         ],
@@ -67102,17 +67594,27 @@
         "id": "endpoint:933e151c682e",
         "kind": "endpoint",
         "label": "architecture",
-        "line": 17,
-        "method_count": 2,
+        "line": 18,
+        "method_count": 4,
         "methods": [
           {
-            "line": 30,
+            "line": 31,
             "method": "architecture.check",
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
           },
           {
-            "line": 17,
+            "line": 18,
             "method": "architecture.describe",
+            "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
+          },
+          {
+            "line": 64,
+            "method": "architecture.diff",
+            "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
+          },
+          {
+            "line": 48,
+            "method": "architecture.history",
             "path": "Sources/Portal/Services/GatewayClient+Architecture.swift"
           }
         ],
@@ -67868,6 +68370,53 @@
         "cluster": "interplay-cluster-cc716b1d97de",
         "component": "hermes-services",
         "endpoint_ids": [
+          "endpoint:2323b19d99c5"
+        ],
+        "history_key": "client:hermes-services:GatewayClient+ServiceLogs",
+        "id": "client:hermes-services:GatewayClient+ServiceLogs",
+        "kind": "client",
+        "label": "GatewayClient+ServiceLogs",
+        "line": 19,
+        "namespaces": [
+          "service"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+        "sub_kind": "client_extension"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+ServiceLogs.swift"
+        ],
+        "history_key": "endpoint:jsonrpc:service",
+        "id": "endpoint:2323b19d99c5",
+        "kind": "endpoint",
+        "label": "service",
+        "line": 19,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 19,
+            "method": "service.logs",
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift"
+          },
+          {
+            "line": 34,
+            "method": "service.logs.follow",
+            "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "endpoint_ids": [
           "endpoint:7e90ead53b58"
         ],
         "flows": [
@@ -68117,7 +68666,7 @@
             "Is the class effectively main-actor confined for @Published mutation, or are state writes reached from background Tasks?"
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "GatewayClient is the app's single WebSocket JSON-RPC transport to the Hermes gateway. It owns the URLSessionWebSocketTask, correlates requests to responses via an NSLock-guarded pending-continuation map, publishes ConnectionState and SessionInfo, fans decoded events out through a Combine PassthroughSubject, runs a 15s ping keepalive, and auto-reconnects with a capped, budgeted backoff."
         },
         "triggers": {
@@ -68304,7 +68853,7 @@
             "No excerpts were provided, so the method name, request and response shapes, idempotency, and streaming behavior are unverified."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A JSON-RPC namespace named delegation, dispatched by GatewayClient in the hermes-services component and served by the Harness gateway. The map records one method under it. Requests are correlated to responses through the GatewayClient pendingRequests pool. No callers outside GatewayClient are recorded."
         },
         "sub_kind": "rpc_namespace"
@@ -68350,7 +68899,7 @@
             "No excerpts were provided, so the method name, request and response shapes, idempotency, and streaming behavior are unverified."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A JSON-RPC namespace named subagent, dispatched by GatewayClient in the hermes-services component and served by the Harness gateway. The map records one method under it. Request and response correlation goes through the GatewayClient pendingRequests pool. No callers outside GatewayClient are recorded."
         },
         "sub_kind": "rpc_namespace"
@@ -68401,7 +68950,7 @@
             "No excerpts were provided, so the two method names, their request and response shapes, idempotency, and streaming behavior are unverified."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A JSON-RPC namespace named spawn_tree, dispatched by GatewayClient in the hermes-services component and served by the Harness gateway. The map records two methods under it. Requests are correlated to responses through the GatewayClient pendingRequests pool. No callers outside GatewayClient are recorded."
         },
         "sub_kind": "rpc_namespace"
@@ -68634,7 +69183,7 @@
             "What credential the Onboarding 'Authentication' section supplies and how it is attached to the WebSocket handshake."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "The Harness gateway is the Hermes fork backend that GatewayClient reaches over a URLSessionWebSocketTask at a user-entered /v1/ws URL. Requests are JSON-RPC with an incrementing id and a CheckedContinuation per pending call, and every chat, session, wiki, skills, cron, learning, and artifact endpoint is served across this one connection, with events flowing back for the DAG."
         },
         "sub_kind": "backend",
@@ -69006,7 +69555,7 @@
             "No excerpts were provided, so the two method names, request and response shapes, idempotency, and streaming behavior are unverified."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A JSON-RPC namespace named skills, dispatched by GatewayClient in the hermes-services component and served by the Harness gateway. The map records two methods under it. It is invoked by SkillCache, SkillStore, and SkillsViewModel, with responses correlated through the GatewayClient pendingRequests pool."
         },
         "sub_kind": "rpc_namespace"
@@ -69067,7 +69616,7 @@
             "Whether the skill callers invoke commands directly or the caller edges are inherited from a shared code path is not settled."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A JSON-RPC namespace named commands, dispatched by GatewayClient in the hermes-services component and served by the Harness gateway. The map records one method under it. It shares its caller set with the skills namespace: SkillCache, SkillStore, and SkillsViewModel. Responses are correlated through the GatewayClient pendingRequests pool."
         },
         "sub_kind": "rpc_namespace"
@@ -69113,7 +69662,7 @@
             "No excerpts were provided, so the method name, request and response shapes, idempotency, and streaming behavior are unverified."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A JSON-RPC namespace named slash, dispatched by GatewayClient in the hermes-services component and served by the Harness gateway. The map records one method under it. Requests are correlated to responses through the GatewayClient pendingRequests pool. No callers outside GatewayClient are recorded."
         },
         "sub_kind": "rpc_namespace"
@@ -69182,7 +69731,7 @@
             "Whether any activity method delivers updates as a stream or notification rather than request-response is not settled."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A JSON-RPC namespace named activity, dispatched by GatewayClient in the hermes-services component and served by the Harness gateway. The map records four methods under it. Its sole recorded caller is ActivityInboxViewModel. Responses are correlated through the GatewayClient pendingRequests pool."
         },
         "sub_kind": "rpc_namespace"
@@ -69608,7 +70157,7 @@
             "No source excerpts were provided; the twelve method names, their shapes, idempotency, and streaming behaviour are unverified."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "The artifact namespace is the largest JSON-RPC endpoint group in the map, with twelve methods dispatched by GatewayClient to the Harness gateway and correlated via the pendingRequests pool. No caller outside GatewayClient is mapped for it."
         },
         "sub_kind": "rpc_namespace"
@@ -69851,7 +70400,7 @@
             "Write timing is inferred from a comment describing SettingsViewModel didSet persistence, not from SettingsViewModel source in this packet."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Sendable singleton wrapping the macOS Keychain under service com.hermes.native. All writes funnel through an update-first upsert that refuses to touch the live accounts (api-key, gateway-url, gateways) from a test process. Reads return a ReadOutcome that distinguishes missing from failed so callers never overwrite an unreadable item. Saved gateways are stored as a JSON-encoded [SavedGateway] blob."
         },
         "store": {
@@ -69927,7 +70476,7 @@
             "Whether reads and deletes exist alongside the save path shown, and how their OSStatus errors are reported."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "The Keychain is the secure store KeychainStore uses for gateway API keys, OAuth tokens, and Access cookies through Security framework SecItem calls. Writes identify an item by service and account, try SecItemUpdate first, fall back to SecItemAdd with after-first-unlock accessibility, and retry the update if a concurrent writer wins the add race."
         },
         "sub_kind": "platform-storage",
@@ -70010,7 +70559,7 @@
             "pushCourse and pushDeckIfNew are called but not in the excerpt; whether they honor allowsUpstreamPush is unverified."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "LearningStore is an ObservableObject singleton owning courses, decks and quiz attempts as @Published values, persisted via private CurriculumStore, QuizStore and SRSStore backends. With a LearningGateway set it subscribes to eventStream for .learningChanged, refetches changed entities with a rev guard, and records progress and reviews upstream as fire-and-forget tasks."
         },
         "store": {
@@ -70171,7 +70720,7 @@
             "Who calls prepare(model:) and when, so whether loading is effectively on setting change or on first stream is not shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Actor that runs the spoken-discussion chat model on device via MLX. It lazily loads a ModelContainer for the selected LocalChatModel, reloading when the model changes, and keeps one ChatSession per set of instructions so turns share context. Generation streams tokens at utility priority; cancellation stops the task, and endSession drops the session and reclaims MLX buffer cache."
         },
         "triggers": {
@@ -70235,7 +70784,7 @@
             "The excerpts do not show how MLXReasoningSummarizer or SkillSummaryService call MLX or whether they share the chat engine's ModelContainer."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Apple MLX is the in-process ML runtime that MLXLocalChatEngine, MLXReasoningSummarizer, and SkillSummaryService run on for on-device language-model inference. The chat engine actor loads weights into a ModelContainer via LLMModelFactory.shared.loadContainer, keyed by the selected LocalChatModel so a Settings change reloads rather than reusing old weights, and keeps a session for continuity."
         },
         "sub_kind": "ml-runtime",
@@ -70412,7 +70961,7 @@
             "The excerpts do not show where neural voice CoreML models come from or whether any download or entitlement is required."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "On-device speech synthesis that speaks assistant replies locally without audio leaving the device. TTSService runs on it. LocalVoiceEngine is compiled only when FluidAudio can be imported and pulls in AVFoundation, CoreML, and FluidAudio for neural voices, logging through an os Logger under the com.ethenotethan.Portal subsystem with the LocalVoiceEngine category."
         },
         "sub_kind": "on-device-engine",
@@ -70491,7 +71040,7 @@
             "Which caller invokes syncIfNeeded after connect and requestDeviceToken at launch is not shown in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "PushRegistrationService is an ObservableObject singleton that requests an APNs device token from the OS, stores the hex token from the app delegate callback, and registers it with a connected gateway via GatewayClient.registerPushToken once per gateway URL and token. It records whether the gateway reported APNs credentials and treats a missing push.register method as non-fatal."
         },
         "sub_kind": "page",
@@ -70564,7 +71113,7 @@
             "Whether LearningStore calls allQuizzes at launch or only when the learning page appears; the excerpt shows only the API."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A singleton class that persists completed quiz sessions as one JSON file per session under Application Support/portal/quizzes. Saves encode a PersistedQuizSession on a detached background task with an atomic write; listing scans the directory, decodes every .json file, skips undecodable ones with a log, and sorts newest first. Deletes remove the file by id in the background."
         },
         "store": {
@@ -70663,7 +71212,7 @@
             "Whether this container is shared with SkillSummaryService or loaded separately into memory is not shown in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Main-actor class that buffers an agent's reasoning trace and, on summarize, extracts decision points as JSON using Gemma 3 1B through MLX. The model container loads lazily off the main actor on first summarize; each call builds a fresh ChatSession in a detached utility task. If the model is not ready it falls back to HeuristicReasoningSummarizer."
         },
         "triggers": {
@@ -70776,7 +71325,7 @@
             "When LearningStore triggers loadDeck versus allDecks (launch, page appear, or review event) is not visible in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "A singleton class that persists flashcard decks as one JSON file per deck under Application Support/portal/srs-decks. Saves encode a FlashcardDeck on a detached background task with an atomic write; a single deck can be loaded by id, or all decks listed by scanning the directory and decoding each .json file, logging and skipping failures. Deletes remove the deck file in the background."
         },
         "store": {
@@ -70889,7 +71438,7 @@
             "Which owner holds this service and calls pullIfDue/schedulePush; no caller appears in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "SessionMetaSyncService mirrors per-session metadata (custom title, pinned, archived, tags, updatedAt) to the gateway under one config key. It throttles pulls to a 10-second window, debounces pushes by about 2 seconds, merges remote and local documents newest-entry-wins, and disables itself when the gateway answers config.* calls with method-not-found."
         },
         "sub_kind": "page",
@@ -71009,7 +71558,7 @@
             "backgroundRefresh is described as diff-merging but load replaces the array wholesale."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "SkillCache is a singleton holding a lightweight list of SkillInfo loaded from the gateway. It seeds from SkillCacheDisk on init, lists skills via the gateway, falls back to scanning slash commands when the list is empty, preserves lazily loaded content across reloads, saves non-empty results back to disk, and reads single SKILL.md files on demand."
         },
         "store": {
@@ -71241,7 +71790,7 @@
             "preFetchTask and syncTimer are declared but their use is not in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "SkillStore is the shared skill catalog used by ChatViewModel and SkillsViewModel. It loads from SkillStoreDisk on init, lists skills from the gateway with a slash-command scan fallback, inspects skills for full metadata with throttled RPCs, lazily reads SKILL.md content, persists to disk, and runs a one-shot background summary pregeneration through SkillSummaryService."
         },
         "store": {
@@ -71319,7 +71868,7 @@
             "Who calls warmUp and prepareModel (SkillStore or SkillsViewModel) and at what lifecycle point is not shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Singleton that produces 2-3 sentence summaries of skill markdown with Gemma 3 1B via MLX, on macOS only. Summaries are cached on disk in Application Support keyed by skill name and a stable content hash. Generations are serialized through a task chain, and each call builds a fresh ChatSession in a detached utility task. On iOS or without MLX it fails over to an extractive fallback."
         },
         "triggers": {
@@ -71414,7 +71963,7 @@
             "Which neural model is linked and what memory it needs; the excerpt only names the default voice id \"alba\" and a defaultNeuralEngine() factory."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "TTSService is a main-actor ObservableObject singleton that voices assistant replies. It owns an AVSpeechSynthesizer behind a SpeechSynthesizing protocol, optionally wraps a linked neural voice engine, chunks streamed deltas into sentence batches, tracks in-flight utterances per message, and persists voice, rate, warmth and neural-voice settings in UserDefaults. ChatViewModel drives it."
         },
         "triggers": {
@@ -71489,7 +72038,7 @@
             "Writes happen on cache miss inside localFile(for:), which none of the written_when options describe."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "VideoCache is a singleton that downloads full video files over a dedicated URLSession and stores them in Caches/hermes-videos, named by a hash of the remote URL with the original extension. localFile(for:) returns the cached path on hit, otherwise downloads, moves the file into place, and coalesces concurrent requests for one URL via an in-memory task dictionary. Download and move errors throw."
         },
         "store": {
@@ -71599,7 +72148,7 @@
             "Whether WikiGraph contents include sensitive data is not visible here."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Struct that persists one JSON file per (identity, wiki) key under Application Support/portal/wiki-graph-cache. load(identity:wiki:) decodes a WikiGraph off the main actor and returns nil on a missing or unreadable file; store(_:identity:wiki:) fire-and-forgets an atomic encoded write on a background task. Failures are logged, never surfaced; the live scan remains the source of truth."
         },
         "store": {
@@ -71724,7 +72273,7 @@
             "subagentComplete items are upserted without a notification; whether that is intentional is not stated."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "ActivityInboxViewModel publishes the activity inbox for the UI. It mirrors ActivityStore.shared, subscribes to the gateway event stream, fetches up to 200 items on refresh, marks read and dismisses via gateway RPC with local fallback, and synthesizes ActivityItems from approval, clarify, sudo, secret, background-complete, error, and subagent events, posting local notifications for most."
         },
         "sub_kind": "page",
@@ -71796,7 +72345,7 @@
             "Who calls setGatewayClient and refresh is outside the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "ActivityInboxViewModel is an ObservableObject mirroring ActivityStore.shared into a published items list. It subscribes to a GatewayClient eventStream on the main run loop and turns activity, approval, clarify, sudo, secret, background, error and subagent events into ActivityItems, upserting them and notifying. Read, dismiss and refresh try the gateway RPC first, then fall back to the local store."
         },
         "subscription": {
@@ -72381,7 +72930,7 @@
             "Whether the class is @Observable or otherwise observed is not visible in the excerpt (no @Published markers)."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Holds the cron job list and the cron interflow graph for the cron page. refreshJobs() lists jobs, preserves already-fetched full prompts, feeds CronRunHistoryStore.shared, then loads the graph non-fatally. Pause, resume, remove, prompt update and rename go through cron.manage; in-band refusals are surfaced as renameError and promptError."
         },
         "sub_kind": "page",
@@ -72456,7 +73005,7 @@
             "Which view or lifecycle hook invokes loadFeed and refresh is not shown in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "An ObservableObject backing the feed page. loadFeed fetches source counts and the first page of articles from the gateway, then auto-loads remaining pages in the background. Duplicate article IDs from the backend are suffixed so SwiftUI ForEach keeps them. Source selection toggles a filter and refreshes; tweetDetail proxies the on-demand detail RPC."
         },
         "sub_kind": "page",
@@ -72607,7 +73156,7 @@
             "Whether SystemPromptSection only reads capabilities or also triggers refresh is not visible."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "ObservableObject holding the negotiated GatewayCapabilities in memory, starting from conservative defaults. refresh(using:) asks a GatewayClient for capabilities, publishes the result, logs a diagnostic summary, and records a fallback reason in lastRefreshError. reset(reason:) drops back to a fallback set. Nothing is persisted."
         },
         "store": {
@@ -72850,7 +73399,7 @@
             "Who calls syncFromGateway and adoptGatewayPersona, and at which lifecycle points."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "An ObservableObject that owns the active Persona for the chat page. It can adopt a persona built from a SavedGateway, or derive one from the connected gateway by calling GatewayClient.getConfig for the persona, personality, and full config keys, then parsing an optional persona markdown body into a name, tagline, and system prompt suffix."
         },
         "sub_kind": "page",
@@ -72949,7 +73498,7 @@
             "refreshSessions and the session.list call are truncated; the exact invoked gateway method is not shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "ObservableObject backing the sessions sidebar. Publishes the session list, active ID, loading and archived-section flags; holds an optional GatewayClient; keeps local titles, pins, archives, tags and gateway ID map in UserDefaults via a 500ms coalesced flush; merges cross-device metadata through SessionMetaSyncService; resolves missing titles from ChatHistoryStore off the main thread."
         },
         "sub_kind": "page",
@@ -73013,7 +73562,7 @@
             "Whether the Combine cancellables subscribe to anything is not visible."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "As a subscriber, SessionListViewModel tracks client-observed live run states per session so sidebar icons stay current when the gateway's session list lacks run state. It persists local titles, pins, archives, tags, and ID mappings to UserDefaults through a coalesced flush, and reads first user messages from ChatHistoryStore off the main thread to fill missing titles."
         },
         "subscription": {
@@ -73139,7 +73688,7 @@
             "persistGateways and the single-gateway migration body are referenced but not visible in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Main-actor ObservableObject holding Portal's user settings. At init it reads the harness URL, API key and saved gateways from KeychainStore as read outcomes, may prefill from an installer bootstrap file, and goes read-only when the Keychain refuses a read. Property didSet hooks write back to the Keychain and UserDefaults, publish celebration preferences, and resync the active gateway."
         },
         "triggers": {
@@ -73241,7 +73790,7 @@
             "hasLoaded and lastRawResponse are declared but never written or read in the excerpt; their role is not shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "SkillsViewModel is the state object for the skills page. It reads the skill list, loading flags and error from the shared SkillStore, and holds a GatewayClient for search, install, uninstall, reload, markdown read/write and diagnostic calls. It also caches per-skill summary states produced by SkillSummaryService."
         },
         "sub_kind": "page",
@@ -73416,7 +73965,7 @@
             "Which extension files implement loadEventTypes, layout settle and type colors is referenced in comments but not in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "WikiGraphViewModel is the ObservableObject behind the wiki graph page. It holds the loaded WikiGraph, a shared page-selection plane with back/forward stacks and a content cache, layout and visibility toggles for reader, file tree, timeline and events page, and a force-directed simulation state for 2D and 3D rendering with search and taxonomy filtering."
         },
         "sub_kind": "page",
@@ -73495,7 +74044,7 @@
             "lastClient is set only in start and loadMore, not in reload(client:); a filter change after a bare reload(client:) call may have no client."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "WikiTimelineViewModel is the ObservableObject for the wiki changeset timeline. It pages through wikiChangesets results from a GatewayClient with an optional wiki, page and action filter, guards against stale loads with a generation counter, deduplicates on load-more, and lazily fetches per-changeset unified diffs into a keyed DiffState cache."
         },
         "sub_kind": "page",
@@ -73620,7 +74169,7 @@
             "No edges reach this node; which views call document(for:) is not visible in the packet."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Process-wide, NSLock-guarded in-memory LRU of parsed LongResponseDocument values keyed by the markdown string's hashValue. document(for:) returns a hit and refreshes its recency, or parses on miss and inserts, evicting the oldest entries beyond 24. Never persisted; DEBUG builds expose a parse counter and reset hook."
         },
         "store": {
@@ -73764,7 +74313,7 @@
             "The SessionUsage model and the exact JSON-RPC session method behind sessionUsage are not in the excerpt."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Compact SwiftUI badge in the chat page showing token in/out counts, cost, and context percent for the current session. It observes ChatViewModel and re-fetches via the GatewayClient sessionUsage method whenever the session ID or streaming flag changes, but only when streaming has stopped and the client is connected."
         },
         "sub_kind": "page",
@@ -73838,7 +74387,7 @@
             "savePrompt and firstActiveSessionID bodies are truncated; the gateway methods they call are not shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Settings section that loads a PromptBreakdown for a session via the GatewayClient promptBreakdown method, shows token stat tiles and a context utilization bar, lists expandable prompt sections, and offers an ephemeral prompt override editor with Clear and Apply. Falls back to the first active session when no session ID is passed and maps error 4001 to a friendly message."
         },
         "sub_kind": "page",
@@ -73912,7 +74461,7 @@
             "Whether GatewayClientWrapper, XAuthService, and CelebrationManager are omitted from triggers deliberately."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "Two SwiftUI App roots, PortalAppIOS and PortalAppMac, create the app-wide state objects at launch (SettingsViewModel, SessionListViewModel, PersonaManager, SpawnTreeStore, GatewayClientWrapper, GatewayCapabilitiesStore, CelebrationManager, TTSService, XAuthService) and inject them into ContentView. The Mac root also adds a Settings scene, a MenuBarExtra, and suppresses app termination."
         },
         "type_count": 2
@@ -74088,7 +74637,7 @@
             "What the iOS body looks like; only the macOS sidebar is shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "SettingsView is the settings page with a sidebar of app sections (appearance, notifications, celebrations, speech, X) plus one entry per saved gateway from SettingsViewModel. On macOS it renders a two-pane layout and falls back to appearance when the selected gateway is removed; iOS uses a separate body. It observes GatewayCapabilitiesStore, GatewayClientWrapper, and ThemeManager."
         },
         "type_count": 50
@@ -74382,7 +74931,7 @@
             "VideoCache does not appear in the FeedView excerpt; which view or view model reads it is not shown."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": true,
+          "stale": false,
           "summary": "The Feed page is rooted in FeedView, which owns a FeedViewModel and per-feed embed caches for tweets, YouTube and GitHub releases. It shows a source filter bar, an error row with retry, empty and skeleton states, and a lazy article list that picks a card type per article. The initial task loads the feed through the gateway client, and reaching the last card loads more."
         },
         "type_count": 60
@@ -74537,7 +75086,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 134
+        "type_count": 148
       },
       {
         "components": [],
@@ -78450,12 +78999,12 @@
     "unattributed_triggers": 444
   },
   "inventory": {
-    "assigned_files": 393,
-    "declarations": 1221,
-    "files": 393,
-    "lines": 120421,
-    "swift_files": 393,
-    "swift_lines": 120421,
+    "assigned_files": 397,
+    "declarations": 1232,
+    "files": 397,
+    "lines": 116103,
+    "swift_files": 397,
+    "swift_lines": 116103,
     "unassigned_files": []
   },
   "layers": [
@@ -78487,7 +79036,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "20d9e9ee351c72babdc5e11356be03d8f0473193a57577108977958c9b53fa73",
+  "source_tree_sha256": "a84523a63b665de9016d8e89493a1037ece229cbcf3f61d005df4448c2a762c1",
   "stores": {
     "by_persistence": {
       "defaults": 6,

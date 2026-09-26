@@ -12,7 +12,6 @@ excluded:
   # index.html / app.js / styles.css held in raw string literals so Portal can
   # render any service's architecture model natively. Not Swift to lint — three
   # web assets — and `--check` keeps it in sync with the site files.
-  - Sources/Portal/Models/ArchitectureObservatoryAssets.swift
 
 opt_in_rules:
   - empty_count
