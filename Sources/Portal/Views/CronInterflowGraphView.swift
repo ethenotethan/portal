@@ -40,6 +40,8 @@ internal struct CronInterflowGraphView: View {
     /// full-screen surface. The legend stacks kinds, cron categories, and group
     /// toggles, so on a busy graph folding it away reclaims real estate.
     @AppStorage("cronGraphLegendExpanded") private var isLegendExpanded = true
+    /// The stats card toggle, remembered per graph surface.
+    @AppStorage("portal.graphStats.cron") private var showGraphStats = false
 
     internal var body: some View {
         ZStack {
@@ -95,6 +97,7 @@ internal struct CronInterflowGraphView: View {
                 CronGraphCanvas(viewModel: viewModel)
                 legendOverlay
                 controlsOverlay
+                statsOverlay
             }
             if showsInlineDetailCard, let node = viewModel.selectedNode {
                 Divider().overlay(Theme.border)
@@ -160,6 +163,10 @@ internal struct CronInterflowGraphView: View {
             HStack(spacing: 10) {
                 commitmentChip
                 Spacer()
+                controlButton(system: "chart.bar.doc.horizontal", isActive: showGraphStats) {
+                    showGraphStats.toggle()
+                }
+                .help(showGraphStats ? "Hide graph stats" : "Graph stats — nodes, edges, structure")
                 controlButton(system: "clock.arrow.circlepath",
                               isActive: viewModel.showRevisions) {
                     viewModel.showRevisions.toggle()
@@ -193,6 +200,22 @@ internal struct CronInterflowGraphView: View {
             Spacer()
         }
         .padding(14)
+    }
+
+    @ViewBuilder
+    private var statsOverlay: some View {
+        if showGraphStats {
+            VStack {
+                Spacer()
+                HStack {
+                    GraphStatsPanel(title: "Runtime graph", stats: viewModel.graphStats)
+                        .equatable()
+                    Spacer()
+                }
+            }
+            .padding(14)
+            .transition(.opacity)
+        }
     }
 
     /// The graph's commitment — a content address for the dataflow as

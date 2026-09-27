@@ -3432,7 +3432,7 @@
         "owner_type": "WikiGraphViewModel",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-b2904b861fac"
+          "task-site-c3c42c2d08c1"
         ]
       }
     ],
@@ -7334,11 +7334,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "Task.detached(priority: .userInitiated) { [weak self] in",
-          "line": 753,
+          "line": 762,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ac07e6cb0cd4",
+        "id": "task-site-5251126b23e1",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -7350,11 +7350,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "private var interactionSettleTask: Task<Void, Never>?",
-          "line": 870,
+          "line": 879,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b2904b861fac",
+        "id": "task-site-c3c42c2d08c1",
         "kind": "stored_task_handle",
         "label": "interactionSettleTask",
         "rule_id": "swift.task.stored_handle"
@@ -7366,11 +7366,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "interactionSettleTask?.cancel()",
-          "line": 877,
+          "line": 886,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-173be6ec196d",
+        "id": "task-site-34c19351c5b2",
         "kind": "task_cancellation",
         "label": "interactionSettleTask",
         "rule_id": "swift.task.cancel"
@@ -7382,11 +7382,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "interactionSettleTask = Task { @MainActor [weak self] in",
-          "line": 878,
+          "line": 887,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-d27b5fa476f8",
+        "id": "task-site-d82f8d7b464c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7398,11 +7398,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "Task.detached(priority: .userInitiated) {",
-          "line": 1048,
+          "line": 1057,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b5d343373448",
+        "id": "task-site-fe23f00db28d",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -8758,11 +8758,11 @@
         "enclosing_type": "CronInterflowGraphView",
         "evidence": {
           "excerpt": "Task { await viewModel.refreshRuntimeState(client: gatewayClientWrapper.client) }",
-          "line": 65,
+          "line": 67,
           "path": "Sources/Portal/Views/CronInterflowGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-fe2c176f9299",
+        "id": "task-site-426aadb8cdcc",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8774,11 +8774,11 @@
         "enclosing_type": "CronInterflowGraphView",
         "evidence": {
           "excerpt": "Task { await viewModel.load(client: gatewayClientWrapper.client) }",
-          "line": 69,
+          "line": 71,
           "path": "Sources/Portal/Views/CronInterflowGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-99c1abe695bc",
+        "id": "task-site-f650b5497ed0",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8790,11 +8790,11 @@
         "enclosing_type": "CronInterflowGraphView",
         "evidence": {
           "excerpt": "Task { await viewModel.load(client: gatewayClientWrapper.client) }",
-          "line": 148,
+          "line": 151,
           "path": "Sources/Portal/Views/CronInterflowGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ce4a2de7055d",
+        "id": "task-site-fa8b80d812ef",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8806,11 +8806,11 @@
         "enclosing_type": "CronInterflowGraphView",
         "evidence": {
           "excerpt": "Task { await viewModel.load(client: gatewayClientWrapper.client) }",
-          "line": 171,
+          "line": 178,
           "path": "Sources/Portal/Views/CronInterflowGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-16000f0883c3",
+        "id": "task-site-4e48cb7857dc",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10406,11 +10406,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "Task { await loadGraph(wiki: wiki, generation: generation) }",
-          "line": 115,
+          "line": 118,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-96f4b998a2b4",
+        "id": "task-site-28b2dc6d730d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10422,11 +10422,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "Task { await attemptInitialLoad() }",
-          "line": 145,
+          "line": 148,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-4d19421088b6",
+        "id": "task-site-a76da6a59d82",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10438,11 +10438,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "Task { await attemptInitialLoad() }",
-          "line": 157,
+          "line": 160,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c288a8bbf73d",
+        "id": "task-site-7890e6533508",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10453,12 +10453,12 @@
         "enclosing_function": null,
         "enclosing_type": "WikiGraphView",
         "evidence": {
-          "excerpt": "onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } }",
-          "line": 370,
+          "excerpt": "onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } },",
+          "line": 373,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-892f50c9aedf",
+        "id": "task-site-46ca5385e740",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10470,11 +10470,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "Task { await loadGraph(wiki: viewModel.selectedWikiPath) }",
-          "line": 436,
+          "line": 448,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5ade52af9e09",
+        "id": "task-site-005bc4505ff7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -13654,7 +13654,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17980,
+      "line_count": 18003,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13748,7 +13748,7 @@
       "id": "wiki-ui",
       "label": "Wiki",
       "layer": "experience",
-      "line_count": 5021
+      "line_count": 5047
     },
     {
       "declaration_count": 128,
@@ -14241,7 +14241,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 7198,
+      "line_count": 7216,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14296,7 +14296,7 @@
       "id": "wiki-state",
       "label": "Wiki state",
       "layer": "orchestration",
-      "line_count": 1512
+      "line_count": 1521
     },
     {
       "declaration_count": 20,
@@ -14693,7 +14693,7 @@
       }
     },
     {
-      "declaration_count": 358,
+      "declaration_count": 362,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -14853,6 +14853,7 @@
         "CurriculumStepProgress",
         "DashboardLayout",
         "DashboardPanel",
+        "Degree",
         "DelegationBatch",
         "DelegationBatchHistoryStore",
         "DelegationBatchMessage",
@@ -14901,6 +14902,7 @@
         "GatewayRestartPhase",
         "GatewayRestartRequestOutcome",
         "GitInfo",
+        "GraphStats",
         "GraphSurface",
         "HTMLArtifactQueryBridge",
         "HTMLArtifactQueryRequest",
@@ -14973,12 +14975,14 @@
         "ResultMark",
         "Ribbon",
         "Role",
+        "Row",
         "RunStatus",
         "SRSQuality",
         "SRSState",
         "SankeyLayout",
         "SankeySpec",
         "SavedGateway",
+        "Section",
         "Segment",
         "Segments",
         "SentenceChunker",
@@ -15056,7 +15060,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 95,
+      "file_count": 96,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -15104,6 +15108,7 @@
         "Sources/Portal/Models/GatewayCapabilities.swift",
         "Sources/Portal/Models/GatewayDebugSnapshot.swift",
         "Sources/Portal/Models/GatewayRestartOutcome.swift",
+        "Sources/Portal/Models/GraphStats.swift",
         "Sources/Portal/Models/GraphSurface.swift",
         "Sources/Portal/Models/HardwareProfile.swift",
         "Sources/Portal/Models/Identicon.swift",
@@ -15157,7 +15162,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 18696,
+      "line_count": 18919,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -15201,7 +15206,7 @@
       }
     },
     {
-      "declaration_count": 116,
+      "declaration_count": 117,
       "declarations": [
         "ANDGateShape",
         "AppFontSettingsSection",
@@ -15269,6 +15274,7 @@
         "GitHubMarkView",
         "GitHubReleaseCard",
         "GitHubReleaseCard_Previews",
+        "GraphStatsPanel",
         "GraphSurfaceChromePlacement",
         "GraphSurfaceMenu",
         "GraphSurfaceTitle",
@@ -15322,7 +15328,7 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 54,
+      "file_count": 55,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -15354,6 +15360,7 @@
         "Sources/Portal/Views/GatewayRestartSection.swift",
         "Sources/Portal/Views/GitHubLinkCard.swift",
         "Sources/Portal/Views/GitHubReleaseCard.swift",
+        "Sources/Portal/Views/GraphStatsPanel.swift",
         "Sources/Portal/Views/GraphsView.swift",
         "Sources/Portal/Views/HarnessConnectionStatus.swift",
         "Sources/Portal/Views/InAppBrowserView.swift",
@@ -15382,7 +15389,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 11782,
+      "line_count": 11868,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -15774,7 +15781,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 18 declaration(s) owned by domain-models.",
+      "description": "References 19 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/HermesNativeApp.swift",
         "Sources/Portal/Views/ContentView.swift",
@@ -15795,12 +15802,12 @@
         "PromptBreakdown",
         "PromptSection",
         "SavedGateway",
-        "Session",
-        "Task"
+        "Section",
+        "Session"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 24
+      "weight": 25
     },
     {
       "authority": "observed",
@@ -16628,7 +16635,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 27 declaration(s) owned by domain-models.",
+      "description": "References 28 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -16659,7 +16666,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 38
+      "weight": 39
     },
     {
       "authority": "observed",
@@ -17598,7 +17605,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 96 declaration(s) owned by domain-models.",
+      "description": "References 97 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/ArchitectureExtractionLayout.swift",
@@ -17630,7 +17637,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 123
+      "weight": 124
     },
     {
       "authority": "observed",
@@ -17827,7 +17834,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 61 declaration(s) owned by domain-models.",
+      "description": "References 62 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryEditor.swift",
@@ -17859,7 +17866,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 113
+      "weight": 114
     },
     {
       "authority": "observed",
@@ -17960,10 +17967,11 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by shared-ui.",
+      "description": "References 14 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/CronDashboardView.swift",
         "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronSessionView.swift",
@@ -17972,8 +17980,7 @@
         "Sources/Portal/Views/MissionControl/CronDashboardCanvas.swift",
         "Sources/Portal/Views/MissionControl/SessionsDashboardCanvas.swift",
         "Sources/Portal/Views/MissionControl/SessionsDetailPanel.swift",
-        "Sources/Portal/Views/SessionExportMenu.swift",
-        "Sources/Portal/Views/SessionListView.swift"
+        "Sources/Portal/Views/SessionExportMenu.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -17981,18 +17988,18 @@
         "ChatSkin",
         "FlowLayout",
         "GitHubReleaseCard",
+        "GraphStatsPanel",
         "GraphSurfaceMenu",
         "GraphsView",
         "InAppBrowserLink",
         "InAppBrowserView",
         "Layout",
         "PortalProgressView",
-        "ThemedSegmentedControl",
-        "TweetPostCard"
+        "ThemedSegmentedControl"
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 31
+      "weight": 33
     },
     {
       "authority": "observed",
@@ -18092,7 +18099,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 49
+      "weight": 50
     },
     {
       "authority": "observed",
@@ -18183,7 +18190,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 67 declaration(s) owned by domain-models.",
+      "description": "References 69 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -18215,7 +18222,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 119
+      "weight": 122
     },
     {
       "authority": "observed",
@@ -18773,7 +18780,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 7 declaration(s) owned by domain-models.",
+      "description": "References 8 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/WikiGraphViewModel+EventTypes.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
@@ -18781,6 +18788,7 @@
       ],
       "source": "wiki-state",
       "symbols": [
+        "GraphStats",
         "Source",
         "Task",
         "TaxonomyNode",
@@ -18791,7 +18799,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 10
+      "weight": 11
     },
     {
       "authority": "observed",
@@ -18920,7 +18928,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 14 declaration(s) owned by domain-models.",
+      "description": "References 15 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/Wiki/WikiChangesetInlineDiff.swift",
         "Sources/Portal/Views/Wiki/WikiDockedReader.swift",
@@ -18939,6 +18947,7 @@
       "symbols": [
         "EventType",
         "GraphSurface",
+        "Section",
         "Source",
         "Task",
         "Trigger",
@@ -18947,12 +18956,11 @@
         "WikiEventKind",
         "WikiEventRef",
         "WikiEventTimeline",
-        "WikiEventTypeRegistry",
-        "WikiPage"
+        "WikiEventTypeRegistry"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 29
+      "weight": 30
     },
     {
       "authority": "observed",
@@ -19025,7 +19033,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by shared-ui.",
+      "description": "References 5 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/Wiki/WikiChangesetInlineDiff.swift",
         "Sources/Portal/Views/Wiki/WikiEventFeedView.swift",
@@ -19038,13 +19046,14 @@
       "source": "wiki-ui",
       "symbols": [
         "FlowLayout",
+        "GraphStatsPanel",
         "GraphSurfaceMenu",
         "Layout",
         "PortalProgressView"
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 11
+      "weight": 12
     },
     {
       "authority": "observed",
@@ -19424,7 +19433,7 @@
       },
       {
         "authority": "observed",
-        "description": "7 signature hit(s) across 6 file(s).",
+        "description": "8 signature hit(s) across 6 file(s).",
         "evidence": [
           "Sources/Portal/Views/CronInterflowGraphView.swift",
           "Sources/Portal/Views/MissionControl/CronDashboardCanvas.swift",
@@ -19436,18 +19445,19 @@
         "source": "operations-ui",
         "target": "user-defaults",
         "type": "uses",
-        "weight": 7
+        "weight": 8
       },
       {
         "authority": "observed",
-        "description": "2 signature hit(s) across 1 file(s).",
+        "description": "3 signature hit(s) across 2 file(s).",
         "evidence": [
+          "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
           "Sources/Portal/Views/GraphsView.swift"
         ],
         "source": "shared-ui",
         "target": "user-defaults",
         "type": "uses",
-        "weight": 2
+        "weight": 3
       },
       {
         "authority": "observed",
@@ -19468,6 +19478,17 @@
           "Sources/Portal/Utilities/MainThreadWatchdog.swift"
         ],
         "source": "utilities",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 1
+      },
+      {
+        "authority": "observed",
+        "description": "1 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/Wiki/WikiGraphView.swift"
+        ],
+        "source": "wiki-ui",
         "target": "user-defaults",
         "type": "uses",
         "weight": 1
@@ -20553,13 +20574,14 @@
           "operations-ui",
           "shared-ui",
           "thought-graph-ui",
-          "utilities"
+          "utilities",
+          "wiki-ui"
         ],
         "description": "Preferences, small state flags, and migration markers.",
         "description_authority": "specified",
         "evidence_class": "static_source",
-        "file_count": 33,
-        "hit_count": 111,
+        "file_count": 35,
+        "hit_count": 114,
         "id": "user-defaults",
         "label": "UserDefaults",
         "paths": [
@@ -20581,6 +20603,7 @@
           "Sources/Portal/ViewModels/ChatViewModel.swift",
           "Sources/Portal/ViewModels/SessionListViewModel.swift",
           "Sources/Portal/ViewModels/SettingsViewModel.swift",
+          "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
           "Sources/Portal/Views/ArtifactCanvasView.swift",
           "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
           "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
@@ -20595,7 +20618,8 @@
           "Sources/Portal/Views/Skills/SkillsCanvasView.swift",
           "Sources/Portal/Views/Theme.swift",
           "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
-          "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift"
+          "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift",
+          "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         ],
         "persistence": "defaults",
         "protocol": "UserDefaults.standard and @AppStorage",
@@ -21021,6 +21045,14 @@
                 "signature": "@AppStorage\\b"
               },
               {
+                "excerpt": "@AppStorage(\"portal.graphStats.cron\") private var showGraphStats = false",
+                "line": 44,
+                "path": "Sources/Portal/Views/CronInterflowGraphView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
                 "excerpt": "@AppStorage(\"cronDashboardToolbarCollapsed\") private var toolbarCollapsed = false",
                 "line": 26,
                 "path": "Sources/Portal/Views/MissionControl/CronDashboardCanvas.swift",
@@ -21077,11 +21109,19 @@
               "Sources/Portal/Views/SessionListView.swift",
               "Sources/Portal/Views/Skills/SkillsCanvasView.swift"
             ],
-            "hit_count": 7
+            "hit_count": 8
           },
           {
             "component": "shared-ui",
             "evidence": [
+              {
+                "excerpt": "@AppStorage(\"portal.graphStats.systemMap\") private var showGraphStats = false",
+                "line": 16,
+                "path": "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
               {
                 "excerpt": "@AppStorage(\"chatSkin\") private var dockSkin: ChatSkin = .tui",
                 "line": 103,
@@ -21100,9 +21140,10 @@
               }
             ],
             "files": [
+              "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
               "Sources/Portal/Views/GraphsView.swift"
             ],
-            "hit_count": 2
+            "hit_count": 3
           },
           {
             "component": "thought-graph-ui",
@@ -21160,6 +21201,23 @@
             ],
             "files": [
               "Sources/Portal/Utilities/MainThreadWatchdog.swift"
+            ],
+            "hit_count": 1
+          },
+          {
+            "component": "wiki-ui",
+            "evidence": [
+              {
+                "excerpt": "@AppStorage(\"portal.graphStats.wiki\") private var showGraphStats = false",
+                "line": 34,
+                "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/Wiki/WikiGraphView.swift"
             ],
             "hit_count": 1
           }
@@ -22850,42 +22908,42 @@
           },
           {
             "family": "trigger",
-            "line": 59,
+            "line": 61,
             "path": "Sources/Portal/Views/CronInterflowGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 63,
+            "line": 65,
             "path": "Sources/Portal/Views/CronInterflowGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 67,
+            "line": 69,
             "path": "Sources/Portal/Views/CronInterflowGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 147,
+            "line": 150,
             "path": "Sources/Portal/Views/CronInterflowGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 393,
+            "line": 416,
             "path": "Sources/Portal/Views/CronInterflowGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 517,
+            "line": 540,
             "path": "Sources/Portal/Views/CronInterflowGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -23634,49 +23692,49 @@
           },
           {
             "family": "trigger",
-            "line": 82,
+            "line": 84,
             "path": "Sources/Portal/Views/Wiki/WikiGraphControlsBar.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 124,
+            "line": 127,
             "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 143,
+            "line": 146,
             "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 147,
+            "line": 150,
             "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 435,
+            "line": 447,
             "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 540,
+            "line": 552,
             "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 545,
+            "line": 557,
             "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -31420,6 +31478,109 @@
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/GatewayRestartOutcome.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "domain-models",
+        "declaration_count": 15,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 9,
+            "name": "GraphStats",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 11,
+            "name": "Row",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 18,
+            "name": "Section",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 24,
+            "name": "Degree",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 30,
+            "name": "Node",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 36,
+            "name": "Edge",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 66,
+            "name": "folded",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 73,
+            "name": "rows",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 78,
+            "name": "compute",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 84,
+            "name": "root",
+            "passes": []
+          },
+          {
+            "kind": "extension",
+            "line": 147,
+            "name": "GraphStats",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 150,
+            "name": "wiki",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 166,
+            "name": "cron",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 194,
+            "name": "provider",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 205,
+            "name": "systemMap",
+            "passes": []
+          }
+        ],
+        "line_count": 223,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Models/GraphStats.swift",
         "semantic_citations": 0,
         "touched": false
       },
@@ -43854,96 +44015,96 @@
           },
           {
             "kind": "func",
-            "line": 55,
+            "line": 60,
             "name": "isDimmed",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 66,
+            "line": 71,
             "name": "isHighlighted",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 71,
+            "line": 76,
             "name": "flows",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 77,
+            "line": 82,
             "name": "toggleHull",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 89,
+            "line": 94,
             "name": "expandAll",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 94,
+            "line": 99,
             "name": "collapseAll",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 100,
+            "line": 105,
             "name": "resetView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 109,
+            "line": 114,
             "name": "select",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 114,
+            "line": 119,
             "name": "handleTap",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 127,
+            "line": 132,
             "name": "setActiveFlow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 146,
+            "line": 151,
             "name": "contentPoint",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 151,
+            "line": 156,
             "name": "zoomAtPoint",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 163,
+            "line": 168,
             "name": "fit",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 175,
+            "line": 180,
             "name": "descendantHullIDs",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 180,
+            "line": 185,
             "name": "relayout",
             "passes": []
           }
         ],
-        "line_count": 183,
+        "line_count": 188,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/ViewModels/ArchitectureSystemMapModel.swift",
@@ -45292,7 +45453,7 @@
       {
         "citations": 1,
         "component": "operations-state",
-        "declaration_count": 56,
+        "declaration_count": 58,
         "declarations": [
           {
             "kind": "class",
@@ -45316,324 +45477,336 @@
           },
           {
             "kind": "func",
-            "line": 179,
+            "line": 185,
             "name": "toggleReview",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 191,
+            "line": 197,
             "name": "toggleReview",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 202,
+            "line": 208,
             "name": "updateReviewedDiff",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 207,
+            "line": 213,
             "name": "isReviewing",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 211,
+            "line": 217,
             "name": "clearReview",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 216,
+            "line": 222,
             "name": "diff",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 222,
+            "line": 228,
             "name": "receiveStoredGraph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 238,
+            "line": 244,
             "name": "adopt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 246,
+            "line": 252,
             "name": "setGraphForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 253,
+            "line": 259,
             "name": "setupSimulation",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 284,
+            "line": 290,
             "name": "rebuildTopology",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 313,
+            "line": 319,
             "name": "settle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 329,
+            "line": 335,
             "name": "tick",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 341,
+            "line": 347,
             "name": "step",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 408,
+            "line": 414,
             "name": "recomputeDrawOrder",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 417,
+            "line": 423,
             "name": "clusterIndexSets",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 436,
+            "line": 442,
             "name": "fitToView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 454,
+            "line": 460,
             "name": "resetView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 464,
+            "line": 470,
             "name": "zoomAtPoint",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 476,
+            "line": 482,
             "name": "zoomAtCenter",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 483,
+            "line": 489,
             "name": "hitTest",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 493,
+            "line": 499,
             "name": "startDragging",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 500,
+            "line": 506,
             "name": "dragNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 510,
+            "line": 516,
             "name": "stopDragging",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 515,
+            "line": 521,
             "name": "updateHover",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 520,
+            "line": 526,
             "name": "clearHover",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 524,
+            "line": 530,
             "name": "handleTap",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 543,
+            "line": 549,
             "name": "selectNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 558,
+            "line": 564,
             "name": "isGroupCollapsed",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 564,
+            "line": 570,
             "name": "groupKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 574,
+            "line": 580,
             "name": "toggleGroupCollapsed",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 588,
+            "line": 594,
             "name": "effectiveGraph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 620,
+            "line": 626,
             "name": "applyGrouping",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 648,
+            "line": 654,
             "name": "seedPosition",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 672,
+            "line": 678,
             "name": "isNodeConnectedToSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 678,
+            "line": 684,
             "name": "linkIsConnectedToSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 683,
+            "line": 689,
             "name": "selectedNodeNeighbors",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 694,
+            "line": 700,
             "name": "serviceHealth",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 700,
+            "line": 706,
             "name": "color",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 720,
+            "line": 726,
             "name": "nodeColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 730,
+            "line": 736,
             "name": "categoryColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 737,
+            "line": 743,
             "name": "nodeColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 745,
+            "line": 751,
             "name": "groupColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 750,
+            "line": 756,
             "name": "categoryFolder",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 759,
+            "line": 765,
             "name": "stableHue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 818,
+            "line": 824,
             "name": "displayLabel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 825,
+            "line": 831,
             "name": "radius",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 842,
+            "line": 848,
             "name": "glyph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 858,
+            "line": 864,
             "name": "edgeColor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 878,
+            "line": 884,
             "name": "edgeIsContainment",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 920,
+            "line": 926,
             "name": "CronGraphViewModel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 923,
+            "line": 929,
             "name": "load",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 942,
+            "line": 948,
             "name": "refreshRuntimeState",
+            "passes": []
+          },
+          {
+            "kind": "extension",
+            "line": 971,
+            "name": "CronGraphViewModel",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 973,
+            "name": "rebuildGraphStats",
             "passes": []
           }
         ],
-        "line_count": 963,
+        "line_count": 976,
         "mapped_declarations": 1,
         "passes": [
           "map.caller"
@@ -47355,7 +47528,7 @@
       {
         "citations": 6,
         "component": "wiki-state",
-        "declaration_count": 70,
+        "declaration_count": 71,
         "declarations": [
           {
             "kind": "class",
@@ -47371,265 +47544,271 @@
           },
           {
             "kind": "func",
-            "line": 111,
+            "line": 116,
             "name": "updateFilteredNodes",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 158,
+            "line": 163,
             "name": "SimNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 186,
+            "line": 191,
             "name": "recomputeDrawOrder",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 234,
+            "line": 239,
             "name": "color",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 241,
+            "line": 246,
             "name": "color",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 278,
+            "line": 283,
             "name": "recomputeRadii",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 288,
+            "line": 293,
             "name": "nodeRadius",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 327,
+            "line": 332,
             "name": "load",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 334,
+            "line": 339,
             "name": "load",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 392,
-            "name": "discoverWikis",
             "passes": []
           },
           {
             "kind": "func",
             "line": 397,
+            "name": "discoverWikis",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 402,
             "name": "loadPage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 407,
+            "line": 412,
             "name": "prepareForLoad",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 416,
+            "line": 421,
             "name": "clearPageSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 435,
+            "line": 440,
             "name": "resetForGatewaySwitch",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 453,
+            "line": 458,
             "name": "navigate",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 460,
+            "line": 465,
             "name": "goBack",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 466,
+            "line": 471,
             "name": "goForward",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 475,
+            "line": 480,
             "name": "closePage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 485,
+            "line": 490,
             "name": "select",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 491,
+            "line": 496,
             "name": "cachedContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 493,
+            "line": 498,
             "name": "storeContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 504,
+            "line": 509,
             "name": "ensureContentLoaded",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 521,
+            "line": 526,
             "name": "syncNodeSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 533,
+            "line": 538,
             "name": "selectNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 542,
+            "line": 547,
             "name": "centerOnNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 554,
+            "line": 559,
             "name": "openReaderForSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 563,
+            "line": 568,
             "name": "toggleReaderFullscreen",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 570,
+            "line": 575,
             "name": "setReaderWidth",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 587,
+            "line": 592,
             "name": "isPinned",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 592,
+            "line": 597,
             "name": "pinCurrentPage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 597,
+            "line": 602,
             "name": "unpin",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 601,
+            "line": 606,
             "name": "clearComparison",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 609,
+            "line": 614,
             "name": "showCurrentPageInGraph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 619,
+            "line": 624,
             "name": "setRendering3D",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 627,
+            "line": 632,
             "name": "revealInFileTree",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 632,
+            "line": 638,
+            "name": "rebuildGraphStats",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 641,
             "name": "rebuildBacklinks",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 648,
+            "line": 657,
             "name": "backlinks",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 652,
+            "line": 661,
             "name": "loadPage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 657,
+            "line": 666,
             "name": "setupSimulation",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 667,
+            "line": 676,
             "name": "setup2D",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 679,
+            "line": 688,
             "name": "setup3D",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 693,
+            "line": 702,
             "name": "finishSetup",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 721,
+            "line": 730,
             "name": "tick",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 739,
+            "line": 748,
             "name": "tick2D",
             "passes": [
               "swift.task.detached"
@@ -47637,49 +47816,49 @@
           },
           {
             "kind": "func",
-            "line": 766,
+            "line": 775,
             "name": "applyPhysicsFrame",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 786,
+            "line": 795,
             "name": "tick3D",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 838,
+            "line": 847,
             "name": "startDragging",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 844,
+            "line": 853,
             "name": "dragNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 853,
+            "line": 862,
             "name": "stopDragging",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 854,
+            "line": 863,
             "name": "updateHover",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 858,
+            "line": 867,
             "name": "clearHover",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 875,
+            "line": 884,
             "name": "noteInteraction",
             "passes": [
               "swift.task.cancel",
@@ -47688,73 +47867,73 @@
           },
           {
             "kind": "func",
-            "line": 887,
+            "line": 896,
             "name": "selectedNodeNeighbors",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 892,
+            "line": 901,
             "name": "neighbors",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 897,
+            "line": 906,
             "name": "isNodeConnectedToSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 903,
+            "line": 912,
             "name": "linkIsConnectedToSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 908,
+            "line": 917,
             "name": "zoomAtPoint",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 918,
+            "line": 927,
             "name": "resetView",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 923,
+            "line": 932,
             "name": "WikiGraphViewModel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 939,
+            "line": 948,
             "name": "savePage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 960,
+            "line": 969,
             "name": "rescanGraphInPlace",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 977,
+            "line": 986,
             "name": "CGPoint",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 978,
+            "line": 987,
             "name": "CGVector",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 982,
+            "line": 991,
             "name": "WikiGraphViewModel",
             "passes": [
               "swift.task.detached"
@@ -47762,19 +47941,19 @@
           },
           {
             "kind": "func",
-            "line": 999,
+            "line": 1008,
             "name": "refitForFirstDisplayIfNeeded",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1008,
+            "line": 1017,
             "name": "Physics2DParams",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1026,
+            "line": 1035,
             "name": "settleAndReveal",
             "passes": [
               "swift.task.detached"
@@ -47782,18 +47961,18 @@
           },
           {
             "kind": "func",
-            "line": 1092,
+            "line": 1101,
             "name": "fitToView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1119,
+            "line": 1128,
             "name": "stepPhysics2D",
             "passes": []
           }
         ],
-        "line_count": 1172,
+        "line_count": 1181,
         "mapped_declarations": 5,
         "passes": [
           "map.caller",
@@ -48806,7 +48985,7 @@
         "touched": false
       },
       {
-        "citations": 0,
+        "citations": 1,
         "component": "shared-ui",
         "declaration_count": 21,
         "declarations": [
@@ -48814,135 +48993,139 @@
             "kind": "struct",
             "line": 10,
             "name": "ArchitectureSystemMapSectionView",
-            "passes": []
+            "passes": [
+              "swift.boundary.external_signature"
+            ]
           },
           {
             "kind": "func",
-            "line": 120,
+            "line": 133,
             "name": "inspectorFacts",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 130,
+            "line": 143,
             "name": "fact",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 146,
+            "line": 159,
             "name": "inspectorFlows",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 216,
+            "line": 229,
             "name": "flowRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 282,
+            "line": 295,
             "name": "stepRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 313,
+            "line": 326,
             "name": "endpointLabel",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 372,
+            "line": 385,
             "name": "ArchitectureSystemMapPalette",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 373,
+            "line": 386,
             "name": "color",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 389,
+            "line": 402,
             "name": "color",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 407,
+            "line": 420,
             "name": "ArchitectureSystemMapCanvas",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 446,
+            "line": 459,
             "name": "dragged",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 456,
+            "line": 469,
             "name": "released",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 478,
+            "line": 491,
             "name": "pinchGesture",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 491,
+            "line": 504,
             "name": "draw",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 507,
+            "line": 520,
             "name": "drawHull",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 536,
+            "line": 549,
             "name": "hullKindTitle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 548,
+            "line": 561,
             "name": "hullStyle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 565,
+            "line": 578,
             "name": "drawNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 582,
+            "line": 595,
             "name": "drawBundle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 618,
+            "line": 631,
             "name": "drawArrowhead",
             "passes": []
           }
         ],
-        "line_count": 628,
-        "mapped_declarations": 0,
-        "passes": [],
+        "line_count": 641,
+        "mapped_declarations": 1,
+        "passes": [
+          "swift.boundary.external_signature"
+        ],
         "path": "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
         "semantic_citations": 0,
-        "touched": false
+        "touched": true
       },
       {
         "citations": 3,
@@ -53174,7 +53357,7 @@
         "touched": true
       },
       {
-        "citations": 11,
+        "citations": 12,
         "component": "operations-ui",
         "declaration_count": 9,
         "declarations": [
@@ -53190,7 +53373,7 @@
           },
           {
             "kind": "func",
-            "line": 135,
+            "line": 138,
             "name": "errorState",
             "passes": [
               "swift.task.structured",
@@ -53199,48 +53382,48 @@
           },
           {
             "kind": "func",
-            "line": 234,
+            "line": 257,
             "name": "copy",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 245,
+            "line": 268,
             "name": "controlButton",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 422,
+            "line": 445,
             "name": "detailDock",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 540,
+            "line": 563,
             "name": "sourceFilesList",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 582,
+            "line": 605,
             "name": "architectureButton",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 618,
+            "line": 641,
             "name": "kindCaption",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 626,
+            "line": 649,
             "name": "detailRow",
             "passes": []
           }
         ],
-        "line_count": 638,
+        "line_count": 661,
         "mapped_declarations": 2,
         "passes": [
           "swift.boundary.external_signature",
@@ -55076,6 +55259,43 @@
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/GitHubReleaseCard.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "shared-ui",
+        "declaration_count": 4,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 7,
+            "name": "GraphStatsPanel",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 43,
+            "name": "section",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 52,
+            "name": "header",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 58,
+            "name": "line",
+            "passes": []
+          }
+        ],
+        "line_count": 73,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/GraphStatsPanel.swift",
         "semantic_citations": 0,
         "touched": false
       },
@@ -62202,30 +62422,30 @@
           },
           {
             "kind": "func",
-            "line": 95,
+            "line": 97,
             "name": "zoomAtCenter",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 183,
+            "line": 197,
             "name": "historyMenuLabel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 191,
+            "line": 205,
             "name": "toggleTimeline",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 200,
+            "line": 214,
             "name": "toggleEventsPage",
             "passes": []
           }
         ],
-        "line_count": 214,
+        "line_count": 228,
         "mapped_declarations": 1,
         "passes": [
           "swift.trigger.surface_call"
@@ -62235,7 +62455,7 @@
         "touched": true
       },
       {
-        "citations": 11,
+        "citations": 12,
         "component": "wiki-ui",
         "declaration_count": 6,
         "declarations": [
@@ -62244,19 +62464,20 @@
             "line": 22,
             "name": "WikiGraphView",
             "passes": [
+              "swift.boundary.external_signature",
               "swift.task.structured",
               "swift.trigger.surface_call"
             ]
           },
           {
             "kind": "func",
-            "line": 98,
+            "line": 101,
             "name": "loadGraph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 113,
+            "line": 116,
             "name": "selectAndLoadWiki",
             "passes": [
               "swift.task.structured"
@@ -62264,26 +62485,27 @@
           },
           {
             "kind": "func",
-            "line": 182,
+            "line": 185,
             "name": "attemptInitialLoad",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 279,
+            "line": 282,
             "name": "readerPanelWidth",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 580,
+            "line": 592,
             "name": "openPageFromTimeline",
             "passes": []
           }
         ],
-        "line_count": 596,
+        "line_count": 608,
         "mapped_declarations": 2,
         "passes": [
+          "swift.boundary.external_signature",
           "swift.task.structured",
           "swift.trigger.surface_call"
         ],
@@ -62801,10 +63023,10 @@
         "id": "semantic.flow"
       },
       {
-        "citations": 176,
+        "citations": 179,
         "class": "mechanical",
         "description": "A configured external-system signature (import, framework type, API family, or endpoint token) present in Swift code; string-scoped signatures match inside string literals only",
-        "files": 61,
+        "files": 63,
         "id": "swift.boundary.external_signature"
       },
       {
@@ -63062,39 +63284,39 @@
         },
         "extension": {
           "mapped": 19,
-          "total": 116
+          "total": 118
         },
         "func": {
           "mapped": 432,
-          "total": 3231
+          "total": 3244
         },
         "protocol": {
           "mapped": 1,
           "total": 25
         },
         "struct": {
-          "mapped": 102,
-          "total": 854
+          "mapped": 103,
+          "total": 861
         }
       },
-      "citations": 1315,
-      "declarations": 4659,
+      "citations": 1318,
+      "declarations": 4681,
       "entities": 160,
       "entities_with_origin": 160,
-      "files": 413,
+      "files": 415,
       "functions": {
         "mapped": 432,
-        "total": 3231
+        "total": 3244
       },
-      "mapped_declarations": 643,
+      "mapped_declarations": 644,
       "passes": 50,
       "semantic_citations": 254,
-      "touched_files": 163,
+      "touched_files": 164,
       "types": {
-        "mapped": 211,
-        "total": 1428
+        "mapped": 212,
+        "total": 1437
       },
-      "untouched_files": 250
+      "untouched_files": 251
     }
   },
   "interplay": {
@@ -68732,7 +68954,7 @@
         ],
         "summary": "The user selects a wiki and taps load. WikiGraphViewModel first shows any cached WikiGraph from Application Support, then requests a fresh scan through the wiki JSON-RPC namespace on the Harness gateway and stores the result back in the cache for the next visit.",
         "title": "Pick a wiki and load its graph",
-        "trigger": "trigger-e728c9c6595f"
+        "trigger": "trigger-143ab043cdfa"
       },
       {
         "authority": "synthesized",
@@ -68833,7 +69055,7 @@
         ],
         "summary": "The Graphs page appears. CronInterflowGraphView's onAppear asks CronGraphViewModel to load the cron interflow graph over the cron JSON-RPC namespace, records the observed configuration in CronGraphRevisionStore, and GraphsView's task seeds CronRunHistoryStore so run badges and history are ready.",
         "title": "Open the Graphs page",
-        "trigger": "trigger-801347710668"
+        "trigger": "trigger-bb0f5f3f9e59"
       },
       {
         "authority": "synthesized",
@@ -68930,7 +69152,7 @@
         ],
         "summary": "The user taps the refresh button. CronGraphViewModel re-issues the cron graph and changeset calls through GatewayClient, which registers a pending continuation, sends the frame over the WebSocket, resolves the reply when the gateway responds, and appends any new configuration to the revision store.",
         "title": "Refresh the cron interflow graph",
-        "trigger": "trigger-4e1b37cf8158"
+        "trigger": "trigger-5db965368575"
       },
       {
         "authority": "synthesized",
@@ -69740,7 +69962,7 @@
         "component": "device-services",
         "description": "Preferences, small state flags, and migration markers.",
         "description_authority": "specified",
-        "file_count": 33,
+        "file_count": 35,
         "flows": [
           "sessions-open-page",
           "sessions-select-session",
@@ -69748,7 +69970,7 @@
           "graphs-open-page"
         ],
         "history_key": "external:user-defaults",
-        "hit_count": 111,
+        "hit_count": 114,
         "id": "external:user-defaults",
         "kind": "external",
         "label": "UserDefaults",
@@ -69834,11 +70056,11 @@
           },
           {
             "component": "operations-ui",
-            "hit_count": 7
+            "hit_count": 8
           },
           {
             "component": "shared-ui",
-            "hit_count": 2
+            "hit_count": 3
           },
           {
             "component": "thought-graph-ui",
@@ -69846,6 +70068,10 @@
           },
           {
             "component": "utilities",
+            "hit_count": 1
+          },
+          {
+            "component": "wiki-ui",
             "hit_count": 1
           }
         ]
@@ -78866,10 +79092,12 @@
           "fields": {
             "entry_triggers": [
               "trigger-0003198db685",
-              "trigger-0109e2cd0f92",
+              "trigger-013cd204ade5",
               "trigger-033147a7f5cb",
+              "trigger-05431a1038e8",
               "trigger-11409a0cdcb4",
               "trigger-1434d39d0082",
+              "trigger-143ab043cdfa",
               "trigger-173f8ac250bd",
               "trigger-21e14661ae99",
               "trigger-26ee296bf6c6",
@@ -78877,39 +79105,37 @@
               "trigger-337e22ddac9c",
               "trigger-3b56159af21d",
               "trigger-3baae13ebeb3",
-              "trigger-3dd060ed8816",
-              "trigger-42f96b0ecd9b",
-              "trigger-4aa381b7277e",
-              "trigger-4e1b37cf8158",
               "trigger-4e9c3c31e50a",
               "trigger-4f2de5d9b8b2",
               "trigger-4f9c46a20d70",
               "trigger-5477692195e5",
               "trigger-56f686776e42",
-              "trigger-801347710668",
+              "trigger-5db965368575",
+              "trigger-726f15dc8784",
+              "trigger-7f0c3202cbc7",
+              "trigger-82212a6c5df6",
               "trigger-86078dff0e1e",
               "trigger-8a590206c277",
               "trigger-8bd0cb87f885",
-              "trigger-8bd30eb871bc",
-              "trigger-97ba48ee7927",
+              "trigger-96462bd63fa1",
+              "trigger-96b11dd76eb3",
               "trigger-9a8671054a5d",
               "trigger-9bbd1c7fea7a",
-              "trigger-a07c4d25bb15",
-              "trigger-aa3b2de0a929",
+              "trigger-accff47ddbf5",
               "trigger-b33899858efc",
               "trigger-b56cfc782a40",
               "trigger-b8886d3b90fe",
-              "trigger-bdbe3a47c64a",
+              "trigger-bb0f5f3f9e59",
               "trigger-bdc3090c9679",
               "trigger-c40b4ad7ed26",
+              "trigger-ca6cf28e5e58",
               "trigger-d09036b2aaab",
-              "trigger-d2e4694d32bf",
               "trigger-d5ae4140b3a5",
+              "trigger-dea188138301",
               "trigger-e47061d7f608",
-              "trigger-e728c9c6595f",
               "trigger-e791301e6c80",
               "trigger-e984482a5d8b",
-              "trigger-f642dde11983",
+              "trigger-f0257946bbfb",
               "trigger-fe992e7fd3aa",
               "trigger-ff0104bf74b3"
             ],
@@ -78934,7 +79160,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 184
+        "type_count": 173
       },
       {
         "components": [],
@@ -81395,9 +81621,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-bdbe3a47c64a",
+        "id": "trigger-7f0c3202cbc7",
         "kind": "lifecycle",
-        "line": 59,
+        "line": 61,
         "method": "tick",
         "namespaces": [],
         "page": "graphs",
@@ -81410,9 +81636,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-aa3b2de0a929",
+        "id": "trigger-96b11dd76eb3",
         "kind": "lifecycle",
-        "line": 63,
+        "line": 65,
         "method": "refreshRuntimeState",
         "namespaces": [
           "cron"
@@ -81427,9 +81653,9 @@
         "api": "onAppear",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-801347710668",
+        "id": "trigger-bb0f5f3f9e59",
         "kind": "lifecycle",
-        "line": 67,
+        "line": 69,
         "method": "load",
         "namespaces": [
           "cron"
@@ -81444,9 +81670,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-4e1b37cf8158",
+        "id": "trigger-5db965368575",
         "kind": "user_action",
-        "line": 147,
+        "line": 150,
         "method": "load",
         "namespaces": [
           "cron"
@@ -81461,9 +81687,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-97ba48ee7927",
+        "id": "trigger-82212a6c5df6",
         "kind": "user_action",
-        "line": 393,
+        "line": 416,
         "method": "toggleGroupCollapsed",
         "namespaces": [],
         "page": "graphs",
@@ -81476,9 +81702,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-3dd060ed8816",
+        "id": "trigger-f0257946bbfb",
         "kind": "user_action",
-        "line": 517,
+        "line": 540,
         "method": "glyph",
         "namespaces": [],
         "page": "graphs",
@@ -81491,9 +81717,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-42f96b0ecd9b",
+        "id": "trigger-96462bd63fa1",
         "kind": "user_action",
-        "line": 517,
+        "line": 540,
         "method": "nodeColor",
         "namespaces": [],
         "page": "graphs",
@@ -82977,9 +83203,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-a07c4d25bb15",
+        "id": "trigger-726f15dc8784",
         "kind": "user_action",
-        "line": 82,
+        "line": 84,
         "method": "resetView",
         "namespaces": [],
         "page": "graphs",
@@ -82992,9 +83218,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d2e4694d32bf",
+        "id": "trigger-05431a1038e8",
         "kind": "lifecycle",
-        "line": 124,
+        "line": 127,
         "method": "tick",
         "namespaces": [],
         "page": "graphs",
@@ -83007,9 +83233,9 @@
         "api": "onAppear",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-0109e2cd0f92",
+        "id": "trigger-accff47ddbf5",
         "kind": "lifecycle",
-        "line": 143,
+        "line": 146,
         "method": "discoverWikis",
         "namespaces": [
           "wiki"
@@ -83024,9 +83250,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-8bd30eb871bc",
+        "id": "trigger-ca6cf28e5e58",
         "kind": "lifecycle",
-        "line": 147,
+        "line": 150,
         "method": "discoverWikis",
         "namespaces": [
           "wiki"
@@ -83041,9 +83267,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-e728c9c6595f",
+        "id": "trigger-143ab043cdfa",
         "kind": "user_action",
-        "line": 435,
+        "line": 447,
         "method": "load",
         "namespaces": [],
         "page": "graphs",
@@ -83056,9 +83282,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-4aa381b7277e",
+        "id": "trigger-dea188138301",
         "kind": "user_action",
-        "line": 540,
+        "line": 552,
         "method": "selectWiki",
         "namespaces": [],
         "page": "graphs",
@@ -83071,9 +83297,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-f642dde11983",
+        "id": "trigger-013cd204ade5",
         "kind": "user_action",
-        "line": 545,
+        "line": 557,
         "method": "selectWiki",
         "namespaces": [],
         "page": "graphs",
@@ -83311,15 +83537,15 @@
         "view": "WikiTimelineView"
       }
     ],
-    "unattributed_triggers": 477
+    "unattributed_triggers": 478
   },
   "inventory": {
-    "assigned_files": 411,
-    "declarations": 1286,
-    "files": 411,
-    "lines": 119076,
-    "swift_files": 411,
-    "swift_lines": 119076,
+    "assigned_files": 413,
+    "declarations": 1293,
+    "files": 413,
+    "lines": 119461,
+    "swift_files": 413,
+    "swift_lines": 119461,
     "unassigned_files": []
   },
   "layers": [
@@ -83351,7 +83577,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "0c1bb7650c69294fd031ea27fc43d074f7321dd6896099c703d2964607a87e99",
+  "source_tree_sha256": "10b9d81099063b37e594b3b9937a3db7dd2d86e37560969f7ff69f4a47b5b5a6",
   "stores": {
     "by_persistence": {
       "defaults": 6,
