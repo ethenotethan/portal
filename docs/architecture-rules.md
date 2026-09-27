@@ -105,7 +105,9 @@ floor that its baseline can't be *grown* to silence one is a ratchet
 | `Ratchet / Coverage` | Ratchet | Test coverage | `metrics-baseline.json` `coverage` | `check-metrics-ratchet.py --coverage` |
 | `Ratchet / Skipped Tests` | Ratchet | Disabled/known-issue tests | `metrics-baseline.json` `skipped` | `collect-skipped-tests.py` + `check-metrics-ratchet.py --skipped` |
 | `Ratchet / Dead Code` | Ratchet | Unused declarations | `metrics-baseline.json` `deadcode` | Periphery + `check-metrics-ratchet.py --deadcode` |
-| `Ratchet / Performance` | Ratchet | Algorithmic work | `perf-baseline.json` | `check-perf-ratchet.py` |
+| `Ratchet / Layout` | Ratchet | Lazy stacks with no scroll viewport (the relayout-loop shape) | `metrics-baseline.json` `layout` | `collect-layout-smells.py` + `check-metrics-ratchet.py --layout` |
+| `Ratchet / Slow Tests` | Ratchet | Tests over 5 s in the serialized run | `metrics-baseline.json` `slowtests` | `collect-slow-tests.py` + `check-metrics-ratchet.py --slowtests` |
+| `Ratchet / Performance` | Ratchet | Algorithmic work, body evaluations, layout passes | `perf-baseline.json` | `check-perf-ratchet.py` |
 | `Ratchet / Quality` | Ratchet | Lint debt (baseline only shrinks) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
 | `Ratchet / Constraints` | Ratchet | The declarations behind every other gate may only tighten | `invariants.json`, `config.json`, `.swiftlint.yml`, `ArchitectureTests.swift`, specifications, gate scripts, `CODEOWNERS`, the gate workflows — as they exist on base | `check-constraint-growth.py` |
 | `Pages / Validate model and site` (contract pins) | Static | The vendored hermes.architecture contract matches its pin and the committed model conforms | `architecture/contract/pins.json` | `check-contract-pins.py` |
@@ -222,10 +224,10 @@ blocking regression. `metrics-baseline.json` + `scripts/check-metrics-ratchet.py
 generalize it to any measurable metric. Adding a metric is a collector script,
 a baseline entry, an engine handler, and its own named posture job.
 
-Four metrics are wired today. Warnings and coverage run both ratchet shapes — a
-**floor** (the whole codebase never regresses) and a **patch** (the code this PR
-touches meets the bar). Skipped tests and dead code are deterministic counts,
-so they use a floor only.
+Six metrics are wired today. Warnings, coverage and layout smells run both
+ratchet shapes — a **floor** (the whole codebase never regresses) and a
+**patch** (the code this PR touches meets the bar). Skipped tests, dead code and
+slow tests are counts with no line to attribute, so they use a floor only.
 
 **Compiler warnings** (`warnings` key). A clean `swift build --build-tests` is
 parsed into unique warning *sites* (`file:line:col:category`) by
@@ -289,13 +291,43 @@ actionable.
   or evidence of a missing caller. Periphery is pinned at **3.8.0** because a
   tool change can alter the frozen finding set.
 
+**Layout smells** (`layout` key). `scripts/collect-layout-smells.py` bracket-
+tracks every Swift source (comments and strings blanked) and counts each
+`LazyVStack`/`LazyHStack` that has no `ScrollView` scrolling its axis to be lazy
+in: either the nearest enclosing ScrollView scrolls the *other* axis (a
+LazyVStack inside a horizontal-only ScrollView), or no ScrollView encloses the
+stack anywhere in its type. A lazy stack without a viewport measures every child
+at an unbounded size, misses its estimates, and re-arms layout through
+`signalPrefetch → NSHostingView.requestUpdate` — the relayout loop that
+beachballed the chat canvas (#249) and the model surface (#606). A stack whose
+enclosing type has a ScrollView elsewhere (the `body { ScrollView { rows } }`
+split) gets the benefit of the doubt; the metric is deliberately conservative
+so a new legitimate lazy list never fights the gate. No build is needed.
+
+- **Floor:** the count may not rise.
+- **Patch:** no flagged stack on a line this PR added.
+
+**Slow tests** (`slowtests` key). `scripts/collect-slow-tests.py` parses the
+`Measure` job's serialized test log and counts tests over **5 s**. Serialized
+matters: in a parallel run swift-testing reports time since a test was
+*scheduled*, so every test queued behind one main-actor sleeper reads as
+slow — 654 "slow" tests in one measured run, of which two were real. The
+threshold is generous on purpose: durations wobble with runner load, but a test
+is either an order of magnitude slower than its peers or it isn't, so the count
+is stable enough to ratchet. Tests between 1 s and 5 s are listed in the
+snapshot's `watchlist` for information only.
+
+- **Floor:** the count may not rise. A test over the threshold sleeps or waits
+  on a real clock; inject the clock or shorten the wait.
+
 Rules mirror the lint baseline: **regenerate only to record improvement**
-(`make metrics-baseline` — warning/skipped/dead-code counts must only drop and
-coverage may only rise),
+(`make metrics-baseline` — warning/skipped/dead-code/layout/slow-test counts
+must only drop and coverage may only rise),
 and `make metrics-ratchet` runs the whole check locally (clean build + tests →
-collect → ratchet vs `origin/main`). In CI these are the separate `Warnings`
-and `Coverage` jobs fed by the shared `Measure` job, plus standalone `Skipped
-Tests` and `Dead Code` jobs in `ratchet.yml` (see the posture taxonomy above).
+collect → ratchet vs `origin/main`). In CI these are the separate `Warnings`,
+`Coverage` and `Slow Tests` jobs fed by the shared `Measure` job, plus
+standalone `Skipped Tests`, `Dead Code` and `Layout` jobs in `ratchet.yml` (see
+the posture taxonomy above).
 The warnings build is always from scratch because an incremental build
 under-counts warnings.
 
@@ -355,26 +387,42 @@ operation **count**, not wall-clock time — chosen deliberately.
   complexity); that's the job of the main-thread hang gate
   (the `Tests / macOS main-thread hang gate` job), which this complements
   rather than duplicates.
-- **What's instrumented.** `PerfCounter` (Utilities) tallies the dominant loop
-  of each hot pure path: `sankey.relax` and `sankey.pack` in
-  `SankeyLayout.layout`, and `graph.forceSim` — the O(n²) pairwise repulsion —
-  in `NetworkGraphLayout`; and `artifact.maintainerParse`, one tick per parse
-  of an artifact's content for its maintainers. Counts are added *once per
-  loop* (the accumulated total), never once per iteration, so even the
-  instrumented build pays no locked call inside a hot loop.
-- **The per-render parse.** A second class of churn the counter guards: a
-  `body` (or a row builder called from one) that derives a value from a
-  model's raw content — parsing an artifact's JSON to ask whether it has
-  maintainers — re-parses on every render, and SwiftUI renders on every
-  published change. With a live query result landing every few seconds and
-  70 artifacts of up to 500 KB, that was 60–80 short main-thread turns per
-  second for hours: the long-session beachball, not a single slow turn. The
-  rule: derived values are computed once per distinct content and cached on
-  the model (`LivingArtifact.derived`, invalidated by `content`'s `didSet`),
-  rows are `Equatable` value views with `.equatable()` so unchanged rows skip
-  their body, and fast-changing state (`ArtifactStore.live`) publishes on its
-  own object so it does not republish the list. The harness renders 40
-  artifacts 20 times and asserts 40 parses.
+- **What's instrumented.** Three kinds of counter, all integers over fixed
+  fixtures:
+  - *Algorithmic op counts.* `PerfCounter` (Utilities) tallies the dominant
+    loop of each hot pure path: `sankey.relax` and `sankey.pack` in
+    `SankeyLayout.layout`, and `graph.forceSim` — the O(n²) pairwise repulsion —
+    in `NetworkGraphLayout`; and `artifact.maintainerParse`, one tick per parse
+    of an artifact's content for its maintainers. Counts are added *once per
+    loop* (the accumulated total), never once per iteration, so even the
+    instrumented build pays no locked call inside a hot loop.
+  - *Derived-value parses.* A `body` (or a row builder called from one) that
+    derives a value from a model's raw content — parsing an artifact's JSON to
+    ask whether it has maintainers — re-parses on every render, and SwiftUI
+    renders on every published change. With a live query result landing every
+    few seconds and 70 artifacts of up to 500 KB, that was 60–80 short
+    main-thread turns per second for hours: the long-session beachball, not a
+    single slow turn. The rule: derived values are computed once per distinct
+    content and cached on the model (`LivingArtifact.derived`, invalidated by
+    `content`'s `didSet`), rows are `Equatable` value views with
+    `.equatable()` so unchanged rows skip their body, and fast-changing state
+    (`ArtifactStore.live`) publishes on its own object so it does not
+    republish the list. The harness renders 40 artifacts 20 times and asserts
+    40 parses.
+  - *View-body evaluations* (`<scenario>.view.body.<View>`). The artifact
+    views tick a counter at the top of `body` (`ModelCard`,
+    `ModelEntityTable`, its rows, the Kanban board, column and card tile,
+    `MarkdownContentView`). The harness mounts a fixture surface in an
+    offscreen `NSHostingView`, records how many bodies ran, then applies ONE
+    state change — a card moves a lane, a work item's title changes — and
+    records what re-evaluated. "One edit re-renders every row" is a count, not
+    a feeling.
+  - *Layout passes to settle* (`<scenario>.layoutPasses`). How many times the
+    hosting view laid out before going quiet after the mount and after the
+    update. Catches eager relayout churn (a frame-derived height that reflows
+    its parent, an alignment-guide descent). It does **not** reproduce the
+    lazy-stack prefetch loop: a headless hosting view never realises lazy
+    children, so that class is guarded statically by the `Layout` ratchet.
 - **Zero cost in production.** Every `PerfCounter` call is gated on the
   `PERF_COUNTERS` compile flag. A normal build (`swift build`, `make build`,
   the shipped app) never defines it, so the calls compile to an

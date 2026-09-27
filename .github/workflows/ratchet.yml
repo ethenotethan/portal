@@ -118,10 +118,14 @@ jobs:
 
       - name: Test with coverage and capture snapshot
         # Full per-line export (no -summary-only — the patch check needs
-        # segments), reduced to the testable-layer snapshot.
+        # segments), reduced to the testable-layer snapshot. Serialized
+        # (--no-parallel) so each test's reported duration is its own: in a
+        # parallel run swift-testing reports time since a test was scheduled,
+        # and every test queued behind one main-actor sleeper reads as slow.
+        # The Slow Tests job below consumes this log.
         run: |
           set -o pipefail
-          swift test --enable-code-coverage 2>&1 | tail -5
+          swift test --enable-code-coverage --no-parallel 2>&1 | tee test.log | tail -5
           PROF=$(find .build -name '*.profdata' | head -1)
           BIN=$(find .build -name '*.xctest' -type d | head -1)
           EXE="$BIN/Contents/MacOS/$(basename "$BIN" .xctest)"
@@ -136,6 +140,7 @@ jobs:
             warnings.json
             coverage.json
             build.log
+            test.log
           if-no-files-found: error
           retention-days: 14
 
@@ -206,6 +211,58 @@ jobs:
         run: |
           BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
           python3 scripts/check-metrics-ratchet.py --skipped skipped.json --base "$BASE"
+
+  # ── Layout posture ────────────────────────────────────────────────────────
+  # SwiftUI lazy stacks with no scroll viewport on their axis. Each one is the
+  # self-rescheduling relayout loop that beachballed the chat canvas (#249) and
+  # the model surface (#606) waiting to happen. Static scan, no build; floor on
+  # the count plus a patch check on added lines.
+  layout:
+    name: Layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Unit-test the collectors
+        # The layout scan and the slow-test parser decide what two ratchets
+        # count; their rules are pinned in scripts/test_collectors.py.
+        run: python3 -m unittest scripts/test_collectors.py
+
+      - name: Capture layout-smell snapshot
+        run: python3 scripts/collect-layout-smells.py Sources --root "$PWD" --json layout.json
+
+      - name: Ratchet layout smells against base
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-metrics-ratchet.py --layout layout.json --base "$BASE"
+
+  # ── Slow-test posture ─────────────────────────────────────────────────────
+  # Tests over a duration threshold in the serialized Measure run. A test that
+  # sleeps its way to a timeout taxes every CI run; the count may not rise.
+  # Consumes Measure's test.log, so no second build.
+  slow-tests:
+    name: Slow Tests
+    runs-on: ubuntu-latest
+    needs: measure
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download metric snapshots
+        uses: actions/download-artifact@v4
+        with:
+          name: metric-snapshots
+
+      - name: Capture slow-test snapshot
+        run: python3 scripts/collect-slow-tests.py test.log --json slowtests.json
+
+      - name: Ratchet slow tests against base
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-metrics-ratchet.py --slowtests slowtests.json --base "$BASE"
 
   # ── Dead-code posture ─────────────────────────────────────────────────────
   # Periphery's existing findings are frozen debt; only growth fails. Keep this

@@ -416,11 +416,29 @@
         "patch": "No finding on a line the PR added."
       },
       {
+        "id": "layout",
+        "title": "Layout smells",
+        "job": "ratchet/layout",
+        "source": {"kind": "metrics", "key": "layout", "path": "metrics-baseline.json"},
+        "measures": "SwiftUI LazyVStack/LazyHStack sites with no ScrollView on their axis to be lazy in: the self-rescheduling relayout loop (#249, #606). Static bracket-tracking scan of Sources, no build.",
+        "floor": "Count at most base.",
+        "patch": "No lazy stack without a viewport on a line the PR added."
+      },
+      {
+        "id": "slowtests",
+        "title": "Slow tests",
+        "job": "ratchet/slow-tests",
+        "source": {"kind": "metrics", "key": "slowtests", "path": "metrics-baseline.json"},
+        "measures": "Tests over 5 s in the serialized Measure run (swift test --no-parallel, so a duration is the test's own and not time spent queued behind a main-actor sleeper). Tests between 1 s and 5 s are listed for information only.",
+        "floor": "Count at most base.",
+        "patch": null
+      },
+      {
         "id": "perf",
         "title": "Performance op-counts",
         "job": "ratchet/performance",
         "source": {"kind": "perf", "path": "perf-baseline.json"},
-        "measures": "Algorithmic operation counts (not time) for the hot pure layout paths over fixed fixtures under -DPERF_COUNTERS. Deterministic on any machine.",
+        "measures": "Deterministic counts (not time) under -DPERF_COUNTERS over fixed fixtures: algorithmic operations in the hot pure layout paths, SwiftUI body evaluations of the artifact views on mount and after one state change, and hosting-view layout passes to settle.",
         "floor": "Every counter at most base; the ceiling is read from base via git show.",
         "patch": null
       },

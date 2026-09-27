@@ -68,6 +68,7 @@ private struct KanbanCard: View {
     private var isInteractive: Bool { artifactID != nil }
 
     var body: some View {
+        let _ = PerfCounter.tick("view.body.KanbanBoard")
         VStack(alignment: .leading, spacing: 10) {
             if let title = spec.title {
                 Text(title)
@@ -116,6 +117,7 @@ private struct KanbanCard: View {
 
     @ViewBuilder
     private func columnView(_ column: String) -> some View {
+        let _ = PerfCounter.tick("view.body.KanbanColumn")
         let cards = spec.cards(in: column)
         let isTarget = dropTarget == column
         let isColumnExpanded = expandedColumns.contains(column)
@@ -192,6 +194,7 @@ private struct KanbanCard: View {
 
     @ViewBuilder
     private func cardView(_ card: KanbanSpec.Card) -> some View {
+        let _ = PerfCounter.tick("view.body.KanbanCardTile")
         let isExpanded = selectedCardID == card.id
         let body = VStack(alignment: .leading, spacing: 4) {
             // Header is a Button so the click reliably lands — a whole-card tap
