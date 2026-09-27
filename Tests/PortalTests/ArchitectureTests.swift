@@ -386,4 +386,24 @@ internal struct ArchitectureTests {
             )
         }
     }
+
+    /// Every host of `ConversationPanel` outside `ChatView` provides the
+    /// `ChatViewModel` it renders as an environment object too: the transcript's
+    /// subviews read it from the environment, and a missing object is a fatal
+    /// trap on first render (the page-intent dock shipped that crash once).
+    @Test("ConversationPanel hosts inject their ChatViewModel into the environment")
+    internal func conversationPanelHostsInjectTheirChatViewModel() throws {
+        let views = Self.repoRoot.appendingPathComponent("Sources/Portal/Views")
+        let files = try FileManager.default.subpathsOfDirectory(atPath: views.path)
+            .filter { $0.hasSuffix(".swift") }
+        var offenders: [String] = []
+        for relative in files where !relative.hasSuffix("ChatView.swift") && !relative.hasSuffix("ConversationPanel.swift") {
+            let source = try String(contentsOf: views.appendingPathComponent(relative), encoding: .utf8)
+            guard source.contains("ConversationPanel(chatViewModel:") else { continue }
+            if !source.contains(".environmentObject(chat") {
+                offenders.append(relative)
+            }
+        }
+        #expect(offenders.isEmpty, "hosts of ConversationPanel without .environmentObject(chat…): \(offenders)")
+    }
 }

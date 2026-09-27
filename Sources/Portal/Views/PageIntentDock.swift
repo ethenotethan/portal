@@ -118,6 +118,11 @@ internal struct PageIntentDock: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             composer(chat)
         }
+        // The transcript's subviews (EmptyTranscriptStateView, the approval and
+        // clarify banners) read the ChatViewModel from the environment, the way
+        // ChatView provides it; the dock hosts a per-scope model, so it must
+        // provide that model itself or the first empty transcript traps.
+        .environmentObject(chat)
     }
 
     private func composer(_ chat: ChatViewModel) -> some View {
