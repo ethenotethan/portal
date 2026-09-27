@@ -8822,54 +8822,6 @@
         "enclosing_type": "CronJobsView",
         "evidence": {
           "excerpt": "onPause: { Task { await vm.pauseJob(id: job.id) } },",
-          "line": 123,
-          "path": "Sources/Portal/Views/CronJobsView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-43bdd9c9e382",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "operations-ui",
-        "enclosing_function": "card",
-        "enclosing_type": "CronJobsView",
-        "evidence": {
-          "excerpt": "onResume: { Task { await vm.resumeJob(id: job.id) } },",
-          "line": 124,
-          "path": "Sources/Portal/Views/CronJobsView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-a8fc0e3a327e",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "operations-ui",
-        "enclosing_function": "card",
-        "enclosing_type": "CronJobsView",
-        "evidence": {
-          "excerpt": "onRemove: { Task { await vm.removeJob(id: job.id) } },",
-          "line": 125,
-          "path": "Sources/Portal/Views/CronJobsView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-cd9146143e1b",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "operations-ui",
-        "enclosing_function": "card",
-        "enclosing_type": "CronJobsView",
-        "evidence": {
-          "excerpt": "onUpdatePrompt: { prompt in Task { await vm.updatePrompt(id: job.id, newPrompt: prompt) } },",
           "line": 126,
           "path": "Sources/Portal/Views/CronJobsView.swift"
         },
@@ -8885,7 +8837,7 @@
         "enclosing_function": "card",
         "enclosing_type": "CronJobsView",
         "evidence": {
-          "excerpt": "onRename: { name in Task { await vm.renameJob(id: job.id, newName: name) } },",
+          "excerpt": "onResume: { Task { await vm.resumeJob(id: job.id) } },",
           "line": 127,
           "path": "Sources/Portal/Views/CronJobsView.swift"
         },
@@ -8898,15 +8850,63 @@
       {
         "authority": "observed",
         "component": "operations-ui",
+        "enclosing_function": "card",
+        "enclosing_type": "CronJobsView",
+        "evidence": {
+          "excerpt": "onRemove: { Task { await vm.removeJob(id: job.id) } },",
+          "line": 128,
+          "path": "Sources/Portal/Views/CronJobsView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-4d78c8c0be95",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "enclosing_function": "card",
+        "enclosing_type": "CronJobsView",
+        "evidence": {
+          "excerpt": "onUpdatePrompt: { prompt in Task { await vm.updatePrompt(id: job.id, newPrompt: prompt) } },",
+          "line": 129,
+          "path": "Sources/Portal/Views/CronJobsView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-c55d4d1dd431",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "enclosing_function": "card",
+        "enclosing_type": "CronJobsView",
+        "evidence": {
+          "excerpt": "onRename: { name in Task { await vm.renameJob(id: job.id, newName: name) } },",
+          "line": 130,
+          "path": "Sources/Portal/Views/CronJobsView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-6ec250622e22",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
         "enclosing_function": "toggle",
         "enclosing_type": "CronJobsView",
         "evidence": {
           "excerpt": "Task { await vm.loadFullPrompt(id: job.id) }",
-          "line": 160,
+          "line": 164,
           "path": "Sources/Portal/Views/CronJobsView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8d375020ef40",
+        "id": "task-site-e3c7af60ff30",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8918,11 +8918,27 @@
         "enclosing_type": "CronJobsView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 161,
+          "line": 165,
           "path": "Sources/Portal/Views/CronJobsView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-284ccdd0cd9a",
+        "id": "task-site-037b1a65a127",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "enclosing_function": "toggle",
+        "enclosing_type": "CronJobsView",
+        "evidence": {
+          "excerpt": "Task { revisions[job.id] = await vm.loadRevisions(id: job.id) }",
+          "line": 172,
+          "path": "Sources/Portal/Views/CronJobsView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-45e82a94e0c8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -13453,7 +13469,7 @@
       "line_count": 7090
     },
     {
-      "declaration_count": 137,
+      "declaration_count": 138,
       "declarations": [
         "ActivityArtifactView",
         "ActivityDetailView",
@@ -13470,6 +13486,7 @@
         "CronDashboardView",
         "CronDataflowCardPresentation",
         "CronDataflowExpandedView",
+        "CronDefinitionHistoryView",
         "CronEmptyChart",
         "CronGraphCanvas",
         "CronInterflowGraphView",
@@ -13595,7 +13612,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only harness file browser.",
       "external": false,
-      "file_count": 53,
+      "file_count": 54,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryEditor.swift",
@@ -13603,6 +13620,7 @@
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
         "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "Sources/Portal/Views/CronDefinitionHistoryView.swift",
         "Sources/Portal/Views/CronGraphCanvas.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
@@ -13654,7 +13672,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17980,
+      "line_count": 18158,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14241,7 +14259,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 7198,
+      "line_count": 7218,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14369,13 +14387,14 @@
       ],
       "description": "Harness WebSocket JSON-RPC transport, cron polling, and push registration.",
       "external": false,
-      "file_count": 15,
+      "file_count": 16,
       "files": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
         "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
+        "Sources/Portal/Services/GatewayClient+CronRevisions.swift",
         "Sources/Portal/Services/GatewayClient+Feed.swift",
         "Sources/Portal/Services/GatewayClient+Files.swift",
         "Sources/Portal/Services/GatewayClient+Learning.swift",
@@ -14390,7 +14409,7 @@
       "id": "hermes-services",
       "label": "Harness services",
       "layer": "integration",
-      "line_count": 4745,
+      "line_count": 4838,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14693,7 +14712,7 @@
       }
     },
     {
-      "declaration_count": 358,
+      "declaration_count": 362,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -14823,6 +14842,7 @@
         "CronChangesetProvenance",
         "CronChangesetsPage",
         "CronDataflowEndpoint",
+        "CronDefinitionChange",
         "CronGraph",
         "CronGraphChange",
         "CronGraphDiff",
@@ -14834,6 +14854,9 @@
         "CronGroupHull",
         "CronJob",
         "CronJobDataflow",
+        "CronJobRevision",
+        "CronJobRevisionsPage",
+        "CronJobRevisionsResult",
         "CronNodeGroup",
         "CronNodeGrouping",
         "CronRunHistoryStore",
@@ -15056,7 +15079,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 95,
+      "file_count": 96,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -15089,6 +15112,7 @@
         "Sources/Portal/Models/CronGraphRevision.swift",
         "Sources/Portal/Models/CronGraphRevisionStore.swift",
         "Sources/Portal/Models/CronJob.swift",
+        "Sources/Portal/Models/CronJobRevision.swift",
         "Sources/Portal/Models/CronNodeGroup.swift",
         "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DashboardLayout.swift",
@@ -15157,7 +15181,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 18696,
+      "line_count": 18819,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -17185,20 +17209,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 70 declaration(s) owned by domain-models.",
+      "description": "References 73 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
         "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
+        "Sources/Portal/Services/GatewayClient+CronRevisions.swift",
         "Sources/Portal/Services/GatewayClient+Feed.swift",
         "Sources/Portal/Services/GatewayClient+Files.swift",
         "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Push.swift",
         "Sources/Portal/Services/GatewayClient+Restart.swift",
-        "Sources/Portal/Services/GatewayClient+ServiceLogs.swift",
-        "Sources/Portal/Services/GatewayClient+Wiki.swift"
+        "Sources/Portal/Services/GatewayClient+ServiceLogs.swift"
       ],
       "source": "hermes-services",
       "symbols": [
@@ -17217,7 +17241,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 85
+      "weight": 89
     },
     {
       "authority": "observed",
@@ -17598,7 +17622,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 96 declaration(s) owned by domain-models.",
+      "description": "References 97 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/ArchitectureExtractionLayout.swift",
@@ -17630,7 +17654,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 123
+      "weight": 124
     },
     {
       "authority": "observed",
@@ -17749,12 +17773,12 @@
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
         "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "Sources/Portal/Views/CronDefinitionHistoryView.swift",
         "Sources/Portal/Views/CronGraphCanvas.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronJobRow.swift",
-        "Sources/Portal/Views/CronJobsView.swift",
-        "Sources/Portal/Views/CronListView.swift"
+        "Sources/Portal/Views/CronJobsView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -17763,7 +17787,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 52
+      "weight": 53
     },
     {
       "authority": "observed",
@@ -17827,7 +17851,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 61 declaration(s) owned by domain-models.",
+      "description": "References 63 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryEditor.swift",
@@ -17835,12 +17859,12 @@
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
         "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "Sources/Portal/Views/CronDefinitionHistoryView.swift",
         "Sources/Portal/Views/CronGraphCanvas.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronJobRow.swift",
-        "Sources/Portal/Views/CronJobsView.swift",
-        "Sources/Portal/Views/CronListView.swift"
+        "Sources/Portal/Views/CronJobsView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -17859,7 +17883,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 113
+      "weight": 116
     },
     {
       "authority": "observed",
@@ -23846,6 +23870,20 @@
       },
       {
         "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+CronRevisions",
+        "kind": "client",
+        "label": "GatewayClient+CronRevisions",
+        "origins": [
+          {
+            "family": "wiring",
+            "line": 14,
+            "path": "Sources/Portal/Services/GatewayClient+CronRevisions.swift",
+            "rule": "map.client"
+          }
+        ]
+      },
+      {
+        "component": "hermes-services",
         "id": "client:hermes-services:GatewayClient+Feed",
         "kind": "client",
         "label": "GatewayClient+Feed",
@@ -24204,8 +24242,8 @@
           },
           {
             "family": "wiring",
-            "line": 1209,
-            "path": "Sources/Portal/Services/GatewayClient.swift",
+            "line": 14,
+            "path": "Sources/Portal/Services/GatewayClient+CronRevisions.swift",
             "rule": "map.endpoint"
           }
         ]
@@ -30155,6 +30193,49 @@
       {
         "citations": 0,
         "component": "domain-models",
+        "declaration_count": 5,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 14,
+            "name": "CronJobRevision",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 72,
+            "name": "CronDefinitionChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 85,
+            "name": "displayText",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 107,
+            "name": "CronJobRevisionsPage",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 119,
+            "name": "CronJobRevisionsResult",
+            "passes": []
+          }
+        ],
+        "line_count": 123,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Models/CronJobRevision.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "domain-models",
         "declaration_count": 9,
         "declarations": [
           {
@@ -35706,6 +35787,64 @@
         "touched": true
       },
       {
+        "citations": 2,
+        "component": "hermes-services",
+        "declaration_count": 6,
+        "declarations": [
+          {
+            "kind": "extension",
+            "line": 6,
+            "name": "GatewayClient",
+            "passes": [
+              "map.client",
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 13,
+            "name": "cronJobRevisions",
+            "passes": [
+              "map.client",
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 34,
+            "name": "cronJobRevisionsPage",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 52,
+            "name": "cronJobRevision",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 77,
+            "name": "cronDefinitionChange",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 89,
+            "name": "isNull",
+            "passes": []
+          }
+        ],
+        "line_count": 93,
+        "mapped_declarations": 2,
+        "passes": [
+          "map.client",
+          "map.endpoint"
+        ],
+        "path": "Sources/Portal/Services/GatewayClient+CronRevisions.swift",
+        "semantic_citations": 0,
+        "touched": true
+      },
+      {
         "citations": 4,
         "component": "hermes-services",
         "declaration_count": 6,
@@ -36330,7 +36469,7 @@
         "touched": true
       },
       {
-        "citations": 132,
+        "citations": 131,
         "component": "hermes-services",
         "declaration_count": 112,
         "declarations": [
@@ -36721,9 +36860,7 @@
             "kind": "func",
             "line": 1208,
             "name": "listCronJobs",
-            "passes": [
-              "map.endpoint"
-            ]
+            "passes": []
           },
           {
             "kind": "func",
@@ -37213,7 +37350,7 @@
           }
         ],
         "line_count": 2632,
-        "mapped_declarations": 72,
+        "mapped_declarations": 71,
         "passes": [
           "map.endpoint",
           "map.external",
@@ -45645,7 +45782,7 @@
       {
         "citations": 1,
         "component": "operations-state",
-        "declaration_count": 15,
+        "declaration_count": 16,
         "declarations": [
           {
             "kind": "class",
@@ -45717,30 +45854,36 @@
           },
           {
             "kind": "func",
-            "line": 168,
+            "line": 172,
+            "name": "loadRevisions",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 188,
             "name": "updatePrompt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 207,
+            "line": 227,
             "name": "renameParams",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 224,
+            "line": 244,
             "name": "renameJob",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 251,
+            "line": 271,
             "name": "renameFailureMessage",
             "passes": []
           }
         ],
-        "line_count": 259,
+        "line_count": 279,
         "mapped_declarations": 1,
         "passes": [
           "map.caller"
@@ -53025,6 +53168,31 @@
         "touched": true
       },
       {
+        "citations": 0,
+        "component": "operations-ui",
+        "declaration_count": 2,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 12,
+            "name": "CronDefinitionHistoryView",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 86,
+            "name": "revisionRow",
+            "passes": []
+          }
+        ],
+        "line_count": 163,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/CronDefinitionHistoryView.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
         "citations": 2,
         "component": "operations-ui",
         "declaration_count": 22,
@@ -53276,42 +53444,42 @@
           },
           {
             "kind": "func",
-            "line": 275,
+            "line": 282,
             "name": "statTile",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 349,
+            "line": 356,
             "name": "detailRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 390,
+            "line": 397,
             "name": "dataflowRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 409,
+            "line": 416,
             "name": "endpointChip",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 421,
+            "line": 428,
             "name": "endpointChipLabel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 450,
+            "line": 457,
             "name": "dataflowColor",
             "passes": []
           }
         ],
-        "line_count": 704,
+        "line_count": 711,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/CronJobCard.swift",
@@ -53338,7 +53506,7 @@
         "touched": false
       },
       {
-        "citations": 7,
+        "citations": 8,
         "component": "operations-ui",
         "declaration_count": 6,
         "declarations": [
@@ -53352,13 +53520,13 @@
           },
           {
             "kind": "func",
-            "line": 89,
+            "line": 92,
             "name": "categorizedRows",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 117,
+            "line": 120,
             "name": "card",
             "passes": [
               "swift.task.structured"
@@ -53366,26 +53534,26 @@
           },
           {
             "kind": "func",
-            "line": 138,
+            "line": 142,
             "name": "records",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 145,
+            "line": 149,
             "name": "toggle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 153,
+            "line": 157,
             "name": "toggle",
             "passes": [
               "swift.task.structured"
             ]
           }
         ],
-        "line_count": 166,
+        "line_count": 174,
         "mapped_declarations": 3,
         "passes": [
           "swift.task.structured"
@@ -62703,17 +62871,17 @@
         "id": "map.caller"
       },
       {
-        "citations": 11,
+        "citations": 12,
         "class": "mechanical",
         "description": "A client construction on the system map cites the declaration it was extracted from",
-        "files": 11,
+        "files": 12,
         "id": "map.client"
       },
       {
         "citations": 76,
         "class": "mechanical",
         "description": "An endpoint construction on the system map cites the declaration it was extracted from",
-        "files": 12,
+        "files": 13,
         "id": "map.endpoint"
       },
       {
@@ -63025,7 +63193,7 @@
         "id": "swift.task.stored_handle"
       },
       {
-        "citations": 314,
+        "citations": 315,
         "class": "mechanical",
         "description": "Task initializer with closure",
         "files": 93,
@@ -63058,15 +63226,15 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 301
+          "total": 302
         },
         "extension": {
-          "mapped": 19,
-          "total": 116
+          "mapped": 20,
+          "total": 117
         },
         "func": {
           "mapped": 432,
-          "total": 3231
+          "total": 3239
         },
         "protocol": {
           "mapped": 1,
@@ -63074,27 +63242,27 @@
         },
         "struct": {
           "mapped": 102,
-          "total": 854
+          "total": 858
         }
       },
-      "citations": 1315,
-      "declarations": 4659,
-      "entities": 160,
-      "entities_with_origin": 160,
-      "files": 413,
+      "citations": 1317,
+      "declarations": 4673,
+      "entities": 161,
+      "entities_with_origin": 161,
+      "files": 416,
       "functions": {
         "mapped": 432,
-        "total": 3231
+        "total": 3239
       },
-      "mapped_declarations": 643,
+      "mapped_declarations": 644,
       "passes": 50,
       "semantic_citations": 254,
-      "touched_files": 163,
+      "touched_files": 164,
       "types": {
-        "mapped": 211,
-        "total": 1428
+        "mapped": 212,
+        "total": 1434
       },
-      "untouched_files": 250
+      "untouched_files": 252
     }
   },
   "interplay": {
@@ -63505,6 +63673,7 @@
           "client:hermes-services:GatewayClient+CodeGraph",
           "client:hermes-services:GatewayClient+Cron",
           "client:hermes-services:GatewayClient+CronChangesets",
+          "client:hermes-services:GatewayClient+CronRevisions",
           "client:hermes-services:GatewayClient+Feed",
           "client:hermes-services:GatewayClient+Files",
           "client:hermes-services:GatewayClient+Learning",
@@ -63956,6 +64125,12 @@
       },
       {
         "class": "usage",
+        "relation": "calls",
+        "source": "caller:hermes-services:CronPoller",
+        "target": "client:hermes-services:GatewayClient+CronRevisions"
+      },
+      {
+        "class": "usage",
         "relation": "invokes",
         "source": "caller:hermes-services:CronPoller",
         "target": "endpoint:38507a0dce8b"
@@ -64166,6 +64341,12 @@
       },
       {
         "class": "usage",
+        "relation": "calls",
+        "source": "caller:operations-state:CronGraphViewModel",
+        "target": "client:hermes-services:GatewayClient+CronRevisions"
+      },
+      {
+        "class": "usage",
         "relation": "invokes",
         "source": "caller:operations-state:CronGraphViewModel",
         "target": "endpoint:38507a0dce8b"
@@ -64199,6 +64380,12 @@
         "relation": "calls",
         "source": "caller:operations-state:CronListViewModel",
         "target": "client:hermes-services:GatewayClient+CronChangesets"
+      },
+      {
+        "class": "usage",
+        "relation": "calls",
+        "source": "caller:operations-state:CronListViewModel",
+        "target": "client:hermes-services:GatewayClient+CronRevisions"
       },
       {
         "class": "usage",
@@ -64456,6 +64643,18 @@
         "class": "structure",
         "relation": "routes-through",
         "source": "client:hermes-services:GatewayClient+CronChangesets",
+        "target": "owner:hermes-services:GatewayClient"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+CronRevisions",
+        "target": "endpoint:38507a0dce8b"
+      },
+      {
+        "class": "structure",
+        "relation": "routes-through",
+        "source": "client:hermes-services:GatewayClient+CronRevisions",
         "target": "owner:hermes-services:GatewayClient"
       },
       {
@@ -71586,6 +71785,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient+Cron.swift",
           "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
+          "Sources/Portal/Services/GatewayClient+CronRevisions.swift",
           "Sources/Portal/Services/GatewayClient.swift"
         ],
         "flows": [
@@ -71619,9 +71819,9 @@
             "path": "Sources/Portal/Services/GatewayClient+Cron.swift"
           },
           {
-            "line": 1209,
+            "line": 14,
             "method": "cron.manage",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
+            "path": "Sources/Portal/Services/GatewayClient+CronRevisions.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -71699,6 +71899,24 @@
           "stale": false,
           "summary": "Client extension of GatewayClient in the hermes-services component that also covers the `cron` JSON-RPC namespace, alongside GatewayClient+Cron. It is called by CronPoller, CronGraphViewModel, and CronListViewModel, and requests route through the owning GatewayClient."
         },
+        "sub_kind": "client_extension"
+      },
+      {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "endpoint_ids": [
+          "endpoint:38507a0dce8b"
+        ],
+        "history_key": "client:hermes-services:GatewayClient+CronRevisions",
+        "id": "client:hermes-services:GatewayClient+CronRevisions",
+        "kind": "client",
+        "label": "GatewayClient+CronRevisions",
+        "line": 14,
+        "namespaces": [
+          "cron"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+CronRevisions.swift",
         "sub_kind": "client_extension"
       },
       {
@@ -76691,6 +76909,9 @@
           "loadHistory": [
             "cron"
           ],
+          "loadRevisions": [
+            "cron"
+          ],
           "pauseJob": [
             "cron"
           ],
@@ -78934,7 +79155,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 184
+        "type_count": 179
       },
       {
         "components": [],
@@ -83314,12 +83535,12 @@
     "unattributed_triggers": 477
   },
   "inventory": {
-    "assigned_files": 411,
-    "declarations": 1286,
-    "files": 411,
-    "lines": 119076,
-    "swift_files": 411,
-    "swift_lines": 119076,
+    "assigned_files": 414,
+    "declarations": 1291,
+    "files": 414,
+    "lines": 119490,
+    "swift_files": 414,
+    "swift_lines": 119490,
     "unassigned_files": []
   },
   "layers": [
@@ -83351,7 +83572,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "0c1bb7650c69294fd031ea27fc43d074f7321dd6896099c703d2964607a87e99",
+  "source_tree_sha256": "6077d531db2a4c1783a8ae0f766623b702393e170e658a590d8ede0546b944eb",
   "stores": {
     "by_persistence": {
       "defaults": 6,

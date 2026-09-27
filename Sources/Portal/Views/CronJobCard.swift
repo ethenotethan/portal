@@ -58,6 +58,10 @@ internal struct CronJobCard: View {
     /// the tap can highlight the matching node. Nil elsewhere — the chips then
     /// render as static labels, unchanged from before.
     internal var onSelectEndpoint: ((CronDataflowEndpoint) -> Void)?
+    /// The job's definition history as the list fetched it when the card opened:
+    /// nil while the request is in flight, `.unsupported` on a gateway without
+    /// the `revisions` action, else the page. Rendered by `CronDefinitionHistoryView`.
+    internal var revisions: CronJobRevisionsResult?
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -80,11 +84,13 @@ internal struct CronJobCard: View {
         siblingJobs: [CronJob] = [],
         showsCategoryPath: Bool = true,
         dataflow: CronJobDataflow = .empty,
-        onSelectEndpoint: ((CronDataflowEndpoint) -> Void)? = nil
+        onSelectEndpoint: ((CronDataflowEndpoint) -> Void)? = nil,
+        revisions: CronJobRevisionsResult? = nil
     ) {
         self.job = job
         self.isExpanded = isExpanded
         self.runRecords = runRecords
+        self.revisions = revisions
         self.onToggle = onToggle
         self.onPause = onPause
         self.onResume = onResume
@@ -128,6 +134,7 @@ internal struct CronJobCard: View {
                     detailRows
                     dataflowSection
                     promptSection
+                    CronDefinitionHistoryView(result: revisions)
                     introspectionSection
                     actionButtons
                 }
