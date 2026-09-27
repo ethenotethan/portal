@@ -32,6 +32,58 @@ internal func startPortalLogSink() {
     portalLogSink.start(appVersion: version)
 }
 
+// MARK: - Session health watchdog
+
+/// The long-session watchdog: a `Health:` line every interval, degraded-state
+/// detection, diagnostic bundles under `…/Logs/Portal/diagnostics/`. One per
+/// process (a module-level `let`, per the no-singletons rule); tests build
+/// their own with injected dependencies.
+@MainActor
+internal let sessionHealthMonitor = SessionHealthMonitor()
+
+/// Starts sampling at launch. The gateway and session sources bind later, once
+/// the App's state objects exist (`attachPortalSessionHealthSources`).
+@MainActor
+internal func startPortalSessionHealthMonitor() {
+    sessionHealthMonitor.setBundleHandler { folder, reasons in
+        Task { @MainActor in
+            NotificationService.shared.notifyDiagnosticsBundle(folder: folder.path, reasons: reasons)
+        }
+    }
+    sessionHealthMonitor.start()
+}
+
+/// Binds the main-actor sources the health sample reads: the gateway's pool and
+/// state, the open sessions, the artifacts in memory. Weak so the monitor never
+/// keeps the App's objects alive.
+@MainActor
+internal func attachPortalSessionHealthSources(gateway: GatewayClientWrapper, sessions: SessionListViewModel) {
+    sessionHealthMonitor.attachMainActorReader { [weak gateway, weak sessions] in
+        var reading = SessionHealthMainActorReading()
+        if let gateway {
+            let snapshot = gateway.client.diagnosticSnapshot()
+            reading.gatewayState = snapshot.connectionState
+            reading.pendingRequests = snapshot.pendingRequestCount
+            reading.reconnectAttempt = snapshot.reconnectAttempt
+            reading.lastRTTms = gateway.lastPingRTT.map { Int($0 * 1000) }
+            reading.gatewaySnapshot = GatewayDiagnosticSnapshot(snapshot)
+        }
+        reading.sessionsOpen = sessions?.sessions.count
+        reading.artifactsInMemory = ArtifactStore.shared.artifacts.count
+        return reading
+    }
+}
+
+/// The manual capture (menu item, Settings button): writes a bundle now and,
+/// on macOS, reveals the folder in Finder.
+@MainActor
+internal func capturePortalDiagnostics() async {
+    guard let folder = await sessionHealthMonitor.captureNow() else { return }
+    #if os(macOS)
+    NSWorkspace.shared.activateFileViewerSelecting([folder])
+    #endif
+}
+
 #if os(macOS)
 import AppKit
 

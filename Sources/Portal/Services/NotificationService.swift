@@ -146,6 +146,18 @@ final class NotificationService: NSObject, ObservableObject {
         )
     }
 
+    /// The session health monitor wrote a diagnostic bundle: say where, and why.
+    internal func notifyDiagnosticsBundle(folder: String, reasons: [String]) {
+        post(
+            id: "diagnostics-\(UUID().uuidString.prefix(8))",
+            title: reasons.isEmpty ? "Diagnostics captured" : "Portal is degraded — diagnostics captured",
+            body: reasons.isEmpty ? folder : reasons.joined(separator: "; "),
+            subtitle: reasons.isEmpty ? nil : folder,
+            category: .activity,
+            sessionID: nil
+        )
+    }
+
     // MARK: - Private
 
     private enum NotificationCategory: String {

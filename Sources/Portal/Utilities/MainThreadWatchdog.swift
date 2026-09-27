@@ -110,6 +110,30 @@ internal final class MainThreadWatchdog: @unchecked Sendable {
     // infra (PerfInstrumentation, PerfSampler) — dev-only, DEBUG-gated tooling.
     internal static let shared = MainThreadWatchdog()
 
+    /// Stalls since launch, for the session health monitor's `Health:` line and
+    /// the degraded-state rules. Counting only; thresholds are unchanged.
+    internal struct StallStatistics: Equatable, Sendable {
+        internal var hangs = 0
+        internal var storms = 0
+        internal var longestMs = 0
+    }
+
+    private let statsLock = NSLock()
+    private var stats = StallStatistics()
+
+    internal func stallStatistics() -> StallStatistics {
+        statsLock.lock()
+        defer { statsLock.unlock() }
+        return stats
+    }
+
+    private func recordStall(isStorm: Bool, ms: Int) {
+        statsLock.lock()
+        if isStorm { stats.storms += 1 } else { stats.hangs += 1 }
+        if ms > stats.longestMs { stats.longestMs = ms }
+        statsLock.unlock()
+    }
+
     /// A turn longer than this is treated as a hang. 250ms is well past the
     /// ~100ms perceptible-jank threshold but short enough to catch real stalls;
     /// override with `--hang-threshold-ms=N`.
@@ -517,6 +541,7 @@ internal final class MainThreadWatchdog: @unchecked Sendable {
     private func report(kind: StallKind, elapsed: TimeInterval,
                         busyFraction: Double, frames: [UInt]) {
         let ms = Int(elapsed * 1000)
+        if case .storm = kind { recordStall(isStorm: true, ms: ms) } else { recordStall(isStorm: false, ms: ms) }
         let symbols = Self.symbolicate(frames)
         let trace = symbols.isEmpty
             ? "  <no symbols — unsupported architecture or unreadable stack>"

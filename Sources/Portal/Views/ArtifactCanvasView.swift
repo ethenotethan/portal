@@ -50,6 +50,7 @@ internal struct ArtifactCanvasView: View {
         .frame(minWidth: 700, minHeight: 480)
         .task { await store.pull() }
         .onChange(of: store.sortedArtifacts.map(\.id)) { _, newIDs in
+            healthCounters.increment(HealthCounter.artifactRelayouts)
             reconcileLayout(artifactIDs: newIDs, bounds: canvasBounds)
         }
         // Expand fills THIS surface edge-to-edge — an in-place takeover, not
@@ -203,6 +204,7 @@ internal struct ArtifactCanvasView: View {
                 seedLayoutIfNeeded(bounds: geo.size)
             }
             .onChange(of: geo.size) { _, newSize in
+                healthCounters.increment(HealthCounter.artifactRelayouts)
                 canvasBounds = newSize
                 seedLayoutIfNeeded(bounds: newSize)
             }

@@ -377,6 +377,7 @@ private func makeWebView() -> WKWebView {
     let config = WKWebViewConfiguration()
     config.websiteDataStore = .nonPersistent()
     let webView = WKWebView(frame: .zero, configuration: config)
+    liveObjects.track(webView, as: LiveObjectKind.webView)
     #if os(macOS)
     webView.setValue(false, forKey: "drawsBackground")
     #else

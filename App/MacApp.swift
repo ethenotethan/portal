@@ -19,11 +19,13 @@ struct PortalAppMac: App {
         requestPortalNotificationAuthorization()
         startPortalPerfInstrumentation()
         startPortalLogSink()
+        startPortalSessionHealthMonitor()
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task { attachPortalSessionHealthSources(gateway: gatewayClientWrapper, sessions: sessionList) }
                 .environmentObject(settings)
                 .environmentObject(sessionList)
                 .environmentObject(personaManager)
@@ -47,6 +49,14 @@ struct PortalAppMac: App {
             // Keep the app alive when the last window closes so notifications
             // (approval requests, cron completions) still surface in the menu bar.
             CommandGroup(replacing: .appTermination) {}
+            // Help ▸ Capture Diagnostics Now: a session-health bundle on demand,
+            // for the moment the app is visibly in its bad state.
+            CommandGroup(after: .help) {
+                Button("Capture Diagnostics Now") {
+                    Task { await capturePortalDiagnostics() }
+                }
+                .keyboardShortcut("d", modifiers: [.command, .option, .shift])
+            }
         }
 
         Settings {

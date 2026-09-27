@@ -59,6 +59,7 @@ internal struct Model3DNSView: NSViewRepresentable {
         config.preferences.isElementFullscreenEnabled = true
         config.websiteDataStore = .nonPersistent()
         let webView = WKWebView(frame: .zero, configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.setValue(false, forKey: "drawsBackground")
         webView.allowsBackForwardNavigationGestures = false
         webView.loadHTMLString(html, baseURL: nil)
@@ -88,6 +89,7 @@ internal struct Model3DUIView: UIViewRepresentable {
         config.preferences.isElementFullscreenEnabled = true
         config.websiteDataStore = .nonPersistent()
         let webView = WKWebView(frame: .zero, configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
