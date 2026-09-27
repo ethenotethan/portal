@@ -3,6 +3,186 @@
     "operations": [
       {
         "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "maintainerRefs",
+        "evidence": {
+          "excerpt": "lock.lock()",
+          "line": 428,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-6aa1519130ce",
+        "kind": "acquire",
+        "label": "lock.lock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "maintainerRefs",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 430,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-2649bc3be7e4",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "maintainerRefs",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 433,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-c1730a862a99",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "maintainerRefs",
+        "evidence": {
+          "excerpt": "lock.lock()",
+          "line": 435,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-46b0472fc992",
+        "kind": "acquire",
+        "label": "lock.lock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "maintainerRefs",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 438,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-f2d52622eed2",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "jsonObject",
+        "evidence": {
+          "excerpt": "lock.lock()",
+          "line": 444,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-13c3c51071d4",
+        "kind": "acquire",
+        "label": "lock.lock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "jsonObject",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 447,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-18a6ef7f3131",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "jsonObject",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 450,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-067a22ca64fd",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "jsonObject",
+        "evidence": {
+          "excerpt": "lock.lock()",
+          "line": 452,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-da30b601729c",
+        "kind": "acquire",
+        "label": "lock.lock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "jsonObject",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 458,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-8e03ff9c8afa",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "LivingArtifactDerived",
+        "resource_id": "resource-83007d90528c",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
         "component": "local-services",
         "enclosing_function": "fetch",
         "evidence": {
@@ -2486,7 +2666,7 @@
         "owner_type": "ArtifactStore",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-aed3becaa068"
+          "task-site-111ea3a94d46"
         ]
       },
       {
@@ -2670,6 +2850,31 @@
         "task_handle_ids": [
           "task-site-2d69c46b37f1"
         ]
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "confidence": "mechanically_grouped",
+        "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
+        "evidence_class": "static_source",
+        "id": "connectivity-pocket-27874e627eab",
+        "operation_ids": [
+          "lifecycle-operation-067a22ca64fd",
+          "lifecycle-operation-13c3c51071d4",
+          "lifecycle-operation-18a6ef7f3131",
+          "lifecycle-operation-2649bc3be7e4",
+          "lifecycle-operation-46b0472fc992",
+          "lifecycle-operation-6aa1519130ce",
+          "lifecycle-operation-8e03ff9c8afa",
+          "lifecycle-operation-c1730a862a99",
+          "lifecycle-operation-da30b601729c",
+          "lifecycle-operation-f2d52622eed2"
+        ],
+        "owner_type": "LivingArtifactDerived",
+        "resource_ids": [
+          "resource-83007d90528c"
+        ],
+        "task_handle_ids": []
       },
       {
         "authority": "observed",
@@ -3232,6 +3437,22 @@
       }
     ],
     "resources": [
+      {
+        "authority": "observed",
+        "cardinality": "one stored field per owner instance",
+        "component": "domain-models",
+        "evidence": {
+          "excerpt": "private let lock = NSLock()",
+          "line": 419,
+          "path": "Sources/Portal/Models/LivingArtifact.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "resource-83007d90528c",
+        "kind": "lock",
+        "label": "lock",
+        "owner_type": "LivingArtifactDerived",
+        "rule_id": "swift.resource.lock.stored"
+      },
       {
         "authority": "observed",
         "cardinality": "one stored field per owner instance",
@@ -4009,11 +4230,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "private var pushTask: Task<Void, Never>?",
-          "line": 61,
+          "line": 69,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-aed3becaa068",
+        "id": "task-site-111ea3a94d46",
         "kind": "stored_task_handle",
         "label": "pushTask",
         "rule_id": "swift.task.stored_handle"
@@ -4025,11 +4246,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "queryTasks[slot] = Task { [weak self] in",
-          "line": 221,
+          "line": 208,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5d7d1a9dcb7e",
+        "id": "task-site-d9f1d12828e2",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4041,11 +4262,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task {",
-          "line": 251,
+          "line": 238,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9dcdb45efd31",
+        "id": "task-site-72a9ca33e163",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4057,11 +4278,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 488,
+          "line": 475,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-822e22895eb9",
+        "id": "task-site-3e6ec4ea6098",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4073,11 +4294,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 569,
+          "line": 556,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-171e40f1462f",
+        "id": "task-site-1836456a8856",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4089,11 +4310,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in try? await self?.client?.artifactDelete(id: id) }",
-          "line": 656,
+          "line": 643,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b235b99263a9",
+        "id": "task-site-902e6a72e049",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4105,11 +4326,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 672,
+          "line": 659,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8857940bfde5",
+        "id": "task-site-09e8f5541928",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4121,11 +4342,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { await pull() }",
-          "line": 717,
+          "line": 704,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-93ffa276e137",
+        "id": "task-site-d5fd01a4389d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4137,11 +4358,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 751,
+          "line": 738,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9af445b93b31",
+        "id": "task-site-5aa7fec57737",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4153,11 +4374,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "pushTask?.cancel()",
-          "line": 835,
+          "line": 822,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b643cd0f22c2",
+        "id": "task-site-dae7174f250e",
         "kind": "task_cancellation",
         "label": "pushTask",
         "rule_id": "swift.task.cancel"
@@ -4169,11 +4390,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "pushTask = Task { [weak self] in",
-          "line": 836,
+          "line": 823,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-32ac164148e1",
+        "id": "task-site-2d7a11f44569",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7609,11 +7830,11 @@
         "enclosing_type": "ArtifactHTMLIntentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 246,
+          "line": 248,
           "path": "Sources/Portal/Views/ArtifactKindRenderer.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ccaa0fedebf9",
+        "id": "task-site-bd98077967ae",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7625,11 +7846,11 @@
         "enclosing_type": "ArtifactHTMLIntentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 287,
+          "line": 289,
           "path": "Sources/Portal/Views/ArtifactKindRenderer.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-d8f4409dfa40",
+        "id": "task-site-699ad920caef",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7753,11 +7974,11 @@
         "enclosing_type": "IntentButton",
         "evidence": {
           "excerpt": "Task {",
-          "line": 364,
+          "line": 366,
           "path": "Sources/Portal/Views/Blocks/DatasetBlockView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-89d9a17ad989",
+        "id": "task-site-c91a42ab3bca",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7769,11 +7990,11 @@
         "enclosing_type": "IntentButton",
         "evidence": {
           "excerpt": "Task {",
-          "line": 387,
+          "line": 389,
           "path": "Sources/Portal/Views/Blocks/DatasetBlockView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-248af1ec42a7",
+        "id": "task-site-7409172d5bf9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -12436,6 +12657,7 @@
       {
         "current": {
           "counts": {
+            "artifact.maintainerParse": 40,
             "graph.forceSim": 202020,
             "sankey.pack": 24,
             "sankey.relax": 66
@@ -13315,7 +13537,7 @@
       "line_count": 5021
     },
     {
-      "declaration_count": 126,
+      "declaration_count": 128,
       "declarations": [
         "Artifact",
         "ArtifactActionControls",
@@ -13332,6 +13554,7 @@
         "ArtifactHistoryView",
         "ArtifactKindGlyph",
         "ArtifactKindRenderer",
+        "ArtifactListRow",
         "ArtifactMaintenanceSection",
         "ArtifactPanelContent",
         "ArtifactPanelView",
@@ -13379,6 +13602,7 @@
         "GraphExplorerBlockView",
         "GraphVisualStyle",
         "HSplitViewCompat",
+        "Inputs",
         "IntentButton",
         "InteractiveArtifactWeb",
         "InteractiveGraphSelection",
@@ -13446,7 +13670,7 @@
       ],
       "description": "Living artifact presentation, structured blocks, exports, and typed action surfaces.",
       "external": false,
-      "file_count": 34,
+      "file_count": 35,
       "files": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
@@ -13454,6 +13678,7 @@
         "Sources/Portal/Views/ArtifactExporter.swift",
         "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
+        "Sources/Portal/Views/ArtifactListRow.swift",
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
         "Sources/Portal/Views/ArtifactsPane.swift",
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
@@ -13486,7 +13711,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12164,
+      "line_count": 12221,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13973,12 +14198,13 @@
       }
     },
     {
-      "declaration_count": 17,
+      "declaration_count": 18,
       "declarations": [
         "ArtifactAction",
         "ArtifactActionEngine",
         "ArtifactActionInvokeResult",
         "ArtifactIntentSessionLink",
+        "ArtifactQueryStateStore",
         "ArtifactStore",
         "HTMLArtifactIntentBridge",
         "HTMLArtifactIntentRequest",
@@ -14007,7 +14233,7 @@
       "id": "artifact-intents",
       "label": "Artifact intents",
       "layer": "integration",
-      "line_count": 1699,
+      "line_count": 1730,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14253,7 +14479,7 @@
       }
     },
     {
-      "declaration_count": 357,
+      "declaration_count": 358,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -14480,6 +14706,7 @@
         "LearningWire",
         "Link",
         "LivingArtifact",
+        "LivingArtifactDerived",
         "LoadError",
         "LocalDiscussion",
         "LocalDiscussionBriefing",
@@ -14716,7 +14943,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 18617,
+      "line_count": 18696,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -15507,6 +15734,7 @@
         "Sources/Portal/Models/ArtifactActions.swift",
         "Sources/Portal/Models/HTMLArtifactIntentBridge.swift",
         "Sources/Portal/Models/HTMLPointerLockBridge.swift",
+        "Sources/Portal/Models/MaintainerRef.swift",
         "Sources/Portal/Services/ArtifactStore.swift"
       ],
       "source": "artifact-intents",
@@ -15526,7 +15754,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 17
+      "weight": 18
     },
     {
       "authority": "observed",
@@ -15546,6 +15774,23 @@
     },
     {
       "authority": "observed",
+      "description": "References 3 declaration(s) owned by utilities.",
+      "evidence": [
+        "Sources/Portal/Models/MaintainerRef.swift",
+        "Sources/Portal/Services/ArtifactStore.swift"
+      ],
+      "source": "artifact-intents",
+      "symbols": [
+        "JSONObjectParse",
+        "PerfCounter",
+        "PortalLogger"
+      ],
+      "target": "utilities",
+      "type": "references",
+      "weight": 5
+    },
+    {
+      "authority": "observed",
       "description": "References 2 declaration(s) owned by app-shell.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
@@ -15554,12 +15799,12 @@
         "Sources/Portal/Views/ArtifactExporter.swift",
         "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
+        "Sources/Portal/Views/ArtifactListRow.swift",
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
         "Sources/Portal/Views/ArtifactsPane.swift",
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
-        "Sources/Portal/Views/Blocks/ArtifactParseError.swift",
-        "Sources/Portal/Views/Blocks/BlueprintBlockView.swift"
+        "Sources/Portal/Views/Blocks/ArtifactParseError.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
@@ -15568,7 +15813,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 33
+      "weight": 34
     },
     {
       "authority": "observed",
@@ -15578,14 +15823,14 @@
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
         "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
+        "Sources/Portal/Views/ArtifactListRow.swift",
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
         "Sources/Portal/Views/ArtifactsPane.swift",
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/ChecklistBlockView.swift",
         "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
-        "Sources/Portal/Views/Blocks/KanbanBlockView.swift",
-        "Sources/Portal/Views/Blocks/LivingArtifactCapture.swift"
+        "Sources/Portal/Views/Blocks/KanbanBlockView.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
@@ -15601,7 +15846,7 @@
       ],
       "target": "artifact-intents",
       "type": "references",
-      "weight": 23
+      "weight": 24
     },
     {
       "authority": "observed",
@@ -15658,12 +15903,12 @@
         "Sources/Portal/Views/ArtifactExporter.swift",
         "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
+        "Sources/Portal/Views/ArtifactListRow.swift",
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
         "Sources/Portal/Views/ArtifactsPane.swift",
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
-        "Sources/Portal/Views/Blocks/ArtifactParseError.swift",
-        "Sources/Portal/Views/Blocks/BlueprintBlockView.swift"
+        "Sources/Portal/Views/Blocks/ArtifactParseError.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
@@ -15682,7 +15927,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 81
+      "weight": 82
     },
     {
       "authority": "observed",
@@ -15795,7 +16040,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by utilities.",
+      "description": "References 6 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
@@ -15813,6 +16058,7 @@
       "source": "artifact-ui",
       "symbols": [
         "HealthCounter",
+        "JSONObjectParse",
         "LiveObjectKind",
         "PortalLogger",
         "RenderMemo",
@@ -15820,7 +16066,7 @@
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 17
+      "weight": 18
     },
     {
       "authority": "observed",
@@ -16667,7 +16913,7 @@
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 28
+      "weight": 29
     },
     {
       "authority": "observed",
@@ -16857,8 +17103,9 @@
     },
     {
       "authority": "observed",
-      "description": "References 15 declaration(s) owned by artifact-ui.",
+      "description": "References 16 declaration(s) owned by artifact-ui.",
       "evidence": [
+        "Sources/Portal/Services/DiagnosticBundle.swift",
         "Sources/Portal/Services/SessionPDFExporter.swift"
       ],
       "source": "local-services",
@@ -16867,18 +17114,18 @@
         "BlueprintBlockView",
         "DiffBlockView",
         "DiffLine",
+        "Inputs",
         "KanbanBlockView",
         "MapExportRenderer",
         "MapSpec",
         "MathView",
         "MermaidDiagramView",
         "MermaidExportRenderer",
-        "NativeChartView",
-        "NetworkGraphView"
+        "NativeChartView"
       ],
       "target": "artifact-ui",
       "type": "references",
-      "weight": 16
+      "weight": 18
     },
     {
       "authority": "observed",
@@ -17633,19 +17880,21 @@
     },
     {
       "authority": "observed",
-      "description": "References 2 declaration(s) owned by artifact-ui.",
+      "description": "References 3 declaration(s) owned by artifact-ui.",
       "evidence": [
+        "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
         "Sources/Portal/Views/Architecture/ArchitectureSystemMapSectionView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift"
       ],
       "source": "shared-ui",
       "symbols": [
         "ArtifactExporter",
+        "Inputs",
         "MermaidDiagramView"
       ],
       "target": "artifact-ui",
       "type": "references",
-      "weight": 4
+      "weight": 6
     },
     {
       "authority": "observed",
@@ -19873,7 +20122,7 @@
             "evidence": [
               {
                 "excerpt": "let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
-                "line": 90,
+                "line": 98,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -21420,7 +21669,7 @@
         "origins": [
           {
             "family": "store",
-            "line": 94,
+            "line": 102,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.store.artifact_literal"
           }
@@ -22476,6 +22725,27 @@
           },
           {
             "family": "trigger",
+            "line": 72,
+            "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 73,
+            "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 291,
+            "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
             "line": 93,
             "path": "Sources/Portal/Views/CronListView.swift",
             "rule": "swift.trigger.surface_call",
@@ -22896,6 +23166,13 @@
           },
           {
             "family": "trigger",
+            "line": 37,
+            "path": "Sources/Portal/Views/SkillMarkdownEditor.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
             "line": 67,
             "path": "Sources/Portal/Views/Skills/SkillsCanvasView.swift",
             "rule": "swift.trigger.surface_call",
@@ -22905,6 +23182,62 @@
             "family": "trigger",
             "line": 104,
             "path": "Sources/Portal/Views/Skills/SkillsCanvasView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 45,
+            "path": "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 111,
+            "path": "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 66,
+            "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 110,
+            "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 135,
+            "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 182,
+            "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 34,
+            "path": "Sources/Portal/Views/Skills/SkillsHubPanel.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 39,
+            "path": "Sources/Portal/Views/Skills/SkillsHubPanel.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
@@ -24988,6 +25321,41 @@
             "line": 40,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.owner"
+          },
+          {
+            "family": "trigger",
+            "line": 41,
+            "path": "Sources/Portal/Views/SessionUsageBadge.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 847,
+            "path": "Sources/Portal/Views/SettingsView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 872,
+            "path": "Sources/Portal/Views/SettingsView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 1065,
+            "path": "Sources/Portal/Views/SettingsView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 1072,
+            "path": "Sources/Portal/Views/SettingsView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
           }
         ]
       },
@@ -25368,6 +25736,20 @@
         ]
       },
       {
+        "component": "artifact-intents",
+        "id": "store:artifact-intents:ArtifactQueryStateStore",
+        "kind": "store",
+        "label": "ArtifactQueryStateStore",
+        "origins": [
+          {
+            "family": "store",
+            "line": 852,
+            "path": "Sources/Portal/Services/ArtifactStore.swift",
+            "rule": "swift.store.declaration"
+          }
+        ]
+      },
+      {
         "component": "chat-state",
         "id": "store:chat-state:GatewayCapabilitiesStore",
         "kind": "store",
@@ -25436,6 +25818,13 @@
         "kind": "store",
         "label": "LongResponseDocumentCache",
         "origins": [
+          {
+            "family": "trigger",
+            "line": 45,
+            "path": "Sources/Portal/Views/LongResponseView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
           {
             "family": "store",
             "line": 315,
@@ -25821,7 +26210,7 @@
           },
           {
             "family": "behaviour",
-            "line": 712,
+            "line": 699,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.resource.bus_subscription"
           },
@@ -25834,29 +26223,29 @@
           },
           {
             "family": "trigger",
-            "line": 304,
-            "path": "Sources/Portal/Views/ArtifactCanvasView.swift",
-            "rule": "swift.trigger.surface_call",
-            "via": "trigger"
-          },
-          {
-            "family": "trigger",
-            "line": 231,
+            "line": 233,
             "path": "Sources/Portal/Views/ArtifactKindRenderer.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 241,
+            "line": 243,
             "path": "Sources/Portal/Views/ArtifactKindRenderer.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 255,
+            "line": 257,
             "path": "Sources/Portal/Views/ArtifactKindRenderer.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 87,
+            "path": "Sources/Portal/Views/ArtifactListRow.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
@@ -25890,35 +26279,35 @@
           },
           {
             "family": "trigger",
-            "line": 315,
+            "line": 317,
             "path": "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 336,
+            "line": 338,
             "path": "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 362,
+            "line": 364,
             "path": "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 373,
+            "line": 375,
             "path": "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 386,
+            "line": 388,
             "path": "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -31435,9 +31824,9 @@
         "touched": false
       },
       {
-        "citations": 0,
+        "citations": 11,
         "component": "domain-models",
-        "declaration_count": 17,
+        "declaration_count": 20,
         "declarations": [
           {
             "kind": "struct",
@@ -31447,107 +31836,139 @@
           },
           {
             "kind": "enum",
-            "line": 58,
+            "line": 63,
             "name": "CodingKeys",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 75,
+            "line": 80,
             "name": "encode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 103,
+            "line": 133,
             "name": "from",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 142,
+            "line": 172,
             "name": "parseISO",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 150,
+            "line": 180,
             "name": "ArtifactRevision",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 160,
+            "line": 190,
             "name": "from",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 177,
+            "line": 207,
             "name": "ArtifactMerge",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 179,
+            "line": 209,
             "name": "merge",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 213,
+            "line": 243,
             "name": "mergeKeyedList",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 239,
+            "line": 269,
             "name": "mergeEntryFields",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 249,
+            "line": 279,
             "name": "reserialize",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 264,
+            "line": 294,
             "name": "mergeModel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 315,
+            "line": 345,
             "name": "mergeDataset",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 340,
+            "line": 370,
             "name": "mergeMap",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 365,
+            "line": 395,
             "name": "carryTombstone",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 378,
+            "line": 408,
             "name": "parse",
             "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 418,
+            "name": "LivingArtifactDerived",
+            "passes": [
+              "swift.lifecycle.acquire",
+              "swift.lifecycle.release",
+              "swift.resource.lock.stored"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 427,
+            "name": "maintainerRefs",
+            "passes": [
+              "swift.lifecycle.acquire",
+              "swift.lifecycle.release"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 443,
+            "name": "jsonObject",
+            "passes": [
+              "swift.lifecycle.acquire",
+              "swift.lifecycle.release"
+            ]
           }
         ],
-        "line_count": 382,
-        "mapped_declarations": 0,
-        "passes": [],
+        "line_count": 461,
+        "mapped_declarations": 3,
+        "passes": [
+          "swift.lifecycle.acquire",
+          "swift.lifecycle.release",
+          "swift.resource.lock.stored"
+        ],
         "path": "Sources/Portal/Models/LivingArtifact.swift",
         "semantic_citations": 0,
-        "touched": false
+        "touched": true
       },
       {
         "citations": 0,
@@ -31795,7 +32216,7 @@
       {
         "citations": 0,
         "component": "artifact-intents",
-        "declaration_count": 3,
+        "declaration_count": 4,
         "declarations": [
           {
             "kind": "enum",
@@ -31811,12 +32232,18 @@
           },
           {
             "kind": "func",
-            "line": 67,
+            "line": 65,
+            "name": "parseList",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 74,
             "name": "write",
             "passes": []
           }
         ],
-        "line_count": 85,
+        "line_count": 92,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/MaintainerRef.swift",
@@ -34055,9 +34482,9 @@
         "touched": true
       },
       {
-        "citations": 19,
+        "citations": 21,
         "component": "artifact-intents",
-        "declaration_count": 38,
+        "declaration_count": 40,
         "declarations": [
           {
             "kind": "class",
@@ -34079,43 +34506,31 @@
           },
           {
             "kind": "enum",
-            "line": 31,
+            "line": 39,
             "name": "IntentInvocationState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 48,
+            "line": 56,
             "name": "from",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 111,
+            "line": 119,
             "name": "upsert",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 144,
+            "line": 152,
             "name": "applyAction",
             "passes": []
           },
           {
-            "kind": "struct",
-            "line": 185,
-            "name": "QuerySlot",
-            "passes": []
-          },
-          {
-            "kind": "enum",
-            "line": 195,
-            "name": "QueryState",
-            "passes": []
-          },
-          {
             "kind": "func",
-            "line": 218,
+            "line": 205,
             "name": "runQuery",
             "passes": [
               "swift.task.structured"
@@ -34123,19 +34538,19 @@
           },
           {
             "kind": "func",
-            "line": 229,
+            "line": 216,
             "name": "markQueryUnsupported",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 237,
+            "line": 224,
             "name": "querySlots",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 242,
+            "line": 229,
             "name": "releaseQueries",
             "passes": [
               "swift.task.structured"
@@ -34143,37 +34558,37 @@
           },
           {
             "kind": "func",
-            "line": 264,
+            "line": 251,
             "name": "performQuery",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 355,
+            "line": 342,
             "name": "applyQueryChange",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 369,
+            "line": 356,
             "name": "invalidateQueries",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 388,
+            "line": 375,
             "name": "invokeIntent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 451,
+            "line": 438,
             "name": "confirmIntent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 486,
+            "line": 473,
             "name": "rehydrateBadges",
             "passes": [
               "swift.task.structured"
@@ -34181,19 +34596,19 @@
           },
           {
             "kind": "func",
-            "line": 524,
+            "line": 511,
             "name": "clearIntentState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 530,
+            "line": 517,
             "name": "applyInvokeResult",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 567,
+            "line": 554,
             "name": "refreshArtifact",
             "passes": [
               "swift.task.structured"
@@ -34201,37 +34616,37 @@
           },
           {
             "kind": "func",
-            "line": 582,
+            "line": 569,
             "name": "slotKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 587,
+            "line": 574,
             "name": "intentSlotKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 597,
+            "line": 584,
             "name": "intentSlots",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 616,
+            "line": 603,
             "name": "setMaintainers",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 629,
+            "line": 616,
             "name": "currentFieldValue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 652,
+            "line": 639,
             "name": "remove",
             "passes": [
               "swift.task.structured"
@@ -34239,13 +34654,13 @@
           },
           {
             "kind": "func",
-            "line": 661,
+            "line": 648,
             "name": "loadFromDisk",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 669,
+            "line": 656,
             "name": "persistToDisk",
             "passes": [
               "swift.task.detached"
@@ -34253,25 +34668,25 @@
           },
           {
             "kind": "func",
-            "line": 687,
+            "line": 674,
             "name": "injectClientForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 695,
+            "line": 682,
             "name": "seedArtifactForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 701,
+            "line": 688,
             "name": "seedIntentStateForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 708,
+            "line": 695,
             "name": "setClient",
             "passes": [
               "swift.resource.bus_subscription",
@@ -34280,19 +34695,19 @@
           },
           {
             "kind": "func",
-            "line": 722,
+            "line": 709,
             "name": "handleGatewayEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 736,
+            "line": 723,
             "name": "applyGatewayEventForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 744,
+            "line": 731,
             "name": "applyRemoteChange",
             "passes": [
               "swift.task.structured"
@@ -34300,13 +34715,13 @@
           },
           {
             "kind": "func",
-            "line": 768,
+            "line": 755,
             "name": "pull",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 832,
+            "line": 819,
             "name": "schedulePush",
             "passes": [
               "swift.task.cancel",
@@ -34315,15 +34730,43 @@
           },
           {
             "kind": "func",
-            "line": 846,
+            "line": 833,
             "name": "push",
+            "passes": []
+          },
+          {
+            "kind": "class",
+            "line": 852,
+            "name": "ArtifactQueryStateStore",
+            "passes": [
+              "map.store",
+              "swift.store.declaration"
+            ]
+          },
+          {
+            "kind": "extension",
+            "line": 861,
+            "name": "ArtifactStore",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 865,
+            "name": "QuerySlot",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 875,
+            "name": "QueryState",
             "passes": []
           }
         ],
-        "line_count": 860,
-        "mapped_declarations": 10,
+        "line_count": 884,
+        "mapped_declarations": 11,
         "passes": [
           "map.artifact",
+          "map.store",
           "map.subscriber",
           "swift.boundary.external_signature",
           "swift.resource.bus_subscription",
@@ -48353,7 +48796,7 @@
         "touched": true
       },
       {
-        "citations": 5,
+        "citations": 4,
         "component": "artifact-ui",
         "declaration_count": 24,
         "declarations": [
@@ -48381,135 +48824,133 @@
           },
           {
             "kind": "func",
-            "line": 257,
-            "name": "listRow",
-            "passes": [
-              "swift.trigger.surface_call"
-            ]
-          },
-          {
-            "kind": "func",
-            "line": 334,
+            "line": 285,
             "name": "panelContent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 353,
+            "line": 304,
             "name": "kind",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 357,
+            "line": 308,
             "name": "artifactID",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 363,
+            "line": 314,
             "name": "panelTitle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 369,
+            "line": 320,
             "name": "panelIcon",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 375,
+            "line": 326,
             "name": "kindIcon",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 392,
+            "line": 343,
             "name": "seedLayoutIfNeeded",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 412,
+            "line": 363,
             "name": "reconcileLayout",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 436,
+            "line": 387,
             "name": "addPanel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 444,
+            "line": 395,
             "name": "seededDefault",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 469,
+            "line": 420,
             "name": "nextFrame",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 489,
+            "line": 440,
             "name": "ArtifactPanelContent",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 496,
+            "line": 447,
             "name": "Mode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 703,
+            "line": 655,
             "name": "refreshCrons",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 716,
+            "line": 668,
             "name": "ArtifactKindGlyph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 717,
+            "line": 669,
             "name": "icon",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 745,
+            "line": 697,
             "name": "ArtifactPreviewGist",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 746,
+            "line": 701,
             "name": "make",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 771,
+            "line": 727,
             "name": "structural",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 792,
+            "line": 742,
+            "name": "parse",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 748,
             "name": "snippet",
             "passes": []
           }
         ],
-        "line_count": 803,
-        "mapped_declarations": 2,
+        "line_count": 759,
+        "mapped_declarations": 1,
         "passes": [
           "swift.boundary.external_signature",
           "swift.task.structured",
@@ -49036,7 +49477,7 @@
           },
           {
             "kind": "func",
-            "line": 262,
+            "line": 264,
             "name": "handleRequest",
             "passes": [
               "swift.task.structured"
@@ -49044,30 +49485,59 @@
           },
           {
             "kind": "func",
-            "line": 314,
+            "line": 316,
             "name": "handleQuery",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 334,
+            "line": 336,
             "name": "inlineStatus",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 393,
+            "line": 395,
             "name": "clearActiveState",
             "passes": []
           }
         ],
-        "line_count": 406,
+        "line_count": 408,
         "mapped_declarations": 2,
         "passes": [
           "swift.task.structured",
           "swift.trigger.surface_call"
         ],
         "path": "Sources/Portal/Views/ArtifactKindRenderer.swift",
+        "semantic_citations": 0,
+        "touched": true
+      },
+      {
+        "citations": 1,
+        "component": "artifact-ui",
+        "declaration_count": 2,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 8,
+            "name": "ArtifactListRow",
+            "passes": [
+              "swift.trigger.surface_call"
+            ]
+          },
+          {
+            "kind": "struct",
+            "line": 9,
+            "name": "Inputs",
+            "passes": []
+          }
+        ],
+        "line_count": 97,
+        "mapped_declarations": 1,
+        "passes": [
+          "swift.trigger.surface_call"
+        ],
+        "path": "Sources/Portal/Views/ArtifactListRow.swift",
         "semantic_citations": 0,
         "touched": true
       },
@@ -49933,7 +50403,7 @@
             ]
           }
         ],
-        "line_count": 412,
+        "line_count": 414,
         "mapped_declarations": 1,
         "passes": [
           "swift.task.structured",
@@ -52218,7 +52688,7 @@
         "touched": true
       },
       {
-        "citations": 10,
+        "citations": 12,
         "component": "operations-ui",
         "declaration_count": 15,
         "declarations": [
@@ -55096,7 +55566,7 @@
         "touched": true
       },
       {
-        "citations": 10,
+        "citations": 11,
         "component": "chat-ui",
         "declaration_count": 20,
         "declarations": [
@@ -55104,7 +55574,9 @@
             "kind": "struct",
             "line": 11,
             "name": "LongResponseView",
-            "passes": []
+            "passes": [
+              "swift.trigger.surface_call"
+            ]
           },
           {
             "kind": "func",
@@ -55234,13 +55706,14 @@
           }
         ],
         "line_count": 502,
-        "mapped_declarations": 3,
+        "mapped_declarations": 4,
         "passes": [
           "map.store",
           "swift.lifecycle.acquire",
           "swift.lifecycle.release",
           "swift.resource.lock.stored",
-          "swift.store.declaration"
+          "swift.store.declaration",
+          "swift.trigger.surface_call"
         ],
         "path": "Sources/Portal/Views/LongResponseView.swift",
         "semantic_citations": 3,
@@ -57888,7 +58361,7 @@
         "touched": true
       },
       {
-        "citations": 1,
+        "citations": 2,
         "component": "operations-ui",
         "declaration_count": 6,
         "declarations": [
@@ -57897,7 +58370,8 @@
             "line": 15,
             "name": "SessionUsageBadge",
             "passes": [
-              "map.caller"
+              "map.caller",
+              "swift.trigger.surface_call"
             ]
           },
           {
@@ -57934,14 +58408,15 @@
         "line_count": 89,
         "mapped_declarations": 1,
         "passes": [
-          "map.caller"
+          "map.caller",
+          "swift.trigger.surface_call"
         ],
         "path": "Sources/Portal/Views/SessionUsageBadge.swift",
         "semantic_citations": 4,
         "touched": true
       },
       {
-        "citations": 7,
+        "citations": 11,
         "component": "app-shell",
         "declaration_count": 20,
         "declarations": [
@@ -58005,7 +58480,8 @@
             "name": "SystemPromptSection",
             "passes": [
               "map.caller",
-              "swift.task.structured"
+              "swift.task.structured",
+              "swift.trigger.surface_call"
             ]
           },
           {
@@ -58075,14 +58551,15 @@
         "mapped_declarations": 2,
         "passes": [
           "map.caller",
-          "swift.task.structured"
+          "swift.task.structured",
+          "swift.trigger.surface_call"
         ],
         "path": "Sources/Portal/Views/SettingsView.swift",
         "semantic_citations": 4,
         "touched": true
       },
       {
-        "citations": 1,
+        "citations": 2,
         "component": "operations-ui",
         "declaration_count": 1,
         "declarations": [
@@ -58091,14 +58568,16 @@
             "line": 3,
             "name": "SkillMarkdownEditor",
             "passes": [
-              "swift.task.structured"
+              "swift.task.structured",
+              "swift.trigger.surface_call"
             ]
           }
         ],
         "line_count": 53,
         "mapped_declarations": 1,
         "passes": [
-          "swift.task.structured"
+          "swift.task.structured",
+          "swift.trigger.surface_call"
         ],
         "path": "Sources/Portal/Views/SkillMarkdownEditor.swift",
         "semantic_citations": 0,
@@ -58180,7 +58659,7 @@
         "touched": true
       },
       {
-        "citations": 1,
+        "citations": 3,
         "component": "operations-ui",
         "declaration_count": 8,
         "declarations": [
@@ -58189,7 +58668,8 @@
             "line": 11,
             "name": "SkillsDetailPanel",
             "passes": [
-              "swift.task.structured"
+              "swift.task.structured",
+              "swift.trigger.surface_call"
             ]
           },
           {
@@ -58203,7 +58683,8 @@
             "line": 75,
             "name": "summarySection",
             "passes": [
-              "swift.task.structured"
+              "swift.task.structured",
+              "swift.trigger.surface_call"
             ]
           },
           {
@@ -58240,14 +58721,15 @@
         "line_count": 194,
         "mapped_declarations": 2,
         "passes": [
-          "swift.task.structured"
+          "swift.task.structured",
+          "swift.trigger.surface_call"
         ],
         "path": "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
         "semantic_citations": 0,
         "touched": true
       },
       {
-        "citations": 3,
+        "citations": 7,
         "component": "operations-ui",
         "declaration_count": 5,
         "declarations": [
@@ -58256,7 +58738,8 @@
             "line": 13,
             "name": "SkillsEditorPanel",
             "passes": [
-              "swift.task.structured"
+              "swift.task.structured",
+              "swift.trigger.surface_call"
             ]
           },
           {
@@ -58264,7 +58747,8 @@
             "line": 125,
             "name": "switchBar",
             "passes": [
-              "swift.task.structured"
+              "swift.task.structured",
+              "swift.trigger.surface_call"
             ]
           },
           {
@@ -58289,7 +58773,8 @@
         "line_count": 280,
         "mapped_declarations": 2,
         "passes": [
-          "swift.task.structured"
+          "swift.task.structured",
+          "swift.trigger.surface_call"
         ],
         "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
         "semantic_citations": 0,
@@ -58418,7 +58903,7 @@
         "touched": false
       },
       {
-        "citations": 3,
+        "citations": 5,
         "component": "operations-ui",
         "declaration_count": 2,
         "declarations": [
@@ -58427,7 +58912,8 @@
             "line": 10,
             "name": "SkillsHubPanel",
             "passes": [
-              "swift.task.structured"
+              "swift.task.structured",
+              "swift.trigger.surface_call"
             ]
           },
           {
@@ -58440,7 +58926,8 @@
         "line_count": 145,
         "mapped_declarations": 1,
         "passes": [
-          "swift.task.structured"
+          "swift.task.structured",
+          "swift.trigger.surface_call"
         ],
         "path": "Sources/Portal/Views/Skills/SkillsHubPanel.swift",
         "semantic_citations": 0,
@@ -62070,10 +62557,10 @@
         "id": "map.section"
       },
       {
-        "citations": 17,
+        "citations": 18,
         "class": "mechanical",
         "description": "A store construction on the system map cites the declaration it was extracted from",
-        "files": 17,
+        "files": 18,
         "id": "map.store"
       },
       {
@@ -62105,10 +62592,10 @@
         "id": "swift.boundary.external_signature"
       },
       {
-        "citations": 42,
+        "citations": 46,
         "class": "mechanical",
         "description": "lock() invoked on a named stored lock",
-        "files": 8,
+        "files": 9,
         "id": "swift.lifecycle.acquire"
       },
       {
@@ -62168,10 +62655,10 @@
         "id": "swift.lifecycle.receive"
       },
       {
-        "citations": 47,
+        "citations": 53,
         "class": "mechanical",
         "description": "unlock() invoked on a named stored lock",
-        "files": 8,
+        "files": 9,
         "id": "swift.lifecycle.release"
       },
       {
@@ -62196,10 +62683,10 @@
         "id": "swift.resource.combine_subject.stored"
       },
       {
-        "citations": 12,
+        "citations": 13,
         "class": "mechanical",
         "description": "Stored property declared or initialized as NSLock or OSAllocatedUnfairLock",
-        "files": 9,
+        "files": 10,
         "id": "swift.resource.lock.stored"
       },
       {
@@ -62266,7 +62753,7 @@
         "id": "swift.store.artifact_literal"
       },
       {
-        "citations": 22,
+        "citations": 23,
         "class": "mechanical",
         "description": "A class, struct, actor, or enum whose name ends in Store, Cache, Inventory, or Ledger",
         "files": 22,
@@ -62336,10 +62823,10 @@
         "id": "swift.trigger.launch_construction"
       },
       {
-        "citations": 159,
+        "citations": 176,
         "class": "mechanical",
         "description": "A SwiftUI action (Button, onTapGesture, keyboardShortcut, onSubmit, swipeActions, refreshable, Toggle, Picker) or lifecycle hook (onAppear, task, onChange, onReceive, onDisappear) whose closure calls a method on a same-file property typed as a calling surface",
-        "files": 37,
+        "files": 45,
         "id": "swift.trigger.surface_call"
       }
     ],
@@ -62350,8 +62837,8 @@
           "total": 4
         },
         "class": {
-          "mapped": 75,
-          "total": 126
+          "mapped": 77,
+          "total": 128
         },
         "enum": {
           "mapped": 8,
@@ -62359,39 +62846,39 @@
         },
         "extension": {
           "mapped": 19,
-          "total": 115
+          "total": 116
         },
         "func": {
-          "mapped": 431,
-          "total": 3228
+          "mapped": 432,
+          "total": 3231
         },
         "protocol": {
           "mapped": 1,
           "total": 25
         },
         "struct": {
-          "mapped": 100,
-          "total": 852
+          "mapped": 102,
+          "total": 854
         }
       },
-      "citations": 1285,
-      "declarations": 4651,
-      "entities": 159,
-      "entities_with_origin": 159,
-      "files": 412,
+      "citations": 1315,
+      "declarations": 4659,
+      "entities": 160,
+      "entities_with_origin": 160,
+      "files": 413,
       "functions": {
-        "mapped": 431,
-        "total": 3228
+        "mapped": 432,
+        "total": 3231
       },
-      "mapped_declarations": 638,
+      "mapped_declarations": 643,
       "passes": 50,
       "semantic_citations": 254,
-      "touched_files": 161,
+      "touched_files": 163,
       "types": {
-        "mapped": 207,
-        "total": 1423
+        "mapped": 211,
+        "total": 1428
       },
-      "untouched_files": 251
+      "untouched_files": 250
     }
   },
   "interplay": {
@@ -62591,6 +63078,14 @@
         "id": "interplay-cluster-40e334af5cf6",
         "node_ids": [
           "store:local-services:CronGraphStore"
+        ],
+        "owner_type": "Data stores"
+      },
+      {
+        "component": "artifact-intents",
+        "id": "interplay-cluster-42ccc28663db",
+        "node_ids": [
+          "store:artifact-intents:ArtifactQueryStateStore"
         ],
         "owner_type": "Data stores"
       },
@@ -64958,6 +65453,12 @@
         "relation": "persists-to",
         "source": "subscriber:ArtifactStore",
         "target": "artifact:file-system:portal/artifacts.json"
+      },
+      {
+        "class": "usage",
+        "relation": "uses",
+        "source": "subscriber:ArtifactStore",
+        "target": "store:artifact-intents:ArtifactQueryStateStore"
       },
       {
         "class": "structure",
@@ -68696,7 +69197,7 @@
         "why": "If the register, resolve or remove rules stop matching the source, the pool must fail the build rather than look idle."
       },
       {
-        "checked": 137,
+        "checked": 147,
         "id": "operations-scoped",
         "kind": "operations_resolve_scope",
         "status": "holds",
@@ -68710,14 +69211,14 @@
         "why": "Every namespace box is dispatched by a transport core; a namespace reached any other way is a new construction, not a variant of this one."
       },
       {
-        "checked": 22,
+        "checked": 23,
         "id": "stores-mapped",
         "kind": "stores_mapped",
         "status": "holds",
         "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
       },
       {
-        "checked": 246,
+        "checked": 271,
         "id": "triggers-observed",
         "kind": "triggers_observed",
         "status": "holds",
@@ -70063,7 +70564,7 @@
           ]
         },
         "subscription": {
-          "line": 712,
+          "line": 699,
           "mode": "direct",
           "path": "Sources/Portal/Services/ArtifactStore.swift",
           "rule_id": "swift.resource.bus_subscription",
@@ -70080,7 +70581,7 @@
         "evidence": [
           {
             "excerpt": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))",
-            "line": 94,
+            "line": 102,
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           }
         ],
@@ -70093,7 +70594,7 @@
         "id": "artifact:file-system:portal/artifacts.json",
         "kind": "artifact",
         "label": "portal/artifacts.json",
-        "line": 94,
+        "line": 102,
         "owner_type": "External systems",
         "path": "Sources/Portal/Services/ArtifactStore.swift",
         "stores": [
@@ -70101,6 +70602,33 @@
         ],
         "sub_kind": "file",
         "system_id": "file-system"
+      },
+      {
+        "cluster": "interplay-cluster-42ccc28663db",
+        "component": "artifact-intents",
+        "history_key": "store:artifact-intents:ArtifactQueryStateStore",
+        "id": "store:artifact-intents:ArtifactQueryStateStore",
+        "kind": "store",
+        "label": "ArtifactQueryStateStore",
+        "line": 852,
+        "owner_type": null,
+        "page": "artifacts",
+        "page_resolution": "component",
+        "path": "Sources/Portal/Services/ArtifactStore.swift",
+        "store": {
+          "artifacts": [],
+          "line": 852,
+          "mechanism_count": 0,
+          "path": "Sources/Portal/Services/ArtifactStore.swift",
+          "persistence": [
+            "unobserved"
+          ]
+        },
+        "sub_kind": "class",
+        "triggers": {
+          "lifecycle": 0,
+          "user_action": 0
+        }
       },
       {
         "cluster": "interplay-cluster-f988c7b8947c",
@@ -71748,8 +72276,8 @@
           "summary": "GatewayClient is the app's single WebSocket JSON-RPC transport to the Hermes gateway. It owns the URLSessionWebSocketTask, correlates requests to responses via an NSLock-guarded pending-continuation map, publishes ConnectionState and SessionInfo, fans decoded events out through a Combine PassthroughSubject, runs a 15s ping keepalive, and auto-reconnects with a capped, budgeted backoff."
         },
         "triggers": {
-          "lifecycle": 0,
-          "user_action": 0
+          "lifecycle": 1,
+          "user_action": 4
         }
       },
       {
@@ -76013,8 +76541,8 @@
         },
         "sub_kind": "page",
         "triggers": {
-          "lifecycle": 10,
-          "user_action": 11
+          "lifecycle": 14,
+          "user_action": 17
         }
       },
       {
@@ -76898,8 +77426,8 @@
         },
         "sub_kind": "page",
         "triggers": {
-          "lifecycle": 3,
-          "user_action": 8
+          "lifecycle": 5,
+          "user_action": 15
         }
       },
       {
@@ -77286,7 +77814,7 @@
         },
         "sub_kind": "class",
         "triggers": {
-          "lifecycle": 0,
+          "lifecycle": 1,
           "user_action": 0
         }
       },
@@ -78270,8 +78798,8 @@
               "trigger-2efe510f4921",
               "trigger-5ccb880b41db",
               "trigger-7f334a7d5c59",
-              "trigger-afaf4be52346",
               "trigger-ba882161e749",
+              "trigger-ef57759bd9ba",
               "trigger-f3fa03caa7f4"
             ],
             "owns_state_in": [
@@ -78289,7 +78817,7 @@
           "stale": true,
           "summary": "ArtifactCanvasView is the Artifacts section root. It observes the shared ArtifactStore, pulls artifacts from the harness on appear and via a toolbar refresh button, and shows them either as a list or as a draggable dashboard canvas with persisted layout. Clicking a cell expands the artifact in an in-place full-screen overlay."
         },
-        "type_count": 22
+        "type_count": 26
       }
     ],
     "triggers": [
@@ -78638,27 +79166,12 @@
         "view": "ArtifactCanvasView"
       },
       {
-        "api": "Button",
-        "authority": "observed",
-        "evidence_class": "static_source",
-        "id": "trigger-afaf4be52346",
-        "kind": "user_action",
-        "line": 304,
-        "method": "remove",
-        "namespaces": [],
-        "page": "artifacts",
-        "path": "Sources/Portal/Views/ArtifactCanvasView.swift",
-        "rule_id": "swift.trigger.surface_call",
-        "surface": "ArtifactStore",
-        "view": "ArtifactCanvasView"
-      },
-      {
         "api": "onDisappear",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-1ccd24aac380",
+        "id": "trigger-abe1c0bdef49",
         "kind": "lifecycle",
-        "line": 231,
+        "line": 233,
         "method": "releaseQueries",
         "namespaces": [],
         "page": null,
@@ -78671,9 +79184,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-69d8d50162d0",
+        "id": "trigger-3692a579a34f",
         "kind": "user_action",
-        "line": 241,
+        "line": 243,
         "method": "confirmIntent",
         "namespaces": [],
         "page": null,
@@ -78686,9 +79199,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-233c5a4a7e02",
+        "id": "trigger-0ada19ac8ffb",
         "kind": "user_action",
-        "line": 255,
+        "line": 257,
         "method": "clearIntentState",
         "namespaces": [],
         "page": null,
@@ -78696,6 +79209,21 @@
         "rule_id": "swift.trigger.surface_call",
         "surface": "ArtifactStore",
         "view": "ArtifactHTMLIntentView"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-ef57759bd9ba",
+        "kind": "user_action",
+        "line": 87,
+        "method": "remove",
+        "namespaces": [],
+        "page": "artifacts",
+        "path": "Sources/Portal/Views/ArtifactListRow.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "ArtifactStore",
+        "view": "ArtifactListRow"
       },
       {
         "api": "task",
@@ -78825,9 +79353,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-e4a61aaf2b1b",
+        "id": "trigger-3b75226e118d",
         "kind": "user_action",
-        "line": 315,
+        "line": 317,
         "method": "clearIntentState",
         "namespaces": [],
         "page": null,
@@ -78840,9 +79368,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-020606da1ac8",
+        "id": "trigger-c7038f7f260d",
         "kind": "user_action",
-        "line": 336,
+        "line": 338,
         "method": "clearIntentState",
         "namespaces": [],
         "page": null,
@@ -78855,9 +79383,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-00ad6c6cb84e",
+        "id": "trigger-6160a10b3b52",
         "kind": "user_action",
-        "line": 362,
+        "line": 364,
         "method": "confirmIntent",
         "namespaces": [],
         "page": null,
@@ -78870,9 +79398,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-ee729050920c",
+        "id": "trigger-662f3842ae16",
         "kind": "user_action",
-        "line": 373,
+        "line": 375,
         "method": "clearIntentState",
         "namespaces": [],
         "page": null,
@@ -78885,9 +79413,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-44fa894db81e",
+        "id": "trigger-7983e61c1b0b",
         "kind": "user_action",
-        "line": 386,
+        "line": 388,
         "method": "invokeIntent",
         "namespaces": [],
         "page": null,
@@ -80375,6 +80903,74 @@
         "view": "CronDashboardView"
       },
       {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-ebee9b95cfbc",
+        "kind": "lifecycle",
+        "line": 72,
+        "method": "loadFullPrompt",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-2265506f5307",
+        "kind": "lifecycle",
+        "line": 72,
+        "method": "loadHistory",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-d8f2a6df63df",
+        "kind": "lifecycle",
+        "line": 73,
+        "method": "loadFullPrompt",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-eb265cdc9bdd",
+        "kind": "lifecycle",
+        "line": 73,
+        "method": "loadHistory",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
@@ -80402,6 +80998,106 @@
         "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "rule_id": "swift.trigger.surface_call",
         "surface": "CronGraphViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "keyboardShortcut",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-f5243f6720a5",
+        "kind": "user_action",
+        "line": 291,
+        "method": "dataflow",
+        "namespaces": [],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "keyboardShortcut",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-c2329d2a9118",
+        "kind": "user_action",
+        "line": 291,
+        "method": "pauseJob",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "keyboardShortcut",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-cb8355ee5eab",
+        "kind": "user_action",
+        "line": 291,
+        "method": "removeJob",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "keyboardShortcut",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-588000a7d52b",
+        "kind": "user_action",
+        "line": 291,
+        "method": "renameJob",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "keyboardShortcut",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-a25eb820d87f",
+        "kind": "user_action",
+        "line": 291,
+        "method": "resumeJob",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
+        "view": "CronDataflowExpandedView"
+      },
+      {
+        "api": "keyboardShortcut",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-c42265491f90",
+        "kind": "user_action",
+        "line": 291,
+        "method": "updatePrompt",
+        "namespaces": [
+          "cron"
+        ],
+        "page": "graphs",
+        "path": "Sources/Portal/Views/CronDataflowExpandedView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "CronListViewModel",
         "view": "CronDataflowExpandedView"
       },
       {
@@ -81160,6 +81856,21 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
+        "id": "trigger-b9abeaf7bb0b",
+        "kind": "lifecycle",
+        "line": 45,
+        "method": "document",
+        "namespaces": [],
+        "page": null,
+        "path": "Sources/Portal/Views/LongResponseView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "LongResponseDocumentCache",
+        "view": "LongResponseView"
+      },
+      {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
         "id": "trigger-44b4af14f591",
         "kind": "lifecycle",
         "line": 66,
@@ -81540,6 +82251,98 @@
         "api": "task",
         "authority": "observed",
         "evidence_class": "static_source",
+        "id": "trigger-3d44a149cb62",
+        "kind": "lifecycle",
+        "line": 41,
+        "method": "sessionUsage",
+        "namespaces": [],
+        "page": "chat",
+        "path": "Sources/Portal/Views/SessionUsageBadge.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "GatewayClient",
+        "view": "SessionUsageBadge"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-2a1837c34296",
+        "kind": "user_action",
+        "line": 847,
+        "method": "promptBreakdown",
+        "namespaces": [],
+        "page": "settings",
+        "path": "Sources/Portal/Views/SettingsView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "GatewayClient",
+        "view": "SystemPromptSection"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-29cce20377e9",
+        "kind": "user_action",
+        "line": 872,
+        "method": "promptBreakdown",
+        "namespaces": [],
+        "page": "settings",
+        "path": "Sources/Portal/Views/SettingsView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "GatewayClient",
+        "view": "SystemPromptSection"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-bb596b17bde0",
+        "kind": "user_action",
+        "line": 1065,
+        "method": "setEphemeralPrompt",
+        "namespaces": [],
+        "page": "settings",
+        "path": "Sources/Portal/Views/SettingsView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "GatewayClient",
+        "view": "SystemPromptSection"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-e8d8137b17d0",
+        "kind": "user_action",
+        "line": 1072,
+        "method": "setEphemeralPrompt",
+        "namespaces": [],
+        "page": "settings",
+        "path": "Sources/Portal/Views/SettingsView.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "GatewayClient",
+        "view": "SystemPromptSection"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-3678448f727f",
+        "kind": "user_action",
+        "line": 37,
+        "method": "saveSkillMarkdown",
+        "namespaces": [
+          "skills"
+        ],
+        "page": null,
+        "path": "Sources/Portal/Views/SkillMarkdownEditor.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillMarkdownEditor"
+      },
+      {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
         "id": "trigger-1520338082c7",
         "kind": "lifecycle",
         "line": 67,
@@ -81582,6 +82385,138 @@
         "rule_id": "swift.trigger.surface_call",
         "surface": "SkillsViewModel",
         "view": "SkillsCanvasView"
+      },
+      {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-3e8a17fb20d1",
+        "kind": "lifecycle",
+        "line": 45,
+        "method": "requestSummary",
+        "namespaces": [],
+        "page": "skills",
+        "path": "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillsDetailPanel"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-d4a69281ec5c",
+        "kind": "user_action",
+        "line": 111,
+        "method": "requestSummary",
+        "namespaces": [],
+        "page": "skills",
+        "path": "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillsDetailPanel"
+      },
+      {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-0e30a0679ddf",
+        "kind": "lifecycle",
+        "line": 66,
+        "method": "readSkillMarkdown",
+        "namespaces": [
+          "skills"
+        ],
+        "page": "skills",
+        "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillsEditorPanel"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-5d38ae046fab",
+        "kind": "user_action",
+        "line": 110,
+        "method": "saveSkillMarkdown",
+        "namespaces": [
+          "skills"
+        ],
+        "page": "skills",
+        "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillsEditorPanel"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-9f93ee600900",
+        "kind": "user_action",
+        "line": 135,
+        "method": "readSkillMarkdown",
+        "namespaces": [
+          "skills"
+        ],
+        "page": "skills",
+        "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillsEditorPanel"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-a9746b2a30ca",
+        "kind": "user_action",
+        "line": 182,
+        "method": "readSkillMarkdown",
+        "namespaces": [
+          "skills"
+        ],
+        "page": "skills",
+        "path": "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillsEditorPanel"
+      },
+      {
+        "api": "onSubmit",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-852e3c6feeab",
+        "kind": "user_action",
+        "line": 34,
+        "method": "search",
+        "namespaces": [
+          "skills"
+        ],
+        "page": "skills",
+        "path": "Sources/Portal/Views/Skills/SkillsHubPanel.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillsHubPanel"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-4afa3f32ed6a",
+        "kind": "user_action",
+        "line": 39,
+        "method": "search",
+        "namespaces": [
+          "skills"
+        ],
+        "page": "skills",
+        "path": "Sources/Portal/Views/Skills/SkillsHubPanel.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "SkillsViewModel",
+        "view": "SkillsHubPanel"
       },
       {
         "api": "refreshable",
@@ -82160,15 +83095,15 @@
         "view": "WikiTimelineView"
       }
     ],
-    "unattributed_triggers": 450
+    "unattributed_triggers": 477
   },
   "inventory": {
-    "assigned_files": 410,
-    "declarations": 1282,
-    "files": 410,
-    "lines": 118902,
-    "swift_files": 410,
-    "swift_lines": 118902,
+    "assigned_files": 411,
+    "declarations": 1286,
+    "files": 411,
+    "lines": 119069,
+    "swift_files": 411,
+    "swift_lines": 119069,
     "unassigned_files": []
   },
   "layers": [
@@ -82200,15 +83135,15 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "333c9f0bb27330e66b9175d166c9f54baf164932c8fc5ee76129844c7fbda78d",
+  "source_tree_sha256": "621fdcfb460af472823be49a63d4a1d40fb594839cac0c0033957cfa7d57ba2e",
   "stores": {
     "by_persistence": {
       "defaults": 6,
       "file": 13,
       "keychain": 1,
-      "unobserved": 7
+      "unobserved": 8
     },
-    "count": 22,
+    "count": 23,
     "items": [
       {
         "artifacts": [
@@ -82975,11 +83910,11 @@
             "component": "artifact-intents",
             "evidence": {
               "excerpt": "let folder = dir.appendingPathComponent(\"portal\", isDirectory: true)",
-              "line": 92,
+              "line": 100,
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-artifact-497708f84205",
+            "id": "store-artifact-80165caa7bff",
             "kind": "directory",
             "label": "portal",
             "rule_id": "swift.store.artifact_literal",
@@ -82991,11 +83926,11 @@
             "component": "artifact-intents",
             "evidence": {
               "excerpt": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))",
-              "line": 94,
+              "line": 102,
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-artifact-18daeec35c78",
+            "id": "store-artifact-2212f80a38fc",
             "kind": "file",
             "label": "artifacts.json",
             "rule_id": "swift.store.artifact_literal",
@@ -83021,11 +83956,11 @@
             "component": "artifact-intents",
             "evidence": {
               "excerpt": "let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
-              "line": 90,
+              "line": 98,
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-mechanism-a4f1e86d4689",
+            "id": "store-mechanism-d2c45268ebab",
             "kind": "file",
             "label": ".applicationSupportDirectory",
             "rule_id": "swift.store.mechanism.file",
@@ -83038,9 +83973,34 @@
         ],
         "rule_id": "swift.store.declaration",
         "scanned": [
-          "class ArtifactStore"
+          "class ArtifactStore",
+          "extension ArtifactStore"
         ],
         "type_name": "ArtifactStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "artifact-intents",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal final class ArtifactQueryStateStore: ObservableObject {",
+          "line": 852,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-ef63a6e74fbc",
+        "kind": "class",
+        "label": "ArtifactQueryStateStore",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class ArtifactQueryStateStore"
+        ],
+        "type_name": "ArtifactQueryStateStore"
       },
       {
         "artifacts": [
