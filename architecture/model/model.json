@@ -2299,15 +2299,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 144,
+          "line": 145,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-f15e9a3ceb4b",
+        "id": "lifecycle-operation-05f42a20247d",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-e63e727de304",
+        "resource_id": "resource-cfd6ba9c67ed",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2317,15 +2317,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 147,
+          "line": 148,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-3b95b00e88d8",
+        "id": "lifecycle-operation-ba6cdbf28406",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-e63e727de304",
+        "resource_id": "resource-cfd6ba9c67ed",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2335,15 +2335,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 154,
+          "line": 155,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-c6ba24599473",
+        "id": "lifecycle-operation-3785d628075c",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-e63e727de304",
+        "resource_id": "resource-cfd6ba9c67ed",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2353,15 +2353,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 157,
+          "line": 158,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-dc9f27d30b32",
+        "id": "lifecycle-operation-7cc97bbe9c13",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-e63e727de304",
+        "resource_id": "resource-cfd6ba9c67ed",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2371,15 +2371,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 161,
+          "line": 162,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-c9dbcd9c86f4",
+        "id": "lifecycle-operation-e7b70be03194",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-e63e727de304",
+        "resource_id": "resource-cfd6ba9c67ed",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2389,15 +2389,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 174,
+          "line": 175,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-67996a2fd06c",
+        "id": "lifecycle-operation-4a81e472fd33",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-e63e727de304",
+        "resource_id": "resource-cfd6ba9c67ed",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2407,15 +2407,15 @@
         "enclosing_function": "resetForTesting",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 180,
+          "line": 181,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-15d0daafc3d9",
+        "id": "lifecycle-operation-7a875137f385",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-e63e727de304",
+        "resource_id": "resource-cfd6ba9c67ed",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2425,15 +2425,15 @@
         "enclosing_function": "resetForTesting",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 186,
+          "line": 187,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-84c5e83c2e4e",
+        "id": "lifecycle-operation-0465db0d3c4f",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-e63e727de304",
+        "resource_id": "resource-cfd6ba9c67ed",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2780,18 +2780,18 @@
         "evidence_class": "static_source",
         "id": "connectivity-pocket-0999f80f0c9e",
         "operation_ids": [
-          "lifecycle-operation-15d0daafc3d9",
-          "lifecycle-operation-3b95b00e88d8",
-          "lifecycle-operation-67996a2fd06c",
-          "lifecycle-operation-84c5e83c2e4e",
-          "lifecycle-operation-c6ba24599473",
-          "lifecycle-operation-c9dbcd9c86f4",
-          "lifecycle-operation-dc9f27d30b32",
-          "lifecycle-operation-f15e9a3ceb4b"
+          "lifecycle-operation-0465db0d3c4f",
+          "lifecycle-operation-05f42a20247d",
+          "lifecycle-operation-3785d628075c",
+          "lifecycle-operation-4a81e472fd33",
+          "lifecycle-operation-7a875137f385",
+          "lifecycle-operation-7cc97bbe9c13",
+          "lifecycle-operation-ba6cdbf28406",
+          "lifecycle-operation-e7b70be03194"
         ],
         "owner_type": "MarkdownParseCache",
         "resource_ids": [
-          "resource-e63e727de304"
+          "resource-cfd6ba9c67ed"
         ],
         "task_handle_ids": []
       },
@@ -3907,11 +3907,11 @@
         "component": "chat-ui",
         "evidence": {
           "excerpt": "private let lock = NSLock()",
-          "line": 128,
+          "line": 129,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-e63e727de304",
+        "id": "resource-cfd6ba9c67ed",
         "kind": "lock",
         "label": "lock",
         "owner_type": "MarkdownParseCache",
@@ -9494,11 +9494,11 @@
         "enclosing_type": "TableView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1130,
+          "line": 1131,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0db2deb73754",
+        "id": "task-site-e13cc8bccd01",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -11038,6 +11038,12 @@
         "kind": "artifact",
         "label": "metric-snapshots",
         "source": "ratchet/measure",
+        "target": "ratchet/slow-tests"
+      },
+      {
+        "kind": "artifact",
+        "label": "metric-snapshots",
+        "source": "ratchet/measure",
         "target": "ratchet/warnings"
       },
       {
@@ -11067,6 +11073,11 @@
       },
       {
         "kind": "gates",
+        "source": "ratchet/layout",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
         "source": "ratchet/measure",
         "target": "merge:main"
       },
@@ -11088,6 +11099,11 @@
       {
         "kind": "gates",
         "source": "ratchet/skipped-tests",
+        "target": "merge:main"
+      },
+      {
+        "kind": "gates",
+        "source": "ratchet/slow-tests",
         "target": "merge:main"
       },
       {
@@ -11128,6 +11144,11 @@
       {
         "kind": "needs",
         "source": "ratchet/measure",
+        "target": "ratchet/slow-tests"
+      },
+      {
+        "kind": "needs",
+        "source": "ratchet/measure",
         "target": "ratchet/warnings"
       },
       {
@@ -11159,6 +11180,11 @@
         "kind": "trigger",
         "source": "trigger:pull_request",
         "target": "ratchet/dead-code"
+      },
+      {
+        "kind": "trigger",
+        "source": "trigger:pull_request",
+        "target": "ratchet/layout"
       },
       {
         "kind": "trigger",
@@ -11649,7 +11675,7 @@
             ]
           },
           {
-            "command": "swift test --enable-code-coverage 2>&1 | tail -5",
+            "command": "swift test --enable-code-coverage --no-parallel 2>&1 | tee test.log | tail -5",
             "command_lines": 7,
             "line": 119,
             "name": "Test with coverage and capture snapshot",
@@ -11658,7 +11684,7 @@
             ]
           },
           {
-            "line": 131,
+            "line": 135,
             "name": "Publish metric snapshots",
             "uses": "actions/upload-artifact@v4"
           }
@@ -11672,7 +11698,7 @@
         "artifacts_out": [],
         "condition": null,
         "evidence": {
-          "line": 146,
+          "line": 151,
           "path": ".github/workflows/ratchet.yml"
         },
         "family": "posture",
@@ -11691,19 +11717,19 @@
         "step_count": 3,
         "steps": [
           {
-            "line": 153,
+            "line": 158,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
-            "line": 157,
+            "line": 162,
             "name": "Download metric snapshots",
             "uses": "actions/download-artifact@v4"
           },
           {
             "command": "python3 scripts/check-metrics-ratchet.py --warnings warnings.json --base \"$BASE\"",
             "command_lines": 2,
-            "line": 162,
+            "line": 167,
             "name": "Ratchet compiler warnings against base",
             "scripts": [
               "scripts/check-metrics-ratchet.py"
@@ -11719,7 +11745,7 @@
         "artifacts_out": [],
         "condition": null,
         "evidence": {
-          "line": 171,
+          "line": 176,
           "path": ".github/workflows/ratchet.yml"
         },
         "family": "posture",
@@ -11738,19 +11764,19 @@
         "step_count": 3,
         "steps": [
           {
-            "line": 176,
+            "line": 181,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
-            "line": 180,
+            "line": 185,
             "name": "Download metric snapshots",
             "uses": "actions/download-artifact@v4"
           },
           {
             "command": "python3 scripts/check-metrics-ratchet.py --coverage coverage.json --base \"$BASE\"",
             "command_lines": 2,
-            "line": 185,
+            "line": 190,
             "name": "Ratchet test coverage against base",
             "scripts": [
               "scripts/check-metrics-ratchet.py"
@@ -11764,7 +11790,7 @@
         "artifacts_out": [],
         "condition": null,
         "evidence": {
-          "line": 194,
+          "line": 199,
           "path": ".github/workflows/ratchet.yml"
         },
         "family": "posture",
@@ -11782,14 +11808,14 @@
         "step_count": 3,
         "steps": [
           {
-            "line": 198,
+            "line": 203,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
             "command": "python3 scripts/collect-skipped-tests.py Tests --root \"$PWD\" --json skipped.json",
             "command_lines": 1,
-            "line": 202,
+            "line": 207,
             "name": "Capture skipped-test snapshot",
             "scripts": [
               "scripts/collect-skipped-tests.py"
@@ -11798,8 +11824,123 @@
           {
             "command": "python3 scripts/check-metrics-ratchet.py --skipped skipped.json --base \"$BASE\"",
             "command_lines": 2,
-            "line": 205,
+            "line": 210,
             "name": "Ratchet skipped tests against base",
+            "scripts": [
+              "scripts/check-metrics-ratchet.py"
+            ]
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 220,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/layout",
+        "key": "layout",
+        "name": "Layout",
+        "needs": [],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/check-metrics-ratchet.py",
+          "scripts/collect-layout-smells.py",
+          "scripts/test_collectors.py"
+        ],
+        "step_count": 4,
+        "steps": [
+          {
+            "line": 224,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "command": "python3 -m unittest scripts/test_collectors.py",
+            "command_lines": 1,
+            "line": 228,
+            "name": "Unit-test the collectors",
+            "scripts": [
+              "scripts/test_collectors.py"
+            ]
+          },
+          {
+            "command": "python3 scripts/collect-layout-smells.py Sources --root \"$PWD\" --json layout.json",
+            "command_lines": 1,
+            "line": 233,
+            "name": "Capture layout-smell snapshot",
+            "scripts": [
+              "scripts/collect-layout-smells.py"
+            ]
+          },
+          {
+            "command": "python3 scripts/check-metrics-ratchet.py --layout layout.json --base \"$BASE\"",
+            "command_lines": 2,
+            "line": 236,
+            "name": "Ratchet layout smells against base",
+            "scripts": [
+              "scripts/check-metrics-ratchet.py"
+            ]
+          }
+        ],
+        "workflow": "ratchet"
+      },
+      {
+        "artifacts_in": [
+          "metric-snapshots"
+        ],
+        "artifacts_out": [],
+        "condition": null,
+        "evidence": {
+          "line": 245,
+          "path": ".github/workflows/ratchet.yml"
+        },
+        "family": "posture",
+        "id": "ratchet/slow-tests",
+        "key": "slow-tests",
+        "name": "Slow Tests",
+        "needs": [
+          "ratchet/measure"
+        ],
+        "pins": [],
+        "role": "gate",
+        "runs_on": "ubuntu-latest",
+        "scripts": [
+          "scripts/check-metrics-ratchet.py",
+          "scripts/collect-slow-tests.py"
+        ],
+        "step_count": 4,
+        "steps": [
+          {
+            "line": 250,
+            "name": "actions/checkout@v4",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "line": 254,
+            "name": "Download metric snapshots",
+            "uses": "actions/download-artifact@v4"
+          },
+          {
+            "command": "python3 scripts/collect-slow-tests.py test.log --json slowtests.json",
+            "command_lines": 1,
+            "line": 259,
+            "name": "Capture slow-test snapshot",
+            "scripts": [
+              "scripts/collect-slow-tests.py"
+            ]
+          },
+          {
+            "command": "python3 scripts/check-metrics-ratchet.py --slowtests slowtests.json --base \"$BASE\"",
+            "command_lines": 2,
+            "line": 262,
+            "name": "Ratchet slow tests against base",
             "scripts": [
               "scripts/check-metrics-ratchet.py"
             ]
@@ -11814,7 +11955,7 @@
         ],
         "condition": null,
         "evidence": {
-          "line": 214,
+          "line": 271,
           "path": ".github/workflows/ratchet.yml"
         },
         "family": "posture",
@@ -11837,38 +11978,38 @@
         "step_count": 8,
         "steps": [
           {
-            "line": 218,
+            "line": 275,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
             "command": "curl -fsSL -o periphery.zip",
             "command_lines": 4,
-            "line": 222,
+            "line": 279,
             "name": "Install Periphery"
           },
           {
             "command": "periphery version",
             "command_lines": 1,
-            "line": 231,
+            "line": 288,
             "name": "Verify Periphery version"
           },
           {
             "command": "brew install xcodegen",
             "command_lines": 1,
-            "line": 240,
+            "line": 297,
             "name": "Install xcodegen"
           },
           {
             "command": "xcodegen generate",
             "command_lines": 1,
-            "line": 243,
+            "line": 300,
             "name": "Generate Xcode project"
           },
           {
             "command": "periphery scan --project Portal.xcodeproj --schemes Portal",
             "command_lines": 4,
-            "line": 246,
+            "line": 303,
             "name": "Capture dead-code snapshot",
             "scripts": [
               "scripts/collect-deadcode.py"
@@ -11877,7 +12018,7 @@
           {
             "command": "python3 scripts/check-metrics-ratchet.py --deadcode deadcode.json --base \"$BASE\"",
             "command_lines": 2,
-            "line": 257,
+            "line": 314,
             "name": "Ratchet dead code against base",
             "scripts": [
               "scripts/check-metrics-ratchet.py"
@@ -11885,7 +12026,7 @@
           },
           {
             "condition": "always()",
-            "line": 262,
+            "line": 319,
             "name": "Upload dead-code snapshot",
             "uses": "actions/upload-artifact@v4"
           }
@@ -11899,7 +12040,7 @@
         ],
         "condition": null,
         "evidence": {
-          "line": 286,
+          "line": 343,
           "path": ".github/workflows/ratchet.yml"
         },
         "family": "posture",
@@ -11916,20 +12057,20 @@
         "step_count": 4,
         "steps": [
           {
-            "line": 292,
+            "line": 349,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
             "command": "swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests",
             "command_lines": 2,
-            "line": 296,
+            "line": 353,
             "name": "Run the instrumented perf harness"
           },
           {
             "command": "python3 scripts/check-perf-ratchet.py perf-counts.json --base \"$BASE\"",
             "command_lines": 2,
-            "line": 305,
+            "line": 362,
             "name": "Ratchet algorithmic op counts against base",
             "scripts": [
               "scripts/check-perf-ratchet.py"
@@ -11937,7 +12078,7 @@
           },
           {
             "condition": "always()",
-            "line": 310,
+            "line": 367,
             "name": "Upload perf snapshot",
             "uses": "actions/upload-artifact@v4"
           }
@@ -11949,7 +12090,7 @@
         "artifacts_out": [],
         "condition": null,
         "evidence": {
-          "line": 327,
+          "line": 384,
           "path": ".github/workflows/ratchet.yml"
         },
         "family": "posture",
@@ -11967,14 +12108,14 @@
         "step_count": 3,
         "steps": [
           {
-            "line": 331,
+            "line": 388,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
             "command": "python3 scripts/check-constraint-growth.py \"$BASE\" $LOOSENED",
             "command_lines": 2,
-            "line": 335,
+            "line": 392,
             "name": "Check no declared constraint is looser than base",
             "scripts": [
               "scripts/check-constraint-growth.py"
@@ -11983,7 +12124,7 @@
           {
             "command": "python3 -m unittest scripts/test_constraint_growth.py",
             "command_lines": 1,
-            "line": 342,
+            "line": 399,
             "name": "Test the constraint guard",
             "scripts": [
               "scripts/test_constraint_growth.py"
@@ -11997,7 +12138,7 @@
         "artifacts_out": [],
         "condition": null,
         "evidence": {
-          "line": 355,
+          "line": 412,
           "path": ".github/workflows/ratchet.yml"
         },
         "family": "posture",
@@ -12014,14 +12155,14 @@
         "step_count": 2,
         "steps": [
           {
-            "line": 362,
+            "line": 419,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
             "command": "python3 scripts/check-baseline-growth.py \"$BASE\"",
             "command_lines": 2,
-            "line": 366,
+            "line": 423,
             "name": "Check the lint baseline did not grow",
             "scripts": [
               "scripts/check-baseline-growth.py"
@@ -12531,11 +12672,13 @@
         "ratchet/constraints",
         "ratchet/coverage",
         "ratchet/dead-code",
+        "ratchet/layout",
         "ratchet/measure",
         "ratchet/performance",
         "ratchet/quality",
         "ratchet/security",
         "ratchet/skipped-tests",
+        "ratchet/slow-tests",
         "ratchet/warnings",
         "tests/hang-gate",
         "tests/ios-smoke",
@@ -12657,8 +12800,77 @@
       {
         "current": {
           "counts": {
+            "lazy_stack_without_viewport": 1
+          },
+          "kind": "count",
+          "sites": 1,
+          "total": 1
+        },
+        "floor": "Count at most base.",
+        "id": "layout",
+        "job": "ratchet/layout",
+        "measures": "SwiftUI LazyVStack/LazyHStack sites with no ScrollView on their axis to be lazy in: the self-rescheduling relayout loop (#249, #606). Static bracket-tracking scan of Sources, no build.",
+        "patch": "No lazy stack without a viewport on a line the PR added.",
+        "source": {
+          "key": "layout",
+          "kind": "metrics",
+          "path": "metrics-baseline.json"
+        },
+        "source_path": "metrics-baseline.json",
+        "title": "Layout smells"
+      },
+      {
+        "current": {
+          "counts": {
+            "over_threshold": 0
+          },
+          "kind": "count",
+          "sites": 0,
+          "total": 0
+        },
+        "floor": "Count at most base.",
+        "id": "slowtests",
+        "job": "ratchet/slow-tests",
+        "measures": "Tests over 5 s in the serialized Measure run (swift test --no-parallel, so a duration is the test's own and not time spent queued behind a main-actor sleeper). Tests between 1 s and 5 s are listed for information only.",
+        "patch": null,
+        "source": {
+          "key": "slowtests",
+          "kind": "metrics",
+          "path": "metrics-baseline.json"
+        },
+        "source_path": "metrics-baseline.json",
+        "title": "Slow tests"
+      },
+      {
+        "current": {
+          "counts": {
             "artifact.maintainerParse": 40,
             "graph.forceSim": 202020,
+            "kanban.mount.layoutPasses": 3,
+            "kanban.mount.view.body.KanbanBoard": 1,
+            "kanban.mount.view.body.KanbanCardTile": 64,
+            "kanban.mount.view.body.KanbanColumn": 8,
+            "kanban.moveCard.layoutPasses": 1,
+            "kanban.moveCard.view.body.KanbanBoard": 1,
+            "kanban.moveCard.view.body.KanbanCardTile": 34,
+            "kanban.moveCard.view.body.KanbanColumn": 4,
+            "markdown.mount.layoutPasses": 1,
+            "markdown.mount.view.body.MarkdownContentView": 1,
+            "model.editItem.layoutPasses": 1,
+            "model.editItem.view.body.KanbanBoard": 1,
+            "model.editItem.view.body.KanbanCardTile": 24,
+            "model.editItem.view.body.KanbanColumn": 4,
+            "model.editItem.view.body.ModelCard": 1,
+            "model.editItem.view.body.ModelEntityRow": 34,
+            "model.editItem.view.body.ModelEntityTable": 2,
+            "model.mount.layoutPasses": 1,
+            "model.mount.view.body.KanbanBoard": 1,
+            "model.mount.view.body.KanbanCardTile": 48,
+            "model.mount.view.body.KanbanColumn": 8,
+            "model.mount.view.body.MarkdownContentView": 1,
+            "model.mount.view.body.ModelCard": 1,
+            "model.mount.view.body.ModelEntityRow": 68,
+            "model.mount.view.body.ModelEntityTable": 2,
             "sankey.pack": 24,
             "sankey.relax": 66
           },
@@ -12667,7 +12879,7 @@
         "floor": "Every counter at most base; the ceiling is read from base via git show.",
         "id": "perf",
         "job": "ratchet/performance",
-        "measures": "Algorithmic operation counts (not time) for the hot pure layout paths over fixed fixtures under -DPERF_COUNTERS. Deterministic on any machine.",
+        "measures": "Deterministic counts (not time) under -DPERF_COUNTERS over fixed fixtures: algorithmic operations in the hot pure layout paths, SwiftUI body evaluations of the artifact views on mount and after one state change, and hosting-view layout passes to settle.",
         "patch": null,
         "source": {
           "kind": "perf",
@@ -12712,12 +12924,12 @@
             "invariants": 12,
             "lint_rules": 15,
             "pages": 11,
-            "ratchets": 8,
+            "ratchets": 10,
             "specifications": 5
           },
           "kind": "count",
-          "sites": 73,
-          "total": 73
+          "sites": 75,
+          "total": 75
         },
         "floor": "Nothing declared on base may be removed or loosened: no invariant dropped or relaxed, no exception list grown, no rule removed or demoted, no gate step or job removed, no specification deleted. Tightening always passes; a deliberate loosening carries the constraints-loosened label.",
         "id": "constraints",
@@ -12813,11 +13025,11 @@
     ],
     "summary": {
       "architecture_tests": 9,
-      "gates": 15,
+      "gates": 17,
       "invariants": 12,
-      "jobs": 20,
+      "jobs": 22,
       "lint_rules": 15,
-      "ratchets": 8,
+      "ratchets": 10,
       "static_checks": 5,
       "workflows": 7
     },
@@ -12983,6 +13195,8 @@
           "ratchet/warnings",
           "ratchet/coverage",
           "ratchet/skipped-tests",
+          "ratchet/layout",
+          "ratchet/slow-tests",
           "ratchet/dead-code",
           "ratchet/performance",
           "ratchet/constraints",
@@ -13236,7 +13450,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 7089
+      "line_count": 7090
     },
     {
       "declaration_count": 137,
@@ -13711,7 +13925,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12221,
+      "line_count": 12227,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -16040,7 +16254,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 6 declaration(s) owned by utilities.",
+      "description": "References 7 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
@@ -16048,25 +16262,26 @@
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/DiffBlockView.swift",
         "Sources/Portal/Views/Blocks/FileTreeView.swift",
+        "Sources/Portal/Views/Blocks/KanbanBlockView.swift",
         "Sources/Portal/Views/Blocks/MapBlockView.swift",
         "Sources/Portal/Views/Blocks/MapExportRenderer.swift",
         "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
         "Sources/Portal/Views/Blocks/ModelBlockView.swift",
-        "Sources/Portal/Views/Blocks/SankeyBlockView.swift",
-        "Sources/Portal/Views/MermaidDiagramView.swift"
+        "Sources/Portal/Views/Blocks/SankeyBlockView.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
         "HealthCounter",
         "JSONObjectParse",
         "LiveObjectKind",
+        "PerfCounter",
         "PortalLogger",
         "RenderMemo",
         "Snapshot"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 18
+      "weight": 20
     },
     {
       "authority": "observed",
@@ -16562,7 +16777,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 8 declaration(s) owned by utilities.",
+      "description": "References 9 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -16577,12 +16792,13 @@
         "InlineMath",
         "LiveObjectKind",
         "MacInputTextField",
+        "PerfCounter",
         "PortalLogger",
         "RenderMemo"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 12
+      "weight": 13
     },
     {
       "authority": "observed",
@@ -21176,7 +21392,7 @@
               },
               {
                 "excerpt": "func makeNSView(context: Context) -> WKWebView {",
-                "line": 1683,
+                "line": 1684,
                 "path": "Sources/Portal/Views/MarkdownContentView.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -21184,7 +21400,7 @@
               },
               {
                 "excerpt": "func updateNSView(_ webView: WKWebView, context: Context) {",
-                "line": 1742,
+                "line": 1743,
                 "path": "Sources/Portal/Views/MarkdownContentView.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -25841,7 +26057,7 @@
         "origins": [
           {
             "family": "store",
-            "line": 125,
+            "line": 126,
             "path": "Sources/Portal/Views/MarkdownContentView.swift",
             "rule": "swift.store.declaration"
           }
@@ -50542,60 +50758,60 @@
           },
           {
             "kind": "func",
-            "line": 118,
+            "line": 119,
             "name": "columnView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 194,
+            "line": 196,
             "name": "cardView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 259,
+            "line": 262,
             "name": "dragHandle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 278,
+            "line": 281,
             "name": "ticketDetail",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 327,
+            "line": 330,
             "name": "fieldRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 342,
+            "line": 345,
             "name": "move",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 357,
+            "line": 360,
             "name": "moveMenu",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 389,
+            "line": 392,
             "name": "ColumnDropTarget",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 394,
+            "line": 397,
             "name": "body",
             "passes": []
           }
         ],
-        "line_count": 407,
+        "line_count": 410,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/Blocks/KanbanBlockView.swift",
@@ -51128,96 +51344,96 @@
           },
           {
             "kind": "func",
-            "line": 190,
+            "line": 191,
             "name": "viewBlock",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 250,
+            "line": 251,
             "name": "markerSelectionBinding",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 269,
+            "line": 270,
             "name": "labelFor",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 278,
+            "line": 279,
             "name": "selectionPanel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 329,
+            "line": 330,
             "name": "metadataBadge",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 339,
+            "line": 340,
             "name": "relationRow",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 372,
+            "line": 373,
             "name": "ModelTableLayout",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 373,
+            "line": 374,
             "name": "CellAlignment",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 379,
+            "line": 380,
             "name": "alignment",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 386,
+            "line": 387,
             "name": "columnWidths",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 407,
+            "line": 408,
             "name": "tableWidth",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 416,
+            "line": 417,
             "name": "ModelEntityTable",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 496,
+            "line": 498,
             "name": "headerRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 529,
+            "line": 531,
             "name": "row",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 573,
+            "line": 576,
             "name": "PaneDivider",
             "passes": []
           }
         ],
-        "line_count": 639,
+        "line_count": 642,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/Blocks/ModelBlockView.swift",
@@ -55769,7 +55985,7 @@
           },
           {
             "kind": "class",
-            "line": 125,
+            "line": 126,
             "name": "MarkdownParseCache",
             "passes": [
               "map.store",
@@ -55781,7 +55997,7 @@
           },
           {
             "kind": "func",
-            "line": 143,
+            "line": 144,
             "name": "blocks",
             "passes": [
               "swift.lifecycle.acquire",
@@ -55790,7 +56006,7 @@
           },
           {
             "kind": "func",
-            "line": 179,
+            "line": 180,
             "name": "resetForTesting",
             "passes": [
               "swift.lifecycle.acquire",
@@ -55799,259 +56015,259 @@
           },
           {
             "kind": "enum",
-            "line": 193,
+            "line": 194,
             "name": "MarkdownBlock",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 219,
+            "line": 220,
             "name": "MarkdownParser",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 220,
+            "line": 221,
             "name": "parse",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 390,
+            "line": 391,
             "name": "isHTMLLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 404,
+            "line": 405,
             "name": "isDiagramLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 408,
+            "line": 409,
             "name": "isChartLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 415,
+            "line": 416,
             "name": "isBlueprintLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 419,
+            "line": 420,
             "name": "isDiffLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 424,
+            "line": 425,
             "name": "isTreeLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 428,
+            "line": 429,
             "name": "isStatsLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 432,
+            "line": 433,
             "name": "isMapLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 436,
+            "line": 437,
             "name": "isDatasetLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 440,
+            "line": 441,
             "name": "isChecklistLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 446,
+            "line": 447,
             "name": "isCalendarLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 454,
+            "line": 455,
             "name": "isKanbanBlock",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 460,
+            "line": 461,
             "name": "isModelLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 469,
+            "line": 470,
             "name": "isTimelineBlock",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 480,
+            "line": 481,
             "name": "isSankeyBlock",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 488,
+            "line": 489,
             "name": "isGraphLanguage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 492,
+            "line": 493,
             "name": "isHorizontalRule",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 502,
+            "line": 503,
             "name": "isUnorderedListItem",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 506,
+            "line": 507,
             "name": "stripUnorderedPrefix",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 514,
+            "line": 515,
             "name": "isOrderedListItem",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 522,
+            "line": 523,
             "name": "stripOrderedPrefix",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 533,
+            "line": 534,
             "name": "isTableRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 537,
+            "line": 538,
             "name": "isTableDelimiter",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 547,
+            "line": 548,
             "name": "parseTableRowCells",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 563,
+            "line": 564,
             "name": "MarkdownText",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 585,
+            "line": 586,
             "name": "render",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 620,
+            "line": 621,
             "name": "normalizeInlineCode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 643,
+            "line": 644,
             "name": "applyInlineCodeStyling",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 670,
+            "line": 671,
             "name": "applyBaseFont",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 675,
+            "line": 676,
             "name": "stripSystemColors",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 700,
+            "line": 701,
             "name": "CodeBlockView",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 794,
+            "line": 795,
             "name": "DiagramPreviewBlock",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 887,
+            "line": 888,
             "name": "CodeHighlighter",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 901,
+            "line": 902,
             "name": "highlight",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 910,
+            "line": 911,
             "name": "computeHighlight",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 931,
+            "line": 932,
             "name": "mapLanguage",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 945,
+            "line": 946,
             "name": "HeadingView",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 981,
+            "line": 982,
             "name": "ListItemView",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1010,
+            "line": 1011,
             "name": "BlockQuoteView",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1037,
+            "line": 1038,
             "name": "TableView",
             "passes": [
               "swift.task.structured"
@@ -56059,31 +56275,31 @@
           },
           {
             "kind": "func",
-            "line": 1080,
+            "line": 1081,
             "name": "columnIsNumeric",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1087,
+            "line": 1088,
             "name": "numericValue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1094,
+            "line": 1095,
             "name": "toggleSort",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1111,
+            "line": 1112,
             "name": "escape",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1122,
+            "line": 1123,
             "name": "copyCSV",
             "passes": [
               "swift.task.structured"
@@ -56091,91 +56307,91 @@
           },
           {
             "kind": "func",
-            "line": 1243,
+            "line": 1244,
             "name": "tableCell",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1279,
+            "line": 1280,
             "name": "columnWidth",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1298,
+            "line": 1299,
             "name": "visualRenderedLength",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1320,
+            "line": 1321,
             "name": "HTMLBlockView",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1383,
+            "line": 1384,
             "name": "CopyHTMLButton",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1418,
+            "line": 1419,
             "name": "OpenableBlockChip",
             "passes": []
           },
           {
             "kind": "class",
-            "line": 1468,
+            "line": 1469,
             "name": "HTMLPreviewPresenter",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 1470,
+            "line": 1471,
             "name": "Payload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1483,
+            "line": 1484,
             "name": "showBlock",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1484,
+            "line": 1485,
             "name": "showAttachment",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1485,
+            "line": 1486,
             "name": "close",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1489,
+            "line": 1490,
             "name": "HTMLPreviewOverlay",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1513,
+            "line": 1514,
             "name": "OpenableBlockSheet",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1587,
+            "line": 1588,
             "name": "InlineHTMLView",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1666,
+            "line": 1667,
             "name": "InlineHTMLNSView",
             "passes": [
               "swift.boundary.external_signature"
@@ -56183,13 +56399,13 @@
           },
           {
             "kind": "func",
-            "line": 1676,
+            "line": 1677,
             "name": "makeCoordinator",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1683,
+            "line": 1684,
             "name": "makeNSView",
             "passes": [
               "swift.boundary.external_signature"
@@ -56197,7 +56413,7 @@
           },
           {
             "kind": "func",
-            "line": 1742,
+            "line": 1743,
             "name": "updateNSView",
             "passes": [
               "swift.boundary.external_signature"
@@ -56205,72 +56421,72 @@
           },
           {
             "kind": "class",
-            "line": 1764,
+            "line": 1765,
             "name": "InputCapturingWebView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1769,
+            "line": 1770,
             "name": "mouseDown",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1777,
+            "line": 1778,
             "name": "InlineHTMLUIView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1789,
+            "line": 1790,
             "name": "makeCoordinator",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1796,
+            "line": 1797,
             "name": "makeUIView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1834,
+            "line": 1835,
             "name": "updateUIView",
             "passes": []
           },
           {
             "kind": "class",
-            "line": 1851,
+            "line": 1852,
             "name": "HTMLNavigationDelegate",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1888,
+            "line": 1889,
             "name": "applyQueryMarks",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1906,
+            "line": 1907,
             "name": "applyStatusMarks",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1931,
+            "line": 1932,
             "name": "webView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1941,
+            "line": 1942,
             "name": "webView",
             "passes": []
           }
         ],
-        "line_count": 1983,
+        "line_count": 1984,
         "mapped_declarations": 8,
         "passes": [
           "map.store",
@@ -77825,7 +78041,7 @@
         "id": "store:chat-ui:MarkdownParseCache",
         "kind": "store",
         "label": "MarkdownParseCache",
-        "line": 125,
+        "line": 126,
         "owner_type": null,
         "page": "chat",
         "page_resolution": "component",
@@ -77877,7 +78093,7 @@
         },
         "store": {
           "artifacts": [],
-          "line": 125,
+          "line": 126,
           "mechanism_count": 0,
           "path": "Sources/Portal/Views/MarkdownContentView.swift",
           "persistence": [
@@ -83101,9 +83317,9 @@
     "assigned_files": 411,
     "declarations": 1286,
     "files": 411,
-    "lines": 119069,
+    "lines": 119076,
     "swift_files": 411,
-    "swift_lines": 119069,
+    "swift_lines": 119076,
     "unassigned_files": []
   },
   "layers": [
@@ -83135,7 +83351,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "621fdcfb460af472823be49a63d4a1d40fb594839cac0c0033957cfa7d57ba2e",
+  "source_tree_sha256": "0c1bb7650c69294fd031ea27fc43d074f7321dd6896099c703d2964607a87e99",
   "stores": {
     "by_persistence": {
       "defaults": 6,
@@ -84997,11 +85213,11 @@
         "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
         "evidence": {
           "excerpt": "final class MarkdownParseCache: @unchecked Sendable {",
-          "line": 125,
+          "line": 126,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "store-c8e62d2b83b6",
+        "id": "store-f345fc1b1ce8",
         "kind": "class",
         "label": "MarkdownParseCache",
         "mechanisms": [],

@@ -22,6 +22,7 @@ struct MarkdownContentView: View, Equatable {
     }
 
     var body: some View {
+        let _ = PerfCounter.tick("view.body.MarkdownContentView")
         VStack(alignment: .leading, spacing: 10) {
             // POSITIONAL identity, not `ForEach(blocks)`: `MarkdownBlock.id`
             // is content-derived (`content.prefix(64)`, and every horizontal

@@ -14571,5 +14571,41 @@
         "hint": "unused"
       }
     ]
+  },
+  "layout": {
+    "counts": {
+      "lazy_stack_without_viewport": 1
+    },
+    "total": 1,
+    "sites": [
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiEventFeedView.swift",
+        "line": 82,
+        "kind": "lazy_stack_without_viewport"
+      }
+    ]
+  },
+  "slowtests": {
+    "threshold_seconds": 5.0,
+    "tests_parsed": 2081,
+    "counts": {
+      "over_threshold": 0
+    },
+    "total": 0,
+    "sites": [],
+    "watchlist": [
+      {
+        "file": "a celebration auto-clears after the performance duration",
+        "seconds": 4.591
+      },
+      {
+        "file": "setting gatewayURL fires the didSet handler",
+        "seconds": 3.172
+      },
+      {
+        "file": "a released URLSession does not close its connection on its own",
+        "seconds": 2.149
+      }
+    ]
   }
 }

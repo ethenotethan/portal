@@ -114,6 +114,7 @@ private struct ModelCard: View {
         // #537's LazyVStack shipped; see ModelSurfaceRelayoutGuardTests and
         // the sampled chain in CanvasRelayoutGuardTests). The card has a
         // handful of views, so laziness buys nothing here anyway.
+        let _ = PerfCounter.tick("view.body.ModelCard")
         VStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.horizontal, 12)
@@ -458,6 +459,7 @@ private struct ModelEntityTable: View {
     }
 
     var body: some View {
+        PerfCounter.tick("view.body.ModelEntityTable")
         let widths = columnWidths
         let width = ModelTableLayout.tableWidth(widths: widths, showsActions: showsActions)
         // Sorted once per body, not once per row: the ForEach below indexes
@@ -527,6 +529,7 @@ private struct ModelEntityTable: View {
     }
 
     private func row(_ item: [String: String], widths: [CGFloat]) -> some View {
+        PerfCounter.tick("view.body.ModelEntityRow")
         let keyValue = item[set.key] ?? ""
         let ref = ModelSpec.EntityRef(set: set.name, key: keyValue)
         let isSelected = selectedRef == ref
