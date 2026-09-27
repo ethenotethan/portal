@@ -11482,17 +11482,17 @@
         "current": {
           "counts": {
             "discouraged_optional_boolean": 7,
-            "explicit_acl": 2737,
+            "explicit_acl": 2736,
             "force_cast": 6,
             "force_try": 5,
-            "force_unwrapping": 73,
+            "force_unwrapping": 72,
             "implicitly_unwrapped_optional": 8,
             "no_swallowed_try": 131,
             "no_sync_io_on_main": 3
           },
           "kind": "count",
-          "sites": 2970,
-          "total": 2970
+          "sites": 2968,
+          "total": 2968
         },
         "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
         "id": "lint",

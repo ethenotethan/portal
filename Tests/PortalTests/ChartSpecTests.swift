@@ -197,8 +197,8 @@ struct ChartSpecTests {
     }
 
     @Test("Five-number summary uses interpolated quartiles")
-    func fiveNumber() {
-        let f = ChartDistribution.fiveNumber(for: [7, 1, 3, 5])!
+    internal func fiveNumber() throws {
+        let f = try #require(ChartDistribution.fiveNumber(for: [7, 1, 3, 5]))
         #expect(f.min == 1)
         #expect(f.max == 7)
         #expect(f.median == 4)   // (3+5)/2
