@@ -731,6 +731,11 @@ final class ChatViewModel: ObservableObject {
 
     init() {
         LeakTracker.track(self)
+        liveObjects.register(LiveObjectKind.chatViewModel)
+    }
+
+    deinit {
+        liveObjects.unregister(LiveObjectKind.chatViewModel)
     }
 
     func setGatewayClient(_ client: any AgentBackend) {

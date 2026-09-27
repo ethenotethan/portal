@@ -339,6 +339,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         scheduleDebugNotify()
     }
 
+    /// A fresh copy of the debug snapshot for the session health monitor and
+    /// diagnostic bundles: connection, pending pool, recent events, drops.
+    internal func diagnosticSnapshot() -> GatewayDebugSnapshot {
+        refreshDebugSnapshot()
+        return debugSnapshot
+    }
+
     internal func recordDebugEvent(
         _ direction: GatewayDebugSnapshot.EventRecord.Direction,
         name: String,
@@ -2453,6 +2460,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         case .event(let type, let sessionID, let event):
             log.debug("handleMessage: event type=\(type)")
+            healthCounters.increment(HealthCounter.gatewayEvents)
             if type != "message.delta" && type != "reasoning.delta" && type != "thinking.delta" {
                 onLog?("← event: \(type)", false)
             }

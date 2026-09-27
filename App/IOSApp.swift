@@ -18,11 +18,13 @@ struct PortalAppIOS: App {
         requestPortalNotificationAuthorization()
         startPortalPerfInstrumentation()
         startPortalLogSink()
+        startPortalSessionHealthMonitor()
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task { attachPortalSessionHealthSources(gateway: gatewayClientWrapper, sessions: sessionList) }
                 .environmentObject(settings)
                 .environmentObject(sessionList)
                 .environmentObject(personaManager)

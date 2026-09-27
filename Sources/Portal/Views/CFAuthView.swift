@@ -231,6 +231,7 @@ struct CFWebViewNSView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()  // Use default store so cookies persist
         let webView = WKWebView(frame: .zero, configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         viewModel.attachWebView(webView)
         return webView
     }
@@ -249,6 +250,7 @@ struct CFWebViewUIView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         let webView = WKWebView(frame: .zero, configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.scrollView.isScrollEnabled = true
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         viewModel.attachWebView(webView)

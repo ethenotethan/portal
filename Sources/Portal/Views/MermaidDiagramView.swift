@@ -448,6 +448,7 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
         // Disable features that trigger sandbox errors
         config.preferences.isTextInteractionEnabled = false
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1600, height: 1200), configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.setValue(false, forKey: "drawsBackground")
         // Place off-screen in a hidden window so it can render
         window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 1600, height: 1200),
@@ -577,6 +578,7 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
         let config = WKWebViewConfiguration()
         config.processPool = Self.processPool
         webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 1600, height: 1200), configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.isOpaque = false
         webView.backgroundColor = UIColor(Theme.background)
         window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1600, height: 1200))

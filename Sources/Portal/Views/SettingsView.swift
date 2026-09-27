@@ -19,6 +19,7 @@ internal struct SettingsView: View {
         case notifications
         case celebrations
         case speech
+        case diagnostics
         case x
         case gateway(SavedGateway)
 
@@ -28,6 +29,7 @@ internal struct SettingsView: View {
             case .notifications: return "notifications"
             case .celebrations: return "celebrations"
             case .speech: return "speech"
+            case .diagnostics: return "diagnostics"
             case .x: return "x"
             case .gateway(let g): return g.id
             }
@@ -39,6 +41,7 @@ internal struct SettingsView: View {
             case .notifications: return "Notifications"
             case .celebrations: return "Celebrations"
             case .speech: return "Speech"
+            case .diagnostics: return "Diagnostics"
             case .x: return "X (Twitter)"
             case .gateway(let g): return g.displayName
             }
@@ -50,6 +53,7 @@ internal struct SettingsView: View {
             case .notifications: return "bell"
             case .celebrations: return "party.popper"
             case .speech: return "speaker.wave.2"
+            case .diagnostics: return "stethoscope"
             case .x: return "bird"
             case .gateway: return "server.rack"
             }
@@ -82,7 +86,7 @@ internal struct SettingsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 sidebarGroup(
                     header: nil,
-                    items: [.appearance, .notifications, .celebrations, .speech, .x]
+                    items: [.appearance, .notifications, .celebrations, .speech, .diagnostics, .x]
                 )
 
                 Divider().padding(.vertical, 8)
@@ -163,6 +167,8 @@ internal struct SettingsView: View {
                         CelebrationSettingsSection()
                     case .speech:
                         SpeechSettingsSection()
+                    case .diagnostics:
+                        DiagnosticsSettingsSection()
                     case .x:
                         xSection
                     case .gateway(let g):
@@ -787,6 +793,10 @@ extension SettingsView {
 
                 Section("Speech") {
                     SpeechSettingsSection(showsHeader: false)
+                }
+
+                Section("Diagnostics") {
+                    DiagnosticsSettingsSection(showsHeader: false)
                 }
 
                 Section("Capabilities") {

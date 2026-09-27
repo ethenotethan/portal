@@ -273,6 +273,7 @@ internal final class InAppBrowserModel: ObservableObject {
         // protected server then loads instead of stalling on a login wall.
         config.websiteDataStore = .default()
         let created = WKWebView(frame: .zero, configuration: config)
+        liveObjects.track(created, as: LiveObjectKind.webView)
         #if !os(macOS)
         created.scrollView.isScrollEnabled = true
         created.autoresizingMask = [.flexibleWidth, .flexibleHeight]

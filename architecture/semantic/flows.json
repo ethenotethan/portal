@@ -414,7 +414,7 @@
       ],
       "summary": "The user taps Pull to refresh an artifact into the store, or Remove to drop it. Both actions mutate ArtifactStore, which rewrites the artifact map to artifacts.json so the change survives relaunch.",
       "title": "Pull or remove an artifact on the canvas",
-      "trigger": "trigger-b868f0a4f5e3"
+      "trigger": "trigger-f3fa03caa7f4"
     },
     {
       "evidence": [
