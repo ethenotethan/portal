@@ -1618,6 +1618,25 @@ class ArchitectureCompilerTests(unittest.TestCase):
             self.assertLessEqual(bucket["mapped"], bucket["total"])
         self.assertGreater(summary["untouched_files"], 0, "the map is a projection; the tree it does not cover must be visible")
 
+    def test_trigger_holder_may_be_a_plain_stored_property(self) -> None:
+        # A row that must not observe its store (an equatable list row) still calls it;
+        # the grammar recognises the unobserved handle, and only surface-typed ones matter.
+        holders = {m.group("name"): (m.group("annot"), m.group("init")) for m in architecture.TRIGGER_PROPERTY_RE.finditer(
+            "@ObservedObject private var vm: ChatViewModel\n"
+            "internal let store: ArtifactStore\n"
+            "@StateObject var model = CronGraphViewModel()\n"
+            "private var count: Int = 0\n"
+            "let title = \"x\"\n"
+        )}
+        self.assertEqual(("ChatViewModel", None), holders["vm"])
+        self.assertEqual(("ArtifactStore", None), holders["store"])
+        self.assertEqual((None, "CronGraphViewModel"), holders["model"])
+        self.assertEqual(("Int", None), holders["count"], "typed non-surface properties match the regex and are filtered later by surface type")
+        self.assertEqual((None, None), holders["title"], "an untyped literal carries no type at all, so the surface check drops it")
+        # On the real model the artifacts page reaches the store's remove through the equatable row.
+        triggers = [t for t in self.model["interplay"]["triggers"] if t["page"] == "artifacts" and t["surface"] == "ArtifactStore"]
+        self.assertIn(("ArtifactListRow", "remove"), {(t["view"], t["method"]) for t in triggers})
+
     def test_extraction_declaration_census_is_body_aware(self) -> None:
         source = (
             "import Foundation\n"

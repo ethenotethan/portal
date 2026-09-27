@@ -362,6 +362,7 @@
 		5E6D991941E234EEF68EF071 /* Model3DBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009ED1D7D107F1CF746F1604 /* Model3DBlockView.swift */; };
 		5E8AF9F583BA6E1FB2A1D209 /* AppFontSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859E9B5BD7457CD333DC0621 /* AppFontSettingsSection.swift */; };
 		5EA4337E9A9161B6DB599CE1 /* CronJobCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A38058167062C45FD8CE7BE /* CronJobCard.swift */; };
+		5EE2A9CB2DEB241152FD9B04 /* ArtifactListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B6C23B4CF00469FF9A0146 /* ArtifactListRow.swift */; };
 		5EFA082A1D008E829CB597EC /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C529F7B030E6CFA562F33BE5 /* SpawnNode.swift */; };
 		5F23AC298E3A539F38841072 /* SkillTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEE68099D400B4874FE6079 /* SkillTests.swift */; };
 		5F4DC55F4D3D6DE15E5F4B59 /* LocalVoiceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5EBFFB516D88DCDFF928326 /* LocalVoiceEngine.swift */; };
@@ -741,6 +742,7 @@
 		BB6A7743A62230941E8C5B06 /* DiagnosticsSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E687F97136508130341A0FFB /* DiagnosticsSettingsSection.swift */; };
 		BB74802C5B347E2EBD9680DB /* TurnSkillsLens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77DF29D74D5D721EF473D0D3 /* TurnSkillsLens.swift */; };
 		BBCB0452C222392407A10179 /* LocalDiscussionCloseOut.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FBACF8C0C7D35109CDCB87D /* LocalDiscussionCloseOut.swift */; };
+		BC049B12377F340652A69EFD /* ArtifactRenderChurnTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25251AF1318022DEFF54CA68 /* ArtifactRenderChurnTests.swift */; };
 		BC55CE962CE80ABAF2DD215E /* ToolbarIconButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D989ED102C97F649D22A9D22 /* ToolbarIconButtonStyle.swift */; };
 		BCFF2A726BE287BD45000E60 /* ActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94562E6D8D4F32997ACE811B /* ActivityStore.swift */; };
 		BD37898C29DD367F1524D231 /* WikiSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31DF292A9F50BD153840986 /* WikiSource.swift */; };
@@ -955,6 +957,7 @@
 		F0D39E901BD3A009FA1FB2C4 /* DelegationBatchMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7998F54C96448121326A4B4 /* DelegationBatchMessage.swift */; };
 		F114E2D34CDFA73773409591 /* PushRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32BA1CA8CCACEEBB1C97B7EF /* PushRegistrationService.swift */; };
 		F183964169007C729D731FD4 /* LocalDiscussion.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF77BB58A9B64AA454291334 /* LocalDiscussion.swift */; };
+		F184F91B4673BA86CA508583 /* ArtifactListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B6C23B4CF00469FF9A0146 /* ArtifactListRow.swift */; };
 		F19CFF65596A85D8849DE213 /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = 430B2CA1E22DD13601BD963B /* SwiftMath */; };
 		F1B2C20FFE7654035B8C5E0B /* SessionsSearchPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD56120B53196F463494F45C /* SessionsSearchPanel.swift */; };
 		F1E37D5C625C7755D60EA7B6 /* PageIntentContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B81DBA17D4D66CB26816A45 /* PageIntentContext.swift */; };
@@ -1145,6 +1148,7 @@
 		245466F196F725EF41C8CC7C /* GatewayClient+ServiceLogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+ServiceLogs.swift"; sourceTree = "<group>"; };
 		250EB09F699471E388BC10E3 /* PortalOfflineSmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalOfflineSmokeUITests.swift; sourceTree = "<group>"; };
 		25238C5D9EAAF58C9298DC8F /* DelegationBatchNoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DelegationBatchNoticeView.swift; sourceTree = "<group>"; };
+		25251AF1318022DEFF54CA68 /* ArtifactRenderChurnTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactRenderChurnTests.swift; sourceTree = "<group>"; };
 		252743FDE501DDF9275ED4EE /* PromptBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBreakdownView.swift; sourceTree = "<group>"; };
 		2528230688CC5940286A9C55 /* TweetPostCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TweetPostCard.swift; sourceTree = "<group>"; };
 		25BDC691446972663C00A9C4 /* YouTubeContentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeContentService.swift; sourceTree = "<group>"; };
@@ -1156,6 +1160,7 @@
 		2851D3AA550338E15B4CB929 /* SessionsSourceBreakdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsSourceBreakdown.swift; sourceTree = "<group>"; };
 		285A83F389BCACC278A806AD /* LongResponseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LongResponseView.swift; sourceTree = "<group>"; };
 		28B41D9EBC0A420A1FD3B6B3 /* CronRunHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronRunHistory.swift; sourceTree = "<group>"; };
+		29B6C23B4CF00469FF9A0146 /* ArtifactListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactListRow.swift; sourceTree = "<group>"; };
 		2B45EF877901FAA086110A90 /* SkillCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCache.swift; sourceTree = "<group>"; };
 		2B5D62361169F6B40127A7EA /* ArtifactIntentStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactIntentStoreTests.swift; sourceTree = "<group>"; };
 		2B743F6DCA303C47EB54D6AD /* MessageBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleView.swift; sourceTree = "<group>"; };
@@ -1985,6 +1990,7 @@
 				F53C79AD615D5B3D90F5E1D6 /* ArtifactExportMenu.swift */,
 				3DE7C202452509205D09D3F0 /* ArtifactFullscreenWindow.swift */,
 				B52AA27965856DD3FFFCDC76 /* ArtifactKindRenderer.swift */,
+				29B6C23B4CF00469FF9A0146 /* ArtifactListRow.swift */,
 				F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */,
 				EAA6B3DECE07A1FA170AFEE6 /* ArtifactTopLevelActionBar.swift */,
 				D8F7264DE5EAED821302F0E3 /* AsyncDelegationBatchView.swift */,
@@ -2389,6 +2395,7 @@
 				2B5D62361169F6B40127A7EA /* ArtifactIntentStoreTests.swift */,
 				244CA3A89979D1E0985DE3DE /* ArtifactQueryBridgeTests.swift */,
 				E81EA3FBBC90317185968A75 /* ArtifactQueryStoreTests.swift */,
+				25251AF1318022DEFF54CA68 /* ArtifactRenderChurnTests.swift */,
 				3D8B1319CCE257066419871B /* ArtifactsPaneLayoutTests.swift */,
 				F38B54CB474D3BA2E1C1E831 /* ArtifactStatusReflectionTests.swift */,
 				771C3D05CAE5E48B5A6AD239 /* BlockViewParserTests.swift */,
@@ -2837,6 +2844,7 @@
 				B118AEB153F030DEFC89EC8C /* ArtifactFullscreenWindow.swift in Sources */,
 				C6C3DFBC1E5BBF1A7449CB09 /* ArtifactIntentSessionLink.swift in Sources */,
 				12467E4D27B07826D65249A4 /* ArtifactKindRenderer.swift in Sources */,
+				5EE2A9CB2DEB241152FD9B04 /* ArtifactListRow.swift in Sources */,
 				F24625D7FFB2855A6F5A156E /* ArtifactMaintenanceSection.swift in Sources */,
 				DBF737D082B6975F7B97D978 /* ArtifactPanel.swift in Sources */,
 				7AE15FD1286665E958DF5801 /* ArtifactParseError.swift in Sources */,
@@ -3256,6 +3264,7 @@
 				CFBB8870B76CCFFC26E4334C /* ArtifactIntentStoreTests.swift in Sources */,
 				91BD2F64533FD6D76DC7BC4F /* ArtifactQueryBridgeTests.swift in Sources */,
 				636FE355098869AAAB27DCCA /* ArtifactQueryStoreTests.swift in Sources */,
+				BC049B12377F340652A69EFD /* ArtifactRenderChurnTests.swift in Sources */,
 				A00E8A06137A0415A10B6C44 /* ArtifactStatusReflectionTests.swift in Sources */,
 				8D7D14ADFBBDA34404202076 /* ArtifactsPaneLayoutTests.swift in Sources */,
 				3252DB4C26A15DCABB4FC46E /* BlockViewParserTests.swift in Sources */,
@@ -3459,6 +3468,7 @@
 				D3FA79D7ADD1B453D77A91A5 /* ArtifactFullscreenWindow.swift in Sources */,
 				B29C577C8E2751D987EBAEC9 /* ArtifactIntentSessionLink.swift in Sources */,
 				BFDDBDC75E903B7754EB50A7 /* ArtifactKindRenderer.swift in Sources */,
+				F184F91B4673BA86CA508583 /* ArtifactListRow.swift in Sources */,
 				80E479037050EFD43F2DE88A /* ArtifactMaintenanceSection.swift in Sources */,
 				DA9E33B100B6C5D0FCF0B30B /* ArtifactPanel.swift in Sources */,
 				E2E88965B48A0458EB0AC99E /* ArtifactParseError.swift in Sources */,
