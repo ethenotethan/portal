@@ -66,7 +66,6 @@ internal struct PerfCountHarnessTests {
 
     @MainActor
     @Test("Instrumented layout op counts match the committed baseline")
-    @MainActor
     internal func recordOpCounts() throws {
         var merged: [String: Int] = [:]
 
