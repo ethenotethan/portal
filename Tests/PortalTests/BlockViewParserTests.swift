@@ -346,7 +346,7 @@ struct NetworkGraphSpecTests {
 struct LivingArtifactTests {
 
     @Test("Map merge unions markers by label; incoming wins conflicts")
-    func mapMerge() {
+    internal func mapMerge() throws {
         let existing = """
         {"id": "bkk", "title": "BKK Apartments", "markers": [
           {"lat": 13.72, "lon": 100.58, "label": "Ekkamai loft", "group": "shortlist", "note": "38k"},
@@ -360,10 +360,12 @@ struct LivingArtifactTests {
         ]}
         """
         let merged = ArtifactMerge.merge(kind: "map", existing: existing, incoming: incoming)
-        let obj = try! JSONSerialization.jsonObject(with: Data(merged.utf8)) as! [String: Any]
-        let markers = obj["markers"] as! [[String: Any]]
+        let obj = try #require(
+            try JSONSerialization.jsonObject(with: Data(merged.utf8)) as? [String: Any]
+        )
+        let markers = try #require(obj["markers"] as? [[String: Any]])
         #expect(markers.count == 3)  // union: ekkamai (updated) + thonglor (kept) + ari (new)
-        let ekkamai = markers.first { ($0["label"] as? String) == "Ekkamai loft" }!
+        let ekkamai = try #require(markers.first { ($0["label"] as? String) == "Ekkamai loft" })
         #expect(ekkamai["group"] as? String == "rejected")   // incoming wins
         #expect(obj["title"] as? String == "BKK Apartments") // carried over
     }
