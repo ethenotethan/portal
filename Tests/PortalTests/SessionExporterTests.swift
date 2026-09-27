@@ -6,7 +6,7 @@ import Foundation
 struct SessionExporterMarkdownTests {
 
     private let fixedDate = Date(timeIntervalSince1970: 1_750_000_000)
-    private let utc = TimeZone(identifier: "UTC")!
+    private let utc = TimeZone.gmt
 
     private func export(_ messages: [ChatMessage], metadata: SessionExporter.Metadata? = nil) -> String {
         SessionExporter.markdown(
@@ -222,10 +222,12 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Markdown output is deterministic")
-    func deterministicOutput() {
+    internal func deterministicOutput() throws {
+        let userID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+        let assistantID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
         let messages = [
-            ChatMessage(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!, role: .user, content: "hi"),
-            ChatMessage(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!, role: .assistant, content: "hello"),
+            ChatMessage(id: userID, role: .user, content: "hi"),
+            ChatMessage(id: assistantID, role: .assistant, content: "hello"),
         ]
         #expect(export(messages) == export(messages))
     }
@@ -241,7 +243,7 @@ struct SessionExporterFilenameTests {
             title: "My Research: Phase 2!",
             fileExtension: "md",
             date: date,
-            timeZone: TimeZone(identifier: "UTC")!
+            timeZone: .gmt
         )
         #expect(name == "my-research-phase-2-20250615-1506.md")
     }
