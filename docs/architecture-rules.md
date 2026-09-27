@@ -107,7 +107,7 @@ floor that its baseline can't be *grown* to silence one is a ratchet
 | `Ratchet / Dead Code` | Ratchet | Unused declarations | `metrics-baseline.json` `deadcode` | Periphery + `check-metrics-ratchet.py --deadcode` |
 | `Ratchet / Layout` | Ratchet | Lazy stacks with no scroll viewport (the relayout-loop shape) | `metrics-baseline.json` `layout` | `collect-layout-smells.py` + `check-metrics-ratchet.py --layout` |
 | `Ratchet / Slow Tests` | Ratchet | Tests over 5 s in the serialized run | `metrics-baseline.json` `slowtests` | `collect-slow-tests.py` + `check-metrics-ratchet.py --slowtests` |
-| `Ratchet / Performance` | Ratchet | Algorithmic work, body evaluations, layout passes | `perf-baseline.json` | `check-perf-ratchet.py` |
+| `Ratchet / Performance` | Ratchet | Algorithmic work, body evaluations | `perf-baseline.json` | `check-perf-ratchet.py` |
 | `Ratchet / Quality` | Ratchet | Lint debt (baseline only shrinks) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
 | `Ratchet / Constraints` | Ratchet | The declarations behind every other gate may only tighten | `invariants.json`, `config.json`, `.swiftlint.yml`, `ArchitectureTests.swift`, specifications, gate scripts, `CODEOWNERS`, the gate workflows — as they exist on base | `check-constraint-growth.py` |
 | `Pages / Validate model and site` (contract pins) | Static | The vendored hermes.architecture contract matches its pin and the committed model conforms | `architecture/contract/pins.json` | `check-contract-pins.py` |
@@ -417,12 +417,13 @@ operation **count**, not wall-clock time — chosen deliberately.
     state change — a card moves a lane, a work item's title changes — and
     records what re-evaluated. "One edit re-renders every row" is a count, not
     a feeling.
-  - *Layout passes to settle* (`<scenario>.layoutPasses`). How many times the
-    hosting view laid out before going quiet after the mount and after the
-    update. Catches eager relayout churn (a frame-derived height that reflows
-    its parent, an alignment-guide descent). It does **not** reproduce the
-    lazy-stack prefetch loop: a headless hosting view never realises lazy
-    children, so that class is guarded statically by the `Layout` ratchet.
+  - *Not recorded: hosting-view layout passes.* The harness settles each
+    mount by counting the hosting view's layout passes, but the count is not a
+    ratchet counter: the CI runner counted 2 where a local run counts 1 for
+    the same fixture, and a strict ceiling on a 1–3 value would flake (#655,
+    #657). A headless hosting view also never realises lazy children, so the
+    lazy-stack prefetch loop is guarded statically by the `Layout` ratchet,
+    not here.
 - **Zero cost in production.** Every `PerfCounter` call is gated on the
   `PERF_COUNTERS` compile flag. A normal build (`swift build`, `make build`,
   the shipped app) never defines it, so the calls compile to an

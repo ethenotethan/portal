@@ -33,12 +33,12 @@ import AppKit
 ///   a hot SwiftUI body ran while a fixture surface was mounted, and again
 ///   after one fixed state change (a card moved, an item edited). Catches the
 ///   "one edit re-renders every row" class without a clock.
-/// - **Layout passes to settle** (`<scenario>.layoutPasses`): how many times
-///   the hosting view laid out before going quiet after a mount or an update.
-///   Catches eager relayout churn. It does NOT reproduce the lazy-stack
-///   prefetch loop (#249, #606): a headless NSHostingView never realises lazy
-///   children, so that class is guarded statically by
-///   `collect-layout-smells.py` and `ModelSurfaceRelayoutGuardTests` instead.
+/// Hosting-view layout passes are counted while settling but NOT recorded:
+/// the runner counted 2 where a local run counts 1 for the same fixture, and
+/// a strict ceiling on a 1–3 value would flake. A headless NSHostingView also
+/// never realises lazy children, so the lazy-stack prefetch loop (#249, #606)
+/// is guarded statically by `collect-layout-smells.py` and
+/// `ModelSurfaceRelayoutGuardTests`, not here.
 ///
 /// Fixtures are deterministic constructions (fixed node/link/card counts), so
 /// the counts are reproducible to the integer. Change a fixture's size and you
@@ -240,16 +240,18 @@ internal struct PerfCountHarnessTests {
         return hosted.host.layoutCount
     }
 
-    /// The current PerfCounter tallies namespaced under `scenario`, plus the
-    /// layout-pass count. Empty in an uninstrumented build so the normal suite
-    /// keeps its `merged.isEmpty` assertion.
+    /// The current PerfCounter tallies namespaced under `scenario`. `passes`
+    /// (hosting-view layout passes to settle) is accepted for the call site's
+    /// readability but deliberately not recorded — see the type doc. Empty in
+    /// an uninstrumented build so the normal suite keeps its `merged.isEmpty`
+    /// assertion.
     private static func hostCounts(_ scenario: String, passes: Int) -> [String: Int] {
         var out: [String: Int] = [:]
         #if PERF_COUNTERS
+        _ = passes
         for (key, value) in PerfCounter.snapshot() {
             out["\(scenario).\(key)"] = value
         }
-        out["\(scenario).layoutPasses"] = passes
         #endif
         return out
     }
