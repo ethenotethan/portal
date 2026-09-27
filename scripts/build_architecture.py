@@ -2795,9 +2795,13 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
     return results
 
 
+# A view's handle on a surface: a SwiftUI-wrapped property, or a plain stored
+# `let`/`var` with an explicit type (an equatable row that must not observe the
+# store still calls it, so the grammar recognises the unobserved handle too —
+# only properties whose type is a surface on the map ever become triggers).
 TRIGGER_PROPERTY_RE = re.compile(
-    r"@(?:StateObject|ObservedObject|EnvironmentObject|Bindable|State)\s+(?:(?:private|internal|fileprivate)\s+)?"
-    r"var\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*(?::\s*(?P<annot>[A-Z][A-Za-z0-9_]*))?(?:\s*=\s*(?P<init>[A-Z][A-Za-z0-9_]*)\s*(?:\(|\.))?"
+    r"(?:@(?:StateObject|ObservedObject|EnvironmentObject|Bindable|State)\s+)?(?:(?:private|internal|fileprivate)\s+)?"
+    r"(?:var|let)\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*(?::\s*(?P<annot>[A-Z][A-Za-z0-9_]*))?(?:\s*=\s*(?P<init>[A-Z][A-Za-z0-9_]*)\s*(?:\(|\.))?"
 )
 TRIGGER_PATTERNS = [
     ("user_action", "Button", re.compile(r"\bButton\s*(?:\(|\{)")),

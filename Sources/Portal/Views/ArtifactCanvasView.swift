@@ -216,9 +216,15 @@ internal struct ArtifactCanvasView: View {
         HSplitView {
             // Sidebar — compact artifact list
             ScrollView {
+                let selected = selectedArtifact?.id
                 VStack(spacing: 3) {
                     ForEach(store.sortedArtifacts) { artifact in
-                        listRow(artifact)
+                        ArtifactListRow(
+                            inputs: ArtifactListRow.Inputs(artifact: artifact, isSelected: artifact.id == selected),
+                            onSelect: { selectedID = artifact.id },
+                            store: store
+                        )
+                        .equatable()
                     }
                 }
                 .padding(10)
@@ -250,61 +256,6 @@ internal struct ArtifactCanvasView: View {
     private var selectedArtifact: LivingArtifact? {
         selectedID.flatMap { store.artifacts[$0] }
             ?? store.sortedArtifacts.first
-    }
-
-    private func listRow(_ artifact: LivingArtifact) -> some View {
-        let isSelected = artifact.id == selectedArtifact?.id
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 7) {
-                Image(systemName: kindIcon(for: artifact.kind))
-                    .font(.system(size: 11))
-                    .foregroundStyle(isSelected ? Theme.accent : Theme.secondary)
-                    .frame(width: 16)
-                Text(artifact.displayName)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(1)
-                Spacer()
-                if artifact.rev > 0 {
-                    Text("r\(artifact.rev)")
-                        .font(.system(size: 9, design: .monospaced))
-                        .monospaced()
-                        .foregroundStyle(Theme.tertiary)
-                }
-            }
-            HStack(spacing: 5) {
-                Text(artifact.updatedAt.formatted(.relative(presentation: .named)))
-                    .font(.caption2)
-                    .foregroundStyle(Theme.tertiary)
-                if let writer = WriterRef.parse(artifact.updatedBy) {
-                    Text("· \(writer.label(cronName: { _ in nil }))")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.tertiary)
-                        .lineLimit(1)
-                }
-                if !artifact.maintainerRefs.isEmpty {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 8))
-                        .foregroundStyle(Theme.accent)
-                }
-            }
-            .padding(.leading, 23)
-        }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            isSelected ? Theme.accent.opacity(0.10) : Color.clear,
-            in: RoundedRectangle(cornerRadius: 8)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture { selectedID = artifact.id }
-        .contextMenu {
-            Button(role: .destructive) {
-                store.remove(id: artifact.id)
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
     }
 
     // MARK: - Empty state
@@ -599,7 +550,8 @@ private struct ArtifactPanelContent: View {
     /// leading prose for docs, or a code/markup snippet otherwise.
     private var previewGist: String {
         let content = store.artifacts[artifact.id]?.content ?? artifact.content
-        return ArtifactPreviewGist.make(kind: artifact.kind, content: content)
+        let current = store.artifacts[artifact.id] ?? artifact
+        return ArtifactPreviewGist.make(kind: current.kind, content: current.content, object: .some(current.jsonObject))
     }
 
     private var gistIsMonospaced: Bool {
@@ -741,19 +693,23 @@ internal enum ArtifactKindGlyph {
 /// leading prose; for html/model it's a trimmed code snippet. Never parses
 /// more than it needs and never renders a web view / chart.
 internal enum ArtifactPreviewGist {
-    internal static func make(kind: String, content: String) -> String {
+    /// `object` is the artifact's parsed-once JSON (`LivingArtifact.jsonObject`);
+    /// passing it keeps this free of any per-render parse. A caller without an
+    /// artifact may omit it and pays one parse.
+    internal static func make(kind: String, content: String, object: [String: Any]?? = .none) -> String {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parsedObject: [String: Any]? = object ?? Self.parse(trimmed)
         guard !trimmed.isEmpty else { return "Empty artifact" }
 
         switch kind {
-        case "blueprint": return structural(trimmed, list: "elements", noun: "element", titleKey: "title")
-        case "map":       return structural(trimmed, list: "markers", noun: "marker", titleKey: "title")
-        case "dataset":   return structural(trimmed, list: "rows", noun: "row", titleKey: "title")
-        case "checklist": return structural(trimmed, list: "items", noun: "item", titleKey: "title")
-        case "kanban":    return structural(trimmed, list: "cards", noun: "card", titleKey: "title")
-        case "calendar":  return structural(trimmed, list: "events", noun: "event", titleKey: "title")
-        case "graph":     return structural(trimmed, list: "nodes", noun: "node", titleKey: "title")
-        case "stats":     return structural(trimmed, list: "tiles", noun: "stat", titleKey: "title")
+        case "blueprint": return structural(trimmed, object: parsedObject, list: "elements", noun: "element", titleKey: "title")
+        case "map":       return structural(trimmed, object: parsedObject, list: "markers", noun: "marker", titleKey: "title")
+        case "dataset":   return structural(trimmed, object: parsedObject, list: "rows", noun: "row", titleKey: "title")
+        case "checklist": return structural(trimmed, object: parsedObject, list: "items", noun: "item", titleKey: "title")
+        case "kanban":    return structural(trimmed, object: parsedObject, list: "cards", noun: "card", titleKey: "title")
+        case "calendar":  return structural(trimmed, object: parsedObject, list: "events", noun: "event", titleKey: "title")
+        case "graph":     return structural(trimmed, object: parsedObject, list: "nodes", noun: "node", titleKey: "title")
+        case "stats":     return structural(trimmed, object: parsedObject, list: "tiles", noun: "stat", titleKey: "title")
         case "chart", "sankey", "timeline", "model", "html":
             // Structured/markup kinds with no simple count worth surfacing:
             // show a trimmed snippet of the source so the card isn't empty.
@@ -766,15 +722,9 @@ internal enum ArtifactPreviewGist {
 
     /// "<n> <noun>s · <title>" for a JSON object with a top-level array.
     /// Falls back to a snippet when the content isn't the expected shape.
-    private static func structural(_ content: String, list: String, noun: String, titleKey: String) -> String {
-        guard let data = content.data(using: .utf8) else { return snippet(content) }
-        let parsed: Any
-        do {
-            parsed = try JSONSerialization.jsonObject(with: data)
-        } catch {
-            return snippet(content)   // not JSON (or malformed) — fall back to a text snippet
-        }
-        guard let obj = parsed as? [String: Any] else { return snippet(content) }
+    private static func structural(_ content: String, object: [String: Any]?, list: String, noun: String, titleKey: String) -> String {
+        // not JSON (or malformed) — fall back to a text snippet
+        guard let obj = object else { return snippet(content) }
         var parts: [String] = []
         if let items = obj[list] as? [Any] {
             let live = items.filter { ($0 as? [String: Any])?["_deleted"] as? Bool != true }.count
@@ -784,6 +734,12 @@ internal enum ArtifactPreviewGist {
             parts.append(title)
         }
         return parts.isEmpty ? snippet(content) : parts.joined(separator: " · ")
+    }
+
+    /// The fallback parse for callers that have no artifact to hand over.
+    private static func parse(_ content: String) -> [String: Any]? {
+        guard content.hasPrefix("{") else { return nil }
+        return JSONObjectParse.object(from: content)
     }
 
     /// First few non-empty lines, capped, for a text/markup gist.

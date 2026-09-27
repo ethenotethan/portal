@@ -358,9 +358,23 @@ operation **count**, not wall-clock time — chosen deliberately.
 - **What's instrumented.** `PerfCounter` (Utilities) tallies the dominant loop
   of each hot pure path: `sankey.relax` and `sankey.pack` in
   `SankeyLayout.layout`, and `graph.forceSim` — the O(n²) pairwise repulsion —
-  in `NetworkGraphLayout`. Counts are added *once per loop* (the accumulated
-  total), never once per iteration, so even the instrumented build pays no
-  locked call inside a hot loop.
+  in `NetworkGraphLayout`; and `artifact.maintainerParse`, one tick per parse
+  of an artifact's content for its maintainers. Counts are added *once per
+  loop* (the accumulated total), never once per iteration, so even the
+  instrumented build pays no locked call inside a hot loop.
+- **The per-render parse.** A second class of churn the counter guards: a
+  `body` (or a row builder called from one) that derives a value from a
+  model's raw content — parsing an artifact's JSON to ask whether it has
+  maintainers — re-parses on every render, and SwiftUI renders on every
+  published change. With a live query result landing every few seconds and
+  70 artifacts of up to 500 KB, that was 60–80 short main-thread turns per
+  second for hours: the long-session beachball, not a single slow turn. The
+  rule: derived values are computed once per distinct content and cached on
+  the model (`LivingArtifact.derived`, invalidated by `content`'s `didSet`),
+  rows are `Equatable` value views with `.equatable()` so unchanged rows skip
+  their body, and fast-changing state (`ArtifactStore.live`) publishes on its
+  own object so it does not republish the list. The harness renders 40
+  artifacts 20 times and asserts 40 parses.
 - **Zero cost in production.** Every `PerfCounter` call is gated on the
   `PERF_COUNTERS` compile flag. A normal build (`swift build`, `make build`,
   the shipped app) never defines it, so the calls compile to an

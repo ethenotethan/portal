@@ -14,7 +14,12 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     var kind: String
     var title: String
     /// The raw fence body (JSON for map/chart/graph/stats, markdown for docs).
-    var content: String
+    /// Every value derived from it (`maintainerRefs`, `supportsMaintainers`,
+    /// `jsonObject`) is parsed at most once per distinct content: the cache is
+    /// a reference shared by copies and replaced whenever the content changes.
+    internal var content: String {
+        didSet { if content != oldValue { derived = LivingArtifactDerived() } }
+    }
     var updatedAt: Date
     /// Device that last wrote it (sync conflict visibility, not resolution).
     var updatedBy: String
@@ -87,16 +92,41 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     /// Human label for pickers: title if present, else the id.
     var displayName: String { title.isEmpty ? id : title }
 
+    /// Parsed-once cache for values derived from `content`. A class, so the
+    /// copies SwiftUI makes of this struct on every render share one parse;
+    /// `content`'s `didSet` swaps in a fresh one, so a change invalidates it.
+    /// Keyed on the content itself rather than `rev`: a local, not-yet-synced
+    /// edit changes the content without bumping `rev`, and `updatedAt` can be
+    /// preserved by merges, so neither is a safe key. Excluded from Codable and
+    /// from `==` (identity of a cache is not identity of an artifact).
+    private var derived = LivingArtifactDerived()
+
     /// Maintainers declared in the content's top-level `maintainers` array —
     /// the crons (or other agents) that keep this artifact current. Empty for
-    /// an artifact that's merely mutable, not actively tended.
-    var maintainerRefs: [MaintainerRef] { MaintainerRef.parseList(from: content) }
+    /// an artifact that's merely mutable, not actively tended. Parsed once per
+    /// content (see `derived`): the artifact list evaluates this per row on
+    /// every render, and a per-render JSON parse of a 500 KB body was the
+    /// main-thread churn loop behind the long-session beachball.
+    internal var maintainerRefs: [MaintainerRef] {
+        derived.maintainerRefs { MaintainerRef.parseList(from: content) }
+    }
 
     /// Whether the content is a JSON object we can write a `maintainers` key
     /// into. Markdown docs aren't, so they can't declare maintainers.
-    var supportsMaintainers: Bool {
-        guard let data = content.data(using: .utf8) else { return false }
-        return (try? JSONSerialization.jsonObject(with: data)) is [String: Any]
+    internal var supportsMaintainers: Bool { jsonObject != nil }
+
+    /// The content parsed as a JSON object, once per content; nil for markdown
+    /// and malformed bodies. Renderers that summarise JSON kinds read this
+    /// instead of parsing the body themselves.
+    internal var jsonObject: [String: Any]? {
+        derived.jsonObject { JSONObjectParse.object(from: content) }
+    }
+
+    /// Equality is the artifact's value, never the derived cache.
+    internal static func == (lhs: LivingArtifact, rhs: LivingArtifact) -> Bool {
+        lhs.id == rhs.id && lhs.kind == rhs.kind && lhs.title == rhs.title && lhs.content == rhs.content
+            && lhs.updatedAt == rhs.updatedAt && lhs.updatedBy == rhs.updatedBy && lhs.rev == rhs.rev
+            && lhs.gatewayID == rhs.gatewayID && lhs.topLevelActions == rhs.topLevelActions && lhs.queries == rhs.queries
     }
 
     /// Decode from a gateway artifact.* result payload.
@@ -378,5 +408,54 @@ enum ArtifactMerge {
     private static func parse(_ s: String) -> [String: Any]? {
         guard let data = s.data(using: .utf8) else { return nil }
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+}
+
+/// The parse-once store behind `LivingArtifact`'s derived values. One instance
+/// per distinct content (the struct replaces it when `content` changes); the
+/// lock exists because artifacts are read on the main actor and refreshed by
+/// background sync tasks, and a memo must never hand out a half-written value.
+internal final class LivingArtifactDerived: @unchecked Sendable {
+    private let lock = NSLock()
+    private var refs: [MaintainerRef]?
+    private var objectParsed = false
+    private var object: [String: Any]?
+
+    internal init() {}
+
+    /// The maintainers, computing them on first access only.
+    internal func maintainerRefs(_ compute: () -> [MaintainerRef]) -> [MaintainerRef] {
+        lock.lock()
+        if let refs {
+            lock.unlock()
+            return refs
+        }
+        lock.unlock()
+        let parsed = compute()
+        lock.lock()
+        if refs == nil { refs = parsed }
+        let settled = refs ?? parsed
+        lock.unlock()
+        return settled
+    }
+
+    /// The JSON object (or the memoised knowledge that there is none).
+    internal func jsonObject(_ compute: () -> [String: Any]?) -> [String: Any]? {
+        lock.lock()
+        if objectParsed {
+            let cached = object
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+        let parsed = compute()
+        lock.lock()
+        if !objectParsed {
+            object = parsed
+            objectParsed = true
+        }
+        let settled = object
+        lock.unlock()
+        return settled
     }
 }

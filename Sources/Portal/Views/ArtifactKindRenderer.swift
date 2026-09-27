@@ -145,6 +145,8 @@ private struct ArtifactHTMLIntentView: View {
 
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
     @ObservedObject private var store = ArtifactStore.shared
+    /// Query results and intent states publish separately from the artifact list.
+    @ObservedObject private var live = ArtifactStore.shared.live
     @State private var activeRequest: HTMLArtifactIntentRequest?
     @State private var showConfirmation = false
     @State private var pendingChallenge = ""
@@ -161,7 +163,7 @@ private struct ArtifactHTMLIntentView: View {
             bindingID: activeRequest.bindingID,
             entryKey: activeRequest.entityRef
         )
-        return store.intentStates[slot]
+        return live.intentStates[slot]
     }
 
     private var activeAction: ArtifactAction? {
@@ -296,7 +298,7 @@ private struct ArtifactHTMLIntentView: View {
                 entryKey: request.entityRef
             )
             if activeRequest == request,
-               case .needsConfirmation(let challenge, let prompt) = store.intentStates[slot] {
+               case .needsConfirmation(let challenge, let prompt) = live.intentStates[slot] {
                 pendingChallenge = challenge
                 pendingPrompt = prompt
                 showConfirmation = true

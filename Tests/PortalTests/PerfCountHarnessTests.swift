@@ -34,6 +34,8 @@ internal struct PerfCountHarnessTests {
     /// them; changing a size is a deliberate baseline regen, not a silent edit.
     private static let sankeyLayers = 12       // → a wide, multi-column DAG
     private static let graphNodes = 40         // → 40·39/2 = 780 pairs / iter
+    private static let artifactCount = 40      // → 40 JSON artifacts in the list
+    private static let artifactRenders = 20    // → 20 renders of every row
 
     @Test("Instrumented layout op counts match the committed baseline")
     internal func recordOpCounts() throws {
@@ -51,7 +53,22 @@ internal struct PerfCountHarnessTests {
         _ = NetworkGraphLayout.layout(graph, width: 800)
         merged.merge(PerfCounter.snapshot()) { _, new in new }
 
+        // ── Scenario: artifact.maintainerParse (one parse per artifact, not per render) ─
+        PerfCounter.reset()
+        let artifacts = Self.makeArtifacts(count: Self.artifactCount)
+        for _ in 0..<Self.artifactRenders {
+            for artifact in artifacts {
+                _ = ArtifactListRow.Inputs(artifact: artifact, isSelected: false)
+                _ = artifact.supportsMaintainers
+            }
+        }
+        let parses = PerfCounter.snapshot()
+        merged.merge(parses) { _, new in new }
+
         #if PERF_COUNTERS
+        // The row inputs read the maintainers of every artifact on every render;
+        // the parse must happen once per artifact regardless of render count.
+        #expect(parses["artifact.maintainerParse"] == Self.artifactCount, "maintainer parse per render, not per content")
         // The instrumented build must actually have tallied something —
         // otherwise the fixtures aren't hitting the counted paths and the
         // ratchet would silently pass on an empty snapshot.
@@ -72,6 +89,16 @@ internal struct PerfCountHarnessTests {
     }
 
     // MARK: - Fixtures
+
+    /// `count` maintained JSON artifacts with distinct, non-trivial bodies.
+    private static func makeArtifacts(count: Int) -> [LivingArtifact] {
+        (0..<count).map { index in
+            let markers = (0..<25).map { "{\"label\":\"m\(index)-\($0)\",\"lat\":\($0),\"lng\":\(index)}" }
+            let content = "{\"maintainers\":[\"cron:job-\(index)\"],\"title\":\"Fixture \(index)\",\"markers\":[\(markers.joined(separator: ","))]}"
+            return LivingArtifact(id: "fixture-\(index)", kind: "map", title: "Fixture \(index)", content: content,
+                                  updatedAt: Date(timeIntervalSince1970: TimeInterval(index)), updatedBy: "cron:job-\(index)", rev: index)
+        }
+    }
 
     /// A layered DAG: `layers` columns of nodes, each node linking to two in
     /// the next layer. Deterministic node names and values → reproducible

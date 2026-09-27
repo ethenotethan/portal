@@ -262,6 +262,8 @@ internal struct IntentButton: View {
     internal let artifactID: String
 
     @ObservedObject private var store = ArtifactStore.shared
+    /// Intent states publish separately from the artifact list.
+    @ObservedObject private var live = ArtifactStore.shared.live
     @State private var showConfirmation = false
     @State private var pendingChallenge = ""
     @State private var pendingPrompt = ""
@@ -271,7 +273,7 @@ internal struct IntentButton: View {
     }
 
     private var invocationState: ArtifactStore.IntentInvocationState? {
-        store.intentStates[slotKey]
+        live.intentStates[slotKey]
     }
 
     private var isPending: Bool {

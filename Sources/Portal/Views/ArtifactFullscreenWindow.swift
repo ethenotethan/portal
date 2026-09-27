@@ -486,7 +486,7 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
     /// slot in the native strip. Combine-driven for the window's lifetime —
     /// the fullscreen window has no SwiftUI update cycle to diff marks in.
     private func observeIntentStates(artifactID: String) {
-        intentStateSubscription = ArtifactStore.shared.$intentStates
+        intentStateSubscription = ArtifactStore.shared.live.$intentStates
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }

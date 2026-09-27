@@ -54,9 +54,16 @@ enum MaintainerRef: Equatable, Hashable, Identifiable {
     /// Extract the top-level `maintainers` array from an artifact content body.
     /// Returns [] for non-JSON content (markdown docs) or a missing key.
     static func parseList(from content: String) -> [MaintainerRef] {
-        guard let data = content.data(using: .utf8),
-              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let raw = obj["maintainers"] as? [String] else { return [] }
+        // The perf ratchet counts these: one per distinct artifact content, never
+        // one per render (see LivingArtifact.maintainerRefs and the harness).
+        PerfCounter.tick("artifact.maintainerParse")
+        guard let obj = JSONObjectParse.object(from: content) else { return [] }
+        return parseList(object: obj)
+    }
+
+    /// The same extraction over an already-parsed JSON object.
+    internal static func parseList(object: [String: Any]) -> [MaintainerRef] {
+        guard let raw = object["maintainers"] as? [String] else { return [] }
         return raw.compactMap(MaintainerRef.init)
     }
 
