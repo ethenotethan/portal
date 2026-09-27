@@ -8505,11 +8505,11 @@
         "enclosing_type": "PageIntentDock",
         "evidence": {
           "excerpt": ".onSubmit { Task { await chat.submitPrompt() } }",
-          "line": 134,
+          "line": 139,
           "path": "Sources/Portal/Views/PageIntentDock.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-30281e1670fe",
+        "id": "task-site-0c123788b0bc",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8521,11 +8521,11 @@
         "enclosing_type": "PageIntentDock",
         "evidence": {
           "excerpt": "Task { await chat.endConversation() }",
-          "line": 137,
+          "line": 142,
           "path": "Sources/Portal/Views/PageIntentDock.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-496238c38d11",
+        "id": "task-site-4f1d2a109020",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8537,11 +8537,11 @@
         "enclosing_type": "PageIntentDock",
         "evidence": {
           "excerpt": "Task { await chat.startVoiceConversation() }",
-          "line": 146,
+          "line": 151,
           "path": "Sources/Portal/Views/PageIntentDock.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-70bf24e85c97",
+        "id": "task-site-f6c7513bbd67",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8553,11 +8553,11 @@
         "enclosing_type": "PageIntentDock",
         "evidence": {
           "excerpt": "Button(\"Send\") { Task { await chat.submitPrompt() } }",
-          "line": 154,
+          "line": 159,
           "path": "Sources/Portal/Views/PageIntentDock.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-59d9d0ed090b",
+        "id": "task-site-629b82eba5da",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9819,6 +9819,13 @@
             "path": "Tests/PortalTests/ArchitectureTests.swift"
           },
           "title": "the container-level monospaced allowlist has no stale entries"
+        },
+        {
+          "evidence": {
+            "line": 394,
+            "path": "Tests/PortalTests/ArchitectureTests.swift"
+          },
+          "title": "ConversationPanel hosts inject their ChatViewModel into the environment"
         }
       ],
       "tests_path": "Tests/PortalTests/ArchitectureTests.swift"
@@ -11502,7 +11509,7 @@
       {
         "current": {
           "counts": {
-            "architecture_tests": 8,
+            "architecture_tests": 9,
             "external_systems": 13,
             "invariants": 12,
             "lint_rules": 15,
@@ -11511,8 +11518,8 @@
             "specifications": 5
           },
           "kind": "count",
-          "sites": 72,
-          "total": 72
+          "sites": 73,
+          "total": 73
         },
         "floor": "Nothing declared on base may be removed or loosened: no invariant dropped or relaxed, no exception list grown, no rule removed or demoted, no gate step or job removed, no specification deleted. Tightening always passes; a deliberate loosening carries the constraints-loosened label.",
         "id": "constraints",
@@ -11607,7 +11614,7 @@
       }
     ],
     "summary": {
-      "architecture_tests": 8,
+      "architecture_tests": 9,
       "gates": 15,
       "invariants": 12,
       "jobs": 20,
@@ -13936,7 +13943,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 11656,
+      "line_count": 11661,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -16635,6 +16642,7 @@
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GitHubReleaseCard.swift",
+        "Sources/Portal/Views/PageIntentDock.swift",
         "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
         "Sources/Portal/Views/Skins/TUISkin.swift",
         "Sources/Portal/Views/YouTubeVideoCard.swift"
@@ -16651,7 +16659,7 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 14
+      "weight": 15
     },
     {
       "authority": "observed",
@@ -55488,14 +55496,14 @@
           },
           {
             "kind": "func",
-            "line": 123,
+            "line": 128,
             "name": "composer",
             "passes": [
               "swift.task.structured"
             ]
           }
         ],
-        "line_count": 162,
+        "line_count": 167,
         "mapped_declarations": 2,
         "passes": [
           "swift.task.structured",
@@ -80449,9 +80457,9 @@
     "assigned_files": 404,
     "declarations": 1258,
     "files": 404,
-    "lines": 117666,
+    "lines": 117671,
     "swift_files": 404,
-    "swift_lines": 117666,
+    "swift_lines": 117671,
     "unassigned_files": []
   },
   "layers": [
@@ -80483,7 +80491,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "c3849a942b7e1c0f219a24c47555131edd69bd033414956b64b2215b34e29937",
+  "source_tree_sha256": "83fe4d5716c577206b488683bf5720f9f1606520f9ac2d6fb1498aa863952ce6",
   "stores": {
     "by_persistence": {
       "defaults": 6,
