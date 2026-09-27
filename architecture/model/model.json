@@ -12863,7 +12863,7 @@
             "model.editItem.view.body.ModelCard": 1,
             "model.editItem.view.body.ModelEntityRow": 34,
             "model.editItem.view.body.ModelEntityTable": 2,
-            "model.mount.layoutPasses": 1,
+            "model.mount.layoutPasses": 2,
             "model.mount.view.body.KanbanBoard": 1,
             "model.mount.view.body.KanbanCardTile": 48,
             "model.mount.view.body.KanbanColumn": 8,
