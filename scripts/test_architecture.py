@@ -634,9 +634,15 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn(("locks", "pendingRequestsLock"), relations)
         self.assertIn(("pool_register", "pendingRequests"), relations)
         self.assertIn(("send", "webSocketTask"), relations)
-        # Every calling surface holds the one shared client.
+        # Every calling surface holds the one shared client, either concretely
+        # or through the AgentBackend seam consumed by chat orchestration.
         callers = {node["id"] for node in interplay["nodes"] if node["kind"] == "caller"}
-        holders = {e["source"] for e in interplay["edges"] if e["relation"] == "holds" and by_id[e["target"]]["label"] == "GatewayClient"}
+        holders = {
+            edge["source"]
+            for edge in interplay["edges"]
+            if edge["relation"] == "holds"
+            and by_id[edge["target"]]["label"] in {"GatewayClient", "AgentBackend"}
+        }
         self.assertEqual(callers, holders)
         # Covered pool operations are not drawn twice.
         self.assertFalse([n for n in interplay["nodes"] if n["kind"] == "operation" and n.get("owner_type") == "GatewayClient" and n["sub_kind"] in {"pool_register", "pool_resolve"}])

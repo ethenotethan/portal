@@ -92,6 +92,15 @@ internal struct GraphsView: View {
     internal var overrideSource: (any WikiSource)?
 
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var personaManager: PersonaManager
+
+    /// The "talk to this page" dock: one agent session per wiki and one for the
+    /// cron graph, primed with the page's state. Owned here so it survives the
+    /// wiki ↔ runtime switch and follows whichever surface is showing.
+    @StateObject private var intentDock = PageIntentDockModel()
+    /// The chat skin the dock's transcript renders with — the same setting the
+    /// chat page reads, so bubbles match.
+    @AppStorage("chatSkin") private var dockSkin: ChatSkin = .tui
 
     /// Persisted so the section reopens on the graph you left it on.
     @AppStorage("graphs.surface") private var storedSurface = GraphSurface.wiki.rawValue
@@ -169,10 +178,63 @@ internal struct GraphsView: View {
         #endif
     }
 
+    /// What the page is showing, reduced to the facts the dock's agent needs.
+    private var intentContext: PageIntentContext {
+        switch surface {
+        case .wiki:
+            return PageIntentContext.wiki(
+                name: wikiViewModel.selectedWikiPath,
+                availableWikis: wikiViewModel.availableWikis,
+                selectedPage: wikiViewModel.selectedPage,
+                pinnedPaths: wikiViewModel.pinnedPaths,
+                searchQuery: wikiViewModel.searchQuery,
+                focusedEventKey: wikiViewModel.focusedEventKey,
+                pageCount: wikiViewModel.graph.pages.count
+            )
+        case .runtime:
+            return PageIntentContext.cronGraph(
+                selectedNode: cronGraphVM.selectedNode,
+                collapsedGroups: cronGraphVM.collapsedGroups,
+                showRevisions: cronGraphVM.showRevisions,
+                nodeCount: cronGraphVM.graph.nodes.count,
+                jobCount: cronListVM.jobs.count
+            )
+        }
+    }
+
+    private func openIntentDock() {
+        intentDock.configure(backend: gatewayClientWrapper.client)
+        let context = intentContext
+        Task { await intentDock.open(context: context) }
+    }
+
     private var framedContent: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.background)
+            // The dock lives over the page: the graph stays interactive above it.
+            .overlay(alignment: .bottom) {
+                if intentDock.isOpen {
+                    PageIntentDock(model: intentDock, persona: personaManager.activePersona, skinProvider: dockSkin.makeProvider())
+                        .transition(.move(edge: .bottom))
+                } else {
+                    HStack {
+                        Spacer()
+                        PageIntentDockButton { withAnimation(.easeOut(duration: 0.22)) { openIntentDock() } }
+                    }
+                }
+            }
+            .animation(.easeOut(duration: 0.22), value: intentDock.isOpen)
+            // Selection changes on the page refresh the agent's prompt; a surface
+            // switch moves the dock to that surface's own session.
+            .onChange(of: intentContext.digest) { _, _ in
+                intentDock.updateContext(intentContext)
+            }
+            .onChange(of: surface) { _, _ in
+                guard intentDock.isOpen else { return }
+                let context = intentContext
+                Task { await intentDock.open(context: context) }
+            }
             // Job rows feed the runtime graph's node inspector (cards, run
             // history, source files). Seed them when that graph is first shown
             // rather than on section open, so a wiki-only visit costs no RPCs.

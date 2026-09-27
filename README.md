@@ -20,6 +20,19 @@ The Hermes gateway is [`ethenotethan/harness`](https://github.com/ethenotethan/h
 - **Activity inbox** — tool approvals, clarifications, and notifications with artifact preview
 - **Learning** — quizzes and flashcard decks with SM-2 spaced repetition
 
+### Page intents: talk to a page
+
+The wiki graph and the cron graph carry a "Talk to this page" button. It slides a
+dock up from the bottom of the page with a hands-free voice conversation and a
+text composer, backed by an ordinary Hermes session: one per individual wiki and
+one for the cron graph, created on first use and kept while the app runs. The
+dock gives the session an ephemeral system prompt describing what the page shows
+(the open wiki page, pinned pages, the selected graph node, its service and
+architecture model) and primes it once with a "load this page's context" turn,
+so the agent has already read the relevant pages or graph before you speak.
+Selection changes refresh the prompt; "Open in Chat" continues the same session
+on the chat page. Sessions appear in the sessions list like any other.
+
 ## Requirements
 
 - macOS 14 (Sonoma) / iOS 17+

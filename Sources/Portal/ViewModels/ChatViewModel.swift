@@ -1540,8 +1540,20 @@ client.eventStream
     }
 
     private func applyEphemeralPrompt(for sessionID: String, using client: any AgentBackend) async {
-        let prompt = Self.appFormattingPrompt + "\n\n" + responseStyle.preamble
-        try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
+        do {
+            try await client.setEphemeralPrompt(sessionID: sessionID, prompt: baseEphemeralPrompt())
+        } catch {
+            // Best-effort by contract: the session works without the style prompt.
+            log.info("ephemeral prompt not applied: \(error.localizedDescription)")
+        }
+    }
+
+    /// The ephemeral prompt every session gets (formatting rules + response
+    /// style). A surface that adds its own context (the page-intent dock)
+    /// appends to this rather than replacing it, since `session.set_prompt`
+    /// sets the whole prompt.
+    internal func baseEphemeralPrompt() -> String {
+        Self.appFormattingPrompt + "\n\n" + responseStyle.preamble
     }
 
     /// Route a newly created session to the user's last-picked model. No-op
