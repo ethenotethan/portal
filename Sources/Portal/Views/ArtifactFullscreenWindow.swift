@@ -383,6 +383,8 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
         }
 
         let webView = InputCapturingWebView(frame: .zero, configuration: config)
+
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.capturesInput = true
         // Without a uiDelegate WebKit denies every requestPointerLock() call.
         webView.uiDelegate = pointerLock

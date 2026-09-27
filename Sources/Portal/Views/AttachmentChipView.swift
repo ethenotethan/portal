@@ -579,6 +579,7 @@ struct FileWebViewNSView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.preferences.isElementFullscreenEnabled = true
         let webView = WKWebView(frame: .zero, configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.setValue(false, forKey: "drawsBackground")
         return webView
     }
@@ -606,6 +607,7 @@ struct FileWebViewUIView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         let webView = WKWebView(frame: .zero, configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear

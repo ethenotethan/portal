@@ -1674,7 +1674,10 @@ struct InlineHTMLNSView: NSViewRepresentable {
     internal let onPointerLockChange: ((Bool) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
-        HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent, onArtifactQuery: onArtifactQuery)
+        let delegate = HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent, onArtifactQuery: onArtifactQuery)
+        // One coordinator per hosted InlineHTMLView: the health monitor counts them.
+        liveObjects.track(delegate, as: LiveObjectKind.inlineHTMLView)
+        return delegate
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -1720,6 +1723,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
             }
         }
         let webView = InputCapturingWebView(frame: .zero, configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
         webView.allowsBackForwardNavigationGestures = false
@@ -1741,6 +1745,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
         context.coordinator.pointerLock.onLockChange = onPointerLockChange
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
+            healthCounters.increment(HealthCounter.webViewReloads)
             webView.loadHTMLString(html, baseURL: baseURL)
             // Marks re-apply from didFinish once the new DOM exists.
             return
@@ -1782,7 +1787,10 @@ struct InlineHTMLUIView: UIViewRepresentable {
     internal let onPointerLockChange: ((Bool) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
-        HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent, onArtifactQuery: onArtifactQuery)
+        let delegate = HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent, onArtifactQuery: onArtifactQuery)
+        // One coordinator per hosted InlineHTMLView: the health monitor counts them.
+        liveObjects.track(delegate, as: LiveObjectKind.inlineHTMLView)
+        return delegate
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -1814,6 +1822,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.preferences.isElementFullscreenEnabled = true
         let webView = WKWebView(frame: .zero, configuration: config)
+        liveObjects.track(webView, as: LiveObjectKind.webView)
         webView.navigationDelegate = context.coordinator
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -1827,6 +1836,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
         context.coordinator.onArtifactQuery = onArtifactQuery
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
+            healthCounters.increment(HealthCounter.webViewReloads)
             webView.loadHTMLString(html, baseURL: baseURL)
             // Marks re-apply from didFinish once the new DOM exists.
             return

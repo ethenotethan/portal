@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Portal is a native macOS and iOS client for AI agent backends — chat, canvas, thought graph, wiki, cron, and learning in one Swift app.">
-  <title>Portal — the native client for Harness, an opinionated Hermes Agent fork</title>
+  <meta name="description" content="Portal is the native macOS and iOS cockpit for one person running a team of AI agents on hardware they own — approvals, live boards, cron dataflow, a thought graph and streaming chat, with nothing leaving the machine.">
+  <title>Portal — your agents, on your machine, in your pocket</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -33,17 +33,18 @@
       <div class="hero-glow" aria-hidden="true"></div>
       <div class="hero-copy" data-reveal>
         <p class="badge"><span class="badge-dot" aria-hidden="true"></span> Open source · MIT · Swift 6 · macOS&nbsp;14 + iOS&nbsp;17</p>
-        <h2>The agent you run<br>somewhere else,<br>on a Mac that feels<br>like it <span class="grad">lives here.</span></h2>
+        <h2>Your agents,<br>on your machine,<br>in your <span class="grad">pocket.</span></h2>
         <p class="lede">
-          Portal is the native macOS and iOS client for
+          Portal is the native macOS and iOS cockpit for one person running a
+          team of AI agents on hardware they own. Approve, steer and watch them
+          work &mdash; from a chat, a board or a graph &mdash; while the agents,
+          your repos and your files stay on your Mac and your phone acts as the
+          remote. Tool calls, reasoning traces, subagent spawns, living
+          artifacts, cron dataflow and approvals each get a surface built for
+          them, not a wall of text. Portal talks to
           <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer"><strong>Harness</strong></a>,
-          an opinionated fork of Hermes Agent. Harness adds the WebSocket JSON-RPC
-          gateway and the agent-side machinery a rich client needs; Portal is the
-          surface built for it — no local server, no CLI, no Electron. What arrives
-          over that socket is not just text: tool calls, reasoning traces, subagent
-          spawns, artifacts, cron dataflow and approvals all get a real surface
-          built for them. (It also speaks Centaur, over REST + SSE, for the
-          reduced surface that backend allows.)
+          an opinionated fork of Hermes Agent that adds the gateway and the
+          agent-side machinery this kind of client needs.
         </p>
         <div class="cta-row">
           <a class="button primary" href="#features">See the surfaces</a>
@@ -57,9 +58,9 @@
            source of truth; data-count only drives the optional count-up animation
            and is ignored when JS is off or reduced motion is requested. -->
       <ul class="hero-stats" aria-label="Repository scale" data-reveal>
-        <li><strong data-count="405">405</strong><span>Swift files</span></li>
-        <li><strong data-count="117838">117,838</strong><span>lines</span></li>
-        <li><strong data-count="2051">2,051</strong><span>tests</span></li>
+        <li><strong data-count="410">410</strong><span>Swift files</span></li>
+        <li><strong data-count="118902">118,902</strong><span>lines</span></li>
+        <li><strong data-count="2064">2,064</strong><span>tests</span></li>
         <li><strong data-count="107">107</strong><span>RPC methods &amp; events</span></li>
       </ul>
     </section>
@@ -68,43 +69,46 @@
     <section class="band" id="what">
       <div class="band-head">
         <p class="eyebrow">THE SHORT VERSION</p>
-        <h3>One socket, many lenses</h3>
+        <h3>One person, many agents</h3>
       </div>
       <div class="card-grid three">
         <article class="card">
-          <h4>Native, not wrapped</h4>
+          <h4>Supervise, don't babysit</h4>
           <p>
-            SwiftUI throughout, Swift 6 strict concurrency, and Apple frameworks
-            for everything load-bearing: <code>URLSessionWebSocketTask</code> for
-            the transport, <code>SecItem</code> for credentials. There is no
+            Agents spawn agents, crons fire overnight, and a fifty-call turn is
+            normal. Portal keeps that structure instead of flattening it to
+            prose: an activity inbox for approvals and clarifications, a spawn
+            tree, a thought graph of every tool call, cron dataflow, and living
+            boards the agents keep updating &mdash; so you review the work, not
+            the scrollback.
+          </p>
+        </article>
+        <article class="card">
+          <h4>Nothing leaves your machine</h4>
+          <p>
+            The gateway runs on your Mac, next to your repos, files and tools.
+            Sessions, memory and artifacts live there; the iPhone app is a
+            remote to it, not a copy of it. Credentials sit in the Keychain via
+            <code>SecItem</code>, and there is no account, no relay and no
             third-party networking library in the app.
           </p>
         </article>
         <article class="card">
-          <h4>Built for Harness</h4>
+          <h4>Native, built for one backend</h4>
           <p>
-            <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer">Harness</a>
-            is a fork of
+            SwiftUI throughout, Swift 6 strict concurrency, Apple frameworks for
+            everything load-bearing. Portal is built for
+            <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer">Harness</a>,
+            a fork of
             <a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noreferrer">Hermes Agent</a>
-            whose every change exists to serve this client: the
-            <code>/v1/ws</code> gateway, a wiki API with an edit history, a cron
-            <em>dataflow</em> graph, living artifacts, learning, a file browser.
-            The full set is published as a
+            whose changes exist to serve this client (the <code>/v1/ws</code>
+            gateway, a wiki with edit history, cron <em>dataflow</em>, living
+            artifacts, learning); the
             <a href="https://ethenotethan.github.io/harness/" target="_blank" rel="noreferrer">fork diff</a>
-            that Harness's CI keeps current.
+            is published and kept current by CI.
             <a href="https://github.com/paradigmxyz/centaur" target="_blank" rel="noreferrer">Centaur</a>
-            (REST + SSE) and Hermes Standard (management HTTP) are also supported;
-            each declares its capabilities, so the UI only offers what the
-            connected backend can honour.
-          </p>
-        </article>
-        <article class="card">
-          <h4>The turn is the unit</h4>
-          <p>
-            A single prompt fans out into tool calls, reasoning beats and spawned
-            subagents. Portal keeps that structure instead of flattening it to
-            prose — which is what makes the timeline, the graph and the token
-            rollups possible.
+            (REST + SSE) and Hermes Standard are also supported; each backend
+            declares its capabilities, so the UI only offers what it can honour.
           </p>
         </article>
       </div>

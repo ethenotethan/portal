@@ -1,8 +1,10 @@
 # Portal
 
-Open-source macOS + iOS SwiftUI client for a personally managed Hermes fork.
+Your agents, on your machine, in your pocket.
 
-Portal presents streaming chat, multi-gateway sessions, knowledge graphs, artifacts, skills, cron, and spaced-repetition learning in a native app. A session-scoped Centaur connection is also supported, but the management surfaces depend on the Hermes fork below.
+Portal is the native macOS and iOS cockpit for one person running a team of AI agents on hardware they own. Approve, steer, and watch agents work from a chat, a board, or a graph, while the agents, your repos, and your files stay on your Mac and your phone acts as the remote. Tool calls, reasoning traces, subagent spawns, living artifacts, cron dataflow, and approvals each get a surface built for them instead of a wall of text.
+
+Portal is single-user by design and multi-agent by nature: one gateway per person, nothing shared, nothing leaving the machine. A session-scoped Centaur connection is also supported, but the management surfaces depend on the Hermes fork below.
 
 The Hermes gateway is [`ethenotethan/harness`](https://github.com/ethenotethan/harness), a fork of [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent). The fork is required, not preferred: stock hermes-agent has no `/v1/ws` endpoint. See [docs/gateway-setup.md](docs/gateway-setup.md).
 
@@ -10,14 +12,20 @@ The Hermes gateway is [`ethenotethan/harness`](https://github.com/ethenotethan/h
 
 ## Features
 
+Supervision first:
+
+- **Activity inbox** — tool approvals, clarifications, and notifications with artifact preview
+- **Living artifacts** — boards, tables, maps, charts, graphs, and 3D models the agents keep updating; act on them from the app, with every change revisioned
+- **Thought graph** — live DAG of the agent's tool-call chain with on-device reasoning summarization
+- **Session tools** — spawn tree, session observer, playback timeline, prompt breakdown, token usage
+- **Skills & cron** — browse, edit, and schedule agent skills; the cron dataflow graph shows what feeds what; monitor run history
+
+Then the conversation:
+
 - **Chat** — streaming responses with tool calls, reasoning traces, Mermaid diagrams, LaTeX, syntax-highlighted code, and file attachments
 - **Canvas** — the conversation as a resizable panel; peel any message into a floating card
 - **Multi-gateway** — save and switch between multiple backends; per-gateway session and artifact scoping
-- **Thought graph** — live DAG of the agent's tool-call chain with on-device reasoning summarization
-- **Session tools** — spawn tree, session observer, playback timeline, prompt breakdown, token usage
 - **Wiki** — Obsidian-style browser with 2D/3D force graphs and edit timeline
-- **Skills & cron** — browse, edit, and schedule agent skills; monitor run history
-- **Activity inbox** — tool approvals, clarifications, and notifications with artifact preview
 - **Learning** — quizzes and flashcard decks with SM-2 spaced repetition
 
 ### Page intents: talk to a page
