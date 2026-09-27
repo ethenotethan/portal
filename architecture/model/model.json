@@ -13470,7 +13470,7 @@
       "line_count": 7090
     },
     {
-      "declaration_count": 138,
+      "declaration_count": 139,
       "declarations": [
         "ActivityArtifactView",
         "ActivityDetailView",
@@ -13490,6 +13490,7 @@
         "CronDefinitionHistoryView",
         "CronEmptyChart",
         "CronGraphCanvas",
+        "CronGraphLegendLayout",
         "CronInterflowGraphView",
         "CronJobCard",
         "CronJobDetailView",
@@ -13673,7 +13674,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18187,
+      "line_count": 18205,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -53578,7 +53579,7 @@
       {
         "citations": 12,
         "component": "operations-ui",
-        "declaration_count": 9,
+        "declaration_count": 11,
         "declarations": [
           {
             "kind": "struct",
@@ -53640,9 +53641,21 @@
             "line": 649,
             "name": "detailRow",
             "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 663,
+            "name": "CronGraphLegendLayout",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 669,
+            "name": "expandedSize",
+            "passes": []
           }
         ],
-        "line_count": 661,
+        "line_count": 679,
         "mapped_declarations": 2,
         "passes": [
           "swift.boundary.external_signature",
@@ -63499,7 +63512,7 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 304
+          "total": 305
         },
         "extension": {
           "mapped": 20,
@@ -63507,7 +63520,7 @@
         },
         "func": {
           "mapped": 432,
-          "total": 3258
+          "total": 3259
         },
         "protocol": {
           "mapped": 1,
@@ -63519,13 +63532,13 @@
         }
       },
       "citations": 1320,
-      "declarations": 4703,
+      "declarations": 4705,
       "entities": 161,
       "entities_with_origin": 161,
       "files": 418,
       "functions": {
         "mapped": 432,
-        "total": 3258
+        "total": 3259
       },
       "mapped_declarations": 645,
       "passes": 50,
@@ -63533,7 +63546,7 @@
       "touched_files": 165,
       "types": {
         "mapped": 213,
-        "total": 1445
+        "total": 1446
       },
       "untouched_files": 253
     }
@@ -79435,7 +79448,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 168
+        "type_count": 169
       },
       {
         "components": [],
@@ -83816,11 +83829,11 @@
   },
   "inventory": {
     "assigned_files": 416,
-    "declarations": 1300,
+    "declarations": 1301,
     "files": 416,
-    "lines": 120122,
+    "lines": 120140,
     "swift_files": 416,
-    "swift_lines": 120122,
+    "swift_lines": 120140,
     "unassigned_files": []
   },
   "layers": [
@@ -83852,7 +83865,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "96565ed12df9fdbc89db0fd5465827f445f0e4f34f15a9dd2f85633a8666030a",
+  "source_tree_sha256": "c25a311c25917acb39b7ed814db8836d2ffe281851b985d95f56e602997d0600",
   "stores": {
     "by_persistence": {
       "defaults": 6,
