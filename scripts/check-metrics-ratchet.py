@@ -8,8 +8,10 @@ baseline (floor: never regress globally) and the PR's own diff (patch: leave
 touched code at least as clean as you found it).
 
 Metrics wired today: `warnings` (compiler warning sites), `coverage`
-(testable-layer line coverage), `skipped` (disabled/known-issue tests), and
-`deadcode` (Periphery unused declarations). Each metric has its own CI posture
+(testable-layer line coverage), `skipped` (disabled/known-issue tests),
+`deadcode` (Periphery unused declarations), `layout` (SwiftUI lazy stacks with
+no scroll viewport — the relayout-loop shape), and `slowtests` (tests over a
+duration threshold in a serialized run). Each metric has its own CI posture
 job even when the shared comparison engine is reused.
 
 Each metric runs a FLOOR check (never regress vs base) and a PATCH check
@@ -241,6 +243,21 @@ def check_count_floor(current: dict, base: dict | None, unit: str) -> list[str]:
     return []
 
 
+def check_sites_patch(current: dict, added: dict[str, set[int]], noun: str) -> list[str]:
+    """Fail if any site in the snapshot sits on a line this PR added.
+
+    The generic patch half for site-list metrics whose sites carry a file and a
+    line (layout smells today). Same rule as the warnings patch: shifting a
+    pre-existing site down doesn't count — only one on code the PR wrote.
+    """
+    fails = []
+    for site in current.get("sites", []):
+        f, ln = site.get("file"), site.get("line")
+        if f in added and ln in added[f]:
+            fails.append(f"  {f}:{ln}  {noun}" + (f" [{site['kind']}]" if "kind" in site else ""))
+    return fails
+
+
 def _report(kind: str, floor_fails: list[str], patch_fails: list[str],
             floor_hint: str, patch_hint: str) -> bool:
     ok = True
@@ -264,6 +281,8 @@ def main() -> int:
     ap.add_argument("--coverage", help="collect-coverage.py snapshot for THIS build")
     ap.add_argument("--skipped", help="collect-skipped-tests.py snapshot for THIS tree")
     ap.add_argument("--deadcode", help="collect-deadcode.py snapshot for THIS build")
+    ap.add_argument("--layout", help="collect-layout-smells.py snapshot for THIS tree")
+    ap.add_argument("--slowtests", help="collect-slow-tests.py snapshot for THIS (serialized) test run")
     ap.add_argument("--base", default="origin/main", help="base ref (default origin/main)")
     # Back-compat: `check-metrics-ratchet.py SNAPSHOT [BASE]` still runs the
     # warnings check, so the existing Makefile/CI invocation keeps working.
@@ -274,7 +293,7 @@ def main() -> int:
     warnings_path = args.warnings or args.pos_snapshot
     base_ref = args.base if args.base != "origin/main" else (args.pos_base or "origin/main")
 
-    if not any([warnings_path, args.coverage, args.skipped, args.deadcode]):
+    if not any([warnings_path, args.coverage, args.skipped, args.deadcode, args.layout, args.slowtests]):
         ap.print_help()
         return 2
 
@@ -339,6 +358,37 @@ def main() -> int:
             "\n  Unused declarations are frozen debt that may only shrink. A new\n"
             "  unused declaration means either dead code to delete or a missing\n"
             "  caller. Regenerate the baseline only to record deletions.",
+            "",
+        )
+
+    if args.layout:
+        current = json.loads(Path(args.layout).read_text())
+        base_layout = base_doc.get("layout") if base_doc else None
+        print("Layout-smell ratchet:")
+        floor = check_count_floor(current, base_layout, "lazy stacks without a viewport")
+        patch = check_sites_patch(current, added, "lazy stack without a viewport")
+        ok &= _report(
+            "Layout-smell", floor, patch,
+            "\n  A LazyVStack/LazyHStack outside a same-axis ScrollView has no\n"
+            "  viewport: it measures every child and re-arms layout each pass —\n"
+            "  the relayout-loop beachball (#249, #606). Use a plain stack, or\n"
+            "  put the lazy stack directly under a ScrollView on its axis.",
+            "\n  New lazy stacks must sit under a ScrollView that scrolls their\n"
+            "  axis. Use VStack/HStack here instead.",
+        )
+
+    if args.slowtests:
+        current = json.loads(Path(args.slowtests).read_text())
+        base_slow = base_doc.get("slowtests") if base_doc else None
+        threshold = current.get("threshold_seconds", "?")
+        print(f"Slow-test ratchet (over {threshold}s, serialized run):")
+        floor = check_count_floor(current, base_slow, "slow tests")
+        ok &= _report(
+            "Slow-test", floor, [],
+            "\n  A test over the threshold sleeps or waits on a real clock and\n"
+            "  taxes every CI run. Inject the clock or shorten the wait; the\n"
+            "  count may not rise. Regenerate the baseline only to record a\n"
+            "  test that got fast.",
             "",
         )
 

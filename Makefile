@@ -182,13 +182,16 @@ metrics-ratchet:
 	rm -rf .build
 	swift build --build-tests 2>&1 | tee /tmp/portal-metrics-build.log
 	python3 scripts/collect-warnings.py /tmp/portal-metrics-build.log --root "$(PWD)" --json /tmp/portal-warnings.json
-	swift test --enable-code-coverage 2>&1 | tail -3
+	swift test --enable-code-coverage --no-parallel 2>&1 | tee /tmp/portal-metrics-test.log | tail -3
 	$(call export-coverage)
 	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
 	python3 scripts/collect-skipped-tests.py Tests --root "$(PWD)" --json /tmp/portal-skipped.json
 	periphery scan --project $(PROJECT) --schemes $(SCHEME_MAC) --relative-results --format json --quiet > /tmp/portal-periphery.json
 	python3 scripts/collect-deadcode.py /tmp/portal-periphery.json --root "$(PWD)" --json /tmp/portal-deadcode.json
-	python3 scripts/check-metrics-ratchet.py --warnings /tmp/portal-warnings.json --coverage /tmp/portal-coverage.json --skipped /tmp/portal-skipped.json --deadcode /tmp/portal-deadcode.json --base origin/main
+	python3 -m unittest scripts/test_collectors.py
+	python3 scripts/collect-layout-smells.py Sources --root "$(PWD)" --json /tmp/portal-layout.json
+	python3 scripts/collect-slow-tests.py /tmp/portal-metrics-test.log --json /tmp/portal-slowtests.json
+	python3 scripts/check-metrics-ratchet.py --warnings /tmp/portal-warnings.json --coverage /tmp/portal-coverage.json --skipped /tmp/portal-skipped.json --deadcode /tmp/portal-deadcode.json --layout /tmp/portal-layout.json --slowtests /tmp/portal-slowtests.json --base origin/main
 
 # Resolve the coverage profdata + test binary that `swift test
 # --enable-code-coverage` produced and export the full per-line report (no
@@ -208,14 +211,16 @@ metrics-baseline:
 	rm -rf .build
 	swift build --build-tests 2>&1 | tee /tmp/portal-metrics-build.log
 	python3 scripts/collect-warnings.py /tmp/portal-metrics-build.log --root "$(PWD)" --json /tmp/portal-warnings.json
-	swift test --enable-code-coverage 2>&1 | tail -3
+	swift test --enable-code-coverage --no-parallel 2>&1 | tee /tmp/portal-metrics-test.log | tail -3
 	$(call export-coverage)
 	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
 	python3 scripts/collect-skipped-tests.py Tests --root "$(PWD)" --json /tmp/portal-skipped.json
 	periphery scan --project $(PROJECT) --schemes $(SCHEME_MAC) --relative-results --format json --quiet > /tmp/portal-periphery.json
 	python3 scripts/collect-deadcode.py /tmp/portal-periphery.json --root "$(PWD)" --json /tmp/portal-deadcode.json
-	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); s=json.load(open('/tmp/portal-skipped.json')); d=json.load(open('/tmp/portal-deadcode.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; b['skipped']=s; b['deadcode']=d; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warnings,', str(c['testable_pct'])+'% coverage,', s['total'], 'skipped,', d['total'], 'dead-code')"
-	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings/skipped/deadcode should only DROP, coverage only RISE."
+	python3 scripts/collect-layout-smells.py Sources --root "$(PWD)" --json /tmp/portal-layout.json
+	python3 scripts/collect-slow-tests.py /tmp/portal-metrics-test.log --json /tmp/portal-slowtests.json
+	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); s=json.load(open('/tmp/portal-skipped.json')); d=json.load(open('/tmp/portal-deadcode.json')); l=json.load(open('/tmp/portal-layout.json')); t=json.load(open('/tmp/portal-slowtests.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; b['skipped']=s; b['deadcode']=d; b['layout']=l; b['slowtests']=t; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warnings,', str(c['testable_pct'])+'% coverage,', s['total'], 'skipped,', d['total'], 'dead-code,', l['total'], 'layout smells,', t['total'], 'slow tests')"
+	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings/skipped/deadcode/layout/slowtests should only DROP, coverage only RISE."
 	python3 scripts/build_architecture.py
 
 # Performance ratchet: fail if a hot pure layout path does MORE algorithmic work
