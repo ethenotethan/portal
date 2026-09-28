@@ -117,8 +117,13 @@ test: installer-test
 
 # Compile the source-backed component graph and embed it with the reviewed
 # specifications for the repository's GitHub Pages architecture portal.
+# Regenerates the compiled outputs (model.json, data.js, site hero stats) so you
+# can read the observatory and run the compiler's tests locally. Do NOT commit
+# them: the Pages workflow compiles and commits them on main after every merge,
+# and a PR that carries them is failed by its generated-outputs guard.
 architecture:
 	python3 scripts/build_architecture.py
+	python3 scripts/check_site_assets.py --sync
 
 # Deterministic architecture validation used by CI and maintenance PRs.
 architecture-check:
