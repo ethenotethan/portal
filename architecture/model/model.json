@@ -12862,24 +12862,19 @@
           "counts": {
             "artifact.maintainerParse": 40,
             "graph.forceSim": 202020,
-            "kanban.mount.layoutPasses": 3,
             "kanban.mount.view.body.KanbanBoard": 1,
             "kanban.mount.view.body.KanbanCardTile": 64,
             "kanban.mount.view.body.KanbanColumn": 8,
-            "kanban.moveCard.layoutPasses": 1,
             "kanban.moveCard.view.body.KanbanBoard": 1,
             "kanban.moveCard.view.body.KanbanCardTile": 34,
             "kanban.moveCard.view.body.KanbanColumn": 4,
-            "markdown.mount.layoutPasses": 1,
             "markdown.mount.view.body.MarkdownContentView": 1,
-            "model.editItem.layoutPasses": 1,
             "model.editItem.view.body.KanbanBoard": 1,
             "model.editItem.view.body.KanbanCardTile": 24,
             "model.editItem.view.body.KanbanColumn": 4,
             "model.editItem.view.body.ModelCard": 1,
             "model.editItem.view.body.ModelEntityRow": 34,
             "model.editItem.view.body.ModelEntityTable": 2,
-            "model.mount.layoutPasses": 1,
             "model.mount.view.body.KanbanBoard": 1,
             "model.mount.view.body.KanbanCardTile": 48,
             "model.mount.view.body.KanbanColumn": 8,
@@ -12895,7 +12890,7 @@
         "floor": "Every counter at most base; the ceiling is read from base via git show.",
         "id": "perf",
         "job": "ratchet/performance",
-        "measures": "Deterministic counts (not time) under -DPERF_COUNTERS over fixed fixtures: algorithmic operations in the hot pure layout paths, SwiftUI body evaluations of the artifact views on mount and after one state change, and hosting-view layout passes to settle.",
+        "measures": "Deterministic counts (not time) under -DPERF_COUNTERS over fixed fixtures: algorithmic operations in the hot pure layout paths, and SwiftUI body evaluations of the artifact views on mount and after one state change.",
         "patch": null,
         "source": {
           "kind": "perf",
@@ -13945,7 +13940,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12254,
+      "line_count": 12253,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -49484,54 +49479,54 @@
           },
           {
             "kind": "func",
-            "line": 655,
+            "line": 654,
             "name": "refreshCrons",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 668,
+            "line": 667,
             "name": "ArtifactKindGlyph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 669,
+            "line": 668,
             "name": "icon",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 697,
+            "line": 696,
             "name": "ArtifactPreviewGist",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 701,
+            "line": 700,
             "name": "make",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 727,
+            "line": 726,
             "name": "structural",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 742,
+            "line": 741,
             "name": "parse",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 748,
+            "line": 747,
             "name": "snippet",
             "passes": []
           }
         ],
-        "line_count": 759,
+        "line_count": 758,
         "mapped_declarations": 1,
         "passes": [
           "swift.boundary.external_signature",
@@ -83831,9 +83826,9 @@
     "assigned_files": 416,
     "declarations": 1301,
     "files": 416,
-    "lines": 120140,
+    "lines": 120139,
     "swift_files": 416,
-    "swift_lines": 120140,
+    "swift_lines": 120139,
     "unassigned_files": []
   },
   "layers": [
@@ -83865,7 +83860,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "c25a311c25917acb39b7ed814db8836d2ffe281851b985d95f56e602997d0600",
+  "source_tree_sha256": "73a2b5a6b8066990f86d5117bf035348153de064dbfe9a84ce858e43e81a4f83",
   "stores": {
     "by_persistence": {
       "defaults": 6,
