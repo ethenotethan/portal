@@ -1939,15 +1939,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         // own. A retained FAILED turn carries `inflight` with `streaming: false`
         // and must NOT reopen a streaming shell, so gate on the turn's flag.
         var inflight: InflightTurn?
+        let running: ResumedTurnVerdict
+        switch result["running"]?.boolValue {
+        case .some(true): running = .running
+        case .some(false): running = .stopped
+        case .none: running = .unknown
+        }
         if let turn = result["inflight"]?.dictionaryValue {
             let streaming = turn["streaming"]?.boolValue ?? false
-            let running = result["running"]?.boolValue ?? false
             let partial = turn["assistant"]?.stringValue ?? ""
-            if streaming && running {
+            if streaming && running == .running {
                 inflight = InflightTurn(assistantPartial: partial, isStreaming: true)
             }
         }
-        return ResumedSession(sessionID: sessionID, messages: historyMessages, inflight: inflight)
+        return ResumedSession(sessionID: sessionID, messages: historyMessages, inflight: inflight, running: running)
     }
 
     /// Fetch conversation history for a session.

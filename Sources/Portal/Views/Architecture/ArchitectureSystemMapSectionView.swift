@@ -12,6 +12,8 @@ internal struct ArchitectureSystemMapSectionView: View {
     private let hasMap: Bool
     @State private var openFlows: Set<String> = []
     @State private var legendOpen = false
+    /// The stats card toggle, remembered per graph surface.
+    @AppStorage("portal.graphStats.systemMap") private var showGraphStats = false
 
     internal init(document: ArchitectureModelDocument) {
         let map = ArchitectureSystemMapDocument.decode(document: document)
@@ -38,6 +40,14 @@ internal struct ArchitectureSystemMapSectionView: View {
                     }
                     .background(Theme.background)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border, lineWidth: 1))
+                    .overlay(alignment: .bottomLeading) {
+                        if showGraphStats {
+                            GraphStatsPanel(title: "System map", stats: model.stats)
+                                .equatable()
+                                .padding(12)
+                                .transition(.opacity)
+                        }
+                    }
                     legend
                     flowsSection
                     invariantsSection
@@ -66,6 +76,9 @@ internal struct ArchitectureSystemMapSectionView: View {
                 .portalButton(prominent: false, size: .small)
             Button("Reset view") { model.resetView() }
                 .portalButton(prominent: false, size: .small)
+            Button("Stats") { showGraphStats.toggle() }
+                .portalButton(prominent: showGraphStats, size: .small)
+                .help(showGraphStats ? "Hide graph stats" : "Graph stats — constructions, edges, structure")
             Toggle("Colour edges by relationship", isOn: $model.coloursEdgesByRelation)
                 .toggleStyle(.switch)
                 .font(.caption)

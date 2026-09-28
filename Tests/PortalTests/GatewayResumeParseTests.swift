@@ -70,6 +70,22 @@ internal struct GatewayResumeParseTests {
         let resumed = try GatewayClient.parseResumeResponse(response)
         #expect(resumed.inflight == nil)
         #expect(resumed.messages.count == 2)
+        // No `running` key is no verdict — distinct from an explicit false.
+        #expect(resumed.running == .unknown)
+    }
+
+    @Test("the session-level running flag is surfaced verbatim")
+    internal func runningFlagIsSurfaced() throws {
+        let stopped = try GatewayClient.parseResumeResponse(decode("""
+        {"jsonrpc":"2.0","id":1,"result":{"session_id":"abc123","running":false,"inflight":null,"messages":[]}}
+        """))
+        #expect(stopped.running == .stopped)
+        #expect(stopped.inflight == nil)
+
+        let live = try GatewayClient.parseResumeResponse(decode("""
+        {"jsonrpc":"2.0","id":1,"result":{"session_id":"abc123","running":true,"messages":[]}}
+        """))
+        #expect(live.running == .running)
     }
 
     @Test("an RPC error surfaces as GatewayError.rpcError")

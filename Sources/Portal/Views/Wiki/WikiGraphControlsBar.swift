@@ -19,6 +19,8 @@ internal struct WikiGraphControlsBar: View {
     /// Events entry unrenderable on the harness.
     internal let hasEventsSurface: Bool
     internal let onRefresh: () -> Void
+    /// Whether the graph stats card is shown; persisted by the owner.
+    @Binding internal var showStats: Bool
 
     internal var body: some View {
         HStack(spacing: 6) {
@@ -124,6 +126,18 @@ internal struct WikiGraphControlsBar: View {
         }
         .buttonStyle(.borderless)
         .help(viewModel.showFileTree ? "Hide page browser" : "Browse pages")
+
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showStats.toggle()
+            }
+        } label: {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(showStats ? Theme.accent : Theme.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help(showStats ? "Hide graph stats" : "Graph stats — nodes, edges, structure")
 
         historyControl
     }

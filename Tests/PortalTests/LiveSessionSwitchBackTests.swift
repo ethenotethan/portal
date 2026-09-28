@@ -334,6 +334,7 @@ internal struct LiveSessionSwitchBackTests {
             ["role": AnyCodable("assistant"), "text": AnyCodable("earlier answer")]
         ]
         // No inflight entry: after the reconnect the gateway reports nothing running.
+        backend.runningBySession[sid] = false
 
         // Local state believes the turn is still streaming — the socket dropped
         // mid-turn and its message.complete went with it.
@@ -395,7 +396,7 @@ internal struct LiveSessionSwitchBackTests {
 /// Minimal backend whose `session.resume` returns a persisted history that — like
 /// the real gateway's — does not contain the turn still in flight.
 @MainActor
-private final class LiveSwitchBackendSpy: AgentBackend {
+internal final class LiveSwitchBackendSpy: AgentBackend {
     internal let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()
     internal let connectionStatePublisher = Just(GatewayClient.ConnectionState.connected).eraseToAnyPublisher()
     internal let sessionInfoPublisher = Just<SessionInfo?>(nil).eraseToAnyPublisher()
@@ -412,6 +413,15 @@ private final class LiveSwitchBackendSpy: AgentBackend {
     /// Maps a resumed stable key to the runtime id the gateway hands back and
     /// streams live events under. Defaults to the key itself.
     internal var runtimeIDBySession: [String: String] = [:]
+    /// The gateway's session-level `running` flag. Unset means the reply
+    /// carried no verdict; `false` is the explicit "nothing in flight" the
+    /// reconnect reconcile is allowed to settle a wedged turn on.
+    internal var runningBySession: [String: Bool] = [:]
+    /// Awaited inside `resumeSessionDetailed` before the reply is produced, so
+    /// a test can hold a resume in flight while live events keep landing.
+    internal var onResume: ((String) async -> Void)?
+    /// Every key resumed, in call order.
+    internal private(set) var resumedKeys: [String] = []
 
     internal func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog? { nil }
     internal func createSession(cols: Int) async throws -> String { "spy-session" }
@@ -421,9 +431,27 @@ private final class LiveSwitchBackendSpy: AgentBackend {
         return (runtime, historyBySession[key] ?? [])
     }
     internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+        resumedKeys.append(key)
+        await onResume?(key)
+        // Read AFTER the hook: a test may rename the runtime id mid-flight the
+        // way a gateway reconnect does.
         let runtime = runtimeIDBySession[key] ?? key
         activeSessionID = runtime
-        return ResumedSession(sessionID: runtime, messages: historyBySession[key] ?? [], inflight: inflightBySession[key])
+        let inflight = inflightBySession[key]
+        let running: ResumedTurnVerdict
+        if inflight?.isStreaming == true {
+            running = .running
+        } else if let flag = runningBySession[key] {
+            running = flag ? .running : .stopped
+        } else {
+            running = .unknown
+        }
+        return ResumedSession(
+            sessionID: runtime,
+            messages: historyBySession[key] ?? [],
+            inflight: inflight,
+            running: running
+        )
     }
     internal func sessionHistory(sessionID: String) async throws -> [[String: AnyCodable]] { [] }
     internal func interrupt(sessionID: String) async throws {}
