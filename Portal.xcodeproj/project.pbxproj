@@ -309,6 +309,7 @@
 		50DCDBEEF5B551B45DC7CF9F /* SkillStorePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5360AD25D5B74D44B66CC6 /* SkillStorePersistenceTests.swift */; };
 		51314C1252529CC9DF344448 /* SRSStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D03E0CA1FFD6072E3A68B7E /* SRSStore.swift */; };
 		516AE3F8B5215F58B80E775A /* SessionsSearchPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD56120B53196F463494F45C /* SessionsSearchPanel.swift */; };
+		5184A5FA07C4CBDDC97ABF7A /* TwoStreamingSessionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C3B17CF13883169300EECBE /* TwoStreamingSessionsTests.swift */; };
 		5242B99D508CDC7699222E51 /* NetworkGraphSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04685EB35016333FE4EE6EEE /* NetworkGraphSpec.swift */; };
 		525839E4A60214A40B537A8F /* CelebrationManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73BDAD983F086DF3C33CC0E /* CelebrationManagerTests.swift */; };
 		52A60F9D308643FE9094975B /* DelegationBatchRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8485FAE36D7BCE60C7B49956 /* DelegationBatchRecord.swift */; };
@@ -1225,6 +1226,7 @@
 		43767D723416DF6B72C6CC56 /* WikiGraphControlsBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphControlsBar.swift; sourceTree = "<group>"; };
 		437F051D9AE2A5A9F53C5F29 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		4532702E01A34652A0065CAF /* ChecklistBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistBlockView.swift; sourceTree = "<group>"; };
+		51C6AE7ADE667B1E13E732FA /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		46535B50DC8956C76EF6ACCF /* SessionHealthSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHealthSample.swift; sourceTree = "<group>"; };
 		467135BD2437BF725C9C314D /* ChatLayoutMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLayoutMath.swift; sourceTree = "<group>"; };
 		46A53D6196EA4E6568BBD951 /* GatewayClient+Cron.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Cron.swift"; sourceTree = "<group>"; };
@@ -1251,7 +1253,6 @@
 		50C0FA07F84D4B1F53E8FA07 /* ArchitectureLogsDocumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchitectureLogsDocumentTests.swift; sourceTree = "<group>"; };
 		5113F487FD4185AE7226B855 /* WikiGraph2DCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraph2DCanvas.swift; sourceTree = "<group>"; };
 		5133EA312C90A97C24B605C8 /* ApprovalQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalQueue.swift; sourceTree = "<group>"; };
-		51C6AE7ADE667B1E13E732FA /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		5203CE7FEFD371685A265822 /* SpeechPlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechPlaybackSession.swift; sourceTree = "<group>"; };
 		52235C7BE6B652964E9B6E77 /* FlashcardDeckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardDeckView.swift; sourceTree = "<group>"; };
 		52CE43DF56DCEA3FB7D6928C /* ArtifactExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactExporter.swift; sourceTree = "<group>"; };
@@ -1282,6 +1283,7 @@
 		5B0FAA048805F354745F4AE1 /* CronRevisionTimelineDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronRevisionTimelineDrawer.swift; sourceTree = "<group>"; };
 		5B47C0701C55C2BAB5AD0881 /* InAppBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppBrowserView.swift; sourceTree = "<group>"; };
 		5C085BB893D7CD3AEA3E3B20 /* FormattingPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormattingPromptTests.swift; sourceTree = "<group>"; };
+		5C3B17CF13883169300EECBE /* TwoStreamingSessionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwoStreamingSessionsTests.swift; sourceTree = "<group>"; };
 		5C9B2D6023E99CC124877D57 /* LocalChatModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalChatModelTests.swift; sourceTree = "<group>"; };
 		5D1BFE43A1BB8C08760A8CF3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		5E8126EDDA205BA1777F2E5F /* SessionGraphPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionGraphPane.swift; sourceTree = "<group>"; };
@@ -2330,6 +2332,15 @@
 			path = Support;
 			sourceTree = "<group>";
 		};
+		E3B3AD39227C909C44C2B735 /* portal-ci */ = {
+			isa = PBXGroup;
+			children = (
+				51C6AE7ADE667B1E13E732FA /* Local.xcconfig */,
+			);
+			name = "portal-ci";
+			path = .;
+			sourceTree = "<group>";
+		};
 		C50FACA62E20E395D6C3773F /* Architecture */ = {
 			isa = PBXGroup;
 			children = (
@@ -2532,6 +2543,7 @@
 				91F6A81CAAE938138E612492 /* TTSNeuralVoiceTests.swift */,
 				E284AA3C7BCAFBEC8FD51B4C /* TTSServiceTests.swift */,
 				6F518C497D9473CBF0F04A4C /* TurnSkillAttributionTests.swift */,
+				5C3B17CF13883169300EECBE /* TwoStreamingSessionsTests.swift */,
 				E001B2A23FD790B5B54E9164 /* ViewSnapshotTests.swift */,
 				880CD68FCD6DD7E474B9F1BA /* WikiDockedReaderTests.swift */,
 				5F1AE596EC42FF32902DD6B7 /* WikiEventLogTests.swift */,
@@ -2558,15 +2570,6 @@
 				79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */,
 			);
 			path = JSONRPC;
-			sourceTree = "<group>";
-		};
-		E3B3AD39227C909C44C2B735 /* portal-ci */ = {
-			isa = PBXGroup;
-			children = (
-				51C6AE7ADE667B1E13E732FA /* Local.xcconfig */,
-			);
-			name = "portal-ci";
-			path = .;
 			sourceTree = "<group>";
 		};
 		FB6E90D116D900F079442E44 /* Diagram */ = {
@@ -3401,6 +3404,7 @@
 				B79EC7762772251608DB5240 /* ThoughtGraphNodeRoleTests.swift in Sources */,
 				4F440CF0D0FC0E6D12699040 /* ToolbarIconThemeTests.swift in Sources */,
 				2DAFDFFA4D746941AFFE744F /* TurnSkillAttributionTests.swift in Sources */,
+				5184A5FA07C4CBDDC97ABF7A /* TwoStreamingSessionsTests.swift in Sources */,
 				33F466A63A4E0AFC4B83E6BA /* ViewSnapshot.swift in Sources */,
 				B7A369E00A05D770F6DD1E07 /* ViewSnapshotTests.swift in Sources */,
 				4EA4313896E56B6414E5D14C /* WikiDockedReaderTests.swift in Sources */,
