@@ -10794,7 +10794,7 @@
           "severity": "error"
         },
         {
-          "baselined": 131,
+          "baselined": 129,
           "evidence": {
             "line": 166,
             "path": ".swiftlint.yml"
@@ -12908,12 +12908,13 @@
         "current": {
           "counts": {
             "discouraged_optional_boolean": 7,
-            "explicit_acl": 2735,
+            "explicit_acl": 2729,
             "force_cast": 6,
             "force_try": 5,
-            "force_unwrapping": 68,
+            "force_unwrapping": 65,
             "implicitly_unwrapped_optional": 8,
-            "no_swallowed_try": 131,
+            "legacy_swiftui_aspect_ratio": 11,
+            "no_swallowed_try": 129,
             "no_sync_io_on_main": 3
           },
           "kind": "count",
@@ -13943,7 +13944,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12227,
+      "line_count": 12254,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -49874,7 +49875,7 @@
       {
         "citations": 1,
         "component": "artifact-ui",
-        "declaration_count": 2,
+        "declaration_count": 4,
         "declarations": [
           {
             "kind": "struct",
@@ -49889,9 +49890,21 @@
             "line": 9,
             "name": "Inputs",
             "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 103,
+            "name": "ArtifactKindGlyph",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 104,
+            "name": "icon",
+            "passes": []
           }
         ],
-        "line_count": 97,
+        "line_count": 124,
         "mapped_declarations": 1,
         "passes": [
           "swift.trigger.surface_call"
@@ -63226,7 +63239,7 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 302
+          "total": 303
         },
         "extension": {
           "mapped": 20,
@@ -63234,7 +63247,7 @@
         },
         "func": {
           "mapped": 432,
-          "total": 3239
+          "total": 3240
         },
         "protocol": {
           "mapped": 1,
@@ -63246,13 +63259,13 @@
         }
       },
       "citations": 1317,
-      "declarations": 4673,
+      "declarations": 4675,
       "entities": 161,
       "entities_with_origin": 161,
       "files": 416,
       "functions": {
         "mapped": 432,
-        "total": 3239
+        "total": 3240
       },
       "mapped_declarations": 644,
       "passes": 50,
@@ -63260,7 +63273,7 @@
       "touched_files": 164,
       "types": {
         "mapped": 212,
-        "total": 1434
+        "total": 1435
       },
       "untouched_files": 252
     }
@@ -83536,11 +83549,11 @@
   },
   "inventory": {
     "assigned_files": 414,
-    "declarations": 1291,
+    "declarations": 1292,
     "files": 414,
-    "lines": 119490,
+    "lines": 119517,
     "swift_files": 414,
-    "swift_lines": 119490,
+    "swift_lines": 119517,
     "unassigned_files": []
   },
   "layers": [
@@ -83572,7 +83585,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "6077d531db2a4c1783a8ae0f766623b702393e170e658a590d8ede0546b944eb",
+  "source_tree_sha256": "9094489a591f87570e2220b8e8f6f4defd28da7c7555e7c2fe3d7de22e8642c8",
   "stores": {
     "by_persistence": {
       "defaults": 6,
