@@ -485,14 +485,16 @@ struct DatasetKindTests {
     }
 
     @Test("App-side dataset merge mirrors the gateway: union by key, incoming wins")
-    func merge() {
+    internal func merge() throws {
         let old = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 41}, {\"login\": \"amy\", \"commits\": 7}]}"
         let new = "{\"rows\": [{\"login\": \"greg\", \"commits\": 44}, {\"login\": \"new\", \"commits\": 1}]}"
         let merged = ArtifactMerge.merge(kind: "dataset", existing: old, incoming: new)
-        let obj = try! JSONSerialization.jsonObject(with: Data(merged.utf8)) as! [String: Any]
-        let rows = (obj["rows"] as! [[String: Any]])
+        let obj = try #require(
+            try JSONSerialization.jsonObject(with: Data(merged.utf8)) as? [String: Any]
+        )
+        let rows = try #require(obj["rows"] as? [[String: Any]])
         #expect(rows.count == 3)
-        let greg = rows.first { ($0["login"] as? String) == "greg" }!
+        let greg = try #require(rows.first { ($0["login"] as? String) == "greg" })
         #expect((greg["commits"] as? Int) == 44)
         #expect(obj["key"] as? String == "login")
     }
@@ -530,15 +532,17 @@ struct ArtifactActionTests {
     }
 
     @Test("setField updates the matching dataset row by key, case-insensitive")
-    func setFieldDataset() {
+    internal func setFieldDataset() throws {
         let content = """
         {"key": "name", "rows": [{"name": "Acme Conf", "status": "undecided"}, {"name": "Other", "status": "going"}]}
         """
-        let out = ArtifactActionEngine.setField(
+        let out = try #require(ArtifactActionEngine.setField(
             in: content, kind: "dataset", entryKey: " acme conf ", field: "status", value: "going"
-        )!
-        let obj = try! JSONSerialization.jsonObject(with: out.data(using: .utf8)!) as! [String: Any]
-        let rows = obj["rows"] as! [[String: Any]]
+        ))
+        let obj = try #require(
+            try JSONSerialization.jsonObject(with: Data(out.utf8)) as? [String: Any]
+        )
+        let rows = try #require(obj["rows"] as? [[String: Any]])
         #expect(rows[0]["status"] as? String == "going")
         #expect(rows[1]["status"] as? String == "going")   // untouched
         #expect(ArtifactActionEngine.setField(
