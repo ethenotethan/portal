@@ -383,6 +383,7 @@ internal struct CronJobCard: View {
                     .foregroundStyle(Theme.primary)
                 dataflowRow("Reads", dataflow.reads, icon: "arrow.down.to.line")
                 dataflowRow("Writes", dataflow.writes, icon: "arrow.up.to.line")
+                dataflowRow("Maintains", dataflow.maintains, icon: "wrench.and.screwdriver")
                 dataflowRow("Side effects", dataflow.sideEffects, icon: "bolt")
                 dataflowRow("Feeds", dataflow.feeds, icon: "arrow.turn.down.right")
                 dataflowRow("Fed by", dataflow.fedBy, icon: "arrow.turn.left.up")

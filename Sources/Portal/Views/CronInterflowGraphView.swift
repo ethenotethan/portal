@@ -42,6 +42,11 @@ internal struct CronInterflowGraphView: View {
     @AppStorage("cronGraphLegendExpanded") private var isLegendExpanded = true
     /// The stats card toggle, remembered per graph surface.
     @AppStorage("portal.graphStats.cron") private var showGraphStats = false
+    /// The living artifacts this app knows — decides whether an `artifact:<id>`
+    /// node in the dock can offer "Open artifact".
+    @ObservedObject private var artifactStore = ArtifactStore.shared
+    /// The living artifact opened from the dock, shown over the graph.
+    @State private var presentedArtifact: LivingArtifact?
 
     internal var body: some View {
         ZStack {
@@ -58,6 +63,7 @@ internal struct CronInterflowGraphView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .cronArtifactPresentation($presentedArtifact)
         .onReceive(timer) { _ in
             guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
             viewModel.tick()
@@ -494,6 +500,9 @@ internal struct CronInterflowGraphView: View {
                     if let health = node.health {
                         CronServiceHealthDetails(health: health)
                     }
+                    if node.isLivingArtifact {
+                        artifactDetails(node)
+                    }
                     if !node.sourceFiles.isEmpty {
                         sourceFilesList(node.sourceFiles)
                     }
@@ -656,6 +665,105 @@ internal struct CronInterflowGraphView: View {
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
+        }
+    }
+}
+
+// MARK: - Living artifact dock rows
+
+extension CronInterflowGraphView {
+    /// A living artifact's record — kind, revision, last writer, declared
+    /// maintainers — and the hop into the artifact itself when this app holds
+    /// it. Maintainers that are jobs on the graph re-select that job, the same
+    /// walk the connections list offers; one naming a job the graph lacks is
+    /// shown by its raw id so a stale declaration is visible rather than lost.
+    @ViewBuilder
+    private func artifactDetails(_ node: CronGraphNode) -> some View {
+        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
+        Text("Artifact")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(Theme.secondary.opacity(0.7))
+        HStack(spacing: 6) {
+            if let artifactKind = node.artifactKind {
+                Text(artifactKind)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(viewModel.color(forKind: "artifact"))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(viewModel.color(forKind: "artifact").opacity(0.15), in: Capsule())
+            }
+            if let rev = node.rev {
+                Text("rev \(rev)")
+                    .font(.system(size: 9, design: .monospaced))
+                    .monospaced()
+                    .foregroundStyle(Theme.tertiary)
+            }
+        }
+        if let updatedBy = node.updatedBy {
+            let when = node.updatedAtDate?.relativeString ?? node.updatedAt ?? "at an unknown time"
+            detailRow(icon: "clock.arrow.circlepath",
+                      value: "updated \(when) by \(viewModel.graph.actorLabel(for: updatedBy))")
+        }
+        if !node.maintainerRefs.isEmpty {
+            Text("Maintained by")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Theme.secondary.opacity(0.7))
+            ForEach(node.maintainerRefs) { ref in
+                maintainerRow(ref)
+            }
+        }
+        if let artifactID = node.artifactID, let artifact = artifactStore.artifacts[artifactID] {
+            Button {
+                presentedArtifact = artifact
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "arrow.up.forward.square")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 12)
+                    Text("Open artifact")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                    Spacer(minLength: 4)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("runtime.graph.open-artifact")
+            .help("Open this artifact")
+        }
+    }
+
+    @ViewBuilder
+    private func maintainerRow(_ ref: MaintainerRef) -> some View {
+        let label = viewModel.graph.actorLabel(for: ref.raw)
+        if case .cron(let jobID) = ref, viewModel.simNodes.contains(where: { $0.id == jobID }) {
+            Button { viewModel.selectNode(withID: jobID) } label: {
+                HStack(spacing: 7) {
+                    CronNodeGlyphShape(glyph: viewModel.glyph(forKind: "cron"))
+                        .fill(viewModel.nodeColor(kind: "cron", label: label))
+                        .frame(width: 9, height: 9)
+                    Text(label)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 7) {
+                Image(systemName: "wrench.and.screwdriver")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(width: 12)
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
         }
     }
 }

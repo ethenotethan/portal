@@ -42,6 +42,12 @@ internal struct CronDataflowExpandedView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
     @ObservedObject private var store = CronRunHistoryStore.shared
+    /// The living artifacts this app knows, so an `artifact:<id>` node can say
+    /// whether it is openable here (the record exists) and hand it over.
+    @ObservedObject private var artifactStore = ArtifactStore.shared
+    /// The living artifact being shown over the graph — the same expanded
+    /// presentation the Artifacts pane uses (`ArtifactExpandedOverlay`).
+    @State private var presentedArtifact: LivingArtifact?
     /// Real per-run ledgers fetched on selection, keyed by job id — the same
     /// lazy load the Jobs pane does on card expand.
     @State private var ledgers: [String: [CronRunRecord]] = [:]
@@ -71,6 +77,11 @@ internal struct CronDataflowExpandedView: View {
         expandedSurface
             .task { sourceVM.setClient(gatewayClientWrapper.client) }
             .task(id: graphVM.selectedNode?.id) { await loadSelected() }
+            // A living artifact the store hasn't seen yet (the Artifacts pane was
+            // never opened this launch): one pull decides whether "Open artifact"
+            // can be offered, instead of hiding it until the user goes elsewhere.
+            .task(id: graphVM.selectedNode?.artifactID) { await pullSelectedArtifactIfUnknown() }
+            .cronArtifactPresentation($presentedArtifact)
             // A file asked for from the inline dock, before this surface existed:
             // open it once we're here, then clear the request so re-selecting the
             // node later doesn't replay it.
@@ -379,6 +390,9 @@ internal struct CronDataflowExpandedView: View {
                 .foregroundStyle(Theme.accent)
                 .accessibilityIdentifier("runtime.graph.open-wiki-page")
             }
+            if node.isLivingArtifact {
+                artifactSection(node)
+            }
             if node.kind == "service", let architecture = node.architecture {
                 Button {
                     presentArchitecture(ArchitectureRequest(
@@ -501,6 +515,139 @@ internal struct CronDataflowExpandedView: View {
         await listVM.loadFullPrompt(id: node.id)
         let runs = await listVM.loadHistory(id: node.id)
         if !runs.isEmpty { ledgers[node.id] = runs }
+    }
+
+    private func pullSelectedArtifactIfUnknown() async {
+        guard let artifactID = graphVM.selectedNode?.artifactID,
+              artifactStore.artifacts[artifactID] == nil else { return }
+        await artifactStore.pull()
+    }
+
+    // MARK: - Living artifact
+
+    /// What a living artifact is and who tends it — the store's record as the
+    /// graph carries it (kind, revision, last writer, declared maintainers) —
+    /// plus the hop into the artifact itself when this app holds the record.
+    @ViewBuilder
+    private func artifactSection(_ node: CronGraphNode) -> some View {
+        Divider().background(Theme.border)
+        Text("Artifact")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Theme.primary)
+        HStack(spacing: 6) {
+            if let artifactKind = node.artifactKind {
+                Text(artifactKind)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(graphVM.color(forKind: "artifact"))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(graphVM.color(forKind: "artifact").opacity(0.15), in: Capsule())
+            }
+            if let rev = node.rev {
+                Text("rev \(rev)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .monospaced()
+                    .foregroundStyle(Theme.tertiary)
+            }
+        }
+        if let updatedBy = node.updatedBy {
+            let when = node.updatedAtDate?.relativeString ?? node.updatedAt ?? "at an unknown time"
+            infoRow(icon: "clock.arrow.circlepath", label: "Updated",
+                    value: "\(when) by \(graphVM.graph.actorLabel(for: updatedBy))")
+        }
+        Text("Maintained by")
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(Theme.secondary)
+        if node.maintainerRefs.isEmpty {
+            Text("No maintainers declared")
+                .font(.caption)
+                .foregroundStyle(Theme.tertiary)
+        } else {
+            FlowLayout(spacing: 5) {
+                ForEach(node.maintainerRefs) { ref in
+                    maintainerChip(ref)
+                }
+            }
+        }
+        if let artifactID = node.artifactID, let artifact = artifactStore.artifacts[artifactID] {
+            Button {
+                presentedArtifact = artifact
+            } label: {
+                Label("Open artifact", systemImage: "arrow.up.forward.square")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.accent)
+            .accessibilityIdentifier("runtime.graph.open-artifact")
+        }
+    }
+
+    /// One maintainer as a chip. A cron the graph knows is a hop — tapping it
+    /// selects that job — while a maintainer naming a job the graph lacks stays
+    /// visible as its raw id, so a stale declaration is seen rather than lost.
+    @ViewBuilder
+    private func maintainerChip(_ ref: MaintainerRef) -> some View {
+        let label = graphVM.graph.actorLabel(for: ref.raw)
+        if case .cron(let jobID) = ref, graphVM.graph.nodes.contains(where: { $0.id == jobID && $0.kind == "cron" }) {
+            Button {
+                graphVM.selectNode(withID: jobID)
+            } label: {
+                maintainerChipLabel(label, tint: graphVM.color(forKind: "cron"))
+            }
+            .buttonStyle(.plain)
+            .help("Highlight \(label) in the dataflow graph")
+        } else {
+            maintainerChipLabel(label, tint: Theme.tertiary)
+        }
+    }
+
+    private func maintainerChipLabel(_ label: String, tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(tint).frame(width: 6, height: 6)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(Theme.primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(Theme.background, in: Capsule())
+        .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 1))
+        .contentShape(Capsule())
+    }
+}
+
+// MARK: - Living artifact presentation
+
+/// Shows a living artifact over a graph surface the way the Artifacts pane
+/// expands one — `ArtifactExpandedOverlay`, reading live from the store — as a
+/// sheet on macOS and a full-screen cover on iOS, matching how the architecture
+/// model is presented from the same surfaces. Shared by the full-screen
+/// inspector and the inline dock so both "Open artifact" buttons land in one
+/// place.
+internal struct CronArtifactPresentation: ViewModifier {
+    @Binding internal var artifact: LivingArtifact?
+
+    internal func body(content: Content) -> some View {
+        #if os(iOS)
+        content.fullScreenCover(item: $artifact) { presented in
+            ArtifactExpandedOverlay(artifact: presented) { artifact = nil }
+                .accessibilityIdentifier("runtime.graph.artifact-surface")
+        }
+        #else
+        content.sheet(item: $artifact) { presented in
+            ArtifactExpandedOverlay(artifact: presented) { artifact = nil }
+                .frame(minWidth: 760, idealWidth: 1_080, minHeight: 540, idealHeight: 760)
+                .accessibilityIdentifier("runtime.graph.artifact-surface")
+        }
+        #endif
+    }
+}
+
+extension View {
+    internal func cronArtifactPresentation(_ artifact: Binding<LivingArtifact?>) -> some View {
+        modifier(CronArtifactPresentation(artifact: artifact))
     }
 }
 

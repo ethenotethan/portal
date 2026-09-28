@@ -9,7 +9,10 @@ import Foundation
 ///   run metadata).
 /// - `source` — an external input read by ≥1 cron and written by none.
 /// - `artifact` — a data ref written by ≥1 cron: the join node between a
-///   producer and its consumers (a produced ref outranks a plain source).
+///   producer and its consumers (a produced ref outranks a plain source). A
+///   *living* artifact (`artifact:<id>`, a revisioned document in the gateway's
+///   artifact store) additionally carries `artifactID`, `artifactKind`, `rev`,
+///   `updatedAt`, `updatedBy` and `maintainers`.
 /// - `sink` — a terminal side-effect target (telegram / pr / webhook …).
 /// - `service` — a long-running process or container the harness tracks (a
 ///   dashboard, a Postgres, a Redis) that reads/writes the same refs a cron
@@ -66,6 +69,30 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
     /// service, so the "View architecture" affordance stays hidden. Node
     /// metadata, like `sourceFiles`: outside the configuration digest.
     internal var architecture: CronServiceArchitectureRef? = nil // swiftlint:disable:this implicit_optional_initialization
+    /// Living-artifact fields, present only on an `artifact` node that is a
+    /// document in the gateway's artifact store (`artifact:<id>`). `artifactID`
+    /// keys `ArtifactStore`, so a node that carries one can be opened; `rev` /
+    /// `updatedAt` / `updatedBy` are runtime observations of the last write
+    /// (`cron:<jobId>` / `session:<id>` / `agent`) and stay out of the
+    /// configuration digest like `health`; `maintainers` is what the artifact's
+    /// own content declares (`["cron:<jobId>", …]`), which reaches the digest
+    /// through the `maintains` edges the gateway draws from it.
+    internal var artifactID: String? = nil // swiftlint:disable:this implicit_optional_initialization
+    internal var artifactKind: String? = nil // swiftlint:disable:this implicit_optional_initialization
+    internal var rev: Int? = nil // swiftlint:disable:this implicit_optional_initialization
+    internal var updatedAt: String? = nil // swiftlint:disable:this implicit_optional_initialization
+    internal var updatedBy: String? = nil // swiftlint:disable:this implicit_optional_initialization
+    internal var maintainers: [String] = []
+
+    /// The declared maintainers, parsed: a bare entry is a cron job id, a
+    /// `type:value` entry keeps its type (`MaintainerRef`).
+    internal var maintainerRefs: [MaintainerRef] { maintainers.compactMap(MaintainerRef.init) }
+
+    /// Whether this is a living artifact — one the artifact store can open.
+    internal var isLivingArtifact: Bool { kind == "artifact" && !(artifactID ?? "").isEmpty }
+
+    /// `updatedAt` as a date, when the gateway sent one it could parse.
+    internal var updatedAtDate: Date? { updatedAt.flatMap(LivingArtifact.parseISO) }
 
     /// The wiki page addressed by a `wiki:<path>` resource. Cron declarations
     /// omit the Markdown extension (`wiki:reports/daily`), while `wiki.page`
@@ -80,6 +107,7 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
     private enum CodingKeys: String, CodingKey {
         case id, kind, type, label, description, schedule, enabled, usesLLM, lastStatus, deliver, health
         case sourceFiles, codeGraph, codeControl, architecture
+        case artifactID, artifactKind, rev, updatedAt, updatedBy, maintainers
     }
 
     internal init(
@@ -97,7 +125,13 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         sourceFiles: [CronSourceFile] = [],
         codeGraph: CronServiceCodeGraphRef? = nil,
         codeControl: CodeGraphProvenance? = nil,
-        architecture: CronServiceArchitectureRef? = nil
+        architecture: CronServiceArchitectureRef? = nil,
+        artifactID: String? = nil,
+        artifactKind: String? = nil,
+        rev: Int? = nil,
+        updatedAt: String? = nil,
+        updatedBy: String? = nil,
+        maintainers: [String] = []
     ) {
         self.id = id
         self.kind = kind
@@ -114,6 +148,12 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         self.codeGraph = codeGraph
         self.codeControl = codeControl
         self.architecture = architecture
+        self.artifactID = artifactID
+        self.artifactKind = artifactKind
+        self.rev = rev
+        self.updatedAt = updatedAt
+        self.updatedBy = updatedBy
+        self.maintainers = maintainers
     }
 
     /// Tolerates a snapshot written before `sourceFiles` existed: the revision
@@ -137,6 +177,12 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         codeGraph = try container.decodeIfPresent(CronServiceCodeGraphRef.self, forKey: .codeGraph)
         codeControl = try container.decodeIfPresent(CodeGraphProvenance.self, forKey: .codeControl)
         architecture = try container.decodeIfPresent(CronServiceArchitectureRef.self, forKey: .architecture)
+        artifactID = try container.decodeIfPresent(String.self, forKey: .artifactID)
+        artifactKind = try container.decodeIfPresent(String.self, forKey: .artifactKind)
+        rev = try container.decodeIfPresent(Int.self, forKey: .rev)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+        updatedBy = try container.decodeIfPresent(String.self, forKey: .updatedBy)
+        maintainers = try container.decodeIfPresent([String].self, forKey: .maintainers) ?? []
     }
 }
 
@@ -325,7 +371,8 @@ internal struct CronServiceHealth: Hashable, Codable {
 }
 
 /// A typed directed edge. Types: `reads` (source/artifact → cron), `writes`
-/// (cron → artifact), `feeds` (cron → cron, via a `cron-output:<id>` input),
+/// (cron → artifact), `maintains` (cron → living artifact whose content names
+/// the job), `feeds` (cron → cron, via a `cron-output:<id>` input),
 /// a side-effect scheme (`telegram`, `pr`, …) for a cron → sink edge, or an
 /// explicit subject-predicate-object edge whose wire class is `relationship`.
 internal struct CronGraphEdge: Identifiable, Hashable, Codable {
@@ -397,6 +444,15 @@ internal struct CronGraph: Codable, Equatable {
             }
             let codeControl = d["code_control"].flatMap(CodeGraphProvenance.decodeGatewayValue)
             let architecture = d["architecture"].flatMap(CronServiceArchitectureRef.decodeGatewayValue)
+            // Living-artifact fields: an empty string on the wire means "not said".
+            func nonEmpty(_ key: String) -> String? {
+                guard let text = d[key]?.stringValue, !text.isEmpty else { return nil }
+                return text
+            }
+            let maintainers = (d["maintainers"]?.arrayValue ?? []).compactMap { entry -> String? in
+                guard let text = entry.stringValue, !text.isEmpty else { return nil }
+                return text
+            }
             return CronGraphNode(
                 id: id,
                 kind: kind,
@@ -412,7 +468,13 @@ internal struct CronGraph: Codable, Equatable {
                 sourceFiles: sourceFiles,
                 codeGraph: codeGraph,
                 codeControl: codeControl,
-                architecture: architecture
+                architecture: architecture,
+                artifactID: nonEmpty("artifact_id"),
+                artifactKind: nonEmpty("artifact_kind"),
+                rev: d["rev"]?.intValue,
+                updatedAt: nonEmpty("updated_at"),
+                updatedBy: nonEmpty("updated_by"),
+                maintainers: maintainers
             )
         }
 
@@ -450,6 +512,8 @@ internal struct CronDataflowEndpoint: Identifiable, Hashable {
 internal struct CronJobDataflow: Equatable {
     internal var reads: [CronDataflowEndpoint] = []
     internal var writes: [CronDataflowEndpoint] = []
+    /// Living artifacts whose content names this job as a maintainer.
+    internal var maintains: [CronDataflowEndpoint] = []
     internal var sideEffects: [CronDataflowEndpoint] = []
     /// Downstream crons that consume this job's output.
     internal var feeds: [CronDataflowEndpoint] = []
@@ -459,13 +523,13 @@ internal struct CronJobDataflow: Equatable {
     internal static let empty = CronJobDataflow()
 
     internal var isEmpty: Bool {
-        reads.isEmpty && writes.isEmpty && sideEffects.isEmpty && feeds.isEmpty && fedBy.isEmpty
+        reads.isEmpty && writes.isEmpty && maintains.isEmpty && sideEffects.isEmpty && feeds.isEmpty && fedBy.isEmpty
     }
 }
 
 extension CronGraph {
     /// Project the graph onto one cron: resolve every edge touching `cronID` into
-    /// a typed endpoint (reads / writes / side-effect / feeds), skipping edges
+    /// a typed endpoint (reads / writes / maintains / side-effect / feeds), skipping edges
     /// whose far end isn't a known node. Endpoints dedupe within each bucket,
     /// preserving first-seen order.
     internal func dataflow(forCronID cronID: String) -> CronJobDataflow {
@@ -491,6 +555,11 @@ extension CronGraph {
             case "writes":
                 guard edge.source == cronID, let node = nodeByID[edge.target] else { continue }
                 add(endpoint(node), to: &flow.writes, key: "writes")
+            case "maintains":
+                // Tending a living artifact is dataflow, not a delivery: it must
+                // not fall into the side-effect bucket below.
+                guard edge.source == cronID, let node = nodeByID[edge.target] else { continue }
+                add(endpoint(node), to: &flow.maintains, key: "maintains")
             case "feeds":
                 if edge.source == cronID, let node = nodeByID[edge.target] {
                     add(endpoint(node), to: &flow.feeds, key: "feeds")
@@ -506,5 +575,31 @@ extension CronGraph {
             }
         }
         return flow
+    }
+}
+
+// MARK: - Living-artifact actors
+
+extension CronGraph {
+    /// A readable name for who wrote or maintains a living artifact, from the
+    /// `updated_by` / `maintainers` vocabulary: `cron:<jobId>` resolves to the
+    /// job node's label when the graph has that job (else the bare id — a
+    /// maintainer naming a deleted job stays visible rather than vanishing),
+    /// `session:<id>` reads "session <id>", and a bare word such as `agent` is
+    /// shown as itself.
+    internal func actorLabel(for ref: String) -> String {
+        guard let parsed = MaintainerRef(ref) else { return ref }
+        switch parsed {
+        case .cron(let jobID):
+            return nodes.first { $0.id == jobID && $0.kind == "cron" }?.label ?? jobID
+        case .other(let type, let value):
+            return "\(type) \(value)"
+        }
+    }
+
+    /// The maintainer chips for a node: one label per declared maintainer, in
+    /// declaration order, resolved through `actorLabel(for:)`.
+    internal func maintainerLabels(for node: CronGraphNode) -> [String] {
+        node.maintainerRefs.map { actorLabel(for: $0.raw) }
     }
 }

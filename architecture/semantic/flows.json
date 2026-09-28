@@ -2082,7 +2082,7 @@
       ],
       "summary": "The Graphs page appears. CronInterflowGraphView's onAppear asks CronGraphViewModel to load the cron interflow graph over the cron JSON-RPC namespace, records the observed configuration in CronGraphRevisionStore, and GraphsView's task seeds CronRunHistoryStore so run badges and history are ready.",
       "title": "Open the Graphs page",
-      "trigger": "trigger-bb0f5f3f9e59"
+      "trigger": "trigger-29f4fd19d3c1"
     },
     {
       "evidence": [
@@ -2176,7 +2176,7 @@
       ],
       "summary": "The user taps the refresh button. CronGraphViewModel re-issues the cron graph and changeset calls through GatewayClient, which registers a pending continuation, sends the frame over the WebSocket, resolves the reply when the gateway responds, and appends any new configuration to the revision store.",
       "title": "Refresh the cron interflow graph",
-      "trigger": "trigger-5db965368575"
+      "trigger": "trigger-2a55cb104ddf"
     },
     {
       "evidence": [
