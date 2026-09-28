@@ -10778,7 +10778,7 @@
           "severity": "error"
         },
         {
-          "baselined": 131,
+          "baselined": 129,
           "evidence": {
             "line": 166,
             "path": ".swiftlint.yml"
@@ -12892,17 +12892,17 @@
         "current": {
           "counts": {
             "discouraged_optional_boolean": 7,
-            "explicit_acl": 2733,
+            "explicit_acl": 2728,
             "force_cast": 6,
             "force_try": 5,
-            "force_unwrapping": 67,
+            "force_unwrapping": 63,
             "implicitly_unwrapped_optional": 8,
-            "no_swallowed_try": 131,
+            "no_swallowed_try": 129,
             "no_sync_io_on_main": 3
           },
           "kind": "count",
-          "sites": 2960,
-          "total": 2960
+          "sites": 2949,
+          "total": 2949
         },
         "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
         "id": "lint",
