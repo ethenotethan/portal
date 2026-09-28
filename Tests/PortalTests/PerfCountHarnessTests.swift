@@ -212,6 +212,11 @@ internal struct PerfCountHarnessTests {
         )
         window.contentView = host
         host.layoutSubtreeIfNeeded()
+        // The forced construction pass is required on every host and is not
+        // settling churn. Count only follow-up passes scheduled by SwiftUI;
+        // AppKit otherwise reports either one or two mount passes depending on
+        // the runner SDK's window-install timing.
+        host.layoutCount = 0
         return Hosted(window: window, host: host)
     }
 
