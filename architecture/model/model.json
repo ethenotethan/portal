@@ -15415,7 +15415,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 11868,
+      "line_count": 11880,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -55451,30 +55451,30 @@
           },
           {
             "kind": "func",
-            "line": 176,
+            "line": 184,
             "name": "linkRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 199,
+            "line": 207,
             "name": "openRelease",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 204,
+            "line": 212,
             "name": "fetchEmbedIfNeeded",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 213,
+            "line": 221,
             "name": "GitHubReleaseCard_Previews",
             "passes": []
           }
         ],
-        "line_count": 229,
+        "line_count": 237,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/GitHubReleaseCard.swift",
@@ -63084,36 +63084,36 @@
           },
           {
             "kind": "func",
-            "line": 164,
+            "line": 168,
             "name": "playerHTML",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 182,
+            "line": 186,
             "name": "linkRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 205,
+            "line": 209,
             "name": "openInBrowser",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 210,
+            "line": 214,
             "name": "fetchEmbedIfNeeded",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 219,
+            "line": 223,
             "name": "YouTubeVideoCard_Previews",
             "passes": []
           }
         ],
-        "line_count": 234,
+        "line_count": 238,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/YouTubeVideoCard.swift",
@@ -83818,9 +83818,9 @@
     "assigned_files": 416,
     "declarations": 1300,
     "files": 416,
-    "lines": 120110,
+    "lines": 120122,
     "swift_files": 416,
-    "swift_lines": 120110,
+    "swift_lines": 120122,
     "unassigned_files": []
   },
   "layers": [
@@ -83852,7 +83852,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "f3c4f6aa525cb274d701ae50fca3b488e3ce71e379ffa927b7b00f436fada88e",
+  "source_tree_sha256": "96565ed12df9fdbc89db0fd5465827f445f0e4f34f15a9dd2f85633a8666030a",
   "stores": {
     "by_persistence": {
       "defaults": 6,
