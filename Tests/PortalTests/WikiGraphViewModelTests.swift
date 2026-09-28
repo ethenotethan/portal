@@ -359,7 +359,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Fit-to-view centers the graph's bounding box in the canvas")
-    func fitToViewCentersGraph() {
+    internal func fitToViewCentersGraph() throws {
         let vm = makeVM()
         // Place nodes at a known, off-center bounding box.
         for i in vm.simNodes.indices {
@@ -367,8 +367,8 @@ struct WikiGraphViewModelTests {
         }
         vm.fitToView()
         // The bounding-box center must map to the canvas center at the chosen zoom.
-        let minX = vm.simNodes.map(\.position.x).min()!
-        let maxX = vm.simNodes.map(\.position.x).max()!
+        let minX = try #require(vm.simNodes.map(\.position.x).min())
+        let maxX = try #require(vm.simNodes.map(\.position.x).max())
         let cx = (minX + maxX) / 2
         let screenX = cx * vm.zoom + vm.panOffset.width
         #expect(abs(screenX - vm.canvasSize.width / 2) < 0.001)
