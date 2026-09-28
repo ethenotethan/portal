@@ -9,7 +9,7 @@ private let log = PortalLogger(category: "WikiGraphViewModel")
 final class WikiGraphViewModel: ObservableObject {
 
     @Published var graph: WikiGraph = .empty {
-        didSet { rebuildBacklinks(); rebuildNestedTypeColors() }
+        didSet { rebuildBacklinks(); rebuildNestedTypeColors(); rebuildGraphStats() }
     }
 
     // MARK: - Adaptive layout state
@@ -32,7 +32,12 @@ final class WikiGraphViewModel: ObservableObject {
     /// grid renders these plus the current `selectedPath`; empty = plain Peek.
     /// Read-only snapshots keyed by path — no per-tile history, unlike the
     /// retired floating cards.
-    @Published internal private(set) var pinnedPaths: [String] = []
+    @Published internal private(set) var pinnedPaths: [String] = [] {
+        didSet { rebuildGraphStats() }
+    }
+    /// Node, edge and structure counts for the graph on screen, recomputed when
+    /// the graph or the pins change — never in a body (see GraphStats).
+    @Published internal private(set) var graphStats = GraphStats.empty
     /// Folder-tree sidebar (macOS) / browse sheet (iOS) visibility.
     @Published var showFileTree = false
     /// Changeset-timeline drawer (macOS) / sheet (iOS) visibility.
@@ -629,6 +634,10 @@ final class WikiGraphViewModel: ObservableObject {
         navigate(to: path)
     }
 
+
+    private func rebuildGraphStats() {
+        graphStats = .wiki(graph, pinnedCount: pinnedPaths.count)
+    }
     private func rebuildBacklinks() {
         let byId = Dictionary(graph.pages.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         var index: [String: [WikiPage]] = [:]

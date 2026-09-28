@@ -30,6 +30,9 @@ internal struct WikiGraphView: View {
     /// plain title, so the view still stands alone.
     internal var surfaceSelection: Binding<GraphSurface>?
 
+    /// The stats card toggle, remembered per graph surface.
+    @AppStorage("portal.graphStats.wiki") private var showGraphStats = false
+
     @ObservedObject internal var viewModel: WikiGraphViewModel
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
@@ -367,8 +370,17 @@ internal struct WikiGraphView: View {
                     showGlossaryEditor = true
                 } : nil,
                 hasEventsSurface: hasEventsSurface,
-                onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } }
+                onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } },
+                showStats: $showGraphStats
             )
+        }
+        .overlay(alignment: .bottomLeading) {
+            if showGraphStats {
+                GraphStatsPanel(title: "Wiki graph", stats: viewModel.graphStats)
+                    .equatable()
+                    .padding(12)
+                    .transition(.opacity)
+            }
         }
     }
 
