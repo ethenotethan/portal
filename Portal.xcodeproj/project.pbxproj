@@ -1232,7 +1232,6 @@
 		43767D723416DF6B72C6CC56 /* WikiGraphControlsBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphControlsBar.swift; sourceTree = "<group>"; };
 		437F051D9AE2A5A9F53C5F29 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		4532702E01A34652A0065CAF /* ChecklistBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistBlockView.swift; sourceTree = "<group>"; };
-		51C6AE7ADE667B1E13E732FA /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		46535B50DC8956C76EF6ACCF /* SessionHealthSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHealthSample.swift; sourceTree = "<group>"; };
 		467135BD2437BF725C9C314D /* ChatLayoutMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLayoutMath.swift; sourceTree = "<group>"; };
 		46A53D6196EA4E6568BBD951 /* GatewayClient+Cron.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Cron.swift"; sourceTree = "<group>"; };
@@ -2350,15 +2349,6 @@
 				B400AF748A0246E44CCDF6FB /* ViewSnapshot.swift */,
 			);
 			path = Support;
-			sourceTree = "<group>";
-		};
-		E3B3AD39227C909C44C2B735 /* portal-ci */ = {
-			isa = PBXGroup;
-			children = (
-				51C6AE7ADE667B1E13E732FA /* Local.xcconfig */,
-			);
-			name = "portal-ci";
-			path = .;
 			sourceTree = "<group>";
 		};
 		C50FACA62E20E395D6C3773F /* Architecture */ = {
