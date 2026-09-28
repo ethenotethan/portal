@@ -29,7 +29,7 @@ internal struct FeedCardCompactSizingTests {
         )
     }
 
-    @Test("YouTube thumbnails have a fixed compact height before playback")
+    @Test("YouTube thumbnails retain 16:9 sizing while capped before playback")
     internal func youtubePreviewIsCompactBeforePlayback() throws {
         let source = try Self.source("YouTubeVideoCard.swift")
 
