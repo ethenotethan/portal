@@ -324,7 +324,7 @@ internal struct CronInterflowGraphView: View {
             .background(Theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
             .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.secondary.opacity(0.15), lineWidth: 1))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-            .padding(14)
+            .padding(CronGraphLegendLayout.insets(reserving: PageIntentDockButton.reservedWidth))
         }
     }
 
@@ -769,19 +769,29 @@ extension CronInterflowGraphView {
 }
 
 internal enum CronGraphLegendLayout {
+    internal static let edgePadding: CGFloat = 14
     internal static let maximumWidth: CGFloat = 300
     internal static let minimumWidth: CGFloat = 220
     internal static let maximumHeight: CGFloat = 420
     internal static let minimumHeight: CGFloat = 180
 
     internal static func expandedSize(in availableSize: CGSize) -> CGSize {
-        let usableWidth = max(0, availableSize.width - 28)
-        let usableHeight = max(0, availableSize.height - 28)
+        let usableWidth = max(0, availableSize.width - edgePadding * 2)
+        let usableHeight = max(0, availableSize.height - edgePadding * 2)
         let preferredWidth = max(minimumWidth, availableSize.width * 0.25)
         let preferredHeight = max(minimumHeight, availableSize.height * 0.5)
         return CGSize(
             width: min(usableWidth, min(maximumWidth, preferredWidth)),
             height: min(usableHeight, min(maximumHeight, preferredHeight))
         )
+    }
+
+    internal static func trailingPadding(reserving reservedWidth: CGFloat) -> CGFloat {
+        edgePadding + max(0, reservedWidth)
+    }
+
+    internal static func insets(reserving reservedWidth: CGFloat) -> EdgeInsets {
+        EdgeInsets(top: edgePadding, leading: edgePadding, bottom: edgePadding,
+                   trailing: trailingPadding(reserving: reservedWidth))
     }
 }
