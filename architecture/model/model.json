@@ -15391,7 +15391,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 11879,
+      "line_count": 11880,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -62916,36 +62916,36 @@
           },
           {
             "kind": "func",
-            "line": 167,
+            "line": 168,
             "name": "playerHTML",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 185,
+            "line": 186,
             "name": "linkRow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 208,
+            "line": 209,
             "name": "openInBrowser",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 213,
+            "line": 214,
             "name": "fetchEmbedIfNeeded",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 222,
+            "line": 223,
             "name": "YouTubeVideoCard_Previews",
             "passes": []
           }
         ],
-        "line_count": 237,
+        "line_count": 238,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/YouTubeVideoCard.swift",
@@ -83597,9 +83597,9 @@
     "assigned_files": 413,
     "declarations": 1295,
     "files": 413,
-    "lines": 119701,
+    "lines": 119702,
     "swift_files": 413,
-    "swift_lines": 119701,
+    "swift_lines": 119702,
     "unassigned_files": []
   },
   "layers": [
@@ -83631,7 +83631,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "ee3fed66c8ef9de8669183aedfab714b5d7b8335a989ac5ec53bfa0a79833b59",
+  "source_tree_sha256": "5516eb2d7a4a1fe16d6bebb287c5067d3182af8e312549daccde178216d01b37",
   "stores": {
     "by_persistence": {
       "defaults": 6,

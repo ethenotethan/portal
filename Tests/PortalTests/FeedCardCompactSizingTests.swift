@@ -34,7 +34,8 @@ internal struct FeedCardCompactSizingTests {
         let source = try Self.source("YouTubeVideoCard.swift")
 
         #expect(source.contains("private static let collapsedPreviewHeight: CGFloat = 280"))
-        #expect(source.contains(".frame(height: Self.collapsedPreviewHeight)"))
+        #expect(source.contains(".aspectRatio(16.0 / 9.0, contentMode: .fit)"))
+        #expect(source.contains(".frame(maxHeight: Self.collapsedPreviewHeight)"))
         #expect(
             source.contains("if isPlaying, let videoID"),
             "Starting playback remains the explicit expansion path to the full 16:9 player."

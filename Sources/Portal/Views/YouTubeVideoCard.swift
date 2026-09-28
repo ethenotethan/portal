@@ -141,7 +141,8 @@ internal struct YouTubeVideoCard: View {
                     .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: Self.collapsedPreviewHeight)
+                .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                .frame(maxHeight: Self.collapsedPreviewHeight)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .contentShape(RoundedRectangle(cornerRadius: 12))
