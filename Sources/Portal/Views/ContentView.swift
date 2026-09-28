@@ -381,6 +381,7 @@ internal struct ContentView: View {
                 showCronSheet = true
             }
         )
+        .equatable()
         .environmentObject(sessionList)
     }
 
@@ -1033,6 +1034,7 @@ internal struct ContentView: View {
                             showCronDashboard = true
                         }
                     )
+                    .equatable()
                     .environmentObject(sessionList)
                     .frame(width: macSidebarWidth)
                     // Creation feedback docks under the sidebar that owns the

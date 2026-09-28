@@ -28,59 +28,25 @@ struct SessionListView: View {
         return session.id == currentSessionID || session.gatewayID == currentSessionID
     }
 
-    /// The sidebar's tiers, split in ONE pass over `sessions`.
-    ///
-    /// These used to be four computed properties, each re-filtering and
-    /// re-sorting the whole session list. Every one of them is read three times
-    /// per `body` — for the header count, for the emptiness check, and for the
-    /// `ForEach` — so a single sidebar render ran **twelve** filter+sort passes,
-    /// each doing a `source?.lowercased()` allocation per session. The sidebar
-    /// observes `sessionList`, which republishes on every gateway event, so this
-    /// was per-event work proportional to the session count: the watchdog caught
-    /// it as a 99%-busy main-thread storm with `SessionListView.otherSessions` in
-    /// the stack.
-    internal struct SidebarSections {
-        internal var mine: [Session] = []
-        internal var archived: [Session] = []
-        internal var cron: [Session] = []
-        internal var other: [Session] = []
-    }
+    /// The sidebar's tiers. Kept as the historical names so callers and tests
+    /// keep compiling; the split itself lives in `SessionSidebarSections`, and
+    /// the view model caches it — see `sidebarSections` below.
+    internal typealias SidebarSections = SessionSidebarSections
 
-    /// Note the tiers are deliberately NOT mutually exclusive: an owned cron
-    /// session shows under both "My Sessions" and "Cron Sessions", which is what
-    /// the four separate predicates did.
     nonisolated internal static func partition(
         _ sessions: [Session],
         includes: (Session) -> Bool,
         sort: ([Session]) -> [Session]
     ) -> SidebarSections {
-        var sections = SidebarSections()
-        for session in sessions where includes(session) {
-            let isCron = session.source?.caseInsensitiveCompare("cron") == .orderedSame
-            if session.isOwned {
-                if session.isArchived {
-                    sections.archived.append(session)
-                } else {
-                    sections.mine.append(session)
-                }
-            } else if !isCron {
-                sections.other.append(session)
-            }
-            if isCron { sections.cron.append(session) }
-        }
-        sections.mine = sort(sections.mine)
-        sections.archived = sort(sections.archived)
-        sections.cron = sort(sections.cron)
-        sections.other = sort(sections.other)
-        return sections
+        SessionSidebarSections.partition(sessions, includes: includes, sort: sort)
     }
 
+    /// Computed once per change to the session list, not once per render: the
+    /// sidebar's body re-runs whenever ContentView does (every streamed delta,
+    /// because the sidebar's closure inputs are never equal), and re-sorting a
+    /// thousand sessions each time was the second long-session churn loop.
     private var sidebarSections: SidebarSections {
-        Self.partition(
-            sessionList.sessions,
-            includes: { _ in true },
-            sort: sessionList.sortedForSidebar
-        )
+        sessionList.sidebarSections()
     }
 
     var body: some View {
@@ -635,4 +601,17 @@ struct PulsingDot: View {
         .environmentObject(SessionListViewModel())
         .environmentObject(SettingsViewModel())
         .frame(width: 280, height: 500)
+}
+
+// MARK: - Equatable (skip the body when only the parent re-rendered)
+
+/// The sidebar takes two closures, which SwiftUI can never compare, so every
+/// parent render (each streamed delta) re-ran this body. Its real inputs are
+/// the current session id and its environment objects; the latter invalidate
+/// the body on their own, so equality over the id is enough for `.equatable()`
+/// to skip the parent-driven passes.
+extension SessionListView: Equatable {
+    nonisolated internal static func == (lhs: SessionListView, rhs: SessionListView) -> Bool {
+        lhs.currentSessionID == rhs.currentSessionID
+    }
 }

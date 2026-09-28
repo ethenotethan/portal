@@ -3035,9 +3035,6 @@ client.eventStream
             if messages[idx].content.isEmpty && status == "interrupted" {
                 messages[idx].content = "_Interrupted_"
             }
-            // Content is final here (streamed text, or the interrupted stub) —
-            // prime the cache so the settled bubble stops re-scanning per render.
-            messages[idx].primeStrippedContentCache()
         }
         activeToolCalls = [:]
         isStreaming = false
@@ -3087,7 +3084,6 @@ client.eventStream
             if state.messages[idx].status == nil {
                 state.messages[idx].status = status
             }
-            state.messages[idx].primeStrippedContentCache()
         }
         state.isStreaming = false
         state.isRemoteTurn = false
@@ -4064,7 +4060,6 @@ client.eventStream
             state.messages[idx].usage = payload.usage
             state.messages[idx].status = payload.status
             state.messages[idx].attachments = attachments(from: payload.text)
-            state.messages[idx].primeStrippedContentCache()
             finishThinkingTrace(on: &state.messages[idx], finalReasoning: payload.reasoning)
             state.messages[idx].toolCalls = Array(state.activeToolCalls.values)
             // Reconcile the compaction counter BEFORE snapshotting so an
@@ -4216,7 +4211,6 @@ client.eventStream
                let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
                 state.messages[idx].isStreaming = false
                 state.messages[idx].status = "error"
-                state.messages[idx].primeStrippedContentCache()
                 state.streamingMessageID = nil
             }
             state.activeToolCalls = [:]
@@ -4519,10 +4513,6 @@ client.eventStream
             messages[idx].isStreaming = false
             messages[idx].usage = payload.usage
             messages[idx].status = payload.status
-            // Prime the stripped-content cache now the content is final, so the
-            // bubble (read aloud + auto-scrolling) doesn't re-run stripMediaTags
-            // on every redraw. The session-routed path does the same at complete.
-            messages[idx].primeStrippedContentCache()
             finishThinkingTrace(on: &messages[idx], finalReasoning: payload.reasoning)
             // Merge any accumulated tool calls into the message
             messages[idx].toolCalls = Array(activeToolCalls.values)

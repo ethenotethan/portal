@@ -426,8 +426,10 @@ operation **count**, not wall-clock time — chosen deliberately.
   - *Algorithmic op counts.* `PerfCounter` (Utilities) tallies the dominant
     loop of each hot pure path: `sankey.relax` and `sankey.pack` in
     `SankeyLayout.layout`, and `graph.forceSim` — the O(n²) pairwise repulsion —
-    in `NetworkGraphLayout`; and `artifact.maintainerParse`, one tick per parse
-    of an artifact's content for its maintainers. Counts are added *once per
+    in `NetworkGraphLayout`; `artifact.maintainerParse`, one tick per parse
+    of an artifact's content for its maintainers; `chat.stripMediaTags`, one
+    tick per MEDIA:-strip of a message's content; and `sessions.sidebarSort`,
+    one tick per tier sort of the session sidebar. Counts are added *once per
     loop* (the accumulated total), never once per iteration, so even the
     instrumented build pays no locked call inside a hot loop.
   - *Derived-value parses.* A `body` (or a row builder called from one) that
@@ -443,6 +445,16 @@ operation **count**, not wall-clock time — chosen deliberately.
     (`ArtifactStore.live`) publishes on its own object so it does not
     republish the list. The harness renders 40 artifacts 20 times and asserts
     40 parses.
+  - *Two more instances of the same class* (a 24-hour session): every message
+    bubble re-stripped its MEDIA: lines per render because the eager cache had
+    a completion path that never primed it (now `ChatMessage.derived`, a
+    parse-once cache the copies share; the harness reads 30 messages 20 times
+    and asserts 30 strips), and the session sidebar re-sorted 1,145 sessions
+    on every body evaluation because its closure inputs are never equal to
+    the parent (now `SessionListViewModel.sidebarSections()`, cached until
+    `sessions` changes, with the sidebar and each bubble (`MessageBubbleHost`
+    over `ChatMessageRenderKey`) `Equatable`; the harness reads 1,200 sessions
+    20 times and asserts 4 tier sorts).
   - *View-body evaluations* (`<scenario>.view.body.<View>`). The artifact
     views tick a counter at the top of `body` (`ModelCard`,
     `ModelEntityTable`, its rows, the Kanban board, column and card tile,
@@ -457,8 +469,7 @@ operation **count**, not wall-clock time — chosen deliberately.
     the same fixture, and a strict ceiling on a 1–3 value would flake (#655,
     #657). A headless hosting view also never realises lazy children, so the
     lazy-stack prefetch loop is guarded statically by the `Layout` ratchet,
-    not here.
-- **Zero cost in production.** Every `PerfCounter` call is gated on the
+    not here.- **Zero cost in production.** Every `PerfCounter` call is gated on the
   `PERF_COUNTERS` compile flag. A normal build (`swift build`, `make build`,
   the shipped app) never defines it, so the calls compile to an
   `@inline(__always)` empty body the optimizer deletes — the instrumentation

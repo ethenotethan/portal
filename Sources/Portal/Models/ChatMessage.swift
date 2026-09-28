@@ -4,7 +4,21 @@ import Foundation
 struct ChatMessage: Identifiable, Codable {
     let id: UUID
     let role: Role
-    var content: String
+    /// Every value derived from the content (`contentWithoutAttachments`) is
+    /// computed at most once per distinct content: the cache is a reference the
+    /// struct's copies share, replaced whenever the content changes.
+    internal var content: String {
+        didSet { if content != oldValue { derived = ChatMessageDerived() } }
+    }
+    /// Parsed-once cache for values derived from `content`. A class, so the
+    /// copies SwiftUI makes of this struct on every render (`prepareBubbleMessage`
+    /// and friends) share one strip; `content`'s `didSet` swaps in a fresh one,
+    /// so a streaming delta or an edit invalidates it. Nothing has to "prime"
+    /// it: the eager scheme this replaces required every completion path to
+    /// remember, and the one that forgot re-ran the MEDIA: strip over the whole
+    /// message on every bubble render — the main-thread churn behind the
+    /// long-session beachball. Excluded from Codable (derived, not persisted).
+    private var derived = ChatMessageDerived()
     var isStreaming: Bool
     var toolCalls: [ToolCallRecord]
     /// Snapshot of the turn's thought-graph subagent + reasoning nodes,
@@ -41,28 +55,16 @@ struct ChatMessage: Identifiable, Codable {
     /// Media attachments sent by the user with this message.
     var userAttachments: [MediaAttachment] = []
 
-    /// Content with MEDIA: lines stripped (for rendering in bubbles).
-    /// Computed eagerly on messageComplete; empty during streaming (raw content used).
+    /// Content with MEDIA: lines stripped (for rendering in bubbles). Stripped
+    /// once per distinct content (see `derived`); the bubbles read raw `content`
+    /// while a message streams, so the strip runs when the turn settles.
     var contentWithoutAttachments: String {
-        _contentWithoutAttachments ?? MediaParser.stripMediaTags(from: content)
+        derived.strippedContent { MediaParser.stripMediaTags(from: content) }
     }
 
-/// Cached value — set eagerly to avoid repeated regex scanning during renders.
-    var _contentWithoutAttachments: String?
-
-    /// Populate `_contentWithoutAttachments` from the current `content`.
-    ///
-    /// The cache is derived, not persisted (it is deliberately absent from
-    /// `CodingKeys`), so every path that produces a *finished* message has to
-    /// prime it: decode/restore, and each completion path. Miss one and that
-    /// message's bubble re-runs `stripMediaTags` over the whole content on
-    /// every `body` evaluation — and the transcript re-renders many times a
-    /// second while a reply is read aloud or the pane scrolls, so an unprimed
-    /// message (a restored session, or a just-finished foreground turn) spins
-    /// the main thread. Call once, when the content is final.
-    internal mutating func primeStrippedContentCache() {
-        _contentWithoutAttachments = MediaParser.stripMediaTags(from: content)
-    }
+    /// Whether the strip has already run for the current content — for tests
+    /// that pin the once-per-content guarantee.
+    internal var hasStrippedContentCached: Bool { derived.hasStrippedContent() }
 
     enum CodingKeys: String, CodingKey {
         case id, role, content, isStreaming, toolCalls, reasoning, thinkingTrace
@@ -84,10 +86,6 @@ struct ChatMessage: Identifiable, Codable {
         status = try container.decodeIfPresent(String.self, forKey: .status)
         attachments = try container.decodeIfPresent([FileAttachment].self, forKey: .attachments) ?? []
         userAttachments = try container.decodeIfPresent([MediaAttachment].self, forKey: .userAttachments) ?? []
-        // The stripped-content cache is not part of the wire format, so decoded
-        // history would otherwise re-scan every bubble on every render. Prime it
-        // once here so a restored/resumed transcript renders cheaply.
-        _contentWithoutAttachments = MediaParser.stripMediaTags(from: content)
     }
 
     enum Role: String, Equatable, Codable {
@@ -167,6 +165,40 @@ struct ChatMessage: Identifiable, Codable {
     internal var asyncDelegationBatch: DelegationBatchMessage? {
         guard role == .assistant else { return nil }
         return DelegationBatchMessage.parse(content)
+    }
+}
+
+/// The parse-once store behind `ChatMessage`'s derived values. One instance per
+/// distinct content (the struct replaces it when `content` changes); the lock
+/// exists because messages are read on the main actor and mutated by the
+/// gateway's event handling, and a memo must never hand out a half-written
+/// value.
+internal final class ChatMessageDerived: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stripped: String?
+
+    internal init() {}
+
+    /// The stripped content, computing it on first access only.
+    internal func strippedContent(_ compute: () -> String) -> String {
+        lock.lock()
+        if let stripped {
+            lock.unlock()
+            return stripped
+        }
+        lock.unlock()
+        let value = compute()
+        lock.lock()
+        defer { lock.unlock() }
+        if let stripped { return stripped }
+        stripped = value
+        return value
+    }
+
+    internal func hasStrippedContent() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return stripped != nil
     }
 }
 
@@ -683,7 +715,10 @@ struct MediaParser {
 
     /// Return content with MEDIA: lines stripped.
     static func stripMediaTags(from content: String) -> String {
-        content.split(separator: "\n", omittingEmptySubsequences: false)
+        // The perf ratchet counts these: one per distinct message content, never
+        // one per render (see ChatMessage.contentWithoutAttachments and the harness).
+        PerfCounter.tick("chat.stripMediaTags")
+        return content.split(separator: "\n", omittingEmptySubsequences: false)
             .filter { line in
                 line.wholeMatch(of: mediaLinePattern) == nil
             }

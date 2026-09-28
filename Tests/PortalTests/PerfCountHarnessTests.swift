@@ -59,6 +59,10 @@ internal struct PerfCountHarnessTests {
     private static let surfaceSize = CGSize(width: 900, height: 700)
     private static let artifactCount = 40      // → 40 JSON artifacts in the list
     private static let artifactRenders = 20    // → 20 renders of every row
+    private static let messageCount = 30       // → 30 settled messages with MEDIA: lines
+    private static let messageRenders = 20     // → 20 bubble renders of each
+    private static let sessionCount = 1_200    // → a sidebar the size of the user's
+    private static let sidebarRenders = 20     // → 20 sidebar body evaluations
 
     @MainActor
     @Test("Instrumented layout op counts match the committed baseline")
@@ -138,6 +142,32 @@ internal struct PerfCountHarnessTests {
         // The row inputs read the maintainers of every artifact on every render;
         // the parse must happen once per artifact regardless of render count.
         #expect(parses["artifact.maintainerParse"] == Self.artifactCount, "maintainer parse per render, not per content")
+
+        // ── Scenario: chat.stripMediaTags (one strip per message content, not per render) ─
+        PerfCounter.reset()
+        let messages = Self.makeMessages(count: Self.messageCount)
+        for _ in 0..<Self.messageRenders {
+            for message in messages {
+                _ = ChatMessageRenderKey(message)
+                _ = message.contentWithoutAttachments
+            }
+        }
+        let strips = PerfCounter.snapshot()
+        merged.merge(strips) { _, new in new }
+        #expect(strips["chat.stripMediaTags"] == Self.messageCount, "MEDIA: strip per render, not per content")
+
+        // ── Scenario: sessions.sidebarSort (four tier sorts per change, not per render) ─
+        PerfCounter.reset()
+        let sidebar = SessionListViewModel()
+        sidebar.sessions = Self.makeSessions(count: Self.sessionCount)
+        for _ in 0..<Self.sidebarRenders {
+            _ = sidebar.sidebarSections()
+        }
+        let sorts = PerfCounter.snapshot()
+        merged.merge(sorts) { _, new in new }
+        // Four tiers (mine, archived, cron, other), each sorted once for the
+        // one session list, however many times the sidebar's body reads them.
+        #expect(sorts["sessions.sidebarSort"] == 4, "sidebar sort per render, not per change")
         // The instrumented build must actually have tallied something —
         // otherwise the fixtures aren't hitting the counted paths and the
         // ratchet would silently pass on an empty snapshot.
@@ -258,6 +288,30 @@ internal struct PerfCountHarnessTests {
     #endif
 
     // MARK: - Fixtures
+
+    /// `count` settled assistant messages, each with prose and a MEDIA: line.
+    private static func makeMessages(count: Int) -> [ChatMessage] {
+        (0..<count).map { index in
+            ChatMessage(
+                role: .assistant,
+                content: "Reply \(index): " + String(repeating: "lorem ipsum ", count: 40)
+                    + "\nMEDIA:http://localhost:8642/v1/files/s\(index)/report-\(index).pdf"
+            )
+        }
+    }
+
+    /// `count` sessions across every tier: owned, archived, cron and foreign.
+    private static func makeSessions(count: Int) -> [Session] {
+        (0..<count).map { index in
+            var session = Session(id: "s\(index)", messageCount: index)
+            session.gatewayID = index.isMultiple(of: 4) ? nil : "gw\(index)"
+            session.source = index.isMultiple(of: 5) ? "cron" : (index.isMultiple(of: 4) ? "telegram" : nil)
+            session.isArchived = index.isMultiple(of: 7)
+            session.isPinned = index.isMultiple(of: 11)
+            session.lastActive = Date(timeIntervalSince1970: TimeInterval((index * 7919) % 100_000))
+            return session
+        }
+    }
 
     /// `count` maintained JSON artifacts with distinct, non-trivial bodies.
     private static func makeArtifacts(count: Int) -> [LivingArtifact] {
