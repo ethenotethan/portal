@@ -363,13 +363,12 @@ struct SessionListViewModelTests {
 
     @Test("subtitleForSession shows source, message count, and time")
     @MainActor
-    func subtitleFormatting() async {
+    internal func subtitleFormatting() async throws {
         let vm = SessionListViewModel()
         let session = Session(id: "s1", source: "telegram", messageCount: 5, startedAt: Date())
-        let subtitle = vm.subtitleForSession(session)
-        #expect(subtitle != nil)
-        #expect(subtitle!.contains("telegram"))
-        #expect(subtitle!.contains("5 msgs"))
+        let subtitle = try #require(vm.subtitleForSession(session))
+        #expect(subtitle.contains("telegram"))
+        #expect(subtitle.contains("5 msgs"))
     }
     @Test("pinned sessions sort before unpinned sessions")
     @MainActor
