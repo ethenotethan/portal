@@ -13,7 +13,11 @@ observatory's own header, and nothing else would notice them going stale.
 
 Exits non-zero listing every problem. Run from anywhere:
 
-    python3 scripts/check_site_assets.py
+    python3 scripts/check_site_assets.py          # verify
+    python3 scripts/check_site_assets.py --sync   # rewrite the hero stats from the model
+
+`--sync` is what the Pages workflow runs on main after compiling the model, so
+the numbers follow the code without anyone editing them in a pull request.
 """
 from __future__ import annotations
 
@@ -73,7 +77,35 @@ def stale_stats(index: Path) -> list[str]:
     return problems
 
 
+HERO_STAT = {
+    "swift_files": re.compile(r'(<strong data-count=")\d+(">)[\d,]+(</strong><span>Swift files</span>)'),
+    "swift_lines": re.compile(r'(<strong data-count=")\d+(">)[\d,]+(</strong><span>lines</span>)'),
+}
+
+
+def sync_stats(index: Path) -> list[str]:
+    """Rewrite the hero's file and line counts from the model. Returns the
+    labels that changed. The `data-count` attribute (count-up animation) and
+    the rendered text are both updated so JS-off and JS-on agree."""
+    inventory = json.loads(MODEL.read_text(encoding="utf-8"))["inventory"]
+    html = index.read_text(encoding="utf-8")
+    changed = []
+    for label, pattern in HERO_STAT.items():
+        value = int(inventory[label])
+        new_html, n = pattern.subn(rf"\g<1>{value}\g<2>{value:,}\g<3>", html)
+        if n != 1:
+            raise SystemExit(f"error: expected exactly one {label} hero stat in {index.relative_to(ROOT)}, found {n}")
+        if new_html != html:
+            changed.append(label)
+        html = new_html
+    index.write_text(html, encoding="utf-8")
+    return changed
+
+
 def main() -> int:
+    if "--sync" in sys.argv[1:]:
+        changed = sync_stats(SITE / "index.html")
+        print("hero stats: " + (", ".join(changed) + " updated" if changed else "already current"))
     pages = sorted(SITE.rglob("*.html"))
     if not pages:
         print(f"error: no HTML found under {SITE.relative_to(ROOT)}", file=sys.stderr)

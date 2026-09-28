@@ -77,6 +77,39 @@ Rules for the baseline:
 - `make check` runs the full local gate (build + tests + baselined lint +
   baseline-growth guard); if it's green, CI is green.
 
+## Generated outputs are compiled on main, not in pull requests
+
+`architecture/model/model.json`, `architecture/site/data.js` and the two hero
+counts in `site/index.html` (Swift files, lines) are **compiled outputs** of
+the tree — the compiler hashes every Swift file and inventories every
+declaration, so almost any change makes them move. When pull requests carried
+them, every merge to main rewrote all three and every other open PR conflicted
+a minute later; four PRs needed three rebases each in one afternoon for this
+reason alone.
+
+They are now produced on **main** by the `Pages` workflow after each merge:
+
+- `Pages / Validate model and site` compiles the model and syncs the hero
+  stats (`scripts/check_site_assets.py --sync`) from the tree it checks out.
+  On a push to main, if the outputs moved, it commits them back as
+  `github-actions[bot]` with `[skip ci]` (the bookkeeping commit runs no macOS
+  jobs). If the branch ruleset refuses the push — main requires pull requests,
+  and GitHub Actions is not a bypass actor — it opens or refreshes the
+  `automation/architecture-sync` PR instead; merging that is the whole job.
+  Adding GitHub Actions as a bypass actor on the ruleset makes it automatic.
+- `Pages / Deploy GitHub Pages` compiles again before assembling, so the
+  published site is current even before that commit lands.
+- On a **pull request** the same job runs the compiler against the PR's tree
+  (proving it still compiles and letting the checks read current data), and a
+  guard step **fails the PR if it commits any of the three outputs**. Restore
+  them from main and re-push:
+  `git checkout origin/main -- architecture/model/model.json architecture/site/data.js`.
+
+Locally, `make architecture` still regenerates everything so you can read the
+observatory and run the compiler's tests against your change — just don't
+commit the results. The Swift tests and the gateway that read `model.json`
+see main's committed copy, which is at most one merge behind.
+
 ## CI posture taxonomy (which check defends what)
 
 CI checks are organized so the PR checks list reads by **intent**, split into
@@ -322,7 +355,8 @@ snapshot's `watchlist` for information only.
 
 Rules mirror the lint baseline: **regenerate only to record improvement**
 (`make metrics-baseline` — warning/skipped/dead-code/layout/slow-test counts
-must only drop and coverage may only rise),
+must only drop and coverage may only rise; commit the baseline, not the
+architecture outputs it regenerates),
 and `make metrics-ratchet` runs the whole check locally (clean build + tests →
 collect → ratchet vs `origin/main`). In CI these are the separate `Warnings`,
 `Coverage` and `Slow Tests` jobs fed by the shared `Measure` job, plus
