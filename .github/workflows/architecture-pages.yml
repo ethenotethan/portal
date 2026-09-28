@@ -18,6 +18,9 @@ on:
     paths:
       - Sources/**
       - Tests/**
+      # Covered by Tests/** above; listed because the compiler's own test pins
+      # this path as a trigger (scripts/test_architecture.py).
+      - Tests/PortalTests/ArchitectureTests.swift
       - site/**
       - architecture/**
       - scripts/build_architecture.py
