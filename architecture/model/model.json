@@ -655,11 +655,11 @@
         "enclosing_function": "receiveLoop",
         "evidence": {
           "excerpt": "let message = try await webSocketTask.receive()",
-          "line": 2343,
+          "line": 2338,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-689c19672143",
+        "id": "lifecycle-operation-9781fe3d8b2e",
         "kind": "receive",
         "label": "webSocketTask.receive",
         "owner_type": "GatewayClient",
@@ -673,11 +673,11 @@
         "enclosing_function": "applyParsedMessage",
         "evidence": {
           "excerpt": "eventStream.send((event, sessionID))",
-          "line": 2486,
+          "line": 2481,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-769542241a99",
+        "id": "lifecycle-operation-9b87abba8a2e",
         "kind": "publish",
         "label": "eventStream.send",
         "owner_type": "GatewayClient",
@@ -691,11 +691,11 @@
         "enclosing_function": "fulfillRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.lock()",
-          "line": 2494,
+          "line": 2489,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-22139ca77f5f",
+        "id": "lifecycle-operation-75d6f5523291",
         "kind": "acquire",
         "label": "pendingRequestsLock.lock",
         "owner_type": "GatewayClient",
@@ -709,11 +709,11 @@
         "enclosing_function": "fulfillRequest",
         "evidence": {
           "excerpt": "let continuation = pendingRequests.removeValue(forKey: id)",
-          "line": 2495,
+          "line": 2490,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-57387f450c62",
+        "id": "lifecycle-operation-5d4c0df13555",
         "kind": "pool_remove",
         "label": "pendingRequests.removeValue",
         "owner_type": "GatewayClient",
@@ -727,11 +727,11 @@
         "enclosing_function": "fulfillRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.unlock()",
-          "line": 2500,
+          "line": 2495,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-f4a09636d181",
+        "id": "lifecycle-operation-c9845e2c499d",
         "kind": "release",
         "label": "pendingRequestsLock.unlock",
         "owner_type": "GatewayClient",
@@ -745,11 +745,11 @@
         "enclosing_function": "fulfillRequest",
         "evidence": {
           "excerpt": "continuation?.resume(returning: response)",
-          "line": 2503,
+          "line": 2498,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-d194dc17beb9",
+        "id": "lifecycle-operation-fd487d92ac41",
         "kind": "pool_resolve",
         "label": "resume",
         "owner_type": "GatewayClient",
@@ -763,11 +763,11 @@
         "enclosing_function": "removePendingRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.lock()",
-          "line": 2508,
+          "line": 2503,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-9ce4d2e500d1",
+        "id": "lifecycle-operation-795025e09853",
         "kind": "acquire",
         "label": "pendingRequestsLock.lock",
         "owner_type": "GatewayClient",
@@ -781,11 +781,11 @@
         "enclosing_function": "removePendingRequest",
         "evidence": {
           "excerpt": "let continuation = pendingRequests.removeValue(forKey: id)",
-          "line": 2509,
+          "line": 2504,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-08fa08c91994",
+        "id": "lifecycle-operation-d1151bc1fbdc",
         "kind": "pool_remove",
         "label": "pendingRequests.removeValue",
         "owner_type": "GatewayClient",
@@ -799,11 +799,11 @@
         "enclosing_function": "removePendingRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.unlock()",
-          "line": 2511,
+          "line": 2506,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-a20f45713675",
+        "id": "lifecycle-operation-7473db5babf1",
         "kind": "release",
         "label": "pendingRequestsLock.unlock",
         "owner_type": "GatewayClient",
@@ -2716,10 +2716,10 @@
         "resource_ids": [],
         "task_handle_ids": [
           "task-site-1ab50b60f1e8",
-          "task-site-9b8b896e1cd0",
+          "task-site-319c81b96851",
           "task-site-bf3516964939",
           "task-site-de51cf72924f",
-          "task-site-f98c578ff6ee"
+          "task-site-fa7ae059d3d7"
         ]
       },
       {
@@ -2898,28 +2898,28 @@
         "evidence_class": "static_source",
         "id": "connectivity-pocket-6854b24de35d",
         "operation_ids": [
-          "lifecycle-operation-08fa08c91994",
-          "lifecycle-operation-22139ca77f5f",
           "lifecycle-operation-27458f7e67ea",
           "lifecycle-operation-39b848d5ab0b",
           "lifecycle-operation-3ca9df8ac904",
           "lifecycle-operation-434ead133dcd",
           "lifecycle-operation-48e672f67c18",
-          "lifecycle-operation-57387f450c62",
+          "lifecycle-operation-5d4c0df13555",
           "lifecycle-operation-63e11b5adc1d",
-          "lifecycle-operation-689c19672143",
           "lifecycle-operation-6ab8a1fa40ef",
-          "lifecycle-operation-769542241a99",
+          "lifecycle-operation-7473db5babf1",
+          "lifecycle-operation-75d6f5523291",
+          "lifecycle-operation-795025e09853",
           "lifecycle-operation-8127ec2c3630",
           "lifecycle-operation-8837a3f0840c",
           "lifecycle-operation-8e330aeb6d89",
+          "lifecycle-operation-9781fe3d8b2e",
           "lifecycle-operation-97ef6f71497d",
-          "lifecycle-operation-9ce4d2e500d1",
-          "lifecycle-operation-a20f45713675",
+          "lifecycle-operation-9b87abba8a2e",
           "lifecycle-operation-b441a833257c",
-          "lifecycle-operation-d194dc17beb9",
+          "lifecycle-operation-c9845e2c499d",
+          "lifecycle-operation-d1151bc1fbdc",
           "lifecycle-operation-e13847f7f1be",
-          "lifecycle-operation-f4a09636d181"
+          "lifecycle-operation-fd487d92ac41"
         ],
         "owner_type": "GatewayClient",
         "resource_ids": [
@@ -4902,11 +4902,11 @@
         "enclosing_type": "GatewayClient",
         "evidence": {
           "excerpt": "let parsed = await Task.detached(priority: .userInitiated) {",
-          "line": 2364,
+          "line": 2359,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8b416e05418d",
+        "id": "task-site-2dd2a8125ccf",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4918,11 +4918,11 @@
         "enclosing_type": "GatewayClient",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 2523,
+          "line": 2518,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-44a95a5fb39d",
+        "id": "task-site-a12de1587657",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4934,11 +4934,11 @@
         "enclosing_type": "GatewayClient",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 2575,
+          "line": 2570,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0b1b40a10afa",
+        "id": "task-site-7b25b476db79",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4950,11 +4950,11 @@
         "enclosing_type": "GatewayClient",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 2598,
+          "line": 2593,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b64b472b6108",
+        "id": "task-site-0532750eee0b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6486,11 +6486,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "private var pendingVisibleEventFlush: Task<Void, Never>?",
-          "line": 633,
+          "line": 625,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f98c578ff6ee",
+        "id": "task-site-319c81b96851",
         "kind": "stored_task_handle",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.stored_handle"
@@ -6502,11 +6502,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 705,
+          "line": 697,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-fb1e985ce664",
+        "id": "task-site-21c92836d506",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6518,11 +6518,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 757,
+          "line": 749,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-00d45c1ad7a0",
+        "id": "task-site-0d8f5175aff7",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6533,12 +6533,12 @@
         "enclosing_function": "handleGatewayReconnected",
         "enclosing_type": "ChatViewModel",
         "evidence": {
-          "excerpt": "Task { await reconcileAfterReconnect() }",
-          "line": 852,
+          "excerpt": "Task { await reconcileTurnAfterReconnect(displayID: displaySessionID(for: sid)) }",
+          "line": 864,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0b5a11b25697",
+        "id": "task-site-64d3dac41fec",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6550,11 +6550,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 984,
+          "line": 895,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-889b090223be",
+        "id": "task-site-73c07f76960b",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6566,11 +6566,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1294,
+          "line": 1153,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e1f621c8b3e4",
+        "id": "task-site-5b3b01dbcb33",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6582,11 +6582,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1499,
+          "line": 1358,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-21ad79e92b22",
+        "id": "task-site-be258ba8fe01",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6598,11 +6598,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let parsedMessages: [ChatMessage] = await Task.detached(priority: .userInitiated) {",
-          "line": 1579,
+          "line": 1424,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-15503365f2e8",
+        "id": "task-site-eb968bc86d91",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6614,11 +6614,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1755,
+          "line": 1582,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0681db9a248d",
+        "id": "task-site-3b6a6b5776aa",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6630,11 +6630,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1835,
+          "line": 1662,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e8d4c776dee0",
+        "id": "task-site-e2d2981b9b31",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6646,11 +6646,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1851,
+          "line": 1678,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-14aa70692c11",
+        "id": "task-site-d986d54547ab",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6662,11 +6662,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await autoGenerateQuiz(topic: topic, questionCount: 5) }",
-          "line": 1953,
+          "line": 1780,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b46c321aef97",
+        "id": "task-site-d74b740456f8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6678,11 +6678,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { @MainActor in await self?.submitLocalVoiceTranscript(text) }",
-          "line": 2495,
+          "line": 2322,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9b5e51f3efe8",
+        "id": "task-site-80e918b6f3ee",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6694,11 +6694,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { @MainActor in self?.handleLocalVoicePartial(text) }",
-          "line": 2498,
+          "line": 2325,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e7e3c0cff0e1",
+        "id": "task-site-b9cbece78aa9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6710,11 +6710,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await interrupt() }",
-          "line": 2532,
+          "line": 2359,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e97ab2299d71",
+        "id": "task-site-6f618a271f1b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6726,11 +6726,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let task = Task { [weak self] in",
-          "line": 2727,
+          "line": 2554,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9699c4c62b07",
+        "id": "task-site-a77d6c532ccc",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6742,11 +6742,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "localReplyTask?.cancel()",
-          "line": 2780,
+          "line": 2607,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c6ced793e1ef",
+        "id": "task-site-3797aa9ebf1c",
         "kind": "task_cancellation",
         "label": "localReplyTask",
         "rule_id": "swift.task.cancel"
@@ -6758,11 +6758,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let drafting = Task { [weak self] () -> String? in",
-          "line": 2813,
+          "line": 2640,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c6e86e9cbdf8",
+        "id": "task-site-a0b992c1bdb1",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6774,11 +6774,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in",
-          "line": 2947,
+          "line": 2774,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7e53ebafb646",
+        "id": "task-site-9a540cd35655",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6790,11 +6790,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let extracted = await Task.detached(priority: .userInitiated) { () -> String? in",
-          "line": 2974,
+          "line": 2801,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-82bf22372499",
+        "id": "task-site-260c62644100",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6806,6 +6806,22 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { [weak self] in",
+          "line": 2972,
+          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-b4ddb089391e",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "chat-state",
+        "enclosing_function": "fillModelBadgeIfEmpty",
+        "enclosing_type": "ChatViewModel",
+        "evidence": {
+          "excerpt": "Task { await refreshModelCatalog() }",
           "line": 3145,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
@@ -6818,31 +6834,15 @@
       {
         "authority": "observed",
         "component": "chat-state",
-        "enclosing_function": "fillModelBadgeIfEmpty",
-        "enclosing_type": "ChatViewModel",
-        "evidence": {
-          "excerpt": "Task { await refreshModelCatalog() }",
-          "line": 3318,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-14963a8d2477",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "chat-state",
         "enclosing_function": null,
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "private var saveHistoryTask: Task<Void, Never>?",
-          "line": 3323,
+          "line": 3150,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9b8b896e1cd0",
+        "id": "task-site-fa7ae059d3d7",
         "kind": "stored_task_handle",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.stored_handle"
@@ -6854,11 +6854,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask?.cancel()",
-          "line": 3337,
+          "line": 3164,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-063bed725a00",
+        "id": "task-site-c244dd3ef42e",
         "kind": "task_cancellation",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.cancel"
@@ -6870,11 +6870,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask = Task { [weak self] in",
-          "line": 3338,
+          "line": 3165,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b2bffe8c28d2",
+        "id": "task-site-53e637c5f1c7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6886,11 +6886,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask?.cancel()",
-          "line": 3450,
+          "line": 3277,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-93e0cacafe88",
+        "id": "task-site-5bd7b2870ff7",
         "kind": "task_cancellation",
         "label": "transientStatusClearTask",
         "rule_id": "swift.task.cancel"
@@ -6902,11 +6902,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask = Task { [weak self] in",
-          "line": 3451,
+          "line": 3278,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1dbe419fa946",
+        "id": "task-site-361b575efbc8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6918,11 +6918,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 3687,
+          "line": 3514,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-aae0bc029a25",
+        "id": "task-site-e3c5e1b2aaca",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6934,11 +6934,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush = Task {",
-          "line": 3697,
+          "line": 3524,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9f549e907e15",
+        "id": "task-site-bf1131e72dfb",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6950,11 +6950,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await loadSessionHistoryPreservingStream() }",
-          "line": 3993,
+          "line": 3814,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-71fe31e007ff",
+        "id": "task-site-05b97f923274",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6966,11 +6966,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4042,
+          "line": 3863,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5bf1030e7061",
+        "id": "task-site-ade2aa2d9cda",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6982,11 +6982,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 4263,
+          "line": 4084,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-605c00ea1282",
+        "id": "task-site-094f5daead5c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6998,11 +6998,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4514,
+          "line": 4335,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5f73b8e8ce81",
+        "id": "task-site-c20e03272cf9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7014,11 +7014,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4579,
+          "line": 4400,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2d716ffa73d9",
+        "id": "task-site-9b0b0419dc85",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10778,7 +10778,7 @@
           "severity": "error"
         },
         {
-          "baselined": 131,
+          "baselined": 129,
           "evidence": {
             "line": 166,
             "path": ".swiftlint.yml"
@@ -12892,12 +12892,13 @@
         "current": {
           "counts": {
             "discouraged_optional_boolean": 7,
-            "explicit_acl": 2735,
+            "explicit_acl": 2729,
             "force_cast": 6,
             "force_try": 5,
-            "force_unwrapping": 68,
+            "force_unwrapping": 65,
             "implicitly_unwrapped_optional": 8,
-            "no_swallowed_try": 131,
+            "legacy_swiftui_aspect_ratio": 11,
+            "no_swallowed_try": 129,
             "no_sync_io_on_main": 3
           },
           "kind": "count",
@@ -13925,7 +13926,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12227,
+      "line_count": 12254,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14115,7 +14116,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 5836
+      "line_count": 5657
     },
     {
       "declaration_count": 85,
@@ -14299,7 +14300,7 @@
       "line_count": 1512
     },
     {
-      "declaration_count": 21,
+      "declaration_count": 20,
       "declarations": [
         "AgentBackend",
         "AgentBackendError",
@@ -14311,7 +14312,6 @@
         "MCPServerInfo",
         "MessageCompletePayload",
         "ResumedSession",
-        "ResumedTurnVerdict",
         "SessionInfo",
         "SubagentCompletePayload",
         "SubagentPayload",
@@ -14333,7 +14333,7 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "line_count": 939
+      "line_count": 921
     },
     {
       "declaration_count": 29,
@@ -14391,7 +14391,7 @@
       "id": "hermes-services",
       "label": "Harness services",
       "layer": "integration",
-      "line_count": 4750,
+      "line_count": 4745,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -17167,7 +17167,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 6 declaration(s) owned by backend-contract.",
+      "description": "References 5 declaration(s) owned by backend-contract.",
       "evidence": [
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
         "Sources/Portal/Services/GatewayClient.swift"
@@ -17178,12 +17178,11 @@
         "GatewayEvent",
         "InflightTurn",
         "ResumedSession",
-        "ResumedTurnVerdict",
         "SessionInfo"
       ],
       "target": "backend-contract",
       "type": "references",
-      "weight": 8
+      "weight": 7
     },
     {
       "authority": "observed",
@@ -19702,7 +19701,7 @@
               },
               {
                 "excerpt": "webSocketTask: URLSessionWebSocketTask,",
-                "line": 2572,
+                "line": 2567,
                 "path": "Sources/Portal/Services/GatewayClient.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -19710,7 +19709,7 @@
               },
               {
                 "excerpt": "webSocketTask: URLSessionWebSocketTask,",
-                "line": 2594,
+                "line": 2589,
                 "path": "Sources/Portal/Services/GatewayClient.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -19718,7 +19717,7 @@
               },
               {
                 "excerpt": "didCloseWith code: URLSessionWebSocketTask.CloseCode,",
-                "line": 2595,
+                "line": 2590,
                 "path": "Sources/Portal/Services/GatewayClient.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -20357,7 +20356,7 @@
             "evidence": [
               {
                 "excerpt": "let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
-                "line": 691,
+                "line": 683,
                 "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -22237,7 +22236,7 @@
         "origins": [
           {
             "family": "behaviour",
-            "line": 77,
+            "line": 59,
             "path": "Sources/Portal/Services/AgentBackend.swift",
             "rule": "map.resource"
           }
@@ -23980,73 +23979,73 @@
         "origins": [
           {
             "family": "wiring",
-            "line": 2115,
+            "line": 2110,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2124,
+            "line": 2119,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2135,
+            "line": 2130,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2145,
+            "line": 2140,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2153,
+            "line": 2148,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2180,
+            "line": 2175,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2201,
+            "line": 2196,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2229,
+            "line": 2224,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2252,
+            "line": 2247,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2261,
+            "line": 2256,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2282,
+            "line": 2277,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2292,
+            "line": 2287,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           }
@@ -24148,13 +24147,13 @@
           },
           {
             "family": "wiring",
-            "line": 1960,
+            "line": 1955,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 1976,
+            "line": 1971,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           }
@@ -24220,13 +24219,13 @@
         "origins": [
           {
             "family": "wiring",
-            "line": 2306,
+            "line": 2301,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2316,
+            "line": 2311,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           }
@@ -24294,13 +24293,13 @@
         "origins": [
           {
             "family": "wiring",
-            "line": 2047,
+            "line": 2042,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           },
           {
             "family": "wiring",
-            "line": 2326,
+            "line": 2321,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           }
@@ -24448,7 +24447,7 @@
         "origins": [
           {
             "family": "wiring",
-            "line": 2090,
+            "line": 2085,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "map.endpoint"
           }
@@ -24736,7 +24735,7 @@
           },
           {
             "family": "behaviour",
-            "line": 767,
+            "line": 759,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.resource.bus_subscription"
           },
@@ -25008,91 +25007,91 @@
           },
           {
             "family": "behaviour",
-            "line": 816,
+            "line": 807,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 839,
+            "line": 830,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 1008,
+            "line": 917,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 1402,
+            "line": 1261,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 1486,
+            "line": 1345,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 1700,
+            "line": 1527,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 3048,
+            "line": 2875,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 3385,
+            "line": 3212,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4485,
+            "line": 4306,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4512,
+            "line": 4333,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4549,
+            "line": 4370,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4599,
+            "line": 4420,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4652,
+            "line": 4473,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4658,
+            "line": 4479,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4699,
+            "line": 4520,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           }
@@ -25154,25 +25153,25 @@
           },
           {
             "family": "behaviour",
-            "line": 2546,
+            "line": 2541,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 2578,
+            "line": 2573,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 2608,
+            "line": 2603,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 2610,
+            "line": 2605,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "swift.state.transition"
           }
@@ -25377,20 +25376,6 @@
         ]
       },
       {
-        "component": "hermes-services",
-        "id": "operation:lifecycle-operation-769542241a99",
-        "kind": "operation",
-        "label": "eventStream.send",
-        "origins": [
-          {
-            "family": "behaviour",
-            "line": 2486,
-            "path": "Sources/Portal/Services/GatewayClient.swift",
-            "rule": "swift.lifecycle.publish"
-          }
-        ]
-      },
-      {
         "component": "local-services",
         "id": "operation:lifecycle-operation-7c2b43c20e07",
         "kind": "operation",
@@ -25415,6 +25400,20 @@
             "line": 181,
             "path": "Sources/Portal/Services/FileDownloadManager.swift",
             "rule": "swift.lifecycle.pool_resolve"
+          }
+        ]
+      },
+      {
+        "component": "hermes-services",
+        "id": "operation:lifecycle-operation-9b87abba8a2e",
+        "kind": "operation",
+        "label": "eventStream.send",
+        "origins": [
+          {
+            "family": "behaviour",
+            "line": 2481,
+            "path": "Sources/Portal/Services/GatewayClient.swift",
+            "rule": "swift.lifecycle.publish"
           }
         ]
       },
@@ -25877,7 +25876,7 @@
         "origins": [
           {
             "family": "wiring",
-            "line": 72,
+            "line": 54,
             "path": "Sources/Portal/Services/AgentBackend.swift",
             "rule": "map.seam"
           }
@@ -25919,7 +25918,7 @@
         "origins": [
           {
             "family": "behaviour",
-            "line": 2494,
+            "line": 2489,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "swift.lifecycle.acquire"
           }
@@ -25947,7 +25946,7 @@
         "origins": [
           {
             "family": "behaviour",
-            "line": 2508,
+            "line": 2503,
             "path": "Sources/Portal/Services/GatewayClient.swift",
             "rule": "swift.lifecycle.acquire"
           }
@@ -34605,7 +34604,7 @@
       {
         "citations": 2,
         "component": "backend-contract",
-        "declaration_count": 14,
+        "declaration_count": 13,
         "declarations": [
           {
             "kind": "enum",
@@ -34620,20 +34619,14 @@
             "passes": []
           },
           {
-            "kind": "enum",
-            "line": 49,
-            "name": "ResumedTurnVerdict",
-            "passes": []
-          },
-          {
             "kind": "struct",
-            "line": 56,
+            "line": 38,
             "name": "InflightTurn",
             "passes": []
           },
           {
             "kind": "protocol",
-            "line": 72,
+            "line": 54,
             "name": "AgentBackend",
             "passes": [
               "map.resource",
@@ -34642,60 +34635,60 @@
           },
           {
             "kind": "extension",
-            "line": 157,
+            "line": 139,
             "name": "AgentBackend",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 160,
+            "line": 142,
             "name": "resumeSessionDetailed",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 168,
+            "line": 150,
             "name": "submitPrompt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 174,
+            "line": 156,
             "name": "modelOptions",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 178,
+            "line": 160,
             "name": "switchModel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 186,
+            "line": 168,
             "name": "resolvedMediaURL",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 190,
+            "line": 172,
             "name": "voiceToggle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 195,
+            "line": 177,
             "name": "voiceRecord",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 203,
+            "line": 185,
             "name": "GatewayClient",
             "passes": []
           }
         ],
-        "line_count": 212,
+        "line_count": 194,
         "mapped_declarations": 1,
         "passes": [
           "map.resource",
@@ -36957,7 +36950,7 @@
           },
           {
             "kind": "func",
-            "line": 1959,
+            "line": 1954,
             "name": "sessionHistory",
             "passes": [
               "map.endpoint"
@@ -36965,7 +36958,7 @@
           },
           {
             "kind": "func",
-            "line": 1975,
+            "line": 1970,
             "name": "sessionTitle",
             "passes": [
               "map.endpoint"
@@ -36973,19 +36966,19 @@
           },
           {
             "kind": "func",
-            "line": 1995,
+            "line": 1990,
             "name": "peekSession",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 2030,
+            "line": 2025,
             "name": "PeekResult",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2037,
+            "line": 2032,
             "name": "setConfig",
             "passes": [
               "map.endpoint"
@@ -36993,13 +36986,13 @@
           },
           {
             "kind": "func",
-            "line": 2057,
+            "line": 2052,
             "name": "switchModel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2082,
+            "line": 2077,
             "name": "modelOptions",
             "passes": [
               "map.endpoint"
@@ -37007,7 +37000,7 @@
           },
           {
             "kind": "func",
-            "line": 2103,
+            "line": 2098,
             "name": "artifactSet",
             "passes": [
               "map.endpoint"
@@ -37015,7 +37008,7 @@
           },
           {
             "kind": "func",
-            "line": 2123,
+            "line": 2118,
             "name": "artifactGet",
             "passes": [
               "map.endpoint"
@@ -37023,7 +37016,7 @@
           },
           {
             "kind": "func",
-            "line": 2134,
+            "line": 2129,
             "name": "artifactList",
             "passes": [
               "map.endpoint"
@@ -37031,7 +37024,7 @@
           },
           {
             "kind": "func",
-            "line": 2144,
+            "line": 2139,
             "name": "artifactDelete",
             "passes": [
               "map.endpoint"
@@ -37039,7 +37032,7 @@
           },
           {
             "kind": "func",
-            "line": 2152,
+            "line": 2147,
             "name": "artifactRevisions",
             "passes": [
               "map.endpoint"
@@ -37047,7 +37040,7 @@
           },
           {
             "kind": "func",
-            "line": 2166,
+            "line": 2161,
             "name": "artifactActionInvoke",
             "passes": [
               "map.endpoint"
@@ -37055,7 +37048,7 @@
           },
           {
             "kind": "func",
-            "line": 2191,
+            "line": 2186,
             "name": "artifactActionLog",
             "passes": [
               "map.endpoint"
@@ -37063,7 +37056,7 @@
           },
           {
             "kind": "func",
-            "line": 2215,
+            "line": 2210,
             "name": "artifactQueryInvoke",
             "passes": [
               "map.endpoint"
@@ -37071,7 +37064,7 @@
           },
           {
             "kind": "func",
-            "line": 2240,
+            "line": 2235,
             "name": "artifactQuerySubscribe",
             "passes": [
               "map.endpoint"
@@ -37079,7 +37072,7 @@
           },
           {
             "kind": "func",
-            "line": 2260,
+            "line": 2255,
             "name": "artifactQueryUnsubscribe",
             "passes": [
               "map.endpoint"
@@ -37087,7 +37080,7 @@
           },
           {
             "kind": "func",
-            "line": 2274,
+            "line": 2269,
             "name": "artifactActionConfirm",
             "passes": [
               "map.endpoint"
@@ -37095,7 +37088,7 @@
           },
           {
             "kind": "func",
-            "line": 2291,
+            "line": 2286,
             "name": "artifactRevision",
             "passes": [
               "map.endpoint"
@@ -37103,7 +37096,7 @@
           },
           {
             "kind": "func",
-            "line": 2305,
+            "line": 2300,
             "name": "voiceToggle",
             "passes": [
               "map.endpoint"
@@ -37111,7 +37104,7 @@
           },
           {
             "kind": "func",
-            "line": 2315,
+            "line": 2310,
             "name": "voiceRecord",
             "passes": [
               "map.endpoint"
@@ -37119,7 +37112,7 @@
           },
           {
             "kind": "func",
-            "line": 2325,
+            "line": 2320,
             "name": "getConfig",
             "passes": [
               "map.endpoint"
@@ -37127,13 +37120,13 @@
           },
           {
             "kind": "func",
-            "line": 2333,
+            "line": 2328,
             "name": "nextRequestID",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2338,
+            "line": 2333,
             "name": "receiveLoop",
             "passes": [
               "swift.lifecycle.receive",
@@ -37142,19 +37135,19 @@
           },
           {
             "kind": "enum",
-            "line": 2396,
+            "line": 2391,
             "name": "ParsedMessage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2408,
+            "line": 2403,
             "name": "parseMessage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2447,
+            "line": 2442,
             "name": "applyParsedMessage",
             "passes": [
               "map.operation",
@@ -37163,7 +37156,7 @@
           },
           {
             "kind": "func",
-            "line": 2493,
+            "line": 2488,
             "name": "fulfillRequest",
             "passes": [
               "map.section",
@@ -37175,7 +37168,7 @@
           },
           {
             "kind": "func",
-            "line": 2507,
+            "line": 2502,
             "name": "removePendingRequest",
             "passes": [
               "map.section",
@@ -37186,7 +37179,7 @@
           },
           {
             "kind": "func",
-            "line": 2518,
+            "line": 2513,
             "name": "urlSession",
             "passes": [
               "swift.state.transition",
@@ -37195,7 +37188,7 @@
           },
           {
             "kind": "func",
-            "line": 2570,
+            "line": 2565,
             "name": "urlSession",
             "passes": [
               "swift.boundary.external_signature",
@@ -37205,7 +37198,7 @@
           },
           {
             "kind": "func",
-            "line": 2592,
+            "line": 2587,
             "name": "urlSession",
             "passes": [
               "swift.boundary.external_signature",
@@ -37215,12 +37208,12 @@
           },
           {
             "kind": "enum",
-            "line": 2620,
+            "line": 2615,
             "name": "GatewayError",
             "passes": []
           }
         ],
-        "line_count": 2637,
+        "line_count": 2632,
         "mapped_declarations": 72,
         "passes": [
           "map.endpoint",
@@ -44058,7 +44051,7 @@
       {
         "citations": 58,
         "component": "chat-state",
-        "declaration_count": 154,
+        "declaration_count": 149,
         "declarations": [
           {
             "kind": "class",
@@ -44103,25 +44096,25 @@
           },
           {
             "kind": "struct",
-            "line": 644,
+            "line": 636,
             "name": "CappedText",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 652,
+            "line": 644,
             "name": "append",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 670,
+            "line": 662,
             "name": "BackgroundTurnBuffer",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 698,
+            "line": 690,
             "name": "writePerfLog",
             "passes": [
               "swift.task.detached"
@@ -44129,13 +44122,13 @@
           },
           {
             "kind": "func",
-            "line": 717,
+            "line": 709,
             "name": "writePerfSnapshot",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 749,
+            "line": 741,
             "name": "setGatewayClient",
             "passes": [
               "swift.resource.bus_subscription",
@@ -44144,7 +44137,7 @@
           },
           {
             "kind": "func",
-            "line": 804,
+            "line": 796,
             "name": "handleConnectionState",
             "passes": [
               "swift.state.transition"
@@ -44152,7 +44145,7 @@
           },
           {
             "kind": "func",
-            "line": 851,
+            "line": 842,
             "name": "handleGatewayReconnected",
             "passes": [
               "swift.task.structured"
@@ -44160,31 +44153,13 @@
           },
           {
             "kind": "func",
-            "line": 863,
-            "name": "reconcileAfterReconnect",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 911,
-            "name": "turnLooksAbandonedSinceReconnect",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 921,
+            "line": 871,
             "name": "reconcileTurnAfterReconnect",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 951,
-            "name": "reconcileBackgroundTurnAfterReconnect",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 982,
+            "line": 893,
             "name": "resetForGatewaySwitch",
             "passes": [
               "swift.state.transition",
@@ -44193,133 +44168,121 @@
           },
           {
             "kind": "func",
-            "line": 1021,
+            "line": 930,
             "name": "receiveGatewayEventForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1028,
+            "line": 937,
             "name": "forceStreamingStateForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1034,
+            "line": 943,
             "name": "dropCachedMessagesForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1042,
+            "line": 951,
             "name": "cachedMessageCountForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1046,
+            "line": 955,
             "name": "activeToolCallsForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1050,
+            "line": 959,
             "name": "cachedMessagesForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1056,
+            "line": 965,
             "name": "retainedBackgroundTextForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1069,
+            "line": 978,
             "name": "handleConnectionStateForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1074,
+            "line": 983,
             "name": "handleGatewayReconnectedForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1080,
-            "name": "reconcileAfterReconnectForTesting",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 1085,
+            "line": 988,
             "name": "reconcileTurnAfterReconnectForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1090,
+            "line": 993,
             "name": "finalizeStuckStreamingTurnForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1095,
+            "line": 998,
             "name": "finalizeAllStuckStreamingTurnsForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1102,
+            "line": 1005,
             "name": "bindCurrentGatewaySession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1107,
+            "line": 1010,
             "name": "displaySessionID",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1111,
+            "line": 1014,
             "name": "runtimeSessionID",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1121,
+            "line": 1024,
             "name": "bindRuntimeSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1167,
-            "name": "bindResumedRuntimeID",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 1196,
+            "line": 1055,
             "name": "snapshotCurrentSessionState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1222,
+            "line": 1081,
             "name": "publishStreamingSessions",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1246,
+            "line": 1105,
             "name": "evictColdSessionMessages",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1271,
+            "line": 1130,
             "name": "restoreSessionState",
             "passes": [
               "swift.task.structured"
@@ -44327,19 +44290,19 @@
           },
           {
             "kind": "func",
-            "line": 1335,
+            "line": 1194,
             "name": "seedResumedLiveTurn",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1357,
+            "line": 1216,
             "name": "mutateSessionState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1370,
+            "line": 1229,
             "name": "createSession",
             "passes": [
               "swift.state.transition"
@@ -44347,13 +44310,13 @@
           },
           {
             "kind": "func",
-            "line": 1439,
+            "line": 1298,
             "name": "resetTurnScopedGraphsIfSwitching",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1450,
+            "line": 1309,
             "name": "beginSwitchToSession",
             "passes": [
               "swift.state.transition",
@@ -44362,13 +44325,13 @@
           },
           {
             "kind": "func",
-            "line": 1513,
+            "line": 1372,
             "name": "resumeSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1519,
+            "line": 1378,
             "name": "resumeSession",
             "passes": [
               "swift.state.transition",
@@ -44377,25 +44340,25 @@
           },
           {
             "kind": "func",
-            "line": 1720,
+            "line": 1547,
             "name": "applyEphemeralPrompt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1733,
+            "line": 1560,
             "name": "baseEphemeralPrompt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1741,
+            "line": 1568,
             "name": "applyDefaultModel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1749,
+            "line": 1576,
             "name": "setResponseStyle",
             "passes": [
               "swift.task.structured"
@@ -44403,31 +44366,31 @@
           },
           {
             "kind": "func",
-            "line": 1760,
+            "line": 1587,
             "name": "applySessionSkills",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1784,
+            "line": 1611,
             "name": "skillRecord",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1794,
+            "line": 1621,
             "name": "skillPreamble",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1808,
+            "line": 1635,
             "name": "updateSlashSuggestions",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1828,
+            "line": 1655,
             "name": "attachSkill",
             "passes": [
               "swift.task.structured"
@@ -44435,7 +44398,7 @@
           },
           {
             "kind": "func",
-            "line": 1848,
+            "line": 1675,
             "name": "detachSkill",
             "passes": [
               "swift.task.structured"
@@ -44443,49 +44406,49 @@
           },
           {
             "kind": "func",
-            "line": 1861,
+            "line": 1688,
             "name": "navigateSlashDown",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1866,
+            "line": 1693,
             "name": "navigateSlashUp",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1871,
+            "line": 1698,
             "name": "confirmSlashSelection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1879,
+            "line": 1706,
             "name": "clearQuiz",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1889,
+            "line": 1716,
             "name": "clearCurriculumSignal",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1894,
+            "line": 1721,
             "name": "reviewQuizWithAgent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1908,
+            "line": 1735,
             "name": "curriculumPrompt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1931,
+            "line": 1758,
             "name": "applyLearningArtifacts",
             "passes": [
               "swift.task.structured"
@@ -44493,91 +44456,91 @@
           },
           {
             "kind": "func",
-            "line": 1957,
+            "line": 1784,
             "name": "autoGenerateQuiz",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1974,
+            "line": 1801,
             "name": "loadSessionHistory",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1994,
+            "line": 1821,
             "name": "loadSessionHistoryPreservingStream",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2028,
+            "line": 1855,
             "name": "mergeHistory",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2067,
+            "line": 1894,
             "name": "liveTurnTail",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2091,
+            "line": 1918,
             "name": "appendLiveTurnTail",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2105,
+            "line": 1932,
             "name": "parseHistoryMessages",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2181,
+            "line": 2008,
             "name": "addAttachment",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2188,
+            "line": 2015,
             "name": "removeAttachment",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2193,
+            "line": 2020,
             "name": "clearAttachments",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2198,
+            "line": 2025,
             "name": "submitPrompt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2438,
+            "line": 2265,
             "name": "startVoiceRecording",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2457,
+            "line": 2284,
             "name": "startLocalVoiceRecordingIfEnabled",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2469,
+            "line": 2296,
             "name": "startVoiceConversation",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2486,
+            "line": 2313,
             "name": "beginLocalCapture",
             "passes": [
               "swift.task.structured"
@@ -44585,7 +44548,7 @@
           },
           {
             "kind": "func",
-            "line": 2518,
+            "line": 2345,
             "name": "handleLocalVoicePartial",
             "passes": [
               "swift.task.structured"
@@ -44593,73 +44556,73 @@
           },
           {
             "kind": "func",
-            "line": 2539,
+            "line": 2366,
             "name": "updateVoiceLevel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2548,
+            "line": 2375,
             "name": "submitLocalVoiceTranscript",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2570,
+            "line": 2397,
             "name": "handleConversationResponseComplete",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2577,
+            "line": 2404,
             "name": "endConversation",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2603,
+            "line": 2430,
             "name": "startLocalDiscussion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2629,
+            "line": 2456,
             "name": "startLocalDiscussion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2648,
+            "line": 2475,
             "name": "resumableComposerDiscussion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2655,
+            "line": 2482,
             "name": "openDiscussionSurface",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2668,
+            "line": 2495,
             "name": "currentBriefing",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2678,
+            "line": 2505,
             "name": "submitLocalDiscussionInput",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2694,
+            "line": 2521,
             "name": "handleDiscussionUtterance",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2714,
+            "line": 2541,
             "name": "respondLocally",
             "passes": [
               "swift.task.structured"
@@ -44667,19 +44630,19 @@
           },
           {
             "kind": "func",
-            "line": 2739,
+            "line": 2566,
             "name": "appendLocalDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2751,
+            "line": 2578,
             "name": "finishLocalReply",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2778,
+            "line": 2605,
             "name": "cancelLocalReply",
             "passes": [
               "swift.task.cancel"
@@ -44687,7 +44650,7 @@
           },
           {
             "kind": "func",
-            "line": 2804,
+            "line": 2631,
             "name": "handLocalDiscussionToAgent",
             "passes": [
               "swift.task.structured"
@@ -44695,43 +44658,43 @@
           },
           {
             "kind": "func",
-            "line": 2847,
+            "line": 2674,
             "name": "draftHandoffAsk",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2860,
+            "line": 2687,
             "name": "cancelHandoffDraft",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2869,
+            "line": 2696,
             "name": "endLocalDiscussion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2876,
+            "line": 2703,
             "name": "restartLocalDiscussion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2897,
+            "line": 2724,
             "name": "setAsideLocalDiscussion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2907,
+            "line": 2734,
             "name": "stopVoiceRecording",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2939,
+            "line": 2766,
             "name": "ingestAttachment",
             "passes": [
               "swift.task.detached"
@@ -44739,13 +44702,13 @@
           },
           {
             "kind": "func",
-            "line": 2997,
+            "line": 2824,
             "name": "interrupt",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3028,
+            "line": 2855,
             "name": "finishStreaming",
             "passes": [
               "swift.state.transition"
@@ -44753,25 +44716,25 @@
           },
           {
             "kind": "func",
-            "line": 3082,
+            "line": 2909,
             "name": "finalizeStuckStreamingTurn",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3104,
+            "line": 2931,
             "name": "finalizeAllStuckStreamingTurns",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3121,
+            "line": 2948,
             "name": "attachments",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3130,
+            "line": 2957,
             "name": "prefetchRemoteAttachments",
             "passes": [
               "swift.task.structured"
@@ -44779,43 +44742,43 @@
           },
           {
             "kind": "func",
-            "line": 3171,
+            "line": 2998,
             "name": "setApprovalQueue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3183,
+            "line": 3010,
             "name": "respondApproval",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3208,
+            "line": 3035,
             "name": "respondClarify",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3226,
+            "line": 3053,
             "name": "switchModel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3273,
+            "line": 3100,
             "name": "refreshModelCatalog",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3304,
+            "line": 3131,
             "name": "adoptCatalogModelIfBadgeEmpty",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3315,
+            "line": 3142,
             "name": "fillModelBadgeIfEmpty",
             "passes": [
               "swift.task.structured"
@@ -44823,13 +44786,13 @@
           },
           {
             "kind": "func",
-            "line": 3326,
+            "line": 3153,
             "name": "saveHistory",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3336,
+            "line": 3163,
             "name": "saveHistoryDebounced",
             "passes": [
               "swift.task.cancel",
@@ -44838,19 +44801,19 @@
           },
           {
             "kind": "func",
-            "line": 3346,
+            "line": 3173,
             "name": "loadLocalHistory",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3363,
+            "line": 3190,
             "name": "deleteLocalHistory",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3375,
+            "line": 3202,
             "name": "createLocalTestSession",
             "passes": [
               "swift.state.transition"
@@ -44858,37 +44821,37 @@
           },
           {
             "kind": "func",
-            "line": 3392,
+            "line": 3219,
             "name": "switchToLocalTestSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3402,
+            "line": 3229,
             "name": "simulateTestResumeResult",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3426,
+            "line": 3253,
             "name": "applyTestEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3433,
+            "line": 3260,
             "name": "flushDeltaBuffersForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3438,
+            "line": 3265,
             "name": "testCachedMessages",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3447,
+            "line": 3274,
             "name": "showTransientStatus",
             "passes": [
               "swift.task.cancel",
@@ -44897,91 +44860,91 @@
           },
           {
             "kind": "func",
-            "line": 3465,
+            "line": 3292,
             "name": "recordManualCompaction",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3479,
+            "line": 3306,
             "name": "seedCompactionBaseline",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3491,
+            "line": 3318,
             "name": "noteCompactionCounter",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3515,
+            "line": 3342,
             "name": "appendMoAReference",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3528,
+            "line": 3355,
             "name": "applyToolRisk",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3548,
+            "line": 3375,
             "name": "handleReaction",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3561,
+            "line": 3388,
             "name": "appendThinkingTrace",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3568,
+            "line": 3395,
             "name": "finishThinkingTrace",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3608,
+            "line": 3435,
             "name": "shouldApplyGlobalEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3625,
+            "line": 3452,
             "name": "recordPerfEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3651,
+            "line": 3478,
             "name": "claimDeltaBuffers",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3659,
+            "line": 3486,
             "name": "appendPendingVisibleMessageDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3666,
+            "line": 3493,
             "name": "appendPendingVisibleReasoningDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3676,
+            "line": 3503,
             "name": "appendPendingVisibleThinkingDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3686,
+            "line": 3513,
             "name": "cancelPendingFlush",
             "passes": [
               "swift.task.cancel"
@@ -44989,7 +44952,7 @@
           },
           {
             "kind": "func",
-            "line": 3695,
+            "line": 3522,
             "name": "scheduleVisibleEventFlush",
             "passes": [
               "swift.task.structured"
@@ -44997,37 +44960,37 @@
           },
           {
             "kind": "func",
-            "line": 3708,
+            "line": 3535,
             "name": "flushPendingVisibleEventDeltas",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3784,
+            "line": 3611,
             "name": "applyDeltasToCachedState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3814,
+            "line": 3641,
             "name": "retainBackgroundDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3843,
+            "line": 3670,
             "name": "adoptBackgroundTurnBuffer",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3861,
+            "line": 3688,
             "name": "elisionMark",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3865,
+            "line": 3692,
             "name": "applySessionEvent",
             "passes": [
               "swift.task.structured"
@@ -45035,19 +44998,19 @@
           },
           {
             "kind": "func",
-            "line": 4407,
+            "line": 4228,
             "name": "delegatingToolID",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 4420,
+            "line": 4241,
             "name": "applySubagentEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 4446,
+            "line": 4267,
             "name": "handleEvent",
             "passes": [
               "swift.state.transition",
@@ -45056,12 +45019,12 @@
           },
           {
             "kind": "func",
-            "line": 4730,
+            "line": 4551,
             "name": "notifyResponseCompleteIfNeeded",
             "passes": []
           }
         ],
-        "line_count": 4749,
+        "line_count": 4570,
         "mapped_declarations": 30,
         "passes": [
           "map.caller",
@@ -49769,7 +49732,7 @@
       {
         "citations": 1,
         "component": "artifact-ui",
-        "declaration_count": 2,
+        "declaration_count": 4,
         "declarations": [
           {
             "kind": "struct",
@@ -49784,9 +49747,21 @@
             "line": 9,
             "name": "Inputs",
             "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 103,
+            "name": "ArtifactKindGlyph",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 104,
+            "name": "icon",
+            "passes": []
           }
         ],
-        "line_count": 97,
+        "line_count": 124,
         "mapped_declarations": 1,
         "passes": [
           "swift.trigger.surface_call"
@@ -63104,7 +63079,7 @@
         },
         "func": {
           "mapped": 432,
-          "total": 3236
+          "total": 3232
         },
         "protocol": {
           "mapped": 1,
@@ -63116,13 +63091,13 @@
         }
       },
       "citations": 1315,
-      "declarations": 4665,
+      "declarations": 4661,
       "entities": 160,
       "entities_with_origin": 160,
       "files": 413,
       "functions": {
         "mapped": 432,
-        "total": 3236
+        "total": 3232
       },
       "mapped_declarations": 643,
       "passes": 50,
@@ -63414,7 +63389,7 @@
         "component": "hermes-services",
         "id": "interplay-cluster-6854b24de35d",
         "node_ids": [
-          "operation:lifecycle-operation-769542241a99",
+          "operation:lifecycle-operation-9b87abba8a2e",
           "owner:hermes-services:GatewayClient",
           "resource:resource-1659d3a8cd64",
           "resource:resource-4560e4558b76",
@@ -65026,12 +65001,6 @@
       },
       {
         "class": "lifecycle",
-        "relation": "publish",
-        "source": "operation:lifecycle-operation-769542241a99",
-        "target": "bus:AgentBackend.eventStream"
-      },
-      {
-        "class": "lifecycle",
         "relation": "pool_remove",
         "source": "operation:lifecycle-operation-7c2b43c20e07",
         "target": "resource:resource-7f2c102d125c"
@@ -65041,6 +65010,12 @@
         "relation": "pool_resolve",
         "source": "operation:lifecycle-operation-87512f5ed99d",
         "target": "resource:resource-7f2c102d125c"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "publish",
+        "source": "operation:lifecycle-operation-9b87abba8a2e",
+        "target": "bus:AgentBackend.eventStream"
       },
       {
         "class": "lifecycle",
@@ -65262,7 +65237,7 @@
         "class": "lifecycle",
         "relation": "operates",
         "source": "owner:hermes-services:GatewayClient",
-        "target": "operation:lifecycle-operation-769542241a99"
+        "target": "operation:lifecycle-operation-9b87abba8a2e"
       },
       {
         "class": "structure",
@@ -70675,7 +70650,7 @@
         "id": "seam:AgentBackend",
         "kind": "seam",
         "label": "AgentBackend",
-        "line": 72,
+        "line": 54,
         "page": "shared",
         "page_resolution": "shared",
         "path": "Sources/Portal/Services/AgentBackend.swift",
@@ -70723,7 +70698,7 @@
         "id": "bus:AgentBackend.eventStream",
         "kind": "resource",
         "label": "eventStream",
-        "line": 77,
+        "line": 59,
         "owner_type": "AgentBackend",
         "path": "Sources/Portal/Services/AgentBackend.swift",
         "sub_kind": "event_bus"
@@ -72632,7 +72607,7 @@
             {
               "from": null,
               "function": "urlSession",
-              "line": 2546,
+              "line": 2541,
               "path": "Sources/Portal/Services/GatewayClient.swift",
               "rule_id": "swift.state.transition",
               "to": "error"
@@ -72640,7 +72615,7 @@
             {
               "from": null,
               "function": "urlSession",
-              "line": 2578,
+              "line": 2573,
               "path": "Sources/Portal/Services/GatewayClient.swift",
               "rule_id": "swift.state.transition",
               "to": "connected"
@@ -72650,7 +72625,7 @@
                 "connecting"
               ],
               "function": "urlSession",
-              "line": 2608,
+              "line": 2603,
               "path": "Sources/Portal/Services/GatewayClient.swift",
               "rule_id": "swift.state.transition",
               "to": "error"
@@ -72658,7 +72633,7 @@
             {
               "from": null,
               "function": "urlSession",
-              "line": 2610,
+              "line": 2605,
               "path": "Sources/Portal/Services/GatewayClient.swift",
               "rule_id": "swift.state.transition",
               "to": "disconnected"
@@ -72845,7 +72820,7 @@
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 1960,
+            "line": 1955,
             "method": "session.history",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
@@ -72880,7 +72855,7 @@
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 1976,
+            "line": 1971,
             "method": "session.title",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
@@ -73818,16 +73793,16 @@
         "id": "endpoint:68a64556d661",
         "kind": "endpoint",
         "label": "config",
-        "line": 2047,
+        "line": 2042,
         "method_count": 2,
         "methods": [
           {
-            "line": 2326,
+            "line": 2321,
             "method": "config.get",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2047,
+            "line": 2042,
             "method": "config.set",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           }
@@ -73881,11 +73856,11 @@
         "id": "endpoint:91804a259979",
         "kind": "endpoint",
         "label": "model",
-        "line": 2090,
+        "line": 2085,
         "method_count": 1,
         "methods": [
           {
-            "line": 2090,
+            "line": 2085,
             "method": "model.options",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           }
@@ -73931,66 +73906,66 @@
         "id": "endpoint:1f147016b905",
         "kind": "endpoint",
         "label": "artifact",
-        "line": 2115,
+        "line": 2110,
         "method_count": 12,
         "methods": [
           {
-            "line": 2282,
+            "line": 2277,
             "method": "artifact.action.confirm",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2180,
+            "line": 2175,
             "method": "artifact.action.invoke",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2201,
+            "line": 2196,
             "method": "artifact.action.log",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2145,
+            "line": 2140,
             "method": "artifact.delete",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2124,
+            "line": 2119,
             "method": "artifact.get",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2135,
+            "line": 2130,
             "method": "artifact.list",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2229,
+            "line": 2224,
             "method": "artifact.query.invoke",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2252,
+            "line": 2247,
             "method": "artifact.query.subscribe",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2261,
+            "line": 2256,
             "method": "artifact.query.unsubscribe",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2292,
+            "line": 2287,
             "method": "artifact.revision",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2153,
+            "line": 2148,
             "method": "artifact.revisions",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2115,
+            "line": 2110,
             "method": "artifact.set",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           }
@@ -74035,16 +74010,16 @@
         "id": "endpoint:5ce832f6c2c8",
         "kind": "endpoint",
         "label": "voice",
-        "line": 2306,
+        "line": 2301,
         "method_count": 2,
         "methods": [
           {
-            "line": 2316,
+            "line": 2311,
             "method": "voice.record",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
-            "line": 2306,
+            "line": 2301,
             "method": "voice.toggle",
             "path": "Sources/Portal/Services/GatewayClient.swift"
           }
@@ -74084,11 +74059,11 @@
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
         "detached_off_main": false,
-        "history_key": "operation:lifecycle-operation-769542241a99",
-        "id": "operation:lifecycle-operation-769542241a99",
+        "history_key": "operation:lifecycle-operation-9b87abba8a2e",
+        "id": "operation:lifecycle-operation-9b87abba8a2e",
         "kind": "operation",
         "label": "eventStream.send",
-        "line": 2486,
+        "line": 2481,
         "owner_type": "GatewayClient",
         "path": "Sources/Portal/Services/GatewayClient.swift",
         "sub_kind": "bus_publish"
@@ -74119,7 +74094,7 @@
         "id": "section:hermes-services:GatewayClient:fulfillRequest",
         "kind": "section",
         "label": "fulfillRequest",
-        "line": 2494,
+        "line": 2489,
         "lock_labels": [
           "pendingRequestsLock"
         ],
@@ -74130,28 +74105,28 @@
             "guarded": false,
             "kind": "acquire",
             "label": "pendingRequestsLock.lock",
-            "line": 2494,
+            "line": 2489,
             "resource_label": "pendingRequestsLock"
           },
           {
             "guarded": true,
             "kind": "pool_remove",
             "label": "pendingRequests.removeValue",
-            "line": 2495,
+            "line": 2490,
             "resource_label": "pendingRequests"
           },
           {
             "guarded": false,
             "kind": "release",
             "label": "pendingRequestsLock.unlock",
-            "line": 2500,
+            "line": 2495,
             "resource_label": "pendingRequestsLock"
           },
           {
             "guarded": false,
             "kind": "pool_resolve",
             "label": "resume",
-            "line": 2503,
+            "line": 2498,
             "resource_label": "pendingRequests"
           }
         ],
@@ -74167,7 +74142,7 @@
         "id": "section:hermes-services:GatewayClient:removePendingRequest",
         "kind": "section",
         "label": "removePendingRequest",
-        "line": 2508,
+        "line": 2503,
         "lock_labels": [
           "pendingRequestsLock"
         ],
@@ -74178,21 +74153,21 @@
             "guarded": false,
             "kind": "acquire",
             "label": "pendingRequestsLock.lock",
-            "line": 2508,
+            "line": 2503,
             "resource_label": "pendingRequestsLock"
           },
           {
             "guarded": true,
             "kind": "pool_remove",
             "label": "pendingRequests.removeValue",
-            "line": 2509,
+            "line": 2504,
             "resource_label": "pendingRequests"
           },
           {
             "guarded": false,
             "kind": "release",
             "label": "pendingRequestsLock.unlock",
-            "line": 2511,
+            "line": 2506,
             "resource_label": "pendingRequestsLock"
           }
         ],
@@ -76265,9 +76240,6 @@
           "loadSessionHistoryPreservingStream": [
             "session"
           ],
-          "reconcileBackgroundTurnAfterReconnect": [
-            "session"
-          ],
           "refreshModelCatalog": [
             "model"
           ],
@@ -76389,7 +76361,7 @@
         "subscription": {
           "batch_count": 30,
           "batch_ms": 32,
-          "line": 767,
+          "line": 759,
           "mode": "batched",
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
           "rule_id": "swift.resource.bus_subscription",
@@ -76442,7 +76414,7 @@
             {
               "from": null,
               "function": "handleConnectionState",
-              "line": 816,
+              "line": 807,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "thinking"
@@ -76450,7 +76422,7 @@
             {
               "from": null,
               "function": "handleConnectionState",
-              "line": 839,
+              "line": 830,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "error"
@@ -76458,7 +76430,7 @@
             {
               "from": null,
               "function": "resetForGatewaySwitch",
-              "line": 1008,
+              "line": 917,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76466,7 +76438,7 @@
             {
               "from": null,
               "function": "createSession",
-              "line": 1402,
+              "line": 1261,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76474,7 +76446,7 @@
             {
               "from": null,
               "function": "beginSwitchToSession",
-              "line": 1486,
+              "line": 1345,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76482,7 +76454,7 @@
             {
               "from": null,
               "function": "resumeSession",
-              "line": 1700,
+              "line": 1527,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76490,7 +76462,7 @@
             {
               "from": null,
               "function": "finishStreaming",
-              "line": 3048,
+              "line": 2875,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76498,7 +76470,7 @@
             {
               "from": null,
               "function": "createLocalTestSession",
-              "line": 3385,
+              "line": 3212,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76506,7 +76478,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4485,
+              "line": 4306,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "speaking"
@@ -76514,7 +76486,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4512,
+              "line": 4333,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76522,7 +76494,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4549,
+              "line": 4370,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76530,7 +76502,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4599,
+              "line": 4420,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "toolUse"
@@ -76538,7 +76510,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4652,
+              "line": 4473,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "thinking"
@@ -76546,7 +76518,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4658,
+              "line": 4479,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "thinking"
@@ -76554,7 +76526,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4699,
+              "line": 4520,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "error"
@@ -78528,7 +78500,7 @@
           "stale": true,
           "summary": "SettingsView is the settings page with a sidebar of app sections (appearance, notifications, celebrations, speech, X) plus one entry per saved gateway from SettingsViewModel. On macOS it renders a two-pane layout and falls back to appearance when the selected gateway is removed; iOS uses a separate body. It observes GatewayCapabilitiesStore, GatewayClientWrapper, and ThemeManager."
         },
-        "type_count": 67
+        "type_count": 66
       },
       {
         "components": [],
@@ -83358,9 +83330,9 @@
     "assigned_files": 411,
     "declarations": 1287,
     "files": 411,
-    "lines": 119278,
+    "lines": 119103,
     "swift_files": 411,
-    "swift_lines": 119278,
+    "swift_lines": 119103,
     "unassigned_files": []
   },
   "layers": [
@@ -83392,7 +83364,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "e4fcebe94bd0f5a2998d007794d5e368383d8334de083f49197a616d640abd84",
+  "source_tree_sha256": "e7eae0806d7e7bd9ed95a695428a57fe07b2d691ea5053528847af9c8b2770d6",
   "stores": {
     "by_persistence": {
       "defaults": 6,

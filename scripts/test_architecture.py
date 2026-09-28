@@ -551,7 +551,9 @@ class ArchitectureCompilerTests(unittest.TestCase):
         # Started by the shell, reached by no page's view tree: placed by the namespace it invokes.
         self.assertEqual("cron", page_by_label["CronPoller"])
         resolutions = {n["label"]: n.get("page_resolution") for n in interplay["nodes"] if "page_resolution" in n}
-        self.assertEqual("reachability", resolutions["ChatViewModel"])
+        # ChatViewModel is reachable from multiple navigation roots; the
+        # declared chat-state component resolves that tie to the chat page.
+        self.assertEqual("component", resolutions["ChatViewModel"])
         self.assertEqual("namespace", resolutions["CronListViewModel"])
         self.assertEqual("component", resolutions["ArtifactStore"])
         self.assertEqual("skills", page_by_label["SkillSummaryService"])

@@ -95,3 +95,30 @@ internal struct ArtifactListRow: View, Equatable {
         .onTapGesture(perform: onSelect)
     }
 }
+
+// ArtifactCanvasView supplies the macOS definition inside its platform guard.
+// ArtifactListRow is shared by both targets, so iOS needs the same mapping when
+// that canvas file is excluded by `#if os(macOS)`.
+#if !os(macOS)
+internal enum ArtifactKindGlyph {
+    internal static func icon(for kind: String) -> String {
+        switch kind {
+        case "blueprint": return "ruler"
+        case "map": return "map"
+        case "chart": return "chart.xyaxis.line"
+        case "graph": return "point.3.connected.trianglepath.dotted"
+        case "stats": return "square.grid.2x2"
+        case "dataset": return "tablecells"
+        case "checklist": return "checklist"
+        case "kanban": return "rectangle.split.3x1"
+        case "calendar": return "calendar"
+        case "timeline": return "calendar.day.timeline.left"
+        case "sankey": return "arrow.triangle.branch"
+        case "model": return "cube.transparent"
+        case "model3d": return "cube.transparent.fill"
+        case "html": return "globe"
+        default: return "doc.text"
+        }
+    }
+}
+#endif
