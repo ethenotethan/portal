@@ -857,16 +857,23 @@ internal final class CronGraphViewModel: ObservableObject {
         default: return .circle
         }
     }
+}
 
+// MARK: - Edge appearance & legends
+
+extension CronGraphViewModel {
     /// The structural edge types (reads/writes/feeds) read in the accent blue;
     /// side-effect edges (telegram/pr/…) pick up their sink's warm hue so a
-    /// terminal action is visually distinct from a data hop.
+    /// terminal action is visually distinct from a data hop. `maintains` takes
+    /// the artifact hue: it is the artifact's own claim about who tends it, so
+    /// "who maintains this" reads in the same orange as the thing maintained.
     internal func edgeColor(forType type: String) -> Color {
         if relationshipEdgeTypes.contains(type) {
             return Color(hex: "4fc3b5") ?? .teal
         }
         switch type {
         case "reads", "writes", "feeds": return Color(hex: "8a8aff") ?? .accentColor
+        case "maintains": return color(forKind: "artifact")
         // `hosts` is containment, not dataflow: the service on the source end
         // RUNS the resource on the target end (a Postgres container hosting the
         // tables crons read and write). It gets the muted service hue rather
@@ -884,7 +891,8 @@ internal final class CronGraphViewModel: ObservableObject {
     internal func edgeIsContainment(_ type: String) -> Bool { type == "hosts" }
 
     /// The edge types present in the current graph, each with a display label and
-    /// its tint, in dataflow order (reads → writes → feeds → hosts → delivers).
+    /// its tint, in dataflow order (reads → writes → maintains → feeds → hosts →
+    /// delivers).
     /// Drives the edge key so the arrow colors on the canvas read without
     /// per-edge text. Any non-structural type (a side-effect scheme like
     /// telegram/pr) folds into a single "Delivers" entry, since they all share
@@ -894,8 +902,7 @@ internal final class CronGraphViewModel: ObservableObject {
     internal var edgeLegend: [(type: String, label: String, color: Color)] {
         let present = Set(simLinkTypes)
         var out: [(type: String, label: String, color: Color)] = []
-        for (type, label) in [("reads", "Reads"), ("writes", "Writes"), ("feeds", "Feeds"),
-                              ("hosts", "Hosts")]
+        for (type, label) in Self.structuralEdgeLegend
         where present.contains(type) {
             out.append((type: type, label: label, color: edgeColor(forType: type)))
         }
@@ -904,13 +911,25 @@ internal final class CronGraphViewModel: ObservableObject {
             let label = words.prefix(1).uppercased() + words.dropFirst()
             out.append((type: type, label: label, color: edgeColor(forType: type)))
         }
-        let structural = Set(["reads", "writes", "feeds", "hosts"])
+        let structural = Set(Self.structuralEdgeLegend.map(\.type))
             .union(relationshipEdgeTypes)
         if present.contains(where: { !structural.contains($0) }) {
             out.append((type: "deliver", label: "Delivers", color: edgeColor(forType: "deliver")))
         }
         return out
     }
+
+    /// The structural (non-delivery) edge types with their legend labels, in
+    /// dataflow order. One table so the legend's order and its "does this fold
+    /// into Delivers" test cannot disagree: `maintains` sits between Writes and
+    /// Feeds because a maintainer is a writer with a standing claim.
+    internal static let structuralEdgeLegend: [(type: String, label: String)] = [
+        ("reads", "Reads"),
+        ("writes", "Writes"),
+        ("maintains", "Maintains"),
+        ("feeds", "Feeds"),
+        ("hosts", "Hosts"),
+    ]
 
     /// Legend rows for the node kinds, in dataflow order.
     internal static let legend: [(kind: String, label: String)] = [
