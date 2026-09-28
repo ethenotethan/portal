@@ -266,11 +266,11 @@ struct WaterfallTests {
 }
 
 @Suite("Timeline")
-struct TimelineTests {
+internal struct TimelineTests {
 
     @Test("Spec parses bars, milestones, lanes; drops unparseable items")
-    func parsing() {
-        let spec = TimelineSpec.parse("""
+    internal func parsing() throws {
+        let spec = try #require(TimelineSpec.parse("""
         {"title": "Q3", "items": [
           {"label": "Design", "start": "2026-07-01", "end": "2026-07-14", "lane": "Product", "group": "done"},
           {"label": "Build", "start": "2026-07-10", "end": "2026-08-15", "lane": "Eng"},
@@ -279,7 +279,7 @@ struct TimelineTests {
           {"label": "", "start": "2026-07-01", "end": "2026-07-02"},
           {"label": "No dates"}
         ]}
-        """)!
+        """))
         #expect(spec.items.count == 3)
         #expect(spec.items[2].isMilestone)
         #expect(spec.items[2].start == spec.items[2].end)

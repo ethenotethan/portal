@@ -12892,17 +12892,17 @@
         "current": {
           "counts": {
             "discouraged_optional_boolean": 7,
-            "explicit_acl": 2735,
+            "explicit_acl": 2733,
             "force_cast": 6,
             "force_try": 5,
-            "force_unwrapping": 68,
+            "force_unwrapping": 67,
             "implicitly_unwrapped_optional": 8,
             "no_swallowed_try": 131,
             "no_sync_io_on_main": 3
           },
           "kind": "count",
-          "sites": 2963,
-          "total": 2963
+          "sites": 2960,
+          "total": 2960
         },
         "floor": "A tracked rule's count may not grow; paydown or a new rule's initial freeze only.",
         "id": "lint",
@@ -13925,7 +13925,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12227,
+      "line_count": 12254,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -49731,7 +49731,7 @@
       {
         "citations": 1,
         "component": "artifact-ui",
-        "declaration_count": 2,
+        "declaration_count": 4,
         "declarations": [
           {
             "kind": "struct",
@@ -49746,9 +49746,21 @@
             "line": 9,
             "name": "Inputs",
             "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 103,
+            "name": "ArtifactKindGlyph",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 104,
+            "name": "icon",
+            "passes": []
           }
         ],
-        "line_count": 97,
+        "line_count": 124,
         "mapped_declarations": 1,
         "passes": [
           "swift.trigger.surface_call"
@@ -63058,7 +63070,7 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 301
+          "total": 302
         },
         "extension": {
           "mapped": 19,
@@ -63066,7 +63078,7 @@
         },
         "func": {
           "mapped": 432,
-          "total": 3231
+          "total": 3232
         },
         "protocol": {
           "mapped": 1,
@@ -63078,13 +63090,13 @@
         }
       },
       "citations": 1315,
-      "declarations": 4659,
+      "declarations": 4661,
       "entities": 160,
       "entities_with_origin": 160,
       "files": 413,
       "functions": {
         "mapped": 432,
-        "total": 3231
+        "total": 3232
       },
       "mapped_declarations": 643,
       "passes": 50,
@@ -63092,7 +63104,7 @@
       "touched_files": 163,
       "types": {
         "mapped": 211,
-        "total": 1428
+        "total": 1429
       },
       "untouched_files": 250
     }
@@ -83315,11 +83327,11 @@
   },
   "inventory": {
     "assigned_files": 411,
-    "declarations": 1286,
+    "declarations": 1287,
     "files": 411,
-    "lines": 119076,
+    "lines": 119103,
     "swift_files": 411,
-    "swift_lines": 119076,
+    "swift_lines": 119103,
     "unassigned_files": []
   },
   "layers": [
@@ -83351,7 +83363,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "0c1bb7650c69294fd031ea27fc43d074f7321dd6896099c703d2964607a87e99",
+  "source_tree_sha256": "e7eae0806d7e7bd9ed95a695428a57fe07b2d691ea5053528847af9c8b2770d6",
   "stores": {
     "by_persistence": {
       "defaults": 6,
