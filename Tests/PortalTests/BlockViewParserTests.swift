@@ -380,7 +380,7 @@ struct LivingArtifactTests {
 
     @Test("Store upsert merges by id and preserves titles")
     @MainActor
-    func storeUpsert() {
+    internal func storeUpsert() throws {
         // Isolated store, NOT `.shared`. This test used to drive the production
         // singleton, and `persistToDisk()` has no test-process guard (unlike
         // `schedulePush` and `remove`'s delete) — so every run wrote "Test Map"
@@ -403,8 +403,11 @@ struct LivingArtifactTests {
         let updated = store.upsert(id: testID, kind: "map", title: nil,
                      content: "{\"markers\": [{\"lat\": 3, \"lon\": 4, \"label\": \"b\"}]}")
         #expect(updated.title == "Test Map")
-        let obj = try! JSONSerialization.jsonObject(with: Data(updated.content.utf8)) as! [String: Any]
-        #expect((obj["markers"] as! [[String: Any]]).count == 2)  // merged, not replaced
+        let obj = try #require(
+            try JSONSerialization.jsonObject(with: Data(updated.content.utf8)) as? [String: Any]
+        )
+        let markers = try #require(obj["markers"] as? [[String: Any]])
+        #expect(markers.count == 2)  // merged, not replaced
     }
 
     @Test("MapSpec parses markers and groups")
