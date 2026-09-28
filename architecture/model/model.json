@@ -4,6 +4,132 @@
       {
         "authority": "observed",
         "component": "domain-models",
+        "enclosing_function": "strippedContent",
+        "evidence": {
+          "excerpt": "lock.lock()",
+          "line": 184,
+          "path": "Sources/Portal/Models/ChatMessage.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-79ffb10fa23f",
+        "kind": "acquire",
+        "label": "lock.lock",
+        "owner_type": "ChatMessageDerived",
+        "resource_id": "resource-1e07c6855acf",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "strippedContent",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 186,
+          "path": "Sources/Portal/Models/ChatMessage.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-0d99670b1612",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "ChatMessageDerived",
+        "resource_id": "resource-1e07c6855acf",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "strippedContent",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 189,
+          "path": "Sources/Portal/Models/ChatMessage.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-26fb25efda2f",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "ChatMessageDerived",
+        "resource_id": "resource-1e07c6855acf",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "strippedContent",
+        "evidence": {
+          "excerpt": "lock.lock()",
+          "line": 191,
+          "path": "Sources/Portal/Models/ChatMessage.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-41b2cdc9647c",
+        "kind": "acquire",
+        "label": "lock.lock",
+        "owner_type": "ChatMessageDerived",
+        "resource_id": "resource-1e07c6855acf",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "strippedContent",
+        "evidence": {
+          "excerpt": "defer { lock.unlock() }",
+          "line": 192,
+          "path": "Sources/Portal/Models/ChatMessage.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-b2b417e8904c",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "ChatMessageDerived",
+        "resource_id": "resource-1e07c6855acf",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "hasStrippedContent",
+        "evidence": {
+          "excerpt": "lock.lock()",
+          "line": 199,
+          "path": "Sources/Portal/Models/ChatMessage.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-836ee2da118f",
+        "kind": "acquire",
+        "label": "lock.lock",
+        "owner_type": "ChatMessageDerived",
+        "resource_id": "resource-1e07c6855acf",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "enclosing_function": "hasStrippedContent",
+        "evidence": {
+          "excerpt": "defer { lock.unlock() }",
+          "line": 200,
+          "path": "Sources/Portal/Models/ChatMessage.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-c3b83d296a1d",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "ChatMessageDerived",
+        "resource_id": "resource-1e07c6855acf",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
         "enclosing_function": "maintainerRefs",
         "evidence": {
           "excerpt": "lock.lock()",
@@ -2716,7 +2842,7 @@
         "resource_ids": [],
         "task_handle_ids": [
           "task-site-1ab50b60f1e8",
-          "task-site-9b8b896e1cd0",
+          "task-site-39e481fb963b",
           "task-site-bf3516964939",
           "task-site-de51cf72924f",
           "task-site-f98c578ff6ee"
@@ -2808,6 +2934,28 @@
         "task_handle_ids": [
           "task-site-22e240e28281"
         ]
+      },
+      {
+        "authority": "observed",
+        "component": "domain-models",
+        "confidence": "mechanically_grouped",
+        "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
+        "evidence_class": "static_source",
+        "id": "connectivity-pocket-f69ae7bba2d6",
+        "operation_ids": [
+          "lifecycle-operation-0d99670b1612",
+          "lifecycle-operation-26fb25efda2f",
+          "lifecycle-operation-41b2cdc9647c",
+          "lifecycle-operation-79ffb10fa23f",
+          "lifecycle-operation-836ee2da118f",
+          "lifecycle-operation-b2b417e8904c",
+          "lifecycle-operation-c3b83d296a1d"
+        ],
+        "owner_type": "ChatMessageDerived",
+        "resource_ids": [
+          "resource-1e07c6855acf"
+        ],
+        "task_handle_ids": []
       },
       {
         "authority": "observed",
@@ -3288,7 +3436,7 @@
         "owner_type": "SessionListViewModel",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-b3d2379cf1f8"
+          "task-site-69af824b5542"
         ]
       },
       {
@@ -3437,6 +3585,22 @@
       }
     ],
     "resources": [
+      {
+        "authority": "observed",
+        "cardinality": "one stored field per owner instance",
+        "component": "domain-models",
+        "evidence": {
+          "excerpt": "private let lock = NSLock()",
+          "line": 177,
+          "path": "Sources/Portal/Models/ChatMessage.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "resource-1e07c6855acf",
+        "kind": "lock",
+        "label": "lock",
+        "owner_type": "ChatMessageDerived",
+        "rule_id": "swift.resource.lock.stored"
+      },
       {
         "authority": "observed",
         "cardinality": "one stored field per owner instance",
@@ -6806,11 +6970,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 3145,
+          "line": 3141,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a3a5e48a92d8",
+        "id": "task-site-5440e46c2cd7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6822,11 +6986,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await refreshModelCatalog() }",
-          "line": 3318,
+          "line": 3314,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-14963a8d2477",
+        "id": "task-site-5f52246d657e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6838,11 +7002,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "private var saveHistoryTask: Task<Void, Never>?",
-          "line": 3323,
+          "line": 3319,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9b8b896e1cd0",
+        "id": "task-site-39e481fb963b",
         "kind": "stored_task_handle",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.stored_handle"
@@ -6854,11 +7018,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask?.cancel()",
-          "line": 3337,
+          "line": 3333,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-063bed725a00",
+        "id": "task-site-3d845c7af85b",
         "kind": "task_cancellation",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.cancel"
@@ -6870,11 +7034,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask = Task { [weak self] in",
-          "line": 3338,
+          "line": 3334,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b2bffe8c28d2",
+        "id": "task-site-7dfdd2a57a56",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6886,11 +7050,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask?.cancel()",
-          "line": 3450,
+          "line": 3446,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-93e0cacafe88",
+        "id": "task-site-5fcd5a1fd0e9",
         "kind": "task_cancellation",
         "label": "transientStatusClearTask",
         "rule_id": "swift.task.cancel"
@@ -6902,11 +7066,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask = Task { [weak self] in",
-          "line": 3451,
+          "line": 3447,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1dbe419fa946",
+        "id": "task-site-679c525d89bc",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6918,11 +7082,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 3687,
+          "line": 3683,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-aae0bc029a25",
+        "id": "task-site-79d80df4ac51",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6934,11 +7098,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush = Task {",
-          "line": 3697,
+          "line": 3693,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9f549e907e15",
+        "id": "task-site-a541e260d9f2",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6950,11 +7114,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await loadSessionHistoryPreservingStream() }",
-          "line": 3993,
+          "line": 3989,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-71fe31e007ff",
+        "id": "task-site-d93f5b187933",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6966,11 +7130,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4042,
+          "line": 4038,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5bf1030e7061",
+        "id": "task-site-9808e4a6a677",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6982,11 +7146,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 4263,
+          "line": 4257,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-605c00ea1282",
+        "id": "task-site-816e40ce871a",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6998,11 +7162,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4514,
+          "line": 4508,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5f73b8e8ce81",
+        "id": "task-site-ab2eeb80e918",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7014,11 +7178,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4579,
+          "line": 4569,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2d716ffa73d9",
+        "id": "task-site-6d3b02c4293c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7222,11 +7386,11 @@
         "enclosing_type": "SessionListViewModel",
         "evidence": {
           "excerpt": "private var defaultsFlushTask: Task<Void, Never>?",
-          "line": 66,
+          "line": 73,
           "path": "Sources/Portal/ViewModels/SessionListViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b3d2379cf1f8",
+        "id": "task-site-69af824b5542",
         "kind": "stored_task_handle",
         "label": "defaultsFlushTask",
         "rule_id": "swift.task.stored_handle"
@@ -7238,11 +7402,11 @@
         "enclosing_type": "SessionListViewModel",
         "evidence": {
           "excerpt": "defaultsFlushTask = Task { [weak self] in",
-          "line": 120,
+          "line": 127,
           "path": "Sources/Portal/ViewModels/SessionListViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c6ce305888d2",
+        "id": "task-site-ee0cdad99acf",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7254,11 +7418,11 @@
         "enclosing_type": "SessionListViewModel",
         "evidence": {
           "excerpt": "defaultsFlushTask?.cancel()",
-          "line": 128,
+          "line": 135,
           "path": "Sources/Portal/ViewModels/SessionListViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c39db5fa9584",
+        "id": "task-site-9a035a2eebbf",
         "kind": "task_cancellation",
         "label": "defaultsFlushTask",
         "rule_id": "swift.task.cancel"
@@ -7270,11 +7434,11 @@
         "enclosing_type": "SessionListViewModel",
         "evidence": {
           "excerpt": "Task.detached(priority: .utility) { [needing] in",
-          "line": 235,
+          "line": 242,
           "path": "Sources/Portal/ViewModels/SessionListViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-51969a3c73e9",
+        "id": "task-site-1477e8c7fe78",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -7286,11 +7450,11 @@
         "enclosing_type": "SessionListViewModel",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 478,
+          "line": 485,
           "path": "Sources/Portal/ViewModels/SessionListViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f30ff9779786",
+        "id": "task-site-4dd091970cd9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8086,11 +8250,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1098,
+          "line": 1104,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-dc817957bab8",
+        "id": "task-site-5041ee2bcb83",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8102,11 +8266,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "pendingScrollTask = Task { @MainActor in",
-          "line": 1252,
+          "line": 1258,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-286484d505ca",
+        "id": "task-site-98067c3b63c5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8118,11 +8282,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "onSubmit: { Task { await chatViewModel.submitPrompt() } },",
-          "line": 1546,
+          "line": 1552,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-497ed44226b6",
+        "id": "task-site-8c2f8f819e0f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8134,11 +8298,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.submitPrompt() }",
-          "line": 1574,
+          "line": 1580,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0020c6878f47",
+        "id": "task-site-3a0012327441",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8150,11 +8314,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1664,
+          "line": 1670,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-aad991a6a0e1",
+        "id": "task-site-152accf38482",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8166,11 +8330,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.startVoiceConversation() }",
-          "line": 1713,
+          "line": 1719,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-bb3acbc5f616",
+        "id": "task-site-c36653fa8de3",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8182,11 +8346,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1717,
+          "line": 1723,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-09fe3640e040",
+        "id": "task-site-c45d7a4ddf9c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8198,11 +8362,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.interrupt() }",
-          "line": 1745,
+          "line": 1751,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e4e62c8265ad",
+        "id": "task-site-de62cf577b4b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8214,11 +8378,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.submitPrompt() }",
-          "line": 1760,
+          "line": 1766,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9faf07486d7e",
+        "id": "task-site-7ada76cb8fec",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8230,11 +8394,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1832,
+          "line": 1838,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5f37dd4f4831",
+        "id": "task-site-c6cf42fc6361",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8246,11 +8410,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1909,
+          "line": 1915,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-66a8b386c039",
+        "id": "task-site-8c0696700fa7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8262,11 +8426,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: \"\") }",
-          "line": 2105,
+          "line": 2111,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-62520cd4dadb",
+        "id": "task-site-b3bb48453780",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8278,11 +8442,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: choice) }",
-          "line": 2129,
+          "line": 2135,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ac9a10ff14d3",
+        "id": "task-site-d8acec0c837e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8294,11 +8458,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: answer) }",
-          "line": 2146,
+          "line": 2152,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3970e1339890",
+        "id": "task-site-5ae4edb7279f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8438,11 +8602,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 843,
+          "line": 844,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-dea356e038e6",
+        "id": "task-site-c76f1ccb24f1",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8454,11 +8618,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1029,
+          "line": 1030,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a18ece8cb49d",
+        "id": "task-site-7b8d1bf1469e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8470,11 +8634,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1263,
+          "line": 1265,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9b72295c2609",
+        "id": "task-site-c3d7581a1de5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8486,11 +8650,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1270,
+          "line": 1272,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2dd63ce01c3c",
+        "id": "task-site-208a5478e181",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8502,11 +8666,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1321,
+          "line": 1323,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ee7cffdfd318",
+        "id": "task-site-71fd9bb27707",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8518,11 +8682,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1341,
+          "line": 1343,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e8d9f100c5d8",
+        "id": "task-site-07208a0e848e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8534,11 +8698,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1380,
+          "line": 1382,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a3951b283f91",
+        "id": "task-site-99fa757b8679",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8550,11 +8714,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1464,
+          "line": 1466,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b9312782cc01",
+        "id": "task-site-768992e11093",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8566,11 +8730,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1536,
+          "line": 1538,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ba663d3820a8",
+        "id": "task-site-c2df974c6a00",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8582,11 +8746,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1602,
+          "line": 1604,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-573012c96de5",
+        "id": "task-site-66b5837726a0",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8598,11 +8762,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1607,
+          "line": 1609,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0ae859071e79",
+        "id": "task-site-466d493ed49e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8614,11 +8778,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await xAuth.handleCallback(code: code, state: state) }",
-          "line": 1615,
+          "line": 1617,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-418b86e4e584",
+        "id": "task-site-6e6fc3304811",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8630,11 +8794,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1655,
+          "line": 1657,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-452731448477",
+        "id": "task-site-3dc90cd4082c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9846,11 +10010,11 @@
         "enclosing_type": "SessionListView",
         "evidence": {
           "excerpt": "Task { try? await sessionList.deleteArchivedSession(id: session.id) }",
-          "line": 294,
+          "line": 260,
           "path": "Sources/Portal/Views/SessionListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ae45dbe0af19",
+        "id": "task-site-93ab069bd425",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -11359,7 +11523,7 @@
         ],
         "condition": null,
         "evidence": {
-          "line": 47,
+          "line": 48,
           "path": ".github/workflows/architecture-pages.yml"
         },
         "family": "publication",
@@ -11376,17 +11540,37 @@
           "scripts/check_site_assets.py",
           "scripts/test_architecture.py"
         ],
-        "step_count": 8,
+        "step_count": 11,
         "steps": [
           {
-            "line": 51,
+            "line": 55,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
+            "command": "git fetch -q origin \"$BASE_REF\"",
+            "command_lines": 15,
+            "condition": "github.event_name == 'pull_request'",
+            "line": 62,
+            "name": "Guard against committed generated outputs",
+            "scripts": [
+              "scripts/check_site_assets.py"
+            ]
+          },
+          {
+            "command": "python3 scripts/build_architecture.py",
+            "command_lines": 2,
+            "line": 84,
+            "name": "Compile architecture model and site data",
+            "scripts": [
+              "scripts/build_architecture.py",
+              "scripts/check_site_assets.py"
+            ]
+          },
+          {
             "command": "python3 scripts/build_architecture.py --check",
             "command_lines": 1,
-            "line": 53,
+            "line": 90,
             "name": "Verify generated architecture is current",
             "scripts": [
               "scripts/build_architecture.py"
@@ -11395,7 +11579,7 @@
           {
             "command": "python3 scripts/check-contract-pins.py",
             "command_lines": 1,
-            "line": 58,
+            "line": 95,
             "name": "Check the architecture contract pins",
             "scripts": [
               "scripts/check-contract-pins.py"
@@ -11404,7 +11588,7 @@
           {
             "command": "python3 -m unittest scripts/test_architecture.py",
             "command_lines": 1,
-            "line": 61,
+            "line": 98,
             "name": "Test architecture compiler",
             "scripts": [
               "scripts/test_architecture.py"
@@ -11413,26 +11597,33 @@
           {
             "command": "node --check architecture/site/app.js",
             "command_lines": 1,
-            "line": 64,
+            "line": 101,
             "name": "Check browser JavaScript"
           },
           {
             "command": "python3 scripts/check_site_assets.py",
             "command_lines": 1,
-            "line": 69,
+            "line": 106,
             "name": "Check product site asset references",
             "scripts": [
               "scripts/check_site_assets.py"
             ]
           },
           {
+            "command": "exit 0",
+            "command_lines": 24,
+            "condition": "github.event_name == 'push'",
+            "line": 115,
+            "name": "Commit regenerated outputs to main"
+          },
+          {
             "command": "cp -R site/. _site/",
             "command_lines": 4,
-            "line": 75,
+            "line": 148,
             "name": "Assemble Pages tree"
           },
           {
-            "line": 82,
+            "line": 155,
             "name": "Upload validated site",
             "uses": "actions/upload-artifact@v4"
           }
@@ -11444,7 +11635,7 @@
         "artifacts_out": [],
         "condition": "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'",
         "evidence": {
-          "line": 90,
+          "line": 163,
           "path": ".github/workflows/architecture-pages.yml"
         },
         "family": "publication",
@@ -11458,24 +11649,36 @@
         "role": "post-merge",
         "runs_on": "ubuntu-latest",
         "scripts": [
-          "scripts/build_architecture_history.py"
+          "scripts/build_architecture.py",
+          "scripts/build_architecture_history.py",
+          "scripts/check_site_assets.py"
         ],
-        "step_count": 8,
+        "step_count": 9,
         "steps": [
           {
-            "line": 100,
+            "line": 173,
             "name": "actions/checkout@v4",
             "uses": "actions/checkout@v4"
           },
           {
-            "line": 108,
+            "command": "python3 scripts/build_architecture.py",
+            "command_lines": 2,
+            "line": 179,
+            "name": "Compile architecture model and site data",
+            "scripts": [
+              "scripts/build_architecture.py",
+              "scripts/check_site_assets.py"
+            ]
+          },
+          {
+            "line": 188,
             "name": "Restore architecture history",
             "uses": "actions/cache/restore@v4"
           },
           {
             "command": "python3 scripts/build_architecture_history.py --ref \"$GITHUB_SHA\" --jobs 4 --quiet",
             "command_lines": 1,
-            "line": 117,
+            "line": 197,
             "name": "Derive architecture history",
             "scripts": [
               "scripts/build_architecture_history.py"
@@ -11483,28 +11686,28 @@
           },
           {
             "condition": "steps.history-cache.outputs.cache-hit != 'true'",
-            "line": 120,
+            "line": 200,
             "name": "Save architecture history",
             "uses": "actions/cache/save@v4"
           },
           {
             "command": "cp -R site/. _site/",
             "command_lines": 4,
-            "line": 127,
+            "line": 207,
             "name": "Assemble Pages tree"
           },
           {
-            "line": 134,
+            "line": 214,
             "name": "Configure GitHub Pages",
             "uses": "actions/configure-pages@v5"
           },
           {
-            "line": 137,
+            "line": 217,
             "name": "Upload Pages artifact",
             "uses": "actions/upload-pages-artifact@v3"
           },
           {
-            "line": 142,
+            "line": 222,
             "name": "Deploy Pages site",
             "uses": "actions/deploy-pages@v4"
           }
@@ -12861,6 +13064,7 @@
         "current": {
           "counts": {
             "artifact.maintainerParse": 40,
+            "chat.stripMediaTags": 30,
             "graph.forceSim": 202020,
             "kanban.mount.view.body.KanbanBoard": 1,
             "kanban.mount.view.body.KanbanCardTile": 64,
@@ -12883,7 +13087,8 @@
             "model.mount.view.body.ModelEntityRow": 68,
             "model.mount.view.body.ModelEntityTable": 2,
             "sankey.pack": 24,
-            "sankey.relax": 66
+            "sankey.relax": 66,
+            "sessions.sidebarSort": 4
           },
           "kind": "counters"
         },
@@ -12977,9 +13182,34 @@
     ],
     "static_checks": [
       {
+        "command": "git fetch -q origin \"$BASE_REF\"",
+        "evidence": {
+          "line": 62,
+          "path": ".github/workflows/architecture-pages.yml"
+        },
+        "job": "architecture-pages/validate",
+        "name": "Guard against committed generated outputs",
+        "scripts": [
+          "scripts/check_site_assets.py"
+        ]
+      },
+      {
+        "command": "python3 scripts/build_architecture.py",
+        "evidence": {
+          "line": 84,
+          "path": ".github/workflows/architecture-pages.yml"
+        },
+        "job": "architecture-pages/validate",
+        "name": "Compile architecture model and site data",
+        "scripts": [
+          "scripts/build_architecture.py",
+          "scripts/check_site_assets.py"
+        ]
+      },
+      {
         "command": "python3 scripts/build_architecture.py --check",
         "evidence": {
-          "line": 53,
+          "line": 90,
           "path": ".github/workflows/architecture-pages.yml"
         },
         "job": "architecture-pages/validate",
@@ -12991,7 +13221,7 @@
       {
         "command": "python3 scripts/check-contract-pins.py",
         "evidence": {
-          "line": 58,
+          "line": 95,
           "path": ".github/workflows/architecture-pages.yml"
         },
         "job": "architecture-pages/validate",
@@ -13003,7 +13233,7 @@
       {
         "command": "python3 -m unittest scripts/test_architecture.py",
         "evidence": {
-          "line": 61,
+          "line": 98,
           "path": ".github/workflows/architecture-pages.yml"
         },
         "job": "architecture-pages/validate",
@@ -13015,7 +13245,7 @@
       {
         "command": "node --check architecture/site/app.js",
         "evidence": {
-          "line": 64,
+          "line": 101,
           "path": ".github/workflows/architecture-pages.yml"
         },
         "job": "architecture-pages/validate",
@@ -13025,7 +13255,7 @@
       {
         "command": "python3 scripts/check_site_assets.py",
         "evidence": {
-          "line": 69,
+          "line": 106,
           "path": ".github/workflows/architecture-pages.yml"
         },
         "job": "architecture-pages/validate",
@@ -13042,7 +13272,7 @@
       "jobs": 22,
       "lint_rules": 15,
       "ratchets": 10,
-      "static_checks": 5,
+      "static_checks": 7,
       "workflows": 7
     },
     "triggers": [
@@ -13125,15 +13355,19 @@
             ],
             "event": "pull_request",
             "paths": [
+              "Sources/**",
+              "Tests/**",
+              "Tests/PortalTests/ArchitectureTests.swift",
               "site/**",
               "architecture/**",
               "scripts/build_architecture.py",
               "scripts/build_architecture_history.py",
               "scripts/architecture_agent.py",
               "scripts/test_architecture.py",
+              "scripts/check_site_assets.py",
+              "scripts/check-contract-pins.py",
               ".github/workflows/**",
               ".swiftlint.yml",
-              "Tests/PortalTests/ArchitectureTests.swift",
               "metrics-baseline.json",
               "perf-baseline.json",
               ".swiftlint-baseline",
@@ -13144,21 +13378,7 @@
             "branches": [
               "main"
             ],
-            "event": "push",
-            "paths": [
-              "site/**",
-              "architecture/**",
-              "scripts/build_architecture.py",
-              "scripts/build_architecture_history.py",
-              "scripts/test_architecture.py",
-              ".github/workflows/**",
-              ".swiftlint.yml",
-              "Tests/PortalTests/ArchitectureTests.swift",
-              "metrics-baseline.json",
-              "perf-baseline.json",
-              ".swiftlint-baseline",
-              ".gitleaksignore"
-            ]
+            "event": "push"
           },
           {
             "event": "workflow_dispatch"
@@ -13363,10 +13583,10 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4188
+      "line_count": 4190
     },
     {
-      "declaration_count": 74,
+      "declaration_count": 75,
       "declarations": [
         "AttachmentChipView",
         "AudioPreview",
@@ -13418,6 +13638,7 @@
         "MarkdownParseCache",
         "MarkdownParser",
         "MarkdownText",
+        "MessageBubbleHost",
         "MessageBubbleView",
         "ModelPickerMenu",
         "OpenableBlockChip",
@@ -13445,13 +13666,14 @@
       ],
       "description": "Conversation presentation, composition, streaming output, attachments, and model selection.",
       "external": false,
-      "file_count": 11,
+      "file_count": 12,
       "files": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
         "Sources/Portal/Views/ComposerStyle.swift",
         "Sources/Portal/Views/LongResponseView.swift",
         "Sources/Portal/Views/MarkdownContentView.swift",
+        "Sources/Portal/Views/MessageBubbleHost.swift",
         "Sources/Portal/Views/MessageBubbleView.swift",
         "Sources/Portal/Views/ModelPickerMenu.swift",
         "Sources/Portal/Views/ToolCallView.swift",
@@ -13462,10 +13684,10 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 7090
+      "line_count": 7123
     },
     {
-      "declaration_count": 139,
+      "declaration_count": 138,
       "declarations": [
         "ActivityArtifactView",
         "ActivityDetailView",
@@ -13577,7 +13799,6 @@
         "SessionsSourceBreakdown",
         "SessionsStatsPanel",
         "SessionsTimelinePlot",
-        "SidebarSections",
         "SkeletonCard",
         "SkillCard",
         "SkillMarkdownEditor",
@@ -13669,7 +13890,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18205,
+      "line_count": 18184,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14130,7 +14351,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 5836
+      "line_count": 5826
     },
     {
       "declaration_count": 85,
@@ -14256,7 +14477,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 7236,
+      "line_count": 7277,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -14710,7 +14931,7 @@
       }
     },
     {
-      "declaration_count": 366,
+      "declaration_count": 369,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -14818,6 +15039,8 @@
         "ChartType",
         "ChartWaterfall",
         "ChatMessage",
+        "ChatMessageDerived",
+        "ChatMessageRenderKey",
         "ChecklistSpec",
         "ChipTier",
         "CodeGraph",
@@ -15013,6 +15236,7 @@
         "SessionRunEvent",
         "SessionRunHistoryStore",
         "SessionRunState",
+        "SessionSidebarSections",
         "SessionStatus",
         "SessionTimeline",
         "SessionTimelineEvent",
@@ -15081,7 +15305,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 97,
+      "file_count": 99,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -15103,6 +15327,7 @@
         "Sources/Portal/Models/CelebrationPreferences.swift",
         "Sources/Portal/Models/ChartSpec.swift",
         "Sources/Portal/Models/ChatMessage.swift",
+        "Sources/Portal/Models/ChatMessageRenderKey.swift",
         "Sources/Portal/Models/ChecklistSpec.swift",
         "Sources/Portal/Models/CodeGraph.swift",
         "Sources/Portal/Models/ConceptLinker.swift",
@@ -15163,6 +15388,7 @@
         "Sources/Portal/Models/SessionFolder.swift",
         "Sources/Portal/Models/SessionHealthSample.swift",
         "Sources/Portal/Models/SessionRunEvent.swift",
+        "Sources/Portal/Models/SessionSidebarSections.swift",
         "Sources/Portal/Models/SessionTimelineEvent.swift",
         "Sources/Portal/Models/SharedEntity.swift",
         "Sources/Portal/Models/Skill.swift",
@@ -15184,7 +15410,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 19042,
+      "line_count": 19176,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -16657,13 +16883,14 @@
     },
     {
       "authority": "observed",
-      "description": "References 28 declaration(s) owned by domain-models.",
+      "description": "References 29 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
         "Sources/Portal/Views/ComposerStyle.swift",
         "Sources/Portal/Views/LongResponseView.swift",
         "Sources/Portal/Views/MarkdownContentView.swift",
+        "Sources/Portal/Views/MessageBubbleHost.swift",
         "Sources/Portal/Views/MessageBubbleView.swift",
         "Sources/Portal/Views/ModelPickerMenu.swift",
         "Sources/Portal/Views/ToolCallView.swift",
@@ -16676,6 +16903,7 @@
         "AgentModel",
         "Card",
         "ChatMessage",
+        "ChatMessageRenderKey",
         "Connection",
         "DownloadState",
         "FileAttachment",
@@ -16683,12 +16911,11 @@
         "HTMLArtifactQueryBridge",
         "HTMLArtifactQueryRequest",
         "MediaAttachment",
-        "ModelCatalog",
-        "PanelKind"
+        "ModelCatalog"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 39
+      "weight": 41
     },
     {
       "authority": "observed",
@@ -16759,6 +16986,7 @@
         "Sources/Portal/Views/ChatView.swift",
         "Sources/Portal/Views/ComposerStyle.swift",
         "Sources/Portal/Views/MarkdownContentView.swift",
+        "Sources/Portal/Views/MessageBubbleHost.swift",
         "Sources/Portal/Views/MessageBubbleView.swift",
         "Sources/Portal/Views/ToolCallView.swift",
         "Sources/Portal/Views/ToolbarIconButtonStyle.swift",
@@ -16781,7 +17009,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 23
+      "weight": 24
     },
     {
       "authority": "observed",
@@ -16948,9 +17176,10 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by chat-ui.",
+      "description": "References 5 declaration(s) owned by chat-ui.",
       "evidence": [
         "Sources/Portal/Models/ChatMessage.swift",
+        "Sources/Portal/Models/ChatMessageRenderKey.swift",
         "Sources/Portal/Models/KanbanSpec.swift",
         "Sources/Portal/Models/Learning/Curriculum.swift",
         "Sources/Portal/Models/ModelCatalog.swift",
@@ -16961,11 +17190,12 @@
         "ChatView",
         "MarkdownContentView",
         "MarkdownParser",
+        "MessageBubbleHost",
         "ModelPickerMenu"
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 9
+      "weight": 11
     },
     {
       "authority": "observed",
@@ -17067,7 +17297,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 31
+      "weight": 32
     },
     {
       "authority": "observed",
@@ -17628,7 +17858,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 98 declaration(s) owned by domain-models.",
+      "description": "References 100 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/ArchitectureExtractionLayout.swift",
@@ -17660,7 +17890,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 125
+      "weight": 127
     },
     {
       "authority": "observed",
@@ -17743,7 +17973,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by utilities.",
+      "description": "References 6 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -17762,12 +17992,13 @@
         "Constants",
         "GatewayURL",
         "LeakTracker",
+        "PerfCounter",
         "PerfSignposter",
         "PortalLogger"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 16
+      "weight": 17
     },
     {
       "authority": "observed",
@@ -17857,7 +18088,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 64 declaration(s) owned by domain-models.",
+      "description": "References 65 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryEditor.swift",
@@ -17889,7 +18120,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 117
+      "weight": 118
     },
     {
       "authority": "observed",
@@ -20424,7 +20655,7 @@
               },
               {
                 "excerpt": "let base = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first",
-                "line": 550,
+                "line": 582,
                 "path": "Sources/Portal/Models/ChatMessage.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -20812,7 +21043,7 @@
               },
               {
                 "excerpt": "@AppStorage(\"composerStyle\") private var composerStyle: ComposerStyle = .card",
-                "line": 1346,
+                "line": 1352,
                 "path": "Sources/Portal/Views/ChatView.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -20987,7 +21218,7 @@
             "evidence": [
               {
                 "excerpt": "_gatewayIDMap = (UserDefaults.standard.dictionary(forKey: Self.gatewayIDMapKey) as? [String: String]) ?? [:]",
-                "line": 107,
+                "line": 114,
                 "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -20995,7 +21226,7 @@
               },
               {
                 "excerpt": "_localTitles = (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:]",
-                "line": 108,
+                "line": 115,
                 "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -21003,7 +21234,7 @@
               },
               {
                 "excerpt": "_archivedIDs = Set(UserDefaults.standard.stringArray(forKey: Self.archivedIDsKey) ?? [])",
-                "line": 109,
+                "line": 116,
                 "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -21011,7 +21242,7 @@
               },
               {
                 "excerpt": "_pinnedIDs = Set(UserDefaults.standard.stringArray(forKey: Self.pinnedIDsKey) ?? [])",
-                "line": 110,
+                "line": 117,
                 "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -21019,7 +21250,7 @@
               },
               {
                 "excerpt": "_sessionTags = (UserDefaults.standard.dictionary(forKey: Self.tagsKey) as? [String: [String]]) ?? [:]",
-                "line": 111,
+                "line": 118,
                 "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -21027,7 +21258,7 @@
               },
               {
                 "excerpt": "if let stamps = UserDefaults.standard.dictionary(forKey: Self.metaUpdatedAtKey) as? [String: Double] {",
-                "line": 112,
+                "line": 119,
                 "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -21035,7 +21266,7 @@
               },
               {
                 "excerpt": "UserDefaults.standard.set(_gatewayIDMap, forKey: Self.gatewayIDMapKey)",
-                "line": 132,
+                "line": 139,
                 "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -21043,7 +21274,7 @@
               },
               {
                 "excerpt": "UserDefaults.standard.set(_localTitles, forKey: Self.titlesKey)",
-                "line": 133,
+                "line": 140,
                 "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -22364,98 +22595,98 @@
           },
           {
             "family": "trigger",
-            "line": 1516,
+            "line": 1522,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1529,
+            "line": 1535,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1563,
+            "line": 1569,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1573,
+            "line": 1579,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1576,
+            "line": 1582,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1663,
+            "line": 1669,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1712,
+            "line": 1718,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1715,
+            "line": 1721,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1744,
+            "line": 1750,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1759,
+            "line": 1765,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 2104,
+            "line": 2110,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 2118,
+            "line": 2124,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 2120,
+            "line": 2126,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 2128,
+            "line": 2134,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -22483,70 +22714,70 @@
           },
           {
             "family": "trigger",
-            "line": 440,
+            "line": 441,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 449,
+            "line": 450,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 452,
+            "line": 453,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 559,
+            "line": 560,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 568,
+            "line": 569,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 571,
+            "line": 572,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 842,
+            "line": 843,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1015,
+            "line": 1016,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1379,
+            "line": 1381,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1463,
+            "line": 1465,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -22707,7 +22938,7 @@
           },
           {
             "family": "trigger",
-            "line": 842,
+            "line": 843,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -22868,7 +23099,7 @@
           },
           {
             "family": "trigger",
-            "line": 842,
+            "line": 843,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -23295,84 +23526,84 @@
           },
           {
             "family": "trigger",
-            "line": 440,
+            "line": 441,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 443,
+            "line": 444,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 452,
+            "line": 453,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 458,
+            "line": 459,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 559,
+            "line": 560,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 562,
+            "line": 563,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 571,
+            "line": 572,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 577,
+            "line": 578,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 842,
+            "line": 843,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1015,
+            "line": 1016,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1379,
+            "line": 1381,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1463,
+            "line": 1465,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -23407,6 +23638,13 @@
           },
           {
             "family": "trigger",
+            "line": 154,
+            "path": "Sources/Portal/Views/SessionListView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
             "line": 188,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
@@ -23414,35 +23652,28 @@
           },
           {
             "family": "trigger",
-            "line": 222,
+            "line": 200,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 234,
+            "line": 242,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 276,
+            "line": 259,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 293,
-            "path": "Sources/Portal/Views/SessionListView.swift",
-            "rule": "swift.trigger.surface_call",
-            "via": "trigger"
-          },
-          {
-            "family": "trigger",
-            "line": 315,
+            "line": 281,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -24849,98 +25080,98 @@
           },
           {
             "family": "trigger",
-            "line": 1516,
+            "line": 1522,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1529,
+            "line": 1535,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1563,
+            "line": 1569,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1573,
+            "line": 1579,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1576,
+            "line": 1582,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1663,
+            "line": 1669,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1712,
+            "line": 1718,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1715,
+            "line": 1721,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1744,
+            "line": 1750,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1759,
+            "line": 1765,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 2104,
+            "line": 2110,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 2118,
+            "line": 2124,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 2120,
+            "line": 2126,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 2128,
+            "line": 2134,
             "path": "Sources/Portal/Views/ChatView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -24968,70 +25199,70 @@
           },
           {
             "family": "trigger",
-            "line": 440,
+            "line": 441,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 449,
+            "line": 450,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 452,
+            "line": 453,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 559,
+            "line": 560,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 568,
+            "line": 569,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 571,
+            "line": 572,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 842,
+            "line": 843,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1015,
+            "line": 1016,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1379,
+            "line": 1381,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1463,
+            "line": 1465,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -25137,55 +25368,55 @@
           },
           {
             "family": "behaviour",
-            "line": 3048,
+            "line": 3045,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 3385,
+            "line": 3381,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4485,
+            "line": 4479,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4512,
+            "line": 4506,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4549,
+            "line": 4539,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4599,
+            "line": 4589,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4652,
+            "line": 4642,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4658,
+            "line": 4648,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4699,
+            "line": 4689,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           }
@@ -26200,7 +26431,7 @@
           },
           {
             "family": "trigger",
-            "line": 479,
+            "line": 480,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -26500,7 +26731,7 @@
           },
           {
             "family": "trigger",
-            "line": 842,
+            "line": 843,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -26694,7 +26925,7 @@
           },
           {
             "family": "behaviour",
-            "line": 321,
+            "line": 328,
             "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
             "rule": "swift.resource.bus_subscription"
           },
@@ -26749,84 +26980,84 @@
           },
           {
             "family": "trigger",
-            "line": 440,
+            "line": 441,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 443,
+            "line": 444,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 452,
+            "line": 453,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 458,
+            "line": 459,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 559,
+            "line": 560,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 562,
+            "line": 563,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 571,
+            "line": 572,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 577,
+            "line": 578,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 842,
+            "line": 843,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1015,
+            "line": 1016,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1379,
+            "line": 1381,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1463,
+            "line": 1465,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -26861,6 +27092,13 @@
           },
           {
             "family": "trigger",
+            "line": 154,
+            "path": "Sources/Portal/Views/SessionListView.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
             "line": 188,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
@@ -26868,35 +27106,28 @@
           },
           {
             "family": "trigger",
-            "line": 222,
+            "line": 200,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 234,
+            "line": 242,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 276,
+            "line": 259,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 293,
-            "path": "Sources/Portal/Views/SessionListView.swift",
-            "rule": "swift.trigger.surface_call",
-            "via": "trigger"
-          },
-          {
-            "family": "trigger",
-            "line": 315,
+            "line": 281,
             "path": "Sources/Portal/Views/SessionListView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -26951,28 +27182,28 @@
           },
           {
             "family": "trigger",
-            "line": 842,
+            "line": 843,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1015,
+            "line": 1016,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1379,
+            "line": 1381,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 1463,
+            "line": 1465,
             "path": "Sources/Portal/Views/ContentView.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -29236,9 +29467,9 @@
         "touched": false
       },
       {
-        "citations": 1,
+        "citations": 9,
         "component": "domain-models",
-        "declaration_count": 29,
+        "declaration_count": 31,
         "declarations": [
           {
             "kind": "struct",
@@ -29247,104 +29478,126 @@
             "passes": []
           },
           {
-            "kind": "func",
-            "line": 63,
-            "name": "primeStrippedContentCache",
-            "passes": []
-          },
-          {
             "kind": "enum",
-            "line": 67,
+            "line": 69,
             "name": "CodingKeys",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 93,
+            "line": 91,
             "name": "Role",
             "passes": []
           },
           {
+            "kind": "class",
+            "line": 176,
+            "name": "ChatMessageDerived",
+            "passes": [
+              "swift.lifecycle.acquire",
+              "swift.lifecycle.release",
+              "swift.resource.lock.stored"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 183,
+            "name": "strippedContent",
+            "passes": [
+              "swift.lifecycle.acquire",
+              "swift.lifecycle.release"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 198,
+            "name": "hasStrippedContent",
+            "passes": [
+              "swift.lifecycle.acquire",
+              "swift.lifecycle.release"
+            ]
+          },
+          {
             "kind": "struct",
-            "line": 174,
+            "line": 206,
             "name": "DelegationBatchNotice",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 179,
+            "line": 211,
             "name": "parse",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 218,
+            "line": 250,
             "name": "ThinkingTrace",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 251,
+            "line": 283,
             "name": "append",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 263,
+            "line": 295,
             "name": "appendDiscreteBlock",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 268,
+            "line": 300,
             "name": "finish",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 274,
+            "line": 306,
             "name": "ThinkingBlock",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 275,
+            "line": 307,
             "name": "Kind",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 312,
+            "line": 344,
             "name": "CompactionMarker",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 313,
+            "line": 345,
             "name": "Trigger",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 340,
+            "line": 372,
             "name": "TurnGraphSnapshot",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 366,
+            "line": 398,
             "name": "ToolCallRecord",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 413,
+            "line": 445,
             "name": "applyRisk",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 423,
+            "line": 455,
             "name": "FileAttachment",
             "passes": [
               "swift.boundary.external_signature"
@@ -29352,79 +29605,101 @@
           },
           {
             "kind": "enum",
-            "line": 430,
+            "line": 462,
             "name": "Source",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 436,
+            "line": 468,
             "name": "DownloadState",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 487,
+            "line": 519,
             "name": "Category",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 578,
+            "line": 610,
             "name": "persistToDisk",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 583,
+            "line": 615,
             "name": "persistToCache",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 596,
+            "line": 628,
             "name": "clearDiskCache",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 602,
+            "line": 634,
             "name": "CodingKeys",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 632,
+            "line": 664,
             "name": "setLocalCacheOnly",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 636,
+            "line": 668,
             "name": "encode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 650,
+            "line": 682,
             "name": "MediaParser",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 685,
+            "line": 717,
             "name": "stripMediaTags",
             "passes": []
           }
         ],
-        "line_count": 693,
-        "mapped_declarations": 1,
+        "line_count": 728,
+        "mapped_declarations": 4,
         "passes": [
-          "swift.boundary.external_signature"
+          "swift.boundary.external_signature",
+          "swift.lifecycle.acquire",
+          "swift.lifecycle.release",
+          "swift.resource.lock.stored"
         ],
         "path": "Sources/Portal/Models/ChatMessage.swift",
         "semantic_citations": 0,
         "touched": true
+      },
+      {
+        "citations": 0,
+        "component": "domain-models",
+        "declaration_count": 1,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 13,
+            "name": "ChatMessageRenderKey",
+            "passes": []
+          }
+        ],
+        "line_count": 49,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "semantic_citations": 0,
+        "touched": false
       },
       {
         "citations": 0,
@@ -33821,6 +34096,31 @@
         "path": "Sources/Portal/Models/SessionRunEvent.swift",
         "semantic_citations": 4,
         "touched": true
+      },
+      {
+        "citations": 0,
+        "component": "domain-models",
+        "declaration_count": 2,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 17,
+            "name": "SessionSidebarSections",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 25,
+            "name": "partition",
+            "passes": []
+          }
+        ],
+        "line_count": 50,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Models/SessionSidebarSections.swift",
+        "semantic_citations": 0,
+        "touched": false
       },
       {
         "citations": 0,
@@ -43760,7 +44060,7 @@
       {
         "citations": 0,
         "component": "operations-state",
-        "declaration_count": 9,
+        "declaration_count": 10,
         "declarations": [
           {
             "kind": "protocol",
@@ -43815,9 +44115,15 @@
             "line": 119,
             "name": "friendly",
             "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 133,
+            "name": "unknownMethod",
+            "passes": []
           }
         ],
-        "line_count": 125,
+        "line_count": 142,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/ViewModels/ArchitectureSurfaceModel.swift",
@@ -45048,25 +45354,25 @@
           },
           {
             "kind": "func",
-            "line": 3082,
+            "line": 3079,
             "name": "finalizeStuckStreamingTurn",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3104,
+            "line": 3100,
             "name": "finalizeAllStuckStreamingTurns",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3121,
+            "line": 3117,
             "name": "attachments",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3130,
+            "line": 3126,
             "name": "prefetchRemoteAttachments",
             "passes": [
               "swift.task.structured"
@@ -45074,43 +45380,43 @@
           },
           {
             "kind": "func",
-            "line": 3171,
+            "line": 3167,
             "name": "setApprovalQueue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3183,
+            "line": 3179,
             "name": "respondApproval",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3208,
+            "line": 3204,
             "name": "respondClarify",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3226,
+            "line": 3222,
             "name": "switchModel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3273,
+            "line": 3269,
             "name": "refreshModelCatalog",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3304,
+            "line": 3300,
             "name": "adoptCatalogModelIfBadgeEmpty",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3315,
+            "line": 3311,
             "name": "fillModelBadgeIfEmpty",
             "passes": [
               "swift.task.structured"
@@ -45118,13 +45424,13 @@
           },
           {
             "kind": "func",
-            "line": 3326,
+            "line": 3322,
             "name": "saveHistory",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3336,
+            "line": 3332,
             "name": "saveHistoryDebounced",
             "passes": [
               "swift.task.cancel",
@@ -45133,19 +45439,19 @@
           },
           {
             "kind": "func",
-            "line": 3346,
+            "line": 3342,
             "name": "loadLocalHistory",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3363,
+            "line": 3359,
             "name": "deleteLocalHistory",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3375,
+            "line": 3371,
             "name": "createLocalTestSession",
             "passes": [
               "swift.state.transition"
@@ -45153,37 +45459,37 @@
           },
           {
             "kind": "func",
-            "line": 3392,
+            "line": 3388,
             "name": "switchToLocalTestSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3402,
+            "line": 3398,
             "name": "simulateTestResumeResult",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3426,
+            "line": 3422,
             "name": "applyTestEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3433,
+            "line": 3429,
             "name": "flushDeltaBuffersForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3438,
+            "line": 3434,
             "name": "testCachedMessages",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3447,
+            "line": 3443,
             "name": "showTransientStatus",
             "passes": [
               "swift.task.cancel",
@@ -45192,91 +45498,91 @@
           },
           {
             "kind": "func",
-            "line": 3465,
+            "line": 3461,
             "name": "recordManualCompaction",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3479,
+            "line": 3475,
             "name": "seedCompactionBaseline",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3491,
+            "line": 3487,
             "name": "noteCompactionCounter",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3515,
+            "line": 3511,
             "name": "appendMoAReference",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3528,
+            "line": 3524,
             "name": "applyToolRisk",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3548,
+            "line": 3544,
             "name": "handleReaction",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3561,
+            "line": 3557,
             "name": "appendThinkingTrace",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3568,
+            "line": 3564,
             "name": "finishThinkingTrace",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3608,
+            "line": 3604,
             "name": "shouldApplyGlobalEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3625,
+            "line": 3621,
             "name": "recordPerfEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3651,
+            "line": 3647,
             "name": "claimDeltaBuffers",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3659,
+            "line": 3655,
             "name": "appendPendingVisibleMessageDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3666,
+            "line": 3662,
             "name": "appendPendingVisibleReasoningDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3676,
+            "line": 3672,
             "name": "appendPendingVisibleThinkingDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3686,
+            "line": 3682,
             "name": "cancelPendingFlush",
             "passes": [
               "swift.task.cancel"
@@ -45284,7 +45590,7 @@
           },
           {
             "kind": "func",
-            "line": 3695,
+            "line": 3691,
             "name": "scheduleVisibleEventFlush",
             "passes": [
               "swift.task.structured"
@@ -45292,37 +45598,37 @@
           },
           {
             "kind": "func",
-            "line": 3708,
+            "line": 3704,
             "name": "flushPendingVisibleEventDeltas",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3784,
+            "line": 3780,
             "name": "applyDeltasToCachedState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3814,
+            "line": 3810,
             "name": "retainBackgroundDelta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3843,
+            "line": 3839,
             "name": "adoptBackgroundTurnBuffer",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3861,
+            "line": 3857,
             "name": "elisionMark",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 3865,
+            "line": 3861,
             "name": "applySessionEvent",
             "passes": [
               "swift.task.structured"
@@ -45330,19 +45636,19 @@
           },
           {
             "kind": "func",
-            "line": 4407,
+            "line": 4401,
             "name": "delegatingToolID",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 4420,
+            "line": 4414,
             "name": "applySubagentEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 4446,
+            "line": 4440,
             "name": "handleEvent",
             "passes": [
               "swift.state.transition",
@@ -45351,12 +45657,12 @@
           },
           {
             "kind": "func",
-            "line": 4730,
+            "line": 4720,
             "name": "notifyResponseCompleteIfNeeded",
             "passes": []
           }
         ],
-        "line_count": 4749,
+        "line_count": 4739,
         "mapped_declarations": 30,
         "passes": [
           "map.caller",
@@ -46875,7 +47181,7 @@
       {
         "citations": 16,
         "component": "operations-state",
-        "declaration_count": 39,
+        "declaration_count": 40,
         "declarations": [
           {
             "kind": "class",
@@ -46894,7 +47200,7 @@
           },
           {
             "kind": "func",
-            "line": 106,
+            "line": 113,
             "name": "loadFromUserDefaults",
             "passes": [
               "swift.boundary.external_signature"
@@ -46902,7 +47208,7 @@
           },
           {
             "kind": "func",
-            "line": 117,
+            "line": 124,
             "name": "scheduleDefaultsFlush",
             "passes": [
               "swift.task.structured"
@@ -46910,7 +47216,7 @@
           },
           {
             "kind": "func",
-            "line": 127,
+            "line": 134,
             "name": "flushDefaultsNow",
             "passes": [
               "swift.boundary.external_signature",
@@ -46919,31 +47225,31 @@
           },
           {
             "kind": "func",
-            "line": 146,
+            "line": 153,
             "name": "touchMeta",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 154,
+            "line": 161,
             "name": "buildMetaDocument",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 175,
+            "line": 182,
             "name": "syncMetaIfDue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 211,
+            "line": 218,
             "name": "titleForSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 227,
+            "line": 234,
             "name": "populateMissingTitles",
             "passes": [
               "swift.task.detached"
@@ -46951,37 +47257,37 @@
           },
           {
             "kind": "func",
-            "line": 254,
+            "line": 261,
             "name": "subtitleForSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 272,
+            "line": 279,
             "name": "subtitleForOwnedSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 284,
+            "line": 291,
             "name": "storeGatewayIDMapping",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 296,
+            "line": 303,
             "name": "gatewayIDForSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 301,
+            "line": 308,
             "name": "updateSessionTitle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 314,
+            "line": 321,
             "name": "setGatewayClient",
             "passes": [
               "swift.resource.bus_subscription"
@@ -46989,31 +47295,31 @@
           },
           {
             "kind": "func",
-            "line": 334,
+            "line": 341,
             "name": "applyGatewayTitle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 342,
+            "line": 349,
             "name": "resetForGatewaySwitch",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 357,
+            "line": 364,
             "name": "refreshSessions",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 361,
+            "line": 368,
             "name": "refreshSessions",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 462,
+            "line": 469,
             "name": "registerOwnedSession",
             "passes": [
               "swift.task.structured"
@@ -47021,120 +47327,126 @@
           },
           {
             "kind": "func",
-            "line": 532,
+            "line": 539,
             "name": "createSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 545,
+            "line": 552,
             "name": "resumeSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 564,
+            "line": 571,
             "name": "closeSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 597,
+            "line": 604,
             "name": "setRunState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 613,
+            "line": 620,
             "name": "runState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 627,
+            "line": 634,
             "name": "applyStreamingSessions",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 642,
+            "line": 649,
             "name": "setPinned",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 657,
+            "line": 664,
             "name": "togglePinned",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 663,
+            "line": 670,
             "name": "setTags",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 682,
+            "line": 689,
             "name": "addTag",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 687,
+            "line": 694,
             "name": "removeTag",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 692,
+            "line": 699,
             "name": "migrateLocalOrganizationState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 715,
+            "line": 722,
             "name": "migrateLocalRunState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 725,
+            "line": 735,
+            "name": "sidebarSections",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 746,
             "name": "sortedForSidebar",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 735,
+            "line": 759,
             "name": "archiveSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 749,
+            "line": 773,
             "name": "unarchiveSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 763,
+            "line": 787,
             "name": "deleteArchivedSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 781,
+            "line": 805,
             "name": "selectSession",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 788,
+            "line": 812,
             "name": "Date",
             "passes": []
           }
         ],
-        "line_count": 795,
+        "line_count": 819,
         "mapped_declarations": 7,
         "passes": [
           "map.caller",
@@ -52581,7 +52893,7 @@
           },
           {
             "kind": "func",
-            "line": 1248,
+            "line": 1254,
             "name": "scheduleScrollToBottom",
             "passes": [
               "swift.task.structured"
@@ -52589,43 +52901,43 @@
           },
           {
             "kind": "func",
-            "line": 1259,
+            "line": 1265,
             "name": "scrollToBottom",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1281,
+            "line": 1287,
             "name": "ChatViewportHeightKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1283,
+            "line": 1289,
             "name": "reduce",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1291,
+            "line": 1297,
             "name": "BottomFoldDistanceKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1293,
+            "line": 1299,
             "name": "reduce",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1300,
+            "line": 1306,
             "name": "SkinPickerView",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1339,
+            "line": 1345,
             "name": "ChatInputBar",
             "passes": [
               "swift.boundary.external_signature",
@@ -52635,25 +52947,25 @@
           },
           {
             "kind": "func",
-            "line": 1679,
+            "line": 1685,
             "name": "discussButtonHelp",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1781,
+            "line": 1787,
             "name": "showMacFilePicker",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1803,
+            "line": 1809,
             "name": "showiOSDocumentPicker",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1830,
+            "line": 1836,
             "name": "handlePhotosPickerItems",
             "passes": [
               "swift.task.structured"
@@ -52661,19 +52973,19 @@
           },
           {
             "kind": "func",
-            "line": 1846,
+            "line": 1852,
             "name": "handlePaste",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1855,
+            "line": 1861,
             "name": "handleDrop",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1898,
+            "line": 1904,
             "name": "ingest",
             "passes": [
               "swift.task.structured"
@@ -52681,55 +52993,55 @@
           },
           {
             "kind": "func",
-            "line": 1921,
+            "line": 1927,
             "name": "cachedPath",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1940,
+            "line": 1946,
             "name": "pngData",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1968,
+            "line": 1974,
             "name": "copyToCache",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1983,
+            "line": 1989,
             "name": "saveImageDataToCache",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 2000,
+            "line": 2006,
             "name": "PendingAttachmentThumbnail",
             "passes": []
           },
           {
             "kind": "class",
-            "line": 2033,
+            "line": 2039,
             "name": "DocumentPickerDelegate",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2037,
+            "line": 2043,
             "name": "documentPicker",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 2045,
+            "line": 2051,
             "name": "DebugLogPanel",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 2080,
+            "line": 2086,
             "name": "ClarifyBanner",
             "passes": [
               "swift.task.structured",
@@ -52738,7 +53050,7 @@
           },
           {
             "kind": "func",
-            "line": 2142,
+            "line": 2148,
             "name": "submitText",
             "passes": [
               "swift.task.structured"
@@ -52746,60 +53058,60 @@
           },
           {
             "kind": "struct",
-            "line": 2151,
+            "line": 2157,
             "name": "FlowLayoutCompat",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2154,
+            "line": 2160,
             "name": "sizeThatFits",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2170,
+            "line": 2176,
             "name": "placeSubviews",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 2188,
+            "line": 2194,
             "name": "ChatView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2201,
+            "line": 2207,
             "name": "isLastMessageInGroup",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2215,
+            "line": 2221,
             "name": "lastInGroupIDs",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2225,
+            "line": 2231,
             "name": "prepareBubbleMessage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 2236,
+            "line": 2242,
             "name": "dismissKeyboard",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 2243,
+            "line": 2249,
             "name": "ErrorBannerView",
             "passes": []
           }
         ],
-        "line_count": 2272,
+        "line_count": 2278,
         "mapped_declarations": 7,
         "passes": [
           "swift.boundary.external_signature",
@@ -52886,25 +53198,25 @@
           },
           {
             "kind": "func",
-            "line": 709,
+            "line": 710,
             "name": "closeAllOverlays",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 798,
+            "line": 799,
             "name": "chipLabel",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 817,
+            "line": 818,
             "name": "switchToGateway",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1256,
+            "line": 1258,
             "name": "handleSelectionChangeAfterViewUpdate",
             "passes": [
               "swift.task.structured"
@@ -52912,7 +53224,7 @@
           },
           {
             "kind": "func",
-            "line": 1269,
+            "line": 1271,
             "name": "handleTitleChangeAfterViewUpdate",
             "passes": [
               "swift.task.structured"
@@ -52920,13 +53232,13 @@
           },
           {
             "kind": "func",
-            "line": 1276,
+            "line": 1278,
             "name": "pushOwnedSessionOnIOS",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1290,
+            "line": 1292,
             "name": "handleSessionSelection",
             "passes": [
               "swift.task.structured"
@@ -52934,37 +53246,37 @@
           },
           {
             "kind": "func",
-            "line": 1396,
+            "line": 1398,
             "name": "createAndSwitchToNewSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1475,
+            "line": 1477,
             "name": "wireUpClient",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1495,
+            "line": 1497,
             "name": "refreshPersona",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1506,
+            "line": 1508,
             "name": "observeChatRunState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1521,
+            "line": 1523,
             "name": "updateSelectedSessionTitle",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1527,
+            "line": 1529,
             "name": "switchToSession",
             "passes": [
               "swift.task.structured"
@@ -52972,19 +53284,19 @@
           },
           {
             "kind": "func",
-            "line": 1569,
+            "line": 1571,
             "name": "revealChatSurface",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1583,
+            "line": 1585,
             "name": "resolveAndSelectSession",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1595,
+            "line": 1597,
             "name": "handleDeepLink",
             "passes": [
               "swift.task.structured"
@@ -52992,13 +53304,13 @@
           },
           {
             "kind": "func",
-            "line": 1622,
+            "line": 1624,
             "name": "handleCurriculumReady",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1634,
+            "line": 1636,
             "name": "handleScenePhaseChange",
             "passes": [
               "swift.task.structured"
@@ -53006,12 +53318,12 @@
           },
           {
             "kind": "func",
-            "line": 1718,
+            "line": 1720,
             "name": "resyncActiveChatSession",
             "passes": []
           }
         ],
-        "line_count": 1725,
+        "line_count": 1727,
         "mapped_declarations": 9,
         "passes": [
           "swift.boundary.external_signature",
@@ -57295,6 +57607,25 @@
       {
         "citations": 0,
         "component": "chat-ui",
+        "declaration_count": 1,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 8,
+            "name": "MessageBubbleHost",
+            "passes": []
+          }
+        ],
+        "line_count": 31,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/MessageBubbleHost.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "chat-ui",
         "declaration_count": 8,
         "declarations": [
           {
@@ -57305,48 +57636,48 @@
           },
           {
             "kind": "struct",
-            "line": 260,
+            "line": 256,
             "name": "ThinkingTraceSection",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 329,
+            "line": 325,
             "name": "ThinkingBlock",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 340,
+            "line": 336,
             "name": "ThinkingBlock",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 354,
+            "line": 350,
             "name": "ReasoningSection",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 407,
+            "line": 403,
             "name": "ChatMessage",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 415,
+            "line": 411,
             "name": "UserAttachmentsGrid",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 428,
+            "line": 424,
             "name": "UserAttachmentThumbnail",
             "passes": []
           }
         ],
-        "line_count": 448,
+        "line_count": 444,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/MessageBubbleView.swift",
@@ -58927,20 +59258,14 @@
             "passes": []
           },
           {
-            "kind": "struct",
-            "line": 42,
-            "name": "SidebarSections",
-            "passes": []
-          },
-          {
             "kind": "func",
-            "line": 52,
+            "line": 36,
             "name": "partition",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 209,
+            "line": 175,
             "name": "mySessionRow",
             "passes": [
               "swift.trigger.surface_call"
@@ -58948,13 +59273,13 @@
           },
           {
             "kind": "func",
-            "line": 245,
+            "line": 211,
             "name": "exportMarkdownButton",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 262,
+            "line": 228,
             "name": "archivedSessionRow",
             "passes": [
               "swift.task.structured",
@@ -58963,7 +59288,7 @@
           },
           {
             "kind": "func",
-            "line": 302,
+            "line": 268,
             "name": "otherSessionRow",
             "passes": [
               "swift.trigger.surface_call"
@@ -58971,48 +59296,54 @@
           },
           {
             "kind": "func",
-            "line": 331,
+            "line": 297,
             "name": "sessionSection",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 393,
+            "line": 359,
             "name": "sidebarHeaderButton",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 429,
+            "line": 395,
             "name": "collapsibleHeader",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 466,
+            "line": 432,
             "name": "View",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 467,
+            "line": 433,
             "name": "sessionListRowStyle",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 478,
+            "line": 444,
             "name": "SessionRowView",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 615,
+            "line": 581,
             "name": "PulsingDot",
+            "passes": []
+          },
+          {
+            "kind": "extension",
+            "line": 613,
+            "name": "SessionListView",
             "passes": []
           }
         ],
-        "line_count": 638,
+        "line_count": 617,
         "mapped_declarations": 4,
         "passes": [
           "swift.boundary.external_signature",
@@ -63257,10 +63588,10 @@
         "id": "swift.boundary.external_signature"
       },
       {
-        "citations": 46,
+        "citations": 49,
         "class": "mechanical",
         "description": "lock() invoked on a named stored lock",
-        "files": 9,
+        "files": 10,
         "id": "swift.lifecycle.acquire"
       },
       {
@@ -63320,10 +63651,10 @@
         "id": "swift.lifecycle.receive"
       },
       {
-        "citations": 53,
+        "citations": 57,
         "class": "mechanical",
         "description": "unlock() invoked on a named stored lock",
-        "files": 9,
+        "files": 10,
         "id": "swift.lifecycle.release"
       },
       {
@@ -63348,10 +63679,10 @@
         "id": "swift.resource.combine_subject.stored"
       },
       {
-        "citations": 13,
+        "citations": 14,
         "class": "mechanical",
         "description": "Stored property declared or initialized as NSLock or OSAllocatedUnfairLock",
-        "files": 10,
+        "files": 11,
         "id": "swift.resource.lock.stored"
       },
       {
@@ -63502,8 +63833,8 @@
           "total": 4
         },
         "class": {
-          "mapped": 77,
-          "total": 128
+          "mapped": 78,
+          "total": 129
         },
         "enum": {
           "mapped": 8,
@@ -63511,11 +63842,11 @@
         },
         "extension": {
           "mapped": 20,
-          "total": 119
+          "total": 120
         },
         "func": {
-          "mapped": 432,
-          "total": 3259
+          "mapped": 434,
+          "total": 3263
         },
         "protocol": {
           "mapped": 1,
@@ -63523,27 +63854,27 @@
         },
         "struct": {
           "mapped": 103,
-          "total": 865
+          "total": 867
         }
       },
-      "citations": 1320,
-      "declarations": 4705,
+      "citations": 1328,
+      "declarations": 4713,
       "entities": 161,
       "entities_with_origin": 161,
-      "files": 418,
+      "files": 421,
       "functions": {
-        "mapped": 432,
-        "total": 3259
+        "mapped": 434,
+        "total": 3263
       },
-      "mapped_declarations": 645,
+      "mapped_declarations": 648,
       "passes": 50,
       "semantic_citations": 254,
       "touched_files": 165,
       "types": {
-        "mapped": 213,
-        "total": 1446
+        "mapped": 214,
+        "total": 1450
       },
-      "untouched_files": 253
+      "untouched_files": 256
     }
   },
   "interplay": {
@@ -64029,7 +64360,7 @@
     ],
     "constructs": {
       "described": 102,
-      "stale": 74
+      "stale": 75
     },
     "edges": [
       {
@@ -66487,7 +66818,7 @@
         ],
         "summary": "The agent pauses and asks a question or requests tool approval. The user picks an option or types an answer in the banner. ChatViewModel sends the clarify (or approval) RPC through GatewayClient to the gateway, the pending request resolves, and the run resumes with new events flowing back on the eventStream.",
         "title": "Answer a clarification or approval request",
-        "trigger": "trigger-ba34e2c9dffb"
+        "trigger": "trigger-d63500514852"
       },
       {
         "authority": "synthesized",
@@ -66578,7 +66909,7 @@
         ],
         "summary": "While a reply is streaming, the user taps Stop. ChatViewModel sends a session interrupt RPC through GatewayClient to the gateway, which halts the run. A final event arrives on the eventStream, ChatViewModel clears the streaming flag, and SessionRunHistoryStore records the run end with its token and cost totals.",
         "title": "Stop a reply that is still streaming",
-        "trigger": "trigger-4f3df57045df"
+        "trigger": "trigger-8d1f61693619"
       },
       {
         "authority": "synthesized",
@@ -66681,7 +67012,7 @@
         ],
         "summary": "The user submits a prompt. ChatViewModel calls the prompt RPC through GatewayClient, which registers a pending continuation and sends the frame over the WebSocket to the Harness gateway. Streamed events come back on the AgentBackend eventStream, ChatViewModel appends deltas to the transcript, and ChatHistoryStore persists the session to disk.",
         "title": "Send a prompt and watch the reply stream in",
-        "trigger": "trigger-82504040d98d"
+        "trigger": "trigger-7936740a5d89"
       },
       {
         "authority": "synthesized",
@@ -66772,7 +67103,7 @@
         ],
         "summary": "The user taps the mic to record, then taps again to stop. ChatViewModel sends the captured audio through the voice RPC to the gateway for transcription and a run. Reply events return on the eventStream, and ChatViewModel drives TTSService to speak the streamed sentences on-device.",
         "title": "Speak a prompt and hear the reply",
-        "trigger": "trigger-a02de4ca4815"
+        "trigger": "trigger-c3fdc426a341"
       },
       {
         "authority": "synthesized",
@@ -69893,7 +70224,7 @@
         "why": "If the register, resolve or remove rules stop matching the source, the pool must fail the build rather than look idle."
       },
       {
-        "checked": 147,
+        "checked": 154,
         "id": "operations-scoped",
         "kind": "operations_resolve_scope",
         "status": "holds",
@@ -76955,7 +77286,7 @@
             {
               "from": null,
               "function": "finishStreaming",
-              "line": 3048,
+              "line": 3045,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76963,7 +77294,7 @@
             {
               "from": null,
               "function": "createLocalTestSession",
-              "line": 3385,
+              "line": 3381,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76971,7 +77302,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4485,
+              "line": 4479,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "speaking"
@@ -76979,7 +77310,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4512,
+              "line": 4506,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76987,7 +77318,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4549,
+              "line": 4539,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -76995,7 +77326,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4599,
+              "line": 4589,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "toolUse"
@@ -77003,7 +77334,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4652,
+              "line": 4642,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "thinking"
@@ -77011,7 +77342,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4658,
+              "line": 4648,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "thinking"
@@ -77019,7 +77350,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4699,
+              "line": 4689,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "error"
@@ -77922,7 +78253,7 @@
           "summary": "As a subscriber, SessionListViewModel tracks client-observed live run states per session so sidebar icons stay current when the gateway's session list lacks run state. It persists local titles, pins, archives, tags, and ID mappings to UserDefaults through a coalesced flush, and reads first user messages from ChatHistoryStore off the main thread to fill missing titles."
         },
         "subscription": {
-          "line": 321,
+          "line": 328,
           "mode": "direct",
           "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
           "rule_id": "swift.resource.bus_subscription",
@@ -78873,37 +79204,37 @@
           ],
           "fields": {
             "entry_triggers": [
-              "trigger-00319043c811",
               "trigger-02ee30a04e28",
               "trigger-047cc395d5c3",
               "trigger-08b5837cb2bc",
-              "trigger-1bde9c08ebb7",
-              "trigger-2b953b60c285",
-              "trigger-394f60276079",
-              "trigger-3be06edcfaa0",
+              "trigger-0ad0279ad91b",
+              "trigger-185b4dd38c12",
+              "trigger-23e915ef11ec",
               "trigger-3ec14251aac9",
               "trigger-48203bfc2a00",
-              "trigger-49cb63ef1a5e",
-              "trigger-4f3df57045df",
-              "trigger-51edf5574a11",
-              "trigger-66d2bfd6ab7c",
-              "trigger-677148be1893",
+              "trigger-5ee4739fd3d1",
               "trigger-6874a8876035",
-              "trigger-6a4198b86da5",
-              "trigger-80f474265b2d",
-              "trigger-82504040d98d",
+              "trigger-6a839df45f82",
+              "trigger-77b3e0ae085a",
+              "trigger-7936740a5d89",
+              "trigger-8d1f61693619",
+              "trigger-982e3e8d3be4",
               "trigger-9a79ee75befc",
-              "trigger-9ab811c96d1c",
-              "trigger-a02de4ca4815",
-              "trigger-a328ad1cf64e",
+              "trigger-9ffcd49f8741",
+              "trigger-a3f2d916337c",
               "trigger-ad7ee3ac578f",
-              "trigger-ba34e2c9dffb",
+              "trigger-bbb6f61127f7",
+              "trigger-c153e2c88893",
+              "trigger-c1b98c0d77a1",
+              "trigger-c3fdc426a341",
               "trigger-cd8bfc7995ee",
-              "trigger-d83378307fa6",
-              "trigger-d916e034616a",
-              "trigger-ee7d1fdfb2d6",
-              "trigger-ef432a930341",
-              "trigger-fd7e724400f2"
+              "trigger-d0176d35d55f",
+              "trigger-d63500514852",
+              "trigger-e0dbdf31e6d1",
+              "trigger-e8fe53f7b012",
+              "trigger-eb91ba2ea91a",
+              "trigger-ed133bbc9626",
+              "trigger-fbc2081e654c"
             ],
             "owns_state_in": [
               "caller:chat-state:ChatViewModel",
@@ -78933,10 +79264,10 @@
             "Where ChatViewModel is instantiated and injected; ChatView receives it as an EnvironmentObject, not from the launch roots."
           ],
           "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-          "stale": false,
+          "stale": true,
           "summary": "The main chat surface. ChatView renders a session transcript driven by ChatViewModel, with skin selection, thought-graph and quiz toggles, artifact presentation, and macOS focus handling; on macOS it always renders as a canvas. SessionListView is the sidebar that partitions sessions into mine, archived, cron, and other tiers in one pass over SessionListViewModel.sessions."
         },
-        "type_count": 162
+        "type_count": 164
       },
       {
         "components": [
@@ -80185,9 +80516,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-00319043c811",
+        "id": "trigger-23e915ef11ec",
         "kind": "user_action",
-        "line": 1516,
+        "line": 1522,
         "method": "addAttachment",
         "namespaces": [],
         "page": "chat",
@@ -80200,9 +80531,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-2b953b60c285",
+        "id": "trigger-e8fe53f7b012",
         "kind": "lifecycle",
-        "line": 1529,
+        "line": 1535,
         "method": "addAttachment",
         "namespaces": [],
         "page": "chat",
@@ -80215,9 +80546,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-ee7d1fdfb2d6",
+        "id": "trigger-a3f2d916337c",
         "kind": "lifecycle",
-        "line": 1563,
+        "line": 1569,
         "method": "updateSlashSuggestions",
         "namespaces": [],
         "page": "chat",
@@ -80230,9 +80561,9 @@
         "api": "onSubmit",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-82504040d98d",
+        "id": "trigger-7936740a5d89",
         "kind": "user_action",
-        "line": 1573,
+        "line": 1579,
         "method": "submitPrompt",
         "namespaces": [
           "prompt"
@@ -80247,9 +80578,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-ef432a930341",
+        "id": "trigger-6a839df45f82",
         "kind": "lifecycle",
-        "line": 1576,
+        "line": 1582,
         "method": "updateSlashSuggestions",
         "namespaces": [],
         "page": "chat",
@@ -80262,9 +80593,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-677148be1893",
+        "id": "trigger-d0176d35d55f",
         "kind": "user_action",
-        "line": 1663,
+        "line": 1669,
         "method": "endLocalDiscussion",
         "namespaces": [],
         "page": "chat",
@@ -80277,9 +80608,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-9ab811c96d1c",
+        "id": "trigger-eb91ba2ea91a",
         "kind": "user_action",
-        "line": 1663,
+        "line": 1669,
         "method": "startLocalDiscussion",
         "namespaces": [],
         "page": "chat",
@@ -80292,9 +80623,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d83378307fa6",
+        "id": "trigger-ed133bbc9626",
         "kind": "user_action",
-        "line": 1712,
+        "line": 1718,
         "method": "startVoiceConversation",
         "namespaces": [],
         "page": "chat",
@@ -80307,9 +80638,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-a02de4ca4815",
+        "id": "trigger-c3fdc426a341",
         "kind": "user_action",
-        "line": 1715,
+        "line": 1721,
         "method": "startVoiceRecording",
         "namespaces": [
           "voice"
@@ -80324,9 +80655,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-49cb63ef1a5e",
+        "id": "trigger-bbb6f61127f7",
         "kind": "user_action",
-        "line": 1715,
+        "line": 1721,
         "method": "stopVoiceRecording",
         "namespaces": [
           "voice"
@@ -80341,9 +80672,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-4f3df57045df",
+        "id": "trigger-8d1f61693619",
         "kind": "user_action",
-        "line": 1744,
+        "line": 1750,
         "method": "interrupt",
         "namespaces": [
           "session"
@@ -80358,9 +80689,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-fd7e724400f2",
+        "id": "trigger-5ee4739fd3d1",
         "kind": "user_action",
-        "line": 1759,
+        "line": 1765,
         "method": "submitPrompt",
         "namespaces": [
           "prompt"
@@ -80375,9 +80706,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-ba34e2c9dffb",
+        "id": "trigger-d63500514852",
         "kind": "user_action",
-        "line": 2104,
+        "line": 2110,
         "method": "respondClarify",
         "namespaces": [
           "clarify"
@@ -80392,9 +80723,9 @@
         "api": "onSubmit",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-66d2bfd6ab7c",
+        "id": "trigger-fbc2081e654c",
         "kind": "user_action",
-        "line": 2118,
+        "line": 2124,
         "method": "respondClarify",
         "namespaces": [
           "clarify"
@@ -80409,9 +80740,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-6a4198b86da5",
+        "id": "trigger-185b4dd38c12",
         "kind": "user_action",
-        "line": 2120,
+        "line": 2126,
         "method": "respondClarify",
         "namespaces": [
           "clarify"
@@ -80426,9 +80757,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-a328ad1cf64e",
+        "id": "trigger-77b3e0ae085a",
         "kind": "user_action",
-        "line": 2128,
+        "line": 2134,
         "method": "respondClarify",
         "namespaces": [
           "clarify"
@@ -80862,9 +81193,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-4a3687cdddbf",
+        "id": "trigger-fd9c8181730f",
         "kind": "lifecycle",
-        "line": 440,
+        "line": 441,
         "method": "showTransientStatus",
         "namespaces": [],
         "page": null,
@@ -80877,9 +81208,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-11c642f4b380",
+        "id": "trigger-67ea78e26720",
         "kind": "lifecycle",
-        "line": 440,
+        "line": 441,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -80894,9 +81225,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-3c6ed26a7b2f",
+        "id": "trigger-1e48fef819a5",
         "kind": "lifecycle",
-        "line": 443,
+        "line": 444,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -80911,9 +81242,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-6371ea2608a6",
+        "id": "trigger-39079d3954aa",
         "kind": "lifecycle",
-        "line": 449,
+        "line": 450,
         "method": "clearCurriculumSignal",
         "namespaces": [],
         "page": null,
@@ -80926,9 +81257,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-a11bb7b68dfc",
+        "id": "trigger-d92013962139",
         "kind": "lifecycle",
-        "line": 452,
+        "line": 453,
         "method": "saveHistory",
         "namespaces": [],
         "page": null,
@@ -80941,9 +81272,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-90a96b07213c",
+        "id": "trigger-639c62edc359",
         "kind": "lifecycle",
-        "line": 452,
+        "line": 453,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -80958,9 +81289,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-887ee5e92c90",
+        "id": "trigger-e0d5874479a1",
         "kind": "lifecycle",
-        "line": 458,
+        "line": 459,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -80975,9 +81306,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d48e8ff6bc7d",
+        "id": "trigger-7e9bad4de43c",
         "kind": "lifecycle",
-        "line": 479,
+        "line": 480,
         "method": "markAllCronRunsRead",
         "namespaces": [],
         "page": null,
@@ -80990,9 +81321,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-96ed2fbd1a7a",
+        "id": "trigger-c39b2fcfaf45",
         "kind": "lifecycle",
-        "line": 559,
+        "line": 560,
         "method": "showTransientStatus",
         "namespaces": [],
         "page": null,
@@ -81005,9 +81336,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-cf57fc965efa",
+        "id": "trigger-b566ee7d9ebb",
         "kind": "lifecycle",
-        "line": 559,
+        "line": 560,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -81022,9 +81353,9 @@
         "api": "onReceive",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-3ae04a8c3e9e",
+        "id": "trigger-888c1d9c3bd1",
         "kind": "lifecycle",
-        "line": 562,
+        "line": 563,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -81039,9 +81370,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-48596115e67d",
+        "id": "trigger-2efeaf4d9df6",
         "kind": "lifecycle",
-        "line": 568,
+        "line": 569,
         "method": "clearCurriculumSignal",
         "namespaces": [],
         "page": null,
@@ -81054,9 +81385,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-9c4ebf7c34e3",
+        "id": "trigger-4c57f1b0fa43",
         "kind": "lifecycle",
-        "line": 571,
+        "line": 572,
         "method": "saveHistory",
         "namespaces": [],
         "page": null,
@@ -81069,9 +81400,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-a1dd096c7728",
+        "id": "trigger-9c4756fb30c6",
         "kind": "lifecycle",
-        "line": 571,
+        "line": 572,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -81086,9 +81417,9 @@
         "api": "onChange",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-fd2939a0a05c",
+        "id": "trigger-a47ea9809c3d",
         "kind": "lifecycle",
-        "line": 577,
+        "line": 578,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -81103,9 +81434,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-86b715ceb9cf",
+        "id": "trigger-37a2cc27f51e",
         "kind": "user_action",
-        "line": 842,
+        "line": 843,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -81118,9 +81449,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-91cf0cd52dff",
+        "id": "trigger-360b22bce4bf",
         "kind": "user_action",
-        "line": 842,
+        "line": 843,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -81133,9 +81464,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-f5b9b08e46c9",
+        "id": "trigger-f4bdb5a68513",
         "kind": "user_action",
-        "line": 842,
+        "line": 843,
         "method": "setGatewayClient",
         "namespaces": [
           "cron"
@@ -81150,9 +81481,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-de2fb57adb1e",
+        "id": "trigger-855984a712e4",
         "kind": "user_action",
-        "line": 842,
+        "line": 843,
         "method": "setGatewayClient",
         "namespaces": [],
         "page": null,
@@ -81165,9 +81496,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-6f953eb0db89",
+        "id": "trigger-24ceea4bd66f",
         "kind": "user_action",
-        "line": 842,
+        "line": 843,
         "method": "subscribe",
         "namespaces": [],
         "page": null,
@@ -81180,9 +81511,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-03dcb8fe41bd",
+        "id": "trigger-556357324008",
         "kind": "user_action",
-        "line": 1015,
+        "line": 1016,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -81195,9 +81526,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d99b505e97f6",
+        "id": "trigger-6217f46c293c",
         "kind": "user_action",
-        "line": 1015,
+        "line": 1016,
         "method": "createSession",
         "namespaces": [
           "session"
@@ -81212,9 +81543,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-990685c2a202",
+        "id": "trigger-fafe8973a7e2",
         "kind": "user_action",
-        "line": 1015,
+        "line": 1016,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -81229,9 +81560,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d31b4ae4cafa",
+        "id": "trigger-6bf9b4305707",
         "kind": "user_action",
-        "line": 1015,
+        "line": 1016,
         "method": "selectSession",
         "namespaces": [],
         "page": null,
@@ -81244,9 +81575,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-774be49eab54",
+        "id": "trigger-605ad0f23ab9",
         "kind": "user_action",
-        "line": 1015,
+        "line": 1016,
         "method": "setRunState",
         "namespaces": [],
         "page": null,
@@ -81259,9 +81590,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-f0727152c89a",
+        "id": "trigger-7cb05ea691c5",
         "kind": "user_action",
-        "line": 1015,
+        "line": 1016,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -81274,9 +81605,9 @@
         "api": "keyboardShortcut",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-836d24c81787",
+        "id": "trigger-ff8c692f4a27",
         "kind": "user_action",
-        "line": 1015,
+        "line": 1016,
         "method": "createTree",
         "namespaces": [],
         "page": null,
@@ -81289,9 +81620,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-c7ae4a301d0d",
+        "id": "trigger-acb5fefc3613",
         "kind": "user_action",
-        "line": 1379,
+        "line": 1381,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -81304,9 +81635,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-f9d8eeb3eb89",
+        "id": "trigger-2517f6b6b117",
         "kind": "user_action",
-        "line": 1379,
+        "line": 1381,
         "method": "createSession",
         "namespaces": [
           "session"
@@ -81321,9 +81652,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-73bc5eec7056",
+        "id": "trigger-84ddc3183596",
         "kind": "user_action",
-        "line": 1379,
+        "line": 1381,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -81338,9 +81669,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-145b327e9bc9",
+        "id": "trigger-362c730e916d",
         "kind": "user_action",
-        "line": 1379,
+        "line": 1381,
         "method": "selectSession",
         "namespaces": [],
         "page": null,
@@ -81353,9 +81684,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-4a8a5a40bb0b",
+        "id": "trigger-af795239d078",
         "kind": "user_action",
-        "line": 1379,
+        "line": 1381,
         "method": "setRunState",
         "namespaces": [],
         "page": null,
@@ -81368,9 +81699,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-1b548ca14ca1",
+        "id": "trigger-8e1cf751bf67",
         "kind": "user_action",
-        "line": 1379,
+        "line": 1381,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -81383,9 +81714,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-9044a09b86e1",
+        "id": "trigger-e548a8e019a3",
         "kind": "user_action",
-        "line": 1379,
+        "line": 1381,
         "method": "createTree",
         "namespaces": [],
         "page": null,
@@ -81398,9 +81729,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-62fa72448f94",
+        "id": "trigger-e42ce2b9c64f",
         "kind": "user_action",
-        "line": 1463,
+        "line": 1465,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -81413,9 +81744,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-b24c5985036c",
+        "id": "trigger-5b38fad620e7",
         "kind": "user_action",
-        "line": 1463,
+        "line": 1465,
         "method": "createSession",
         "namespaces": [
           "session"
@@ -81430,9 +81761,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-7a2c58bc13fc",
+        "id": "trigger-2571c38b29e9",
         "kind": "user_action",
-        "line": 1463,
+        "line": 1465,
         "method": "registerOwnedSession",
         "namespaces": [
           "session"
@@ -81447,9 +81778,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-c721e783c23e",
+        "id": "trigger-dbe053f9a3c9",
         "kind": "user_action",
-        "line": 1463,
+        "line": 1465,
         "method": "selectSession",
         "namespaces": [],
         "page": null,
@@ -81462,9 +81793,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-dbfb8c06602e",
+        "id": "trigger-6f28ac97b688",
         "kind": "user_action",
-        "line": 1463,
+        "line": 1465,
         "method": "setRunState",
         "namespaces": [],
         "page": null,
@@ -81477,9 +81808,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-c2c1309601bc",
+        "id": "trigger-566104804d59",
         "kind": "user_action",
-        "line": 1463,
+        "line": 1465,
         "method": "bindRuntimeSession",
         "namespaces": [],
         "page": null,
@@ -81492,9 +81823,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-de1611683d67",
+        "id": "trigger-dffdded67bb3",
         "kind": "user_action",
-        "line": 1463,
+        "line": 1465,
         "method": "createTree",
         "namespaces": [],
         "page": null,
@@ -82884,9 +83215,9 @@
         "api": "refreshable",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-1bde9c08ebb7",
+        "id": "trigger-c1b98c0d77a1",
         "kind": "user_action",
-        "line": 188,
+        "line": 154,
         "method": "refreshSessions",
         "namespaces": [
           "session"
@@ -82901,9 +83232,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-51edf5574a11",
+        "id": "trigger-c153e2c88893",
         "kind": "user_action",
-        "line": 222,
+        "line": 188,
         "method": "selectSession",
         "namespaces": [],
         "page": "chat",
@@ -82916,9 +83247,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-394f60276079",
+        "id": "trigger-0ad0279ad91b",
         "kind": "user_action",
-        "line": 234,
+        "line": 200,
         "method": "archiveSession",
         "namespaces": [],
         "page": "chat",
@@ -82931,9 +83262,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-3be06edcfaa0",
+        "id": "trigger-982e3e8d3be4",
         "kind": "user_action",
-        "line": 276,
+        "line": 242,
         "method": "selectSession",
         "namespaces": [],
         "page": "chat",
@@ -82946,9 +83277,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-80f474265b2d",
+        "id": "trigger-e0dbdf31e6d1",
         "kind": "user_action",
-        "line": 293,
+        "line": 259,
         "method": "deleteArchivedSession",
         "namespaces": [],
         "page": "chat",
@@ -82961,9 +83292,9 @@
         "api": "onTapGesture",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-d916e034616a",
+        "id": "trigger-9ffcd49f8741",
         "kind": "user_action",
-        "line": 315,
+        "line": 281,
         "method": "selectSession",
         "namespaces": [],
         "page": "chat",
@@ -83823,12 +84154,12 @@
     "unattributed_triggers": 478
   },
   "inventory": {
-    "assigned_files": 416,
-    "declarations": 1301,
-    "files": 416,
-    "lines": 120139,
-    "swift_files": 416,
-    "swift_lines": 120139,
+    "assigned_files": 419,
+    "declarations": 1304,
+    "files": 419,
+    "lines": 120318,
+    "swift_files": 419,
+    "swift_lines": 120318,
     "unassigned_files": []
   },
   "layers": [
@@ -83860,7 +84191,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "73a2b5a6b8066990f86d5117bf035348153de064dbfe9a84ce858e43e81a4f83",
+  "source_tree_sha256": "894c6f821221e9cb192fc9990665d367ac4f1bca9b8e23e18e3a66fa26c4cff2",
   "stores": {
     "by_persistence": {
       "defaults": 6,
