@@ -11,7 +11,7 @@ internal struct PageIntentDockButton: View {
                 .labelStyle(.iconOnly)
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Theme.primary)
-                .frame(width: 44, height: 44)
+                .frame(width: Self.diameter, height: Self.diameter)
                 .background(Theme.surface, in: Circle())
                 .overlay(Circle().stroke(Theme.border, lineWidth: 1))
                 .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
@@ -19,7 +19,7 @@ internal struct PageIntentDockButton: View {
         .buttonStyle(.plain)
         .help("Talk to this page: ask about it or tell the agent what to do here")
         .accessibilityLabel("Talk to this page")
-        .padding(18)
+        .padding(Self.outerPadding)
     }
 }
 
@@ -164,4 +164,13 @@ internal struct PageIntentDock: View {
         .padding(.vertical, 8)
         .background(Theme.surface)
     }
+}
+
+extension PageIntentDockButton {
+    private static let diameter: CGFloat = 44
+    private static let outerPadding: CGFloat = 18
+    /// Horizontal footprint consumed by the floating button at the trailing
+    /// edge. Graph-local overlays reserve this width so neither control owns
+    /// the same hit target.
+    internal static let reservedWidth = diameter + outerPadding * 2
 }

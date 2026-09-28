@@ -27,6 +27,17 @@ internal struct CronGraphViewModelTests {
         #expect(legendSize.width * legendSize.height <= graphSize.width * graphSize.height / 8)
     }
 
+    @Test("runtime legend reserves the page-intent session toggle footprint")
+    internal func runtimeLegendClearsPageIntentToggle() {
+        let pageIntentWidth = PageIntentDockButton.reservedWidth
+        let graphTrailingEdge: CGFloat = 1_000
+        let legendTrailingEdge = graphTrailingEdge
+            - CronGraphLegendLayout.trailingPadding(reserving: pageIntentWidth)
+        let pageIntentLeadingEdge = graphTrailingEdge - pageIntentWidth
+
+        #expect(legendTrailingEdge < pageIntentLeadingEdge)
+    }
+
     // MARK: - selectNode(withID:)
 
     @Test("selectNode(withID:) selects the node carrying that id")
