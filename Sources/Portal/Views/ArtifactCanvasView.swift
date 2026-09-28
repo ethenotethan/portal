@@ -551,7 +551,6 @@ private struct ArtifactPanelContent: View {
     /// a one-line structural summary for JSON kinds (e.g. "12 markers"), the
     /// leading prose for docs, or a code/markup snippet otherwise.
     private var previewGist: String {
-        let content = store.artifacts[artifact.id]?.content ?? artifact.content
         let current = store.artifacts[artifact.id] ?? artifact
         return ArtifactPreviewGist.make(kind: current.kind, content: current.content, object: .some(current.jsonObject))
     }

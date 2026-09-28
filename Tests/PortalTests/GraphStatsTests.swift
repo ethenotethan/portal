@@ -73,7 +73,8 @@ internal struct GraphStatsTests {
         #expect(stats.nodesByKind.map(\.label) == ["concept", "entity", "raw"])
         #expect(stats.edgesByType == [GraphStats.Row(label: "compares", count: 1), GraphStats.Row(label: "wikilink", count: 1)])
         #expect(stats.components == 2 && stats.isolatedNodes == 1)
-        let wiki = try? #require(stats.extras.first { $0.title == "Wiki" })
+        let wiki = stats.extras.first { $0.title == "Wiki" }
+        #expect(wiki != nil)
         let rows = Dictionary(uniqueKeysWithValues: (wiki?.rows ?? []).map { ($0.label, $0.count) })
         #expect(rows["Pinned pages"] == 1)
         #expect(rows["Contested pages"] == 1)
@@ -129,7 +130,7 @@ internal struct GraphStatsTests {
          "clusters": [], "flows": [], "invariants": [{"id": "a", "kind": "k", "status": "holds", "why": ""}, {"id": "b", "kind": "k", "status": "violated", "why": ""}]}
         """
         let value = try JSONDecoder().decode(AnyCodable.self, from: Data(json.utf8))
-        let document = try #require(ArchitectureSystemMapDocument.decode(try #require(value.dictionaryValue)))
+        let document = ArchitectureSystemMapDocument.decode(try #require(value.dictionaryValue))
         let stats = GraphStats.systemMap(document, hullCount: 4)
         #expect(stats.nodeCount == 3 && stats.edgeCount == 2 && stats.components == 1)
         #expect(stats.edgesByType.map(\.count) == [1, 1])
