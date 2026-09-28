@@ -17,6 +17,16 @@ internal struct CronGraphViewModelTests {
         return vm
     }
 
+    @Test("expanded legend occupies at most one eighth of a large graph")
+    internal func expandedLegendStaysWithinOneEighthOfLargeGraph() {
+        let graphSize = CGSize(width: 1_200, height: 800)
+
+        let legendSize = CronGraphLegendLayout.expandedSize(in: graphSize)
+
+        #expect(legendSize == CGSize(width: 300, height: 400))
+        #expect(legendSize.width * legendSize.height <= graphSize.width * graphSize.height / 8)
+    }
+
     // MARK: - selectNode(withID:)
 
     @Test("selectNode(withID:) selects the node carrying that id")

@@ -35,7 +35,7 @@ internal struct CronInterflowGraphView: View {
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
     private let healthTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
-    /// Whether the bottom-left legend is expanded. Persisted so the choice sticks
+    /// Whether the bottom-right legend is expanded. Persisted so the choice sticks
     /// across launches and stays in step between the inline panel and the
     /// full-screen surface. The legend stacks kinds, cron categories, and group
     /// toggles, so on a busy graph folding it away reclaims real estate.
@@ -289,37 +289,37 @@ internal struct CronInterflowGraphView: View {
     }
 
     private var legendOverlay: some View {
-        VStack {
-            Spacer()
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    legendHeader
-                    if isLegendExpanded {
-                        ForEach(CronGraphViewModel.legend, id: \.kind) { entry in
-                            HStack(spacing: 7) {
-                                CronNodeGlyphShape(glyph: viewModel.glyph(forKind: entry.kind))
-                                    .fill(viewModel.color(forKind: entry.kind))
-                                    .frame(width: 11, height: 11)
-                                Text(entry.label)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(Theme.secondary)
+        GeometryReader { geometry in
+            let expandedSize = CronGraphLegendLayout.expandedSize(in: geometry.size)
+            VStack(alignment: .leading, spacing: 6) {
+                legendHeader
+                if isLegendExpanded {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(CronGraphViewModel.legend, id: \.kind) { entry in
+                                HStack(spacing: 7) {
+                                    CronNodeGlyphShape(glyph: viewModel.glyph(forKind: entry.kind))
+                                        .fill(viewModel.color(forKind: entry.kind))
+                                        .frame(width: 11, height: 11)
+                                    Text(entry.label)
+                                        .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary)
+                                }
                             }
+                            edgeLegendRows
+                            categoryLegendRows
+                            groupToggleRows
                         }
-                        edgeLegendRows
-                        categoryLegendRows
-                        groupToggleRows
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(10)
-                .background(Theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 9)
-                        .stroke(Theme.secondary.opacity(0.15), lineWidth: 1)
-                )
-                Spacer()
             }
+            .padding(10).frame(width: isLegendExpanded ? expandedSize.width : nil, alignment: .leading)
+            .frame(maxHeight: isLegendExpanded ? expandedSize.height : nil, alignment: .topLeading)
+            .background(Theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.secondary.opacity(0.15), lineWidth: 1))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .padding(14)
         }
-        .padding(14)
     }
 
     /// The legend's toggle: the whole row is the hit target, so a single click
@@ -657,5 +657,23 @@ internal struct CronInterflowGraphView: View {
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
         }
+    }
+}
+
+internal enum CronGraphLegendLayout {
+    internal static let maximumWidth: CGFloat = 300
+    internal static let minimumWidth: CGFloat = 220
+    internal static let maximumHeight: CGFloat = 420
+    internal static let minimumHeight: CGFloat = 180
+
+    internal static func expandedSize(in availableSize: CGSize) -> CGSize {
+        let usableWidth = max(0, availableSize.width - 28)
+        let usableHeight = max(0, availableSize.height - 28)
+        let preferredWidth = max(minimumWidth, availableSize.width * 0.25)
+        let preferredHeight = max(minimumHeight, availableSize.height * 0.5)
+        return CGSize(
+            width: min(usableWidth, min(maximumWidth, preferredWidth)),
+            height: min(usableHeight, min(maximumHeight, preferredHeight))
+        )
     }
 }

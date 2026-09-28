@@ -12862,19 +12862,24 @@
           "counts": {
             "artifact.maintainerParse": 40,
             "graph.forceSim": 202020,
+            "kanban.mount.layoutPasses": 3,
             "kanban.mount.view.body.KanbanBoard": 1,
             "kanban.mount.view.body.KanbanCardTile": 64,
             "kanban.mount.view.body.KanbanColumn": 8,
+            "kanban.moveCard.layoutPasses": 1,
             "kanban.moveCard.view.body.KanbanBoard": 1,
             "kanban.moveCard.view.body.KanbanCardTile": 34,
             "kanban.moveCard.view.body.KanbanColumn": 4,
+            "markdown.mount.layoutPasses": 1,
             "markdown.mount.view.body.MarkdownContentView": 1,
+            "model.editItem.layoutPasses": 1,
             "model.editItem.view.body.KanbanBoard": 1,
             "model.editItem.view.body.KanbanCardTile": 24,
             "model.editItem.view.body.KanbanColumn": 4,
             "model.editItem.view.body.ModelCard": 1,
             "model.editItem.view.body.ModelEntityRow": 34,
             "model.editItem.view.body.ModelEntityTable": 2,
+            "model.mount.layoutPasses": 1,
             "model.mount.view.body.KanbanBoard": 1,
             "model.mount.view.body.KanbanCardTile": 48,
             "model.mount.view.body.KanbanColumn": 8,
@@ -12890,7 +12895,7 @@
         "floor": "Every counter at most base; the ceiling is read from base via git show.",
         "id": "perf",
         "job": "ratchet/performance",
-        "measures": "Deterministic counts (not time) under -DPERF_COUNTERS over fixed fixtures: algorithmic operations in the hot pure layout paths, and SwiftUI body evaluations of the artifact views on mount and after one state change.",
+        "measures": "Deterministic counts (not time) under -DPERF_COUNTERS over fixed fixtures: algorithmic operations in the hot pure layout paths, SwiftUI body evaluations of the artifact views on mount and after one state change, and hosting-view layout passes to settle.",
         "patch": null,
         "source": {
           "kind": "perf",
@@ -13465,7 +13470,7 @@
       "line_count": 7090
     },
     {
-      "declaration_count": 138,
+      "declaration_count": 139,
       "declarations": [
         "ActivityArtifactView",
         "ActivityDetailView",
@@ -13485,6 +13490,7 @@
         "CronDefinitionHistoryView",
         "CronEmptyChart",
         "CronGraphCanvas",
+        "CronGraphLegendLayout",
         "CronInterflowGraphView",
         "CronJobCard",
         "CronJobDetailView",
@@ -13668,7 +13674,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18187,
+      "line_count": 18205,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13939,7 +13945,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12253,
+      "line_count": 12254,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -49478,54 +49484,54 @@
           },
           {
             "kind": "func",
-            "line": 654,
+            "line": 655,
             "name": "refreshCrons",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 667,
+            "line": 668,
             "name": "ArtifactKindGlyph",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 668,
+            "line": 669,
             "name": "icon",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 696,
+            "line": 697,
             "name": "ArtifactPreviewGist",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 700,
+            "line": 701,
             "name": "make",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 726,
+            "line": 727,
             "name": "structural",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 741,
+            "line": 742,
             "name": "parse",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 747,
+            "line": 748,
             "name": "snippet",
             "passes": []
           }
         ],
-        "line_count": 758,
+        "line_count": 759,
         "mapped_declarations": 1,
         "passes": [
           "swift.boundary.external_signature",
@@ -53573,7 +53579,7 @@
       {
         "citations": 12,
         "component": "operations-ui",
-        "declaration_count": 9,
+        "declaration_count": 11,
         "declarations": [
           {
             "kind": "struct",
@@ -53635,9 +53641,21 @@
             "line": 649,
             "name": "detailRow",
             "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 663,
+            "name": "CronGraphLegendLayout",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 669,
+            "name": "expandedSize",
+            "passes": []
           }
         ],
-        "line_count": 661,
+        "line_count": 679,
         "mapped_declarations": 2,
         "passes": [
           "swift.boundary.external_signature",
@@ -63494,7 +63512,7 @@
         },
         "enum": {
           "mapped": 8,
-          "total": 304
+          "total": 305
         },
         "extension": {
           "mapped": 20,
@@ -63502,7 +63520,7 @@
         },
         "func": {
           "mapped": 432,
-          "total": 3258
+          "total": 3259
         },
         "protocol": {
           "mapped": 1,
@@ -63514,13 +63532,13 @@
         }
       },
       "citations": 1320,
-      "declarations": 4703,
+      "declarations": 4705,
       "entities": 161,
       "entities_with_origin": 161,
       "files": 418,
       "functions": {
         "mapped": 432,
-        "total": 3258
+        "total": 3259
       },
       "mapped_declarations": 645,
       "passes": 50,
@@ -63528,7 +63546,7 @@
       "touched_files": 165,
       "types": {
         "mapped": 213,
-        "total": 1445
+        "total": 1446
       },
       "untouched_files": 253
     }
@@ -79430,7 +79448,7 @@
           "stale": true,
           "summary": "GraphsView is the Graphs section root. It switches between a wiki knowledge graph (WikiGraphView) and a cron runtime dataflow graph (CronDataflowExpandedView), persisting the chosen surface in AppStorage. When an overrideSource such as a code graph is supplied the switcher is hidden and only the wiki graph shows. Cron jobs are seeded lazily on first runtime display."
         },
-        "type_count": 168
+        "type_count": 169
       },
       {
         "components": [],
@@ -83811,11 +83829,11 @@
   },
   "inventory": {
     "assigned_files": 416,
-    "declarations": 1300,
+    "declarations": 1301,
     "files": 416,
-    "lines": 120121,
+    "lines": 120140,
     "swift_files": 416,
-    "swift_lines": 120121,
+    "swift_lines": 120140,
     "unassigned_files": []
   },
   "layers": [
@@ -83847,7 +83865,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "9ba16cb8d06f7250b7ba0990d41dd9dae72e8defccff7dda929e9c3d69ed17cc",
+  "source_tree_sha256": "c25a311c25917acb39b7ed814db8836d2ffe281851b985d95f56e602997d0600",
   "stores": {
     "by_persistence": {
       "defaults": 6,
