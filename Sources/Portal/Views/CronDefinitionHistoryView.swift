@@ -46,6 +46,7 @@ internal struct CronDefinitionHistoryView: View {
                 if case .loaded(let page) = result ?? .failed, page.total > 0 {
                     Text("\(page.total) revision\(page.total == 1 ? "" : "s")")
                         .font(.system(size: 10, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.tertiary)
                 }
             }
@@ -96,10 +97,12 @@ internal struct CronDefinitionHistoryView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(revision.action.isEmpty ? "change" : revision.action)
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(revision.action == "delete" ? Theme.warning : Theme.accent)
                         .textCase(.uppercase)
                     Text(when)
                         .font(.system(size: 10, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.secondary)
                     Image(systemName: revision.actor.icon)
                         .font(.system(size: 9))
@@ -115,6 +118,7 @@ internal struct CronDefinitionHistoryView: View {
                     } else if !fields.isEmpty {
                         Text(fields.joined(separator: ", "))
                             .font(.system(size: 10, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.primary)
                             .lineLimit(1)
                     }
@@ -134,6 +138,7 @@ internal struct CronDefinitionHistoryView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(change.field)
                                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.secondary)
                             HStack(alignment: .top, spacing: 6) {
                                 Text(change.beforeText)
@@ -152,6 +157,7 @@ internal struct CronDefinitionHistoryView: View {
                     if !revision.gitCommit.isEmpty {
                         Text("commit \(revision.gitCommit)")
                             .font(.system(size: 9, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.tertiary)
                     }
                 }

@@ -13673,7 +13673,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18181,
+      "line_count": 18187,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -53414,12 +53414,12 @@
           },
           {
             "kind": "func",
-            "line": 86,
+            "line": 87,
             "name": "revisionRow",
             "passes": []
           }
         ],
-        "line_count": 163,
+        "line_count": 169,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Views/CronDefinitionHistoryView.swift",
@@ -83818,9 +83818,9 @@
     "assigned_files": 416,
     "declarations": 1300,
     "files": 416,
-    "lines": 120104,
+    "lines": 120110,
     "swift_files": 416,
-    "swift_lines": 120104,
+    "swift_lines": 120110,
     "unassigned_files": []
   },
   "layers": [
@@ -83852,7 +83852,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "42c3a19079d71a2927d1f7475d69192e079ed79764a872725a1f1ab9fe659420",
+  "source_tree_sha256": "f3c4f6aa525cb274d701ae50fca3b488e3ce71e379ffa927b7b00f436fada88e",
   "stores": {
     "by_persistence": {
       "defaults": 6,
