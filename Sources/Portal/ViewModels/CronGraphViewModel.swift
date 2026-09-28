@@ -38,8 +38,12 @@ internal final class CronGraphViewModel: ObservableObject {
         didSet {
             hulledCategoryFolders = Set(categoryHulls.map(\.key))
             digest = CronGraphDigest.over(graph)
+            rebuildGraphStats()
         }
     }
+    /// Node, edge and structure counts for the dataflow on screen, recomputed
+    /// when the graph or the folded groups change — never in a body (see GraphStats).
+    @Published internal private(set) var graphStats = GraphStats.empty
     /// The commitment for the graph on screen — a content address for the
     /// dataflow as configured, so "did anything get rewired since I last looked"
     /// has an answer you can read off the surface. Health-only refreshes leave it
@@ -66,7 +70,9 @@ internal final class CronGraphViewModel: ObservableObject {
     /// Group scheme keys currently collapsed into a single super-node. Persists
     /// across reloads (stale keys are ignored) so a folded-away cluster stays
     /// folded when the graph refreshes.
-    @Published internal private(set) var collapsedGroups: Set<String> = []
+    @Published internal private(set) var collapsedGroups: Set<String> = [] {
+        didSet { rebuildGraphStats() }
+    }
     /// Groups whose initial presentation has already been chosen. A newly seen
     /// resource scheme starts folded, while a group the user explicitly expanded
     /// stays expanded across polling refreshes.
@@ -959,5 +965,12 @@ extension CronGraphViewModel {
             // Keep the last known graph visible. The manual Retry path remains
             // responsible for surfacing transport failures.
         }
+    }
+}
+
+extension CronGraphViewModel {
+    /// Recomputed when the graph or the folded groups change, never in a body.
+    fileprivate func rebuildGraphStats() {
+        graphStats = .cron(graph, collapsedGroups: collapsedGroups.count, revisionCount: revisions.count)
     }
 }
