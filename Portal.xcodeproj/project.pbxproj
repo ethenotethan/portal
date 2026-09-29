@@ -802,6 +802,7 @@
 		C5724EC878CA1AFC01A62A27 /* GatewayClient+Feed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42741EA9DE970FA5E8293E90 /* GatewayClient+Feed.swift */; };
 		C5743935CDE6F91AC78E07C9 /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437F051D9AE2A5A9F53C5F29 /* FeedView.swift */; };
 		C5C1B707168CEE32A765AC46 /* CronGraphViewModel+ReviewHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F71961BA29E185D6E15AEE /* CronGraphViewModel+ReviewHighlight.swift */; };
+		C629A3052AE9120369CEB10C /* WikiPreloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DED799549C21465801EFF9 /* WikiPreloadTests.swift */; };
 		C649BB7C7806970FE83100B5 /* ModelPickerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67BF2443917B11EA6C000FF3 /* ModelPickerMenu.swift */; };
 		C6C3DFBC1E5BBF1A7449CB09 /* ArtifactIntentSessionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE682BB6B66DE72DFB5CC7F /* ArtifactIntentSessionLink.swift */; };
 		C746900A4405F215C939A22C /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */; };
@@ -1512,6 +1513,7 @@
 		B561CF4288A99A9681A89C94 /* WikiEventTypeRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTypeRegistryTests.swift; sourceTree = "<group>"; };
 		B583DDF8C1CC472F01013B3D /* PerfCountHarnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfCountHarnessTests.swift; sourceTree = "<group>"; };
 		B6C645744B05EA678BF49FD4 /* HermesNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeApp.swift; sourceTree = "<group>"; };
+		B8DED799549C21465801EFF9 /* WikiPreloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiPreloadTests.swift; sourceTree = "<group>"; };
 		B921CDF2A61D63D969101021 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B9FE2ABA51B232133B6F3724 /* WikiEventFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventFeedView.swift; sourceTree = "<group>"; };
 		BA4E8505AAF082D4CF017634 /* GitHubReleaseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseCard.swift; sourceTree = "<group>"; };
@@ -2587,6 +2589,7 @@
 				46B00E1E6FF6DBA81FB2269D /* WikiGlossaryTests.swift */,
 				8E5B566C8A4F7E75F031D483 /* WikiGraphCacheTests.swift */,
 				B0AF764FD39D97B08238EF37 /* WikiGraphViewModelTests.swift */,
+				B8DED799549C21465801EFF9 /* WikiPreloadTests.swift */,
 				4FC3B5FC2587637739C3FCE8 /* WikiTimelineDateParsingTests.swift */,
 				6CE5937B5B14121625B3DEFD /* WriterRefTests.swift */,
 				31EC16740169C56A2046B084 /* XOAuthTests.swift */,
@@ -3470,6 +3473,7 @@
 				4BB399BA7A0108A50364F6D9 /* WikiGlossaryTests.swift in Sources */,
 				026E8743D91E4CED8CAA2695 /* WikiGraphCacheTests.swift in Sources */,
 				FC7C31B705B08353D4DA8DF5 /* WikiGraphViewModelTests.swift in Sources */,
+				C629A3052AE9120369CEB10C /* WikiPreloadTests.swift in Sources */,
 				B1A09471AB0582E12AEA14AC /* WikiTimelineDateParsingTests.swift in Sources */,
 				7BBC14BF82328E82153F7464 /* WriterRefTests.swift in Sources */,
 				983891A5C9333CC9E96DA779 /* XOAuthTests.swift in Sources */,
