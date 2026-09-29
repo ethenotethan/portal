@@ -423,10 +423,10 @@ struct WikiGraphViewModelTests {
         // Seed the cache under this client's identity + wiki selection.
         let seeded = WikiGraph(pages: [page("alpha", path: "concepts/alpha.md")], links: [])
         cache.store(seeded, identity: client.cacheIdentity, wiki: "main")
-        for _ in 0..<50 {
-            if await cache.load(identity: client.cacheIdentity, wiki: "main") != nil { break }
-            try? await Task.sleep(for: .milliseconds(20))
-        }
+        // Writes land on the cache's serial queue; flush() resolves once the seed
+        // is on disk, so the cold open below cannot race it (polling here flaked
+        // on a loaded CI runner and blanked both expectations).
+        await cache.flush()
 
         let vm = WikiGraphViewModel(graphCache: cache)
         vm.canvasSize = CGSize(width: 800, height: 600)

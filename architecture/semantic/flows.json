@@ -1006,7 +1006,7 @@
       ],
       "summary": "The user swipes a row or taps Pause or Resume in the job detail. CronListViewModel sends a cron.manage request through the cron extension and the shared WebSocket; the gateway toggles the job's enabled state and the view model re-lists jobs so the row updates.",
       "title": "Pause or resume a job",
-      "trigger": "trigger-51ca406e086f"
+      "trigger": "trigger-6545d54aad13"
     },
     {
       "evidence": [
@@ -1190,7 +1190,7 @@
       ],
       "summary": "The user swipes to delete a row or taps Remove in the detail. CronListViewModel issues a cron.manage remove through the cron extension; the request is correlated in the pending pool, the gateway deletes the job, and the list refreshes without it.",
       "title": "Remove a job",
-      "trigger": "trigger-b72d0ed401b6"
+      "trigger": "trigger-c6c4888394f4"
     },
     {
       "evidence": [

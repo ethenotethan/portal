@@ -43,7 +43,7 @@ import AppKit
 /// Fixtures are deterministic constructions (fixed node/link/card counts), so
 /// the counts are reproducible to the integer. Change a fixture's size and you
 /// must regenerate the baseline (`make perf-baseline`).
-@Suite("Perf-count harness")
+@Suite("Perf-count harness", .serialized)
 internal struct PerfCountHarnessTests {
 
     /// Fixed-size inputs. Sizes are chosen large enough that a complexity
@@ -65,12 +65,14 @@ internal struct PerfCountHarnessTests {
     private static let sidebarRenders = 20     // → 20 sidebar body evaluations
     private static let boardWorkItems = 32     // → first kanban: 32 cards over 7 lanes (+ per-card move control)
     private static let boardCaseItems = 64     // → second kanban: 64 cards over 12 lanes, and a table with row actions
+    #if PERF_COUNTERS
     private static let boardStoreArtifacts = 40  // → artifacts in the store the board pane observes
     private static let boardStoreReads = 20    // → sortedArtifacts reads per canvas body evaluation
+    #endif
 
     @MainActor
-    @Test("Instrumented layout op counts match the committed baseline")
-    internal func recordOpCounts() throws {
+    @Test("Pure layout, parse and schedule op counts match the committed baseline")
+    internal func recordPureOpCounts() throws {
         var merged: [String: Int] = [:]
 
         // ── Scenario: sankey.layout ──────────────────────────────────────────
@@ -97,92 +99,14 @@ internal struct PerfCountHarnessTests {
         let parses = PerfCounter.snapshot()
         merged.merge(parses) { _, new in new }
 
-        #if os(macOS)
-        // ── Scenario: kanban.mount / kanban.moveCard ─────────────────────────
-        // A board with every lane collapsed to its preview; then one card moves
-        // to the next lane. Body counts say how much of the board re-rendered
-        // for a one-card change; layout passes say how many times the host
-        // laid out before settling.
-        let kanbanDriver = JSONDriver(json: Self.makeKanbanJSON(movedCard: nil))
-        PerfCounter.reset()
-        let kanbanHost = Self.mount(DrivenKanban(driver: kanbanDriver))
-        var passes = Self.settle(kanbanHost)
-        merged.merge(Self.hostCounts("kanban.mount", passes: passes)) { _, new in new }
-        PerfCounter.reset()
-        kanbanHost.host.layoutCount = 0
-        kanbanDriver.json = Self.makeKanbanJSON(movedCard: 5)
-        passes = Self.settle(kanbanHost)
-        merged.merge(Self.hostCounts("kanban.moveCard", passes: passes)) { _, new in new }
-        kanbanHost.window.orderOut(nil)
-
-        // ── Scenario: model.mount / model.editItem ───────────────────────────
-        // A model artifact: prose, a kanban over `work`, a table over `work`,
-        // a table over `notes`. Then one work item's title changes.
-        let modelDriver = JSONDriver(json: Self.makeModelJSON(editedItem: nil))
-        PerfCounter.reset()
-        let modelHost = Self.mount(DrivenModel(driver: modelDriver))
-        passes = Self.settle(modelHost)
-        merged.merge(Self.hostCounts("model.mount", passes: passes)) { _, new in new }
-        PerfCounter.reset()
-        modelHost.host.layoutCount = 0
-        modelDriver.json = Self.makeModelJSON(editedItem: 3)
-        passes = Self.settle(modelHost)
-        merged.merge(Self.hostCounts("model.editItem", passes: passes)) { _, new in new }
-        modelHost.window.orderOut(nil)
-
-        // ── Scenario: board.mount / board.unrelatedChange ────────────────────
-        // The production shape that beachballed (a `model` artifact with two
-        // kanban boards, three tables, two graphs, a stats strip and six prose
-        // views), rendered through the store-observing renderer chain the
-        // artifact pane uses. Then ANOTHER artifact in the same store changes.
-        // Nothing the board shows has changed, so no card tile — and no popup
-        // picker — may be evaluated for it.
-        let boardStore = ArtifactStore(fileURL: Self.scratchStoreURL())
-        boardStore.seedArtifactForTesting(Self.makeBoardArtifact())
-        boardStore.seedArtifactForTesting(Self.makeBystanderArtifact(rev: 1))
-        PerfCounter.reset()
-        let boardHost = Self.mount(
-            StoreDrivenArtifact(store: boardStore, artifactID: Self.boardArtifactID)
-                .environmentObject(GatewayCapabilitiesStore())
-        )
-        passes = Self.settle(boardHost)
-        merged.merge(Self.boardCounts("board.mount", passes: passes)) { _, new in new }
-        PerfCounter.reset()
-        boardHost.host.layoutCount = 0
-        boardStore.seedArtifactForTesting(Self.makeBystanderArtifact(rev: 2))
-        passes = Self.settle(boardHost)
-        let unrelated = PerfCounter.snapshot()
-        merged.merge(Self.boardCounts("board.unrelatedChange", passes: passes)) { _, new in new }
-        boardHost.window.orderOut(nil)
-
-        // ── Scenario: markdown.mount ─────────────────────────────────────────
-        // A prose document with headings, lists, a table and a code block —
-        // the transcript's everyday body.
-        PerfCounter.reset()
-        let markdownHost = Self.mount(
-            ScrollView { MarkdownContentView(text: Self.makeMarkdown(), isStreaming: false).padding() }
-        )
-        passes = Self.settle(markdownHost)
-        merged.merge(Self.hostCounts("markdown.mount", passes: passes)) { _, new in new }
-        markdownHost.window.orderOut(nil)
-        #endif
 
         #if PERF_COUNTERS
         // The row inputs read the maintainers of every artifact on every render;
         // the parse must happen once per artifact regardless of render count.
         #expect(parses["artifact.maintainerParse"] == Self.artifactCount, "maintainer parse per render, not per content")
-
-        #if os(macOS)
-        // An unrelated artifact changing must not reach the board: no card
-        // tile, no picker, and at most one card body (the equatable gate).
-        #expect(unrelated["view.body.KanbanCardTile"] == nil, "unrelated store change re-rendered kanban cards")
-        #expect((unrelated["view.body.ModelCard"] ?? 0) <= 1, "unrelated store change re-rendered the model card")
-        // The picker is built only when a card or row asks for it; mounting
-        // 96 cards and 64 action rows must construct none.
-        #expect(unrelated["view.body.ArtifactChoicePicker"] == nil, "a choice picker was built without a row being triaged")
-        #expect(merged["board.mount.view.body.ArtifactChoicePicker"] == 0, "mounting the board built a choice picker")
         #endif
 
+        #if PERF_COUNTERS
         // ── Scenario: artifacts.sort (one sort per store change, not per read) ─
         PerfCounter.reset()
         let sortStore = ArtifactStore(fileURL: Self.scratchStoreURL())
@@ -229,22 +153,171 @@ internal struct PerfCountHarnessTests {
         // Four tiers (mine, archived, cron, other), each sorted once for the
         // one session list, however many times the sidebar's body reads them.
         #expect(sorts["sessions.sidebarSort"] == 4, "sidebar sort per render, not per change")
-        // The instrumented build must actually have tallied something —
-        // otherwise the fixtures aren't hitting the counted paths and the
-        // ratchet would silently pass on an empty snapshot.
-        #expect(!merged.isEmpty, "instrumented run recorded no op counts")
 
-        if let out = ProcessInfo.processInfo.environment["PERF_COUNTS_OUT"] {
-            let doc = ["counts": merged]
-            let data = try JSONSerialization.data(
-                withJSONObject: doc, options: [.prettyPrinted, .sortedKeys]
-            )
-            try data.write(to: URL(fileURLWithPath: out))
+        // ── Scenario: gateway.poll.* / artifact.query.coalesced ──────────────
+        // The poll schedule and the query coalescer are pure, so a fixed script
+        // of ticks (every 4th hidden, every 6th reconnecting, alternating fast
+        // and slow, every 5th failed) yields exact skip/back-off tallies. Sizes
+        // live here (not as suite constants) because only this instrumented
+        // block reads them.
+        let pollTicks = 24        // → two full hidden/reconnect cycles
+        let coalescedSlots = 5    // → 5 query slots …
+        let changesPerFetch = 3   // … each hit by 3 changes mid-fetch
+        PerfCounter.reset()
+        var policy = GatewayPollPolicy(method: "cron.graph")
+        for step in 0..<pollTicks {
+            let visible = step % 4 != 3
+            let connected = step % 6 != 5
+            guard policy.decide(visible: visible, connected: connected) == nil else { continue }
+            policy.finished(elapsed: step.isMultiple(of: 2) ? 1 : 12, succeeded: step % 5 != 4)
         }
+        _ = policy.decide(visible: true, connected: true)  // leave one call outstanding …
+        _ = policy.decide(visible: true, connected: true)  // … so the next tick is skipped
+        var coalescer = ArtifactQueryCoalescer<Int>()
+        for key in 0..<coalescedSlots {
+            _ = coalescer.requestFetch(key)
+            for _ in 0..<changesPerFetch {
+                _ = coalescer.requestFetch(key)
+            }
+            while coalescer.finished(key) {}
+        }
+        let schedule = PerfCounter.snapshot()
+        merged.merge(schedule) { _, new in new }
+        #expect(schedule["gateway.poll.skip.inFlight"] == 1, "a tick during an outstanding call is skipped")
+        #expect(
+            schedule["artifact.query.coalesced"] == coalescedSlots * changesPerFetch,
+            "every change during a fetch is absorbed, not stacked"
+        )
+        #endif
+
+        try Self.record(merged)
+    }
+
+    #if os(macOS)
+    @MainActor
+    @Test("Kanban and model host op counts match the committed baseline")
+    internal func recordHostOpCounts() throws {
+        var merged: [String: Int] = [:]
+        // ── Scenario: kanban.mount / kanban.moveCard ─────────────────────────
+        // A board with every lane collapsed to its preview; then one card moves
+        // to the next lane. Body counts say how much of the board re-rendered
+        // for a one-card change; layout passes say how many times the host
+        // laid out before settling.
+        let kanbanDriver = JSONDriver(json: Self.makeKanbanJSON(movedCard: nil))
+        PerfCounter.reset()
+        let kanbanHost = Self.mount(DrivenKanban(driver: kanbanDriver))
+        var passes = Self.settle(kanbanHost)
+        merged.merge(Self.hostCounts("kanban.mount", passes: passes)) { _, new in new }
+        PerfCounter.reset()
+        kanbanHost.host.layoutCount = 0
+        kanbanDriver.json = Self.makeKanbanJSON(movedCard: 5)
+        passes = Self.settle(kanbanHost)
+        merged.merge(Self.hostCounts("kanban.moveCard", passes: passes)) { _, new in new }
+        kanbanHost.window.orderOut(nil)
+
+        // ── Scenario: model.mount / model.editItem ───────────────────────────
+        // A model artifact: prose, a kanban over `work`, a table over `work`,
+        // a table over `notes`. Then one work item's title changes.
+        let modelDriver = JSONDriver(json: Self.makeModelJSON(editedItem: nil))
+        PerfCounter.reset()
+        let modelHost = Self.mount(DrivenModel(driver: modelDriver))
+        passes = Self.settle(modelHost)
+        merged.merge(Self.hostCounts("model.mount", passes: passes)) { _, new in new }
+        PerfCounter.reset()
+        modelHost.host.layoutCount = 0
+        modelDriver.json = Self.makeModelJSON(editedItem: 3)
+        passes = Self.settle(modelHost)
+        merged.merge(Self.hostCounts("model.editItem", passes: passes)) { _, new in new }
+        modelHost.window.orderOut(nil)
+
+
+        // ── Scenario: markdown.mount ─────────────────────────────────────────
+        // A prose document with headings, lists, a table and a code block —
+        // the transcript's everyday body.
+        PerfCounter.reset()
+        let markdownHost = Self.mount(
+            ScrollView { MarkdownContentView(text: Self.makeMarkdown(), isStreaming: false).padding() }
+        )
+        passes = Self.settle(markdownHost)
+        merged.merge(Self.hostCounts("markdown.mount", passes: passes)) { _, new in new }
+        markdownHost.window.orderOut(nil)
+
+        try Self.record(merged)
+    }
+
+    @MainActor
+    @Test("Artifact board op counts match the committed baseline")
+    internal func recordBoardOpCounts() throws {
+        var merged: [String: Int] = [:]
+        var passes: Int
+        // ── Scenario: board.mount / board.unrelatedChange ────────────────────
+        // The production shape that beachballed (a `model` artifact with two
+        // kanban boards, three tables, two graphs, a stats strip and six prose
+        // views), rendered through the store-observing renderer chain the
+        // artifact pane uses. Then ANOTHER artifact in the same store changes.
+        // Nothing the board shows has changed, so no card tile — and no popup
+        // picker — may be evaluated for it.
+        let boardStore = ArtifactStore(fileURL: Self.scratchStoreURL())
+        boardStore.seedArtifactForTesting(Self.makeBoardArtifact())
+        boardStore.seedArtifactForTesting(Self.makeBystanderArtifact(rev: 1))
+        PerfCounter.reset()
+        let boardHost = Self.mount(
+            StoreDrivenArtifact(store: boardStore, artifactID: Self.boardArtifactID)
+                .environmentObject(GatewayCapabilitiesStore())
+        )
+        passes = Self.settle(boardHost)
+        merged.merge(Self.boardCounts("board.mount", passes: passes)) { _, new in new }
+        PerfCounter.reset()
+        boardHost.host.layoutCount = 0
+        boardStore.seedArtifactForTesting(Self.makeBystanderArtifact(rev: 2))
+        passes = Self.settle(boardHost)
+        let unrelated = PerfCounter.snapshot()
+        merged.merge(Self.boardCounts("board.unrelatedChange", passes: passes)) { _, new in new }
+        boardHost.window.orderOut(nil)
+
+
+        #if PERF_COUNTERS
+        // An unrelated artifact changing must not reach the board: no card
+        // tile, no picker, and at most one card body (the equatable gate).
+        #expect(unrelated["view.body.KanbanCardTile"] == nil, "unrelated store change re-rendered kanban cards")
+        #expect((unrelated["view.body.ModelCard"] ?? 0) <= 1, "unrelated store change re-rendered the model card")
+        // The picker is built only when a card or row asks for it; mounting
+        // 96 cards and 64 action rows must construct none.
+        #expect(unrelated["view.body.ArtifactChoicePicker"] == nil, "a choice picker was built without a row being triaged")
+        #expect(merged["board.mount.view.body.ArtifactChoicePicker"] == 0, "mounting the board built a choice picker")
+        #endif
+
+        try Self.record(merged)
+    }
+    #endif
+
+    /// The suite is serialized, so the three scenario groups append to one
+    /// snapshot in order; the first write of a process starts the file fresh so
+    /// a stale counter from an earlier run can never survive into the ratchet.
+    @MainActor private static var wroteSnapshot = false
+
+    @MainActor
+    private static func record(_ merged: [String: Int]) throws {
+        #if PERF_COUNTERS
+        #expect(!merged.isEmpty, "instrumented run recorded no op counts")
+        guard let out = ProcessInfo.processInfo.environment["PERF_COUNTS_OUT"] else { return }
+        let url = URL(fileURLWithPath: out)
+        var counts: [String: Int] = [:]
+        if wroteSnapshot, let data = try? Data(contentsOf: url),
+           let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let existing = doc["counts"] as? [String: Int] {
+            counts = existing
+        }
+        counts.merge(merged) { _, new in new }
+        let data = try JSONSerialization.data(
+            withJSONObject: ["counts": counts], options: [.prettyPrinted, .sortedKeys]
+        )
+        try data.write(to: url)
+        wroteSnapshot = true
         #else
         // Uninstrumented: snapshot is a no-op and hostCounts records nothing.
-        // We still exercised the layout paths and mounted the surfaces above,
-        // so this asserts they run clean on the fixtures.
+        // We still exercised the layout paths and mounted the surfaces, so
+        // this asserts they run clean on the fixtures.
         #expect(merged.isEmpty)
         #endif
     }
@@ -375,11 +448,13 @@ internal struct PerfCountHarnessTests {
     /// counters that must stay at zero after an unrelated change have to be
     /// in the baseline to be ratcheted, and the graph views' layout tallies
     /// (which follow hosting-view layout passes) are deliberately left out.
+    #if PERF_COUNTERS
     private static let boardBodyCounters = [
         "view.body.ModelCard", "view.body.KanbanBoard", "view.body.KanbanColumn",
         "view.body.KanbanCardTile", "view.body.ArtifactChoicePicker",
         "view.body.ModelEntityTable", "view.body.ModelEntityRow", "view.body.MarkdownContentView",
     ]
+    #endif
 
     private static func boardCounts(_ scenario: String, passes: Int) -> [String: Int] {
         var out: [String: Int] = [:]

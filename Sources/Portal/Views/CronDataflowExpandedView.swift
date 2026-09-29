@@ -75,6 +75,7 @@ internal struct CronDataflowExpandedView: View {
 
     internal var body: some View {
         expandedSurface
+            .cronSurfaceVisible()
             .task { sourceVM.setClient(gatewayClientWrapper.client) }
             .task(id: graphVM.selectedNode?.id) { await loadSelected() }
             // A living artifact the store hasn't seen yet (the Artifacts pane was

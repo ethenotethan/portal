@@ -47,6 +47,7 @@ struct CronDashboardView: View {
         }
         .background(Theme.background)
         .task { await refreshData() }
+        .cronSurfaceVisible()
     }
 
     private func refreshData() async {

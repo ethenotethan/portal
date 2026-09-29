@@ -191,6 +191,8 @@ final class ArtifactStore: ObservableObject {
     /// Gateway subscription handles for live slots, released with the view.
     private var querySubscriptions: [QuerySlot: String] = [:]
     private var queryTasks: [QuerySlot: Task<Void, Never>] = [:]
+    /// One `artifact.query.invoke` in flight per slot; see `runQuery`.
+    private var queryCoalescer = ArtifactQueryCoalescer<QuerySlot>()
 
     /// Run (or re-run) a declared query for one page element.
     ///
@@ -199,13 +201,16 @@ final class ArtifactStore: ObservableObject {
     /// without a round trip; the gateway checks again and is authoritative. A
     /// live query subscribes on first run, after which re-runs use the cheaper
     /// invoke and the gateway's `artifact.query.changed` drives them.
+    ///
+    /// Re-runs are coalesced per slot: while one fetch is outstanding, further
+    /// requests (a burst of `changed` events, an intent invalidation) only mark
+    /// the slot dirty, and it is fetched once more after the current one lands.
+    /// Slots exist only for pages on screen — the renderer releases them in
+    /// `onDisappear` — so nothing is fetched for an artifact nobody is viewing.
     internal func runQuery(artifactID: String, queryID: String, rawParams: String, rawCursor: String = "") {
         let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams, rawCursor: rawCursor)
-        queryTasks[slot]?.cancel()
-        queryTasks[slot] = Task { [weak self] in
-            await self?.performQuery(slot)
-            self?.queryTasks[slot] = nil
-        }
+        guard queryCoalescer.requestFetch(slot) else { return }
+        startQueryTask(slot)
     }
 
     /// Record that a slot can't run at all on this client (no gateway surface),
@@ -228,6 +233,7 @@ final class ArtifactStore: ObservableObject {
             task.cancel()
             queryTasks[slot] = nil
         }
+        queryCoalescer.releaseAll { $0.artifactID == artifactID }
         let handles = querySubscriptions.filter { $0.key.artifactID == artifactID }
         for (slot, handle) in handles {
             querySubscriptions[slot] = nil
@@ -335,7 +341,9 @@ final class ArtifactStore: ObservableObject {
     }
 
     /// The gateway says a subscribed slot's data changed (or that the slot can
-    /// no longer answer). Re-run every slot on that query.
+    /// no longer answer). Re-run every slot on that query — coalesced by
+    /// `runQuery`, so a burst of events costs at most one fetch plus one follow-up
+    /// per slot, and only for pages currently rendered (released slots are gone).
     private func applyQueryChange(artifactID: String, queryID: String, status: String, reason: String) {
         let slots = live.queryStates.keys.filter { $0.artifactID == artifactID && $0.queryID == queryID }
         for slot in slots {
@@ -877,6 +885,28 @@ extension ArtifactStore {
         case ok(payload: String, etag: String, nextCursor: String?)
         case failed(reason: String)
         case unsupported(reason: String)
+    }
+}
+
+// MARK: - Coalesced query fetches
+
+extension ArtifactStore {
+    /// Start the fetch `runQuery` admitted; when it lands, fetch once more if
+    /// requests arrived meanwhile (`ArtifactQueryCoalescer`).
+    fileprivate func startQueryTask(_ slot: QuerySlot) {
+        queryTasks[slot] = Task { [weak self] in
+            guard let self else { return }
+            await performQuery(slot)
+            queryTasks[slot] = nil
+            if Task.isCancelled {
+                // Released while in flight: the page is gone, so no follow-up.
+                queryCoalescer.release(slot)
+                return
+            }
+            if queryCoalescer.finished(slot) {
+                startQueryTask(slot)
+            }
+        }
     }
 }
 
