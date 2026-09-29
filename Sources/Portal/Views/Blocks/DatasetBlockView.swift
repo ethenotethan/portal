@@ -190,12 +190,14 @@ internal extension View {
 private struct ArtifactChoicePickerHost: ViewModifier {
     @Binding var prompt: ArtifactChoicePrompt?
 
+    #if !os(macOS)
     private var isPresented: Binding<Bool> {
         Binding(
             get: { prompt != nil },
             set: { presented in if !presented { prompt = nil } }
         )
     }
+    #endif
 
     func body(content: Content) -> some View {
         #if os(macOS)
