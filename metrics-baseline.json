@@ -11227,9 +11227,9 @@
       "redundantConformance": 5,
       "redundantProtocol": 1,
       "redundantPublicAccessibility": 4,
-      "unused": 268
+      "unused": 267
     },
-    "total": 433,
+    "total": 432,
     "sites": [
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
@@ -11338,49 +11338,42 @@
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 279,
-        "kind": "var.instance",
-        "name": "elapsedSeconds",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 321,
+        "line": 314,
         "kind": "var.instance",
         "name": "startedAt",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 322,
+        "line": 315,
         "kind": "var.instance",
         "name": "updatedAt",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 513,
+        "line": 506,
         "kind": "var.instance",
         "name": "isReady",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 638,
+        "line": 631,
         "kind": "function.constructor",
         "name": "init(from:)",
         "hint": "redundantPublicAccessibility"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 664,
+        "line": 657,
         "kind": "function.method.static",
         "name": "setLocalCacheOnly(_:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 668,
+        "line": 661,
         "kind": "function.method.instance",
         "name": "encode(to:)",
         "hint": "redundantPublicAccessibility"
@@ -13494,21 +13487,21 @@
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 1292,
+        "line": 1294,
         "kind": "var.parameter",
         "name": "previousID",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 1462,
+        "line": 1464,
         "kind": "var.instance",
         "name": "newSessionControl",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 1472,
+        "line": 1474,
         "kind": "var.instance",
         "name": "newSessionHelp",
         "hint": "unused"
