@@ -30,14 +30,15 @@ Then the conversation:
 
 ### Page intents: talk to a page
 
-The wiki graph and the cron graph carry a "Talk to this page" button. It slides a
-dock up from the bottom of the page with a hands-free voice conversation and a
-text composer, backed by an ordinary Hermes session: one per individual wiki and
-one for the cron graph, created on first use and kept while the app runs. The
-dock gives the session an ephemeral system prompt describing what the page shows
+The wiki graph and the cron graph carry separate **Chat** and **Voice** buttons.
+Portal preloads an ordinary Hermes session alongside each graph — one per
+individual wiki and one for the cron graph — then keeps it while the app runs.
+The session receives an ephemeral system prompt describing what the page shows
 (the open wiki page, pinned pages, the selected graph node, its service and
-architecture model) and primes it once with a "load this page's context" turn,
-so the agent has already read the relevant pages or graph before you speak.
+architecture model) and a one-time "load this page's context" turn, so the agent
+has already read the relevant pages or graph before either dock expands. Chat
+opens the transcript and composer; Voice starts the local hands-free model only
+after the user explicitly chooses it.
 Selection changes refresh the prompt; "Open in Chat" continues the same session
 on the chat page. Sessions appear in the sessions list like any other.
 

@@ -3,14 +3,36 @@ import Foundation
 
 private let log = PortalLogger(category: "PageIntentDock")
 
+internal enum PageIntentMode: CaseIterable, Equatable, Identifiable, Sendable {
+    case chat
+    case voice
+
+    internal var id: Self { self }
+
+    internal var title: String {
+        switch self {
+        case .chat: "Chat"
+        case .voice: "Voice"
+        }
+    }
+
+    internal var systemImage: String {
+        switch self {
+        case .chat: "bubble.left.and.bubble.right"
+        case .voice: "waveform.and.mic"
+        }
+    }
+}
+
 /// Drives the "talk to this page" dock: one ordinary Hermes session per page
-/// scope (each wiki, the cron graph), created lazily, given an ephemeral system
-/// prompt that describes the page, primed once with a "load this page's
-/// context" turn, and put into a hands-free voice conversation so the user can
-/// start talking. Never constructs views; the dock view observes it.
+/// scope (each wiki, the cron graph), preloaded with an ephemeral system prompt
+/// and a one-time "load this page's context" turn. Chat and voice remain idle
+/// until the user explicitly expands one of them. Never constructs views; the
+/// dock view observes it.
 @MainActor
 internal final class PageIntentDockModel: ObservableObject {
     @Published internal private(set) var isOpen = false
+    @Published internal private(set) var activeMode: PageIntentMode?
     @Published internal private(set) var activeScope: PageIntentScope?
     @Published internal private(set) var context: PageIntentContext?
     /// One line for the dock header: why voice is not running, or nothing.
@@ -24,6 +46,8 @@ internal final class PageIntentDockModel: ObservableObject {
     private var chats: [PageIntentScope: ChatViewModel] = [:]
     private var primed: Set<PageIntentScope> = []
     private var promptDigests: [PageIntentScope: String] = [:]
+    private var latestContexts: [PageIntentScope: PageIntentContext] = [:]
+    private var preparationTasks: [PageIntentScope: Task<Void, Never>] = [:]
     private var pendingContext: Task<Void, Never>?
     private var openGeneration = 0
     /// Injected so tests can hand back a chat wired to a spy; the app uses the
@@ -47,50 +71,48 @@ internal final class PageIntentDockModel: ObservableObject {
         self.backend = backend
     }
 
-    /// Open the dock on a page: create the scope's session if needed, set the
-    /// page prompt, prime the session once, and start listening.
-    internal func open(context: PageIntentContext) async {
+    /// Prepare the page's ordinary session while the graph itself loads. This
+    /// deliberately does not open the dock or start the local voice model.
+    internal func preload(context: PageIntentContext) async {
+        self.context = context
+        await prepareLatest(context: context)
+    }
+
+    /// Expand the explicitly selected mode. Preparation is normally already
+    /// complete from `preload`; this fallback keeps a direct user action safe if
+    /// the graph appeared before the background task could finish.
+    internal func open(context: PageIntentContext, mode: PageIntentMode) async {
         openGeneration += 1
         let generation = openGeneration
         pendingContext?.cancel()
         self.context = context
         isOpen = true
+        activeMode = mode
         isOpening = true
         status = nil
         defer { if generation == openGeneration { isOpening = false } }
 
-        guard let backend else {
-            status = "No gateway client — connect to the harness first."
-            return
-        }
         // One voice conversation at a time: leaving another scope ends its mic.
         if let previous = activeScope, previous != context.scope, let previousChat = chats[previous], previousChat.isConversationActive {
             await previousChat.endConversation()
         }
         activeScope = context.scope
+        await prepareLatest(context: context)
+        guard generation == openGeneration else { return }
+        guard let chat = activeChat else { return }
 
-        let chat = chats[context.scope] ?? makeChat()
-        chats[context.scope] = chat
-        chat.setGatewayClient(backend)
-        if chat.currentSessionID == nil {
-            await chat.createSession()
-        }
-        guard generation == openGeneration else { return }
-        guard let sessionID = chat.currentSessionID else {
-            status = chat.error ?? "Could not start a session for this page."
-            return
-        }
-        await applyPrompt(context, chat: chat, sessionID: sessionID, backend: backend)
-        guard generation == openGeneration else { return }
-        if !primed.contains(context.scope) {
-            chat.inputText = PageIntentPrompt.priming(for: context)
-            await chat.submitPrompt()
-            primed.insert(context.scope)
-        }
-        guard generation == openGeneration else { return }
-        await chat.startVoiceConversation()
-        if !chat.isConversationActive {
-            status = "Voice is unavailable here — type below."
+        switch mode {
+        case .chat:
+            if chat.isConversationActive {
+                await chat.endConversation()
+            }
+        case .voice:
+            if !chat.isConversationActive {
+                await chat.startVoiceConversation()
+            }
+            if !chat.isConversationActive {
+                status = "Voice is unavailable here — choose Chat instead."
+            }
         }
     }
 
@@ -128,6 +150,7 @@ internal final class PageIntentDockModel: ObservableObject {
         pendingContext?.cancel()
         openGeneration += 1
         isOpen = false
+        activeMode = nil
         isOpening = false
         if let chat = activeChat, chat.isConversationActive {
             await chat.endConversation()
@@ -143,6 +166,51 @@ internal final class PageIntentDockModel: ObservableObject {
     /// The scopes that already hold a session, for tests and diagnostics.
     internal var openScopes: [PageIntentScope] {
         chats.keys.sorted { $0.id < $1.id }
+    }
+
+    private func prepareLatest(context: PageIntentContext) async {
+        let scope = context.scope
+        latestContexts[scope] = context
+        if let pending = preparationTasks[scope] {
+            await pending.value
+            return
+        }
+
+        let task = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.prepareSession(scope: scope)
+        }
+        preparationTasks[scope] = task
+        await task.value
+        preparationTasks[scope] = nil
+        guard let latest = latestContexts[scope] else { return }
+        await applyPreparedContext(latest)
+    }
+
+    private func prepareSession(scope: PageIntentScope) async {
+        guard let backend else {
+            status = "No gateway client — connect to the harness first."
+            return
+        }
+        let chat = chats[scope] ?? makeChat()
+        chats[scope] = chat
+        chat.setGatewayClient(backend)
+        if chat.currentSessionID == nil {
+            await chat.createSession()
+        }
+        if chat.currentSessionID == nil {
+            status = chat.error ?? "Could not start a session for this page."
+        }
+    }
+
+    private func applyPreparedContext(_ context: PageIntentContext) async {
+        guard let backend, let chat = chats[context.scope], let sessionID = chat.currentSessionID else { return }
+        await applyPrompt(context, chat: chat, sessionID: sessionID, backend: backend)
+        if !primed.contains(context.scope) {
+            chat.inputText = PageIntentPrompt.priming(for: context)
+            await chat.submitPrompt()
+            primed.insert(context.scope)
+        }
     }
 
     /// `session.set_prompt` sets the whole ephemeral prompt, so the page's
