@@ -251,20 +251,17 @@ struct ThinkingTrace: Identifiable, Codable, Equatable {
     let id: UUID
     var blocks: [ThinkingBlock]
     var isStreaming: Bool
-    var startedAt: Date
     var updatedAt: Date
 
     init(
         id: UUID = UUID(),
         blocks: [ThinkingBlock] = [],
         isStreaming: Bool = true,
-        startedAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
         self.id = id
         self.blocks = blocks
         self.isStreaming = isStreaming
-        self.startedAt = startedAt
         self.updatedAt = updatedAt
     }
 
@@ -274,10 +271,6 @@ struct ThinkingTrace: Identifiable, Codable, Equatable {
 
     var characterCount: Int {
         blocks.reduce(0) { $0 + $1.text.count }
-    }
-
-    var elapsedSeconds: Int {
-        max(0, Int(updatedAt.timeIntervalSince(startedAt)))
     }
 
     mutating func append(_ text: String, kind: ThinkingBlock.Kind) {
