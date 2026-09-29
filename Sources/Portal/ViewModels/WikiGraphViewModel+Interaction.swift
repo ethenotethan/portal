@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let interactionLog = PortalLogger(category: "WikiGraphViewModel")
+
 // MARK: - Canvas hit-testing & tap selection
 //
 // The pointer surface for the 2D canvas: mapping a screen point to a node,
@@ -9,6 +11,15 @@ import SwiftUI
 // mutate.
 
 extension WikiGraphViewModel {
+
+    internal func discoverWikis(client: GatewayClient) async {
+        let generation = wikiDiscoveryGeneration
+        do {
+            let wikis = try await client.wikiList()
+            guard isCurrentWikiDiscovery(generation) else { return }
+            availableWikis = wikis.map(\.name)
+        } catch { interactionLog.warning("wiki.list failed: \(error.localizedDescription)") }
+    }
 
     /// Keep picker state and graph-load ordering in lockstep. Picker actions
     /// run synchronously, while scans run in unstructured tasks; assigning the

@@ -304,6 +304,10 @@ final class WikiGraphViewModel: ObservableObject {
     }
 
     internal var loadGeneration = 0
+    /// Invalidates wiki.list responses when the active gateway changes so a
+    /// slower old gateway cannot repopulate aliases after reset.
+    internal var wikiDiscoveryGeneration = 0
+    internal func isCurrentWikiDiscovery(_ generation: Int) -> Bool { generation == wikiDiscoveryGeneration }
     /// Read-only view of the load counter for extensions that run async work
     /// against a load and must drop out when a newer one supersedes it.
     internal var currentLoadGeneration: Int { loadGeneration }
@@ -394,11 +398,6 @@ final class WikiGraphViewModel: ObservableObject {
         }
     }
 
-    func discoverWikis(client: GatewayClient) async {
-        do { let wikis = try await client.wikiList(); self.availableWikis = wikis.map { $0.name } }
-        catch { log.warning("wiki.list failed: \(error.localizedDescription)") }
-    }
-
     func loadPage(client: GatewayClient, path: String, wiki: String? = nil) async -> WikiPageContent? {
         do { return try await client.wikiPage(path: path, wiki: wiki) }
         catch { log.error("wiki.page failed: \(error.localizedDescription)"); return nil }
@@ -439,6 +438,7 @@ final class WikiGraphViewModel: ObservableObject {
     /// Bumps the generation so any in-flight scan for the old gateway is dropped.
     internal func resetForGatewaySwitch() {
         loadGeneration += 1
+        wikiDiscoveryGeneration += 1
         graph = .empty
         simNodes.removeAll()
         loadedSource = nil
