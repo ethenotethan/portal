@@ -202,10 +202,10 @@ internal struct GraphsView: View {
         }
     }
 
-    private func openIntentDock() {
+    private func openIntentDock(mode: PageIntentMode) {
         intentDock.configure(backend: gatewayClientWrapper.client)
         let context = intentContext
-        Task { await intentDock.open(context: context) }
+        Task { await intentDock.open(context: context, mode: mode) }
     }
 
     private var framedContent: some View {
@@ -220,7 +220,9 @@ internal struct GraphsView: View {
                 } else {
                     HStack {
                         Spacer()
-                        PageIntentDockButton { withAnimation(.easeOut(duration: 0.22)) { openIntentDock() } }
+                        PageIntentDockButton { mode in
+                            withAnimation(.easeOut(duration: 0.22)) { openIntentDock(mode: mode) }
+                        }
                     }
                 }
             }
@@ -233,7 +235,15 @@ internal struct GraphsView: View {
             .onChange(of: surface) { _, _ in
                 guard intentDock.isOpen else { return }
                 let context = intentContext
-                Task { await intentDock.open(context: context) }
+                guard let mode = intentDock.activeMode else { return }
+                Task { await intentDock.open(context: context, mode: mode) }
+            }
+            // Prepare the page-scoped session alongside the graph itself. By the
+            // time the user chooses Chat or Voice, its prompt and priming turn
+            // are already loaded; local voice remains off until Voice is chosen.
+            .task(id: intentContext.digest) {
+                intentDock.configure(backend: gatewayClientWrapper.client)
+                await intentDock.preload(context: intentContext)
             }
             // Job rows feed the runtime graph's node inspector (cards, run
             // history, source files). Seed them when that graph is first shown
