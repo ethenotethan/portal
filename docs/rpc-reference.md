@@ -281,7 +281,7 @@ client's runtime probe maps to nil (local-only mode) rather than an error.
 ## Inbound Events (`GatewayEvent`)
 
 Events carry `type`, optional `session_id`, and a `payload`. `isLiveTurnEvent` marks
-streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input requests.
+streaming-turn events.
 
 ### Connection / session
 | Wire type | Enum case | Description |
