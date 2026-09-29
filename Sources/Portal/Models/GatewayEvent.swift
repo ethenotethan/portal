@@ -95,15 +95,6 @@ enum GatewayEvent {
         }
     }
 
-    var isSessionScopedRequestEvent: Bool {
-        switch self {
-        case .approvalRequest, .clarifyRequest, .sudoRequest, .secretRequest:
-            true
-        default:
-            false
-        }
-    }
-
     // Connection lifecycle
     case gatewayReady(skin: String)
 

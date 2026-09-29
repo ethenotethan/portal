@@ -78,11 +78,6 @@ class SpawnNode: Identifiable, ObservableObject, Hashable, TokenAccountable {
         return i + o
     }
 
-    /// Count of running descendants.
-    var runningDescendantCount: Int {
-        children.reduce(0) { $0 + ($1.status.isRunning ? 1 : 0) + $1.runningDescendantCount }
-    }
-
     /// Flat list of all descendant nodes.
     var allDescendants: [SpawnNode] {
         children.flatMap { [$0] + $0.allDescendants }

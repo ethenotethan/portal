@@ -502,13 +502,6 @@ struct FileAttachment: Identifiable, Codable {
         return false
     }
 
-    /// Whether the attachment data is ready for preview.
-    var isReady: Bool {
-        if case .ready = downloadState { return true }
-        if case .local = source { return true }
-        return false
-    }
-
     enum Category: String, Codable {
         case html
         case pdf
