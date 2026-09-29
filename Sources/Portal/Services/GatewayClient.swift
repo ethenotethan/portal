@@ -63,6 +63,17 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()
 
+    /// Method names of responses that arrived after `call` had already timed
+    /// them out. A late answer is the gateway saying "too slow", so pollers
+    /// (`CronPoller`) back off on it the same as on a measured slow call.
+    internal let lateResponses = PassthroughSubject<String, Never>()
+
+    /// Methods of the most recent timed-out requests, by id, so a late response
+    /// can be attributed and logged by name (the pending tables forget a request
+    /// the moment it times out). Bounded; oldest ids are evicted first.
+    private var timedOutRequestMethods: [Int: String] = [:]
+    private static let timedOutRequestMemory = 64
+
     /// Callback for connection log messages (shown in UI).
     var onLog: ((String, Bool) -> Void)?
 
@@ -510,6 +521,17 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         isReconnectScheduled = false
     }
 
+    /// Test seam: stand in for `call`'s timeout having fired for `id`, so the
+    /// late-response attribution can be exercised without a socket.
+    internal func rememberTimedOutForTesting(id: Int, method: String) {
+        rememberTimedOut(id: id, method: method)
+    }
+
+    /// Test seam: deliver a decoded response as if it had arrived on the socket.
+    internal func deliverResponseForTesting(id: Int, response: JSONRPCResponse) {
+        fulfillRequest(id: id, response: response)
+    }
+
     /// /health on the gateway's own scheme+host+PORT. Dropping the port sent
     /// the probe to whatever squats on :80/:443 (an unrelated local nginx
     /// answered 404 and connect() gave up before ever dialing the socket).
@@ -807,9 +829,18 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func failAllPendingRequests(error: Error) {
         pendingRequestsLock.lock()
         let pending = pendingRequests
+        let methods = pendingRequestMethods
         pendingRequests.removeAll()
         pendingRequestMethods.removeAll()
         pendingRequestsLock.unlock()
+
+        if !pending.isEmpty {
+            // Name what the disconnect cost: on a slow gateway these are the
+            // calls that were queued behind a long poll when the socket dropped.
+            let names = pending.keys.sorted().map { "\(methods[$0] ?? "?")#\($0)" }.joined(separator: ", ")
+            log.notice("disconnect dropped \(pending.count) pending request(s): \(names)")
+            healthCounters.increment(HealthCounter.rpcDroppedByDisconnect, by: pending.count)
+        }
 
         for (id, cont) in pending {
             log.debug("failAllPendingRequests: failing id=\(id)")
@@ -953,6 +984,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                         return
                     }
                     guard let self, let pending = self.removePendingRequest(id: id) else { return }
+                    // The file sink must see this: the debug ring and the UI log
+                    // are transient, and a day of silent timeouts is exactly what
+                    // hid the slow-gateway diagnosis.
+                    log.warning("\(method) timed out after \(Int(timeout))s (id=\(id))")
+                    healthCounters.increment("\(HealthCounter.rpcTimeouts).\(method)")
+                    PerfCounter.tick("gateway.rpc.timeout.\(method)")
+                    self.rememberTimedOut(id: id, method: method)
                     self.recordDebugEvent(.error, name: method, detail: "timed out after \(timeout)s id=\(id)")
                     self.onLog?("✗ \(method) timed out after \(Int(timeout))s (id=\(id))", true)
                     pending.resume(throwing: GatewayError.timedOut(method: method, seconds: timeout))
@@ -2500,7 +2538,21 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         pendingRequestsLock.unlock()
         recordDebugEvent(.inbound, name: method, detail: "response id=\(id)")
 
+        if !found, let lateMethod = timedOutRequestMethods.removeValue(forKey: id) {
+            log.notice("late response to \(lateMethod) (id=\(id)) arrived after its timeout")
+            healthCounters.increment(HealthCounter.rpcLateResponses)
+            lateResponses.send(lateMethod)
+        }
+
         continuation?.resume(returning: response)
+    }
+
+    private func rememberTimedOut(id: Int, method: String) {
+        timedOutRequestMethods[id] = method
+        while timedOutRequestMethods.count > Self.timedOutRequestMemory,
+              let oldest = timedOutRequestMethods.keys.min() {
+            timedOutRequestMethods.removeValue(forKey: oldest)
+        }
     }
 
     /// Thread-safe removal of a pending request continuation.

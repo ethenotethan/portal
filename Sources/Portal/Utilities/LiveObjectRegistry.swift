@@ -137,7 +137,11 @@ internal enum HealthCounter {
     internal static let artifactRelayouts = "artifact.relayouts"
     internal static let webViewReloads = "webview.reloads"
     internal static let gatewayEvents = "gateway.events"
-    internal static let relayoutGuardTrips = "relayout.guardTrips"
+    /// Prefix; the RPC method is appended (`gateway.rpc.timeouts.cron.graph`).
+    internal static let rpcTimeouts = "gateway.rpc.timeouts"
+    internal static let rpcLateResponses = "gateway.rpc.lateResponses"
+    internal static let rpcDroppedByDisconnect = "gateway.rpc.droppedByDisconnect"
+    internal static let artifactQueryCoalesced = "artifact.query.coalesced"
 }
 
 /// Process-wide instances as module-level constants (the repository's

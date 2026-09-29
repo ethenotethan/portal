@@ -101,52 +101,6 @@
       "summary": "An ObservableObject that owns the active Persona for the chat page. It can adopt a persona built from a SavedGateway, or derive one from the connected gateway by calling GatewayClient.getConfig for the persona, personality, and full config keys, then parsing an optional persona markdown body into a name, tagline, and system prompt suffix."
     },
     {
-      "cited_hash": "bb8f1bbd2a44854638e96f7d409ead218fcd112e30f586648b98f909495c7f82",
-      "evidence": [
-        {
-          "line": 7,
-          "path": "Sources/Portal/Services/CronPoller.swift"
-        },
-        {
-          "line": 20,
-          "path": "Sources/Portal/Services/CronPoller.swift"
-        },
-        {
-          "line": 28,
-          "path": "Sources/Portal/Services/CronPoller.swift"
-        },
-        {
-          "line": 41,
-          "path": "Sources/Portal/Services/CronPoller.swift"
-        },
-        {
-          "line": 56,
-          "path": "Sources/Portal/Services/CronPoller.swift"
-        }
-      ],
-      "fields": {
-        "purpose": "Polls cron jobs every 60 seconds to detect new runs and auto-declare cron jobs as maintainers of artifacts they wrote.",
-        "reacts_to": [
-          "60-second Timer tick while connectionState is .connected",
-          "deinit (invalidates timer)",
-          "setGatewayClient(_:) with a new client"
-        ],
-        "state": [
-          "timer: Timer? (nonisolated(unsafe), invalidated on set)",
-          "weak client: GatewayClient?"
-        ]
-      },
-      "key": "caller:hermes-services:CronPoller",
-      "kind": "surface",
-      "model": "us.anthropic.claude-fable-5-1",
-      "open_questions": [
-        "Only listCronJobs is called in the excerpt; which call, if any, reaches GatewayClient+CronChangesets is not shown.",
-        "Who calls setGatewayClient and when the poller is created is not visible here."
-      ],
-      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
-      "summary": "CronPoller is an ObservableObject that, once given a GatewayClient, schedules a repeating 60-second Timer. Each tick, when the client is connected, it lists cron jobs, hands them to CronRunHistoryStore.shared.detectNewRuns, and stamps a cron maintainer ref onto any ArtifactStore artifact whose updatedBy mentions the job id or name. The timer is invalidated on client change and in deinit."
-    },
-    {
       "cited_hash": "8bf937f756b8287282b3da26d41031b56e62a8302ff37f49d457c590c913e5e9",
       "evidence": [
         {
@@ -2379,22 +2333,21 @@
         "entry_triggers": [
           "trigger-00ee50b49a13",
           "trigger-01975cb2e551",
-          "trigger-09bee7bc30b3",
-          "trigger-273dfaac2317",
-          "trigger-50bcdf3e46c9",
-          "trigger-51ca406e086f",
+          "trigger-579486036f09",
+          "trigger-6545d54aad13",
           "trigger-665681259e02",
+          "trigger-903312b6fbfd",
+          "trigger-964081e45cd1",
           "trigger-a5a076101453",
-          "trigger-b72d0ed401b6",
+          "trigger-a654b0dfe47f",
           "trigger-c166cb7671a9",
           "trigger-c18a64bbe26d",
-          "trigger-c1b7967781b8",
+          "trigger-c6c4888394f4",
           "trigger-dd66760ec635",
           "trigger-def30f5246bf",
           "trigger-fd8c87781f17"
         ],
         "owns_state_in": [
-          "caller:hermes-services:CronPoller",
           "caller:operations-state:CronListViewModel"
         ],
         "purpose": "List and manage gateway cron jobs, and show run-history metrics filtered by time horizon."
@@ -2496,38 +2449,40 @@
           "trigger-013cd204ade5",
           "trigger-033147a7f5cb",
           "trigger-05431a1038e8",
-          "trigger-2a4ab154067b",
+          "trigger-06c5e32c911d",
           "trigger-1434d39d0082",
           "trigger-143ab043cdfa",
           "trigger-173f8ac250bd",
           "trigger-21e14661ae99",
-          "trigger-84577e857409",
           "trigger-28372e8d280a",
+          "trigger-29f4fd19d3c1",
+          "trigger-2a55cb104ddf",
           "trigger-337e22ddac9c",
           "trigger-3b56159af21d",
           "trigger-3baae13ebeb3",
+          "trigger-4111f227a701",
           "trigger-4e9c3c31e50a",
           "trigger-4f2de5d9b8b2",
           "trigger-4f9c46a20d70",
           "trigger-5477692195e5",
           "trigger-56f686776e42",
-          "trigger-2a55cb104ddf",
+          "trigger-5ccf707f1d58",
           "trigger-726f15dc8784",
-          "trigger-4111f227a701",
+          "trigger-734300c3a045",
           "trigger-76a42ceab5d3",
           "trigger-86078dff0e1e",
+          "trigger-884f3ae8f0c4",
           "trigger-8a590206c277",
           "trigger-8bd0cb87f885",
-          "trigger-5ccf707f1d58",
-          "trigger-b028fc685dfe",
           "trigger-9a8671054a5d",
           "trigger-9bbd1c7fea7a",
           "trigger-accff47ddbf5",
+          "trigger-b028fc685dfe",
           "trigger-b33899858efc",
           "trigger-b56cfc782a40",
           "trigger-b8886d3b90fe",
-          "trigger-29f4fd19d3c1",
           "trigger-bdc3090c9679",
+          "trigger-c30d630e7792",
           "trigger-c40b4ad7ed26",
           "trigger-ca6cf28e5e58",
           "trigger-d09036b2aaab",
@@ -2535,8 +2490,6 @@
           "trigger-dea188138301",
           "trigger-e47061d7f608",
           "trigger-e791301e6c80",
-          "trigger-c1e85caff9b1",
-          "trigger-c30d630e7792",
           "trigger-fe992e7fd3aa",
           "trigger-ff0104bf74b3"
         ],
@@ -3143,9 +3096,7 @@
           "CronRunRecord"
         ],
         "retention": "bounded_count",
-        "writers": [
-          "caller:hermes-services:CronPoller"
-        ],
+        "writers": [],
         "written_when": [
           "debounced",
           "on_launch"
@@ -3736,10 +3687,6 @@
         {
           "line": 141,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
-        },
-        {
-          "line": 43,
-          "path": "Sources/Portal/Services/CronPoller.swift"
         }
       ],
       "fields": {

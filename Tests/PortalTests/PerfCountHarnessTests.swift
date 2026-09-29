@@ -168,6 +168,41 @@ internal struct PerfCountHarnessTests {
         // Four tiers (mine, archived, cron, other), each sorted once for the
         // one session list, however many times the sidebar's body reads them.
         #expect(sorts["sessions.sidebarSort"] == 4, "sidebar sort per render, not per change")
+
+        // ── Scenario: gateway.poll.* / artifact.query.coalesced ──────────────
+        // The poll schedule and the query coalescer are pure, so a fixed script
+        // of ticks (every 4th hidden, every 6th reconnecting, alternating fast
+        // and slow, every 5th failed) yields exact skip/back-off tallies. Sizes
+        // live here (not as suite constants) because only this instrumented
+        // block reads them.
+        let pollTicks = 24        // → two full hidden/reconnect cycles
+        let coalescedSlots = 5    // → 5 query slots …
+        let changesPerFetch = 3   // … each hit by 3 changes mid-fetch
+        PerfCounter.reset()
+        var policy = GatewayPollPolicy(method: "cron.graph")
+        for step in 0..<pollTicks {
+            let visible = step % 4 != 3
+            let connected = step % 6 != 5
+            guard policy.decide(visible: visible, connected: connected) == nil else { continue }
+            policy.finished(elapsed: step.isMultiple(of: 2) ? 1 : 12, succeeded: step % 5 != 4)
+        }
+        _ = policy.decide(visible: true, connected: true)  // leave one call outstanding …
+        _ = policy.decide(visible: true, connected: true)  // … so the next tick is skipped
+        var coalescer = ArtifactQueryCoalescer<Int>()
+        for key in 0..<coalescedSlots {
+            _ = coalescer.requestFetch(key)
+            for _ in 0..<changesPerFetch {
+                _ = coalescer.requestFetch(key)
+            }
+            while coalescer.finished(key) {}
+        }
+        let schedule = PerfCounter.snapshot()
+        merged.merge(schedule) { _, new in new }
+        #expect(schedule["gateway.poll.skip.inFlight"] == 1, "a tick during an outstanding call is skipped")
+        #expect(
+            schedule["artifact.query.coalesced"] == coalescedSlots * changesPerFetch,
+            "every change during a fetch is absorbed, not stacked"
+        )
         // The instrumented build must actually have tallied something —
         // otherwise the fixtures aren't hitting the counted paths and the
         // ratchet would silently pass on an empty snapshot.
