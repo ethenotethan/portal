@@ -111,6 +111,9 @@ internal struct DatasetBlockView: View {
 private struct DatasetActionRows: View {
     let spec: DatasetSpec
     let artifactID: String
+    /// The one row whose choice picker is open. Hosted here, once per table,
+    /// not once per row — see `ArtifactChoicePrompt`.
+    @State private var choicePrompt: ArtifactChoicePrompt?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -128,7 +131,8 @@ private struct DatasetActionRows: View {
                             actions: spec.actions,
                             entryKey: entryKey,
                             fieldValue: { row[$0] },
-                            artifactID: artifactID
+                            artifactID: artifactID,
+                            choicePrompt: $choicePrompt
                         )
                     }
                     .padding(.vertical, 3)
@@ -138,6 +142,119 @@ private struct DatasetActionRows: View {
         }
         .padding(6)
         .background(Theme.background.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        .artifactChoicePicker($choicePrompt)
+    }
+}
+
+// MARK: - Choice picker (one per surface, never one per row)
+
+/// A pending `choice` action: which entry, which field, what it currently
+/// says. A row's choice control only sets this; the surface that owns the
+/// rows hosts ONE picker for it (`artifactChoicePicker`).
+///
+/// This used to be a SwiftUI `Menu` inside every row and every kanban card.
+/// On macOS a `Menu` is an AppKit `NSPopUpButton` — a live view whose menu
+/// items and accessibility text are rebuilt in `updateNSView` on every
+/// environment change reaching it. A model artifact with two boards and a
+/// triage table hosted ~160 of them, and a `sample` of the beachballing app
+/// put 63% of main-thread time in exactly that re-sync. A plain `Button`
+/// creates nothing until it is clicked.
+internal struct ArtifactChoicePrompt: Identifiable, Equatable {
+    internal let artifactID: String
+    internal let action: ArtifactAction
+    internal let entryKey: String
+    internal let currentValue: String?
+    /// What the picker is titled with (the card or row being changed).
+    internal let title: String
+
+    internal var id: String { "\(artifactID)|\(entryKey)|\(action.field)" }
+
+    /// Commit `option` through the same store path the old menu used.
+    @MainActor
+    internal func choose(_ option: String) {
+        ArtifactStore.shared.applyAction(
+            artifactID: artifactID, action: action, entryKey: entryKey, value: option
+        )
+    }
+}
+
+internal extension View {
+    /// Host the choice picker for every row/card under this view. macOS gets
+    /// a popover, iOS a confirmation dialog; either exists only while a prompt
+    /// is set, so an idle surface holds no picker at all.
+    func artifactChoicePicker(_ prompt: Binding<ArtifactChoicePrompt?>) -> some View {
+        modifier(ArtifactChoicePickerHost(prompt: prompt))
+    }
+}
+
+private struct ArtifactChoicePickerHost: ViewModifier {
+    @Binding var prompt: ArtifactChoicePrompt?
+
+    private var isPresented: Binding<Bool> {
+        Binding(
+            get: { prompt != nil },
+            set: { presented in if !presented { prompt = nil } }
+        )
+    }
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content.popover(item: $prompt, arrowEdge: .leading) { prompt in
+            ArtifactChoiceList(prompt: prompt) { self.prompt = nil }
+        }
+        #else
+        content.confirmationDialog(
+            prompt?.title ?? "", isPresented: isPresented, titleVisibility: .visible
+        ) {
+            if let prompt {
+                ForEach(prompt.action.options, id: \.self) { option in
+                    Button(option == prompt.currentValue ? "\(option) (current)" : option) {
+                        prompt.choose(option)
+                    }
+                }
+            }
+        }
+        #endif
+    }
+}
+
+/// The popover body: every option, the current one checked.
+private struct ArtifactChoiceList: View {
+    let prompt: ArtifactChoicePrompt
+    let dismiss: () -> Void
+
+    var body: some View {
+        let _ = PerfCounter.tick("view.body.ArtifactChoicePicker")
+        VStack(alignment: .leading, spacing: 2) {
+            Text(prompt.title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.secondary)
+                .lineLimit(2)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 4)
+            ForEach(prompt.action.options, id: \.self) { option in
+                Button {
+                    prompt.choose(option)
+                    dismiss()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .semibold))
+                            .opacity(option == prompt.currentValue ? 1 : 0)
+                        Text(option)
+                            .font(.system(size: 12))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(Theme.primary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(8)
+        .frame(minWidth: 180, alignment: .leading)
     }
 }
 
@@ -150,8 +267,12 @@ internal struct ArtifactActionControls: View {
     /// Current value of a field on this entry (for menu checkmark / toggle state).
     internal let fieldValue: (String) -> String?
     internal let artifactID: String
+    /// Where a `choice` control parks its request; the owning surface hosts
+    /// the single picker. (No per-row `@ObservedObject` on the store either:
+    /// nothing here reads it, and every row observing every artifact change
+    /// was its own churn.)
+    @Binding internal var choicePrompt: ArtifactChoicePrompt?
 
-    @ObservedObject private var store = ArtifactStore.shared
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
     @State private var confirmingDelete = false
 
@@ -173,20 +294,12 @@ internal struct ArtifactActionControls: View {
     private func control(for action: ArtifactAction) -> some View {
         switch action.kind {
         case .choice:
-            Menu {
-                ForEach(action.options, id: \.self) { option in
-                    Button {
-                        ArtifactStore.shared.applyAction(
-                            artifactID: artifactID, action: action, entryKey: entryKey, value: option
-                        )
-                    } label: {
-                        if fieldValue(action.field) == option {
-                            Label(option, systemImage: "checkmark")
-                        } else {
-                            Text(option)
-                        }
-                    }
-                }
+            // A Button, not a Menu: see ArtifactChoicePrompt.
+            Button {
+                choicePrompt = ArtifactChoicePrompt(
+                    artifactID: artifactID, action: action, entryKey: entryKey,
+                    currentValue: fieldValue(action.field), title: entryKey
+                )
             } label: {
                 HStack(spacing: 3) {
                     Text(fieldValue(action.field) ?? action.field)
@@ -199,8 +312,9 @@ internal struct ArtifactActionControls: View {
                 .padding(.vertical, 3)
                 .background(Theme.surfaceHover.opacity(0.7), in: Capsule())
             }
-            .menuStyle(.borderlessButton)
+            .buttonStyle(.plain)
             .fixedSize()
+            .accessibilityLabel("Change \(action.field)")
         case .toggle:
             Button {
                 ArtifactStore.shared.applyAction(

@@ -13,6 +13,8 @@ internal struct MapEntryTableView: View {
 
     @State private var sortField: String?
     @State private var sortAscending = true
+    /// The one row whose choice picker is open (hosted once, on the table).
+    @State private var choicePrompt: ArtifactChoicePrompt?
 
     /// Columns: label + group + the union of data fields riding on markers
     /// (action fields like status/reached_out land here automatically).
@@ -70,6 +72,7 @@ internal struct MapEntryTableView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Theme.border.opacity(0.6), lineWidth: 0.5)
         )
+        .artifactChoicePicker($choicePrompt)
     }
 
     private var allColumns: [String] { ["label", "group"] + dataFields }
@@ -128,7 +131,8 @@ internal struct MapEntryTableView: View {
                         actions: spec.actions,
                         entryKey: marker.label,
                         fieldValue: { marker.extra[$0] },
-                        artifactID: artifactID
+                        artifactID: artifactID,
+                        choicePrompt: $choicePrompt
                     )
                     .frame(minWidth: 90, alignment: .trailing)
                 }

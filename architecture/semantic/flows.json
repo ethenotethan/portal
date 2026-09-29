@@ -366,7 +366,7 @@
       ],
       "summary": "The canvas renders the living artifacts held by ArtifactStore, which loads and persists them as artifacts.json in Application Support. Opening an artifact's detail runs a .task that hands the gateway client to CronListViewModel and refreshes cron jobs over the cron namespace so maintainer info is current.",
       "title": "Open the Artifacts page",
-      "trigger": "trigger-7f334a7d5c59"
+      "trigger": "trigger-2b0e66e5fa92"
     },
     {
       "evidence": [
@@ -414,7 +414,7 @@
       ],
       "summary": "The user taps Pull to refresh an artifact into the store, or Remove to drop it. Both actions mutate ArtifactStore, which rewrites the artifact map to artifacts.json so the change survives relaunch.",
       "title": "Pull or remove an artifact on the canvas",
-      "trigger": "trigger-f3fa03caa7f4"
+      "trigger": "trigger-86901d8d660a"
     },
     {
       "evidence": [
