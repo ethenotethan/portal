@@ -89,7 +89,10 @@ internal struct ArtifactKindRenderer: View {
         case "sankey":
             SankeyBlockView(json: content, isStreaming: false)
         case "model":
+            // Equatable on (json, host id): a re-evaluation of this renderer
+            // for an unchanged model never reaches the stacked views.
             ModelBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
+                .equatable()
         case "model3d":
             Model3DBlockView(json: content, isStreaming: false)
         case "html":

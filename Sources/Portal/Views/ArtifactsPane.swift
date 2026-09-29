@@ -77,6 +77,7 @@ struct ArtifactsPane: View {
             .navigationDestination(for: String.self) { artifactID in
                 if let artifact = store.artifacts[artifactID] {
                     ArtifactDetailView(artifact: artifact)
+                        .equatable()
                         .navigationTitle(artifact.displayName)
                 } else {
                     Text("This artifact is no longer available")
@@ -92,6 +93,7 @@ struct ArtifactsPane: View {
                 .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
             if let artifact = selected {
                 ArtifactDetailView(artifact: artifact)
+                    .equatable()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Text("Select an artifact")
@@ -261,8 +263,16 @@ private struct HSplitViewCompat<Content: View>: View {
 
 /// Shared by the iOS pane and the macOS canvas's list mode — one detail
 /// surface (Rendered / History) everywhere artifacts are inspected.
-internal struct ArtifactDetailView: View {
+///
+/// Equatable on the record so hosts apply `.equatable()`: the hosts observe
+/// the whole store and re-evaluate on every artifact's change, but only the
+/// displayed record changing should re-render a (possibly 100 KB) model.
+internal struct ArtifactDetailView: View, Equatable {
     internal let artifact: LivingArtifact
+
+    nonisolated internal static func == (lhs: ArtifactDetailView, rhs: ArtifactDetailView) -> Bool {
+        lhs.artifact == rhs.artifact
+    }
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
