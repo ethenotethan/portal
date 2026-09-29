@@ -253,6 +253,22 @@ internal struct PageIntentDockModelTests {
         #expect(backend.submitted.count == 1, "one scope receives one priming turn")
     }
 
+    @Test("established session refreshes coalesce prompt writes")
+    internal func establishedSessionRefreshesCoalesce() async {
+        let backend = PageIntentBackendSpy()
+        let model = makeModel(backend: backend, voice: DockVoiceFake())
+        await model.preload(context: wikiContext("research"))
+        backend.promptDelay = .milliseconds(100)
+
+        async let first: Void = model.preload(context: wikiContext("research", query: "first"))
+        try? await Task.sleep(for: .milliseconds(20))
+        async let newest: Void = model.preload(context: wikiContext("research", query: "newest"))
+        _ = await (first, newest)
+
+        #expect(backend.pagePrompts.count == 2, "initial prompt plus one coalesced refresh")
+        #expect(backend.pagePrompts.last?.prompt.contains("Search filter in effect: \"newest\"") == true)
+    }
+
     @Test("preload prepares context without opening a mode; chat and voice expand only when explicitly selected")
     internal func preloadThenExplicitMode() async {
         let backend = PageIntentBackendSpy()

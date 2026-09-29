@@ -179,12 +179,11 @@ internal final class PageIntentDockModel: ObservableObject {
         let task = Task<Void, Never> { [weak self] in
             guard let self else { return }
             await self.prepareSession(scope: scope)
+            await self.applyLatestPreparedContext(scope: scope)
         }
         preparationTasks[scope] = task
         await task.value
         preparationTasks[scope] = nil
-        guard let latest = latestContexts[scope] else { return }
-        await applyPreparedContext(latest)
     }
 
     private func prepareSession(scope: PageIntentScope) async {
@@ -210,6 +209,20 @@ internal final class PageIntentDockModel: ObservableObject {
             chat.inputText = PageIntentPrompt.priming(for: context)
             await chat.submitPrompt()
             primed.insert(context.scope)
+        }
+    }
+
+    private func applyLatestPreparedContext(scope: PageIntentScope) async {
+        while let candidate = latestContexts[scope] {
+            do {
+                try await Task.sleep(for: Self.contextDebounce)
+            } catch {
+                return
+            }
+            guard latestContexts[scope]?.digest == candidate.digest else { continue }
+            await applyPreparedContext(candidate)
+            guard latestContexts[scope]?.digest == candidate.digest else { continue }
+            return
         }
     }
 
