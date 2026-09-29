@@ -11227,9 +11227,9 @@
       "redundantConformance": 5,
       "redundantProtocol": 1,
       "redundantPublicAccessibility": 4,
-      "unused": 269
+      "unused": 268
     },
-    "total": 434,
+    "total": 433,
     "sites": [
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
@@ -12195,13 +12195,6 @@
         "line": 209,
         "kind": "var.instance",
         "name": "sessionInfoPublisher",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/ChatHistoryStore.swift",
-        "line": 155,
-        "kind": "function.method.instance",
-        "name": "firstUserMessage(forSession:)",
         "hint": "unused"
       },
       {
