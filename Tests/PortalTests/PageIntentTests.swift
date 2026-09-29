@@ -216,6 +216,18 @@ internal struct PageIntentDockModelTests {
         PageIntentContext.wiki(name: name, availableWikis: [], selectedPage: nil, pinnedPaths: [], searchQuery: query, focusedEventKey: nil, pageCount: 1)
     }
 
+    /// Two `async let` children start in no guaranteed order: under a serialized
+    /// coverage run the second could begin before the first, "newest" was applied
+    /// and then overwritten by "first", and the test failed for a reason that had
+    /// nothing to do with the model. `preload` publishes its context synchronously
+    /// on entry, so waiting for that makes "first, then newest" the actual order.
+    private func untilPreloadBegan(_ model: PageIntentDockModel, query: String) async {
+        for _ in 0..<10_000 {
+            if model.context?.stateLines.contains("Search filter in effect: \"\(query)\"") == true { return }
+            await Task.yield()
+        }
+    }
+
     private func makeModel(backend: PageIntentBackendSpy, voice: DockVoiceFake) -> PageIntentDockModel {
         let model = PageIntentDockModel()
         model.configure(backend: backend)
@@ -242,7 +254,7 @@ internal struct PageIntentDockModelTests {
         let model = makeModel(backend: backend, voice: DockVoiceFake())
 
         async let first: Void = model.preload(context: wikiContext("research", query: "first"))
-        await Task.yield()
+        await untilPreloadBegan(model, query: "first")
         async let second: Void = model.preload(context: wikiContext("research", query: "newest"))
         _ = await (first, second)
 
@@ -261,7 +273,7 @@ internal struct PageIntentDockModelTests {
         backend.promptDelay = .milliseconds(100)
 
         async let first: Void = model.preload(context: wikiContext("research", query: "first"))
-        try? await Task.sleep(for: .milliseconds(20))
+        await untilPreloadBegan(model, query: "first")
         async let newest: Void = model.preload(context: wikiContext("research", query: "newest"))
         _ = await (first, newest)
 
