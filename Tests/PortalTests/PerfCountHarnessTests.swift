@@ -63,6 +63,10 @@ internal struct PerfCountHarnessTests {
     private static let messageRenders = 20     // → 20 bubble renders of each
     private static let sessionCount = 1_200    // → a sidebar the size of the user's
     private static let sidebarRenders = 20     // → 20 sidebar body evaluations
+    private static let boardWorkItems = 32     // → first kanban: 32 cards over 7 lanes (+ per-card move control)
+    private static let boardCaseItems = 64     // → second kanban: 64 cards over 12 lanes, and a table with row actions
+    private static let boardStoreArtifacts = 40  // → artifacts in the store the board pane observes
+    private static let boardStoreReads = 20    // → sortedArtifacts reads per canvas body evaluation
 
     @MainActor
     @Test("Instrumented layout op counts match the committed baseline")
@@ -126,6 +130,31 @@ internal struct PerfCountHarnessTests {
         merged.merge(Self.hostCounts("model.editItem", passes: passes)) { _, new in new }
         modelHost.window.orderOut(nil)
 
+        // ── Scenario: board.mount / board.unrelatedChange ────────────────────
+        // The production shape that beachballed (a `model` artifact with two
+        // kanban boards, three tables, two graphs, a stats strip and six prose
+        // views), rendered through the store-observing renderer chain the
+        // artifact pane uses. Then ANOTHER artifact in the same store changes.
+        // Nothing the board shows has changed, so no card tile — and no popup
+        // picker — may be evaluated for it.
+        let boardStore = ArtifactStore(fileURL: Self.scratchStoreURL())
+        boardStore.seedArtifactForTesting(Self.makeBoardArtifact())
+        boardStore.seedArtifactForTesting(Self.makeBystanderArtifact(rev: 1))
+        PerfCounter.reset()
+        let boardHost = Self.mount(
+            StoreDrivenArtifact(store: boardStore, artifactID: Self.boardArtifactID)
+                .environmentObject(GatewayCapabilitiesStore())
+        )
+        passes = Self.settle(boardHost)
+        merged.merge(Self.boardCounts("board.mount", passes: passes)) { _, new in new }
+        PerfCounter.reset()
+        boardHost.host.layoutCount = 0
+        boardStore.seedArtifactForTesting(Self.makeBystanderArtifact(rev: 2))
+        passes = Self.settle(boardHost)
+        let unrelated = PerfCounter.snapshot()
+        merged.merge(Self.boardCounts("board.unrelatedChange", passes: passes)) { _, new in new }
+        boardHost.window.orderOut(nil)
+
         // ── Scenario: markdown.mount ─────────────────────────────────────────
         // A prose document with headings, lists, a table and a code block —
         // the transcript's everyday body.
@@ -142,6 +171,38 @@ internal struct PerfCountHarnessTests {
         // The row inputs read the maintainers of every artifact on every render;
         // the parse must happen once per artifact regardless of render count.
         #expect(parses["artifact.maintainerParse"] == Self.artifactCount, "maintainer parse per render, not per content")
+
+        #if os(macOS)
+        // An unrelated artifact changing must not reach the board: no card
+        // tile, no picker, and at most one card body (the equatable gate).
+        #expect(unrelated["view.body.KanbanCardTile"] == nil, "unrelated store change re-rendered kanban cards")
+        #expect((unrelated["view.body.ModelCard"] ?? 0) <= 1, "unrelated store change re-rendered the model card")
+        // The picker is built only when a card or row asks for it; mounting
+        // 96 cards and 64 action rows must construct none.
+        #expect(unrelated["view.body.ArtifactChoicePicker"] == nil, "a choice picker was built without a row being triaged")
+        #expect(merged["board.mount.view.body.ArtifactChoicePicker"] == 0, "mounting the board built a choice picker")
+        #endif
+
+        // ── Scenario: artifacts.sort (one sort per store change, not per read) ─
+        PerfCounter.reset()
+        let sortStore = ArtifactStore(fileURL: Self.scratchStoreURL())
+        for artifact in Self.makeArtifacts(count: Self.boardStoreArtifacts) {
+            sortStore.seedArtifactForTesting(artifact)
+        }
+        for _ in 0..<Self.boardStoreReads {
+            _ = sortStore.sortedArtifacts
+            _ = sortStore.sortedArtifactIDs
+        }
+        sortStore.seedArtifactForTesting(Self.makeBystanderArtifact(rev: 1))
+        for _ in 0..<Self.boardStoreReads {
+            _ = sortStore.sortedArtifacts
+            _ = sortStore.sortedArtifactIDs
+        }
+        let artifactSorts = PerfCounter.snapshot()
+        merged.merge(artifactSorts) { _, new in new }
+        // Two publishes (the seed loop's last write, then the bystander), two
+        // sorts — however many times the canvas body reads them.
+        #expect(artifactSorts["artifacts.sort"] == 2, "artifact sort per read, not per change")
 
         // ── Scenario: chat.stripMediaTags (one strip per message content, not per render) ─
         PerfCounter.reset()
@@ -268,6 +329,30 @@ internal struct PerfCountHarnessTests {
         }
     }
 
+    /// The store-observing half of the artifact surfaces: re-evaluates on
+    /// every `artifacts` publish, exactly as ArtifactCanvasView /
+    /// ArtifactPanelView / ArtifactExpandedOverlay do, and hands the kind
+    /// renderer the current record with actions live (pointer-lock callback
+    /// included, as the expanded overlay passes it). What the scenario pins
+    /// is that none of that re-evaluation reaches the board's cards.
+    private struct StoreDrivenArtifact: View {
+        @ObservedObject var store: ArtifactStore
+        let artifactID: String
+        @State private var pageHoldsPointer = false
+        var body: some View {
+            ScrollView {
+                if let artifact = store.artifacts[artifactID] {
+                    ArtifactKindRenderer(
+                        kind: artifact.kind, content: artifact.content, actionableArtifactID: artifact.id,
+                        onPointerLockChange: { pageHoldsPointer = $0 }
+                    )
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
     @MainActor
     private static func mount(_ view: some View) -> Hosted {
         let host = CountingHostingView(rootView: AnyView(view))
@@ -320,7 +405,35 @@ internal struct PerfCountHarnessTests {
         #endif
         return out
     }
+
+    /// The board scenarios record a FIXED key set, zeros included: the
+    /// counters that must stay at zero after an unrelated change have to be
+    /// in the baseline to be ratcheted, and the graph views' layout tallies
+    /// (which follow hosting-view layout passes) are deliberately left out.
+    private static let boardBodyCounters = [
+        "view.body.ModelCard", "view.body.KanbanBoard", "view.body.KanbanColumn",
+        "view.body.KanbanCardTile", "view.body.ArtifactChoicePicker",
+        "view.body.ModelEntityTable", "view.body.ModelEntityRow", "view.body.MarkdownContentView",
+    ]
+
+    private static func boardCounts(_ scenario: String, passes: Int) -> [String: Int] {
+        var out: [String: Int] = [:]
+        #if PERF_COUNTERS
+        _ = passes
+        let snapshot = PerfCounter.snapshot()
+        for key in boardBodyCounters {
+            out["\(scenario).\(key)"] = snapshot[key] ?? 0
+        }
+        #endif
+        return out
+    }
     #endif
+
+    private static func scratchStoreURL() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("perf-harness-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("artifacts.json")
+    }
 
     // MARK: - Fixtures
 
@@ -424,6 +537,124 @@ internal struct PerfCountHarnessTests {
            {"type":"table","entities":["work"]},
            {"type":"table","entities":["notes"]}
          ]}
+        """
+    }
+
+    private static let boardArtifactID = "perf-board"
+    private static let workLanes = [
+        "Inbox", "Working", "CI / Review", "Ready to Merge", "Blocked", "Merged", "Human Hold",
+    ]
+    private static let caseLanes = [
+        "intake", "triage", "design", "ready", "implementing", "review", "validation",
+        "merge-ready", "post-merge-validation", "blocked", "regressed", "closed",
+    ]
+
+    /// The model artifact under the perf board scenarios: the shape of the
+    /// production control-center artifact (21 entity sets, ~60 relations, 15
+    /// stacked views: 7 markdown, 1 stats, 2 kanban, 3 tables, 2 graphs).
+    private static func makeBoardArtifact() -> LivingArtifact {
+        LivingArtifact(
+            id: boardArtifactID, kind: "model", title: "Perf board", content: makeBoardJSON(),
+            updatedAt: Date(timeIntervalSince1970: 1_000), updatedBy: "cron:observe", rev: 1
+        )
+    }
+
+    /// An unrelated artifact sharing the store; `rev` is what changes.
+    private static func makeBystanderArtifact(rev: Int) -> LivingArtifact {
+        LivingArtifact(
+            id: "perf-bystander", kind: "map", title: "Bystander",
+            content: "{\"markers\":[{\"label\":\"rev \(rev)\",\"lat\":1,\"lng\":\(rev)}]}",
+            updatedAt: Date(timeIntervalSince1970: TimeInterval(2_000 + rev)), updatedBy: "cron:other", rev: rev
+        )
+    }
+
+    private static func jsonItems(_ prefix: String, count: Int, fields: (Int) -> [String: String]) -> String {
+        (0..<count).map { index -> String in
+            var item = fields(index)
+            item["id"] = "\(prefix)\(index)"
+            item["title"] = item["title"] ?? "\(prefix.capitalized) \(index)"
+            return "{" + item.keys.sorted().map { "\"\($0)\":\"\(item[$0] ?? "")\"" }.joined(separator: ",") + "}"
+        }.joined(separator: ",")
+    }
+
+    private static func jsonSet(_ name: String, prefix: String, count: Int,
+                                fields: @escaping (Int) -> [String: String] = { _ in [:] }) -> String {
+        "\"\(name)\":{\"key\":\"id\",\"items\":[\(jsonItems(prefix, count: count, fields: fields))]}"
+    }
+
+    private static func makeBoardJSON() -> String {
+        let plainSets: [(String, String, Int)] = [
+            ("crons", "cron", 8), ("sources", "src", 11), ("artifacts", "art", 10), ("sinks", "sink", 3),
+            ("objects", "obj", 1), ("ratchet_crons", "rc", 6), ("ratchet_artifacts", "ra", 7),
+            ("ratchet_sources", "rs", 9), ("ratchet_sinks", "rk", 2), ("ratchet_authority", "rauth", 1),
+            ("ratchet_objects", "ro", 1), ("product_crons", "pc", 1), ("product_artifacts", "pa", 2),
+            ("product_sources", "ps", 7), ("product_sinks", "pk", 1), ("product_authority", "pauth", 1),
+            ("product_objects", "po", 1),
+        ]
+        var sets = [
+            jsonSet("work", prefix: "w", count: boardWorkItems) { i in
+                ["column": workLanes[i % workLanes.count], "tag": "lane-\(i % 3)",
+                 "note": "note \(i) — a deterministic one-line summary", "managed_by": "sync"]
+            },
+            jsonSet("product_cases", prefix: "case", count: boardCaseItems) { i in
+                ["status": caseLanes[i % caseLanes.count], "owner": "o\(i % 4)", "note": "case note \(i)"]
+            },
+            jsonSet("telemetry", prefix: "t", count: 1) { _ in
+                ["generation_runs": "2990", "run_attempts": "3042", "merged": "1268"]
+            },
+        ]
+        sets += plainSets.map { name, prefix, count in
+            jsonSet(name, prefix: prefix, count: count) { i in ["kind": name, "state": "s\(i % 2)"] }
+        }
+        var relations: [String] = []
+        func relate(_ from: String, _ fromCount: Int, _ to: String, _ toCount: Int, type: String) {
+            for i in 0..<fromCount {
+                let fromPrefix = plainSets.first { $0.0 == from }?.1 ?? from
+                let toPrefix = plainSets.first { $0.0 == to }?.1 ?? to
+                relations.append(
+                    "{\"from\":\"\(from)/\(fromPrefix)\(i)\",\"to\":\"\(to)/\(toPrefix)\(i % toCount)\",\"type\":\"\(type)\"}"
+                )
+            }
+        }
+        relate("ratchet_sources", 9, "ratchet_crons", 6, type: "feeds")
+        relate("ratchet_crons", 6, "ratchet_artifacts", 7, type: "writes")
+        relate("ratchet_artifacts", 7, "ratchet_sinks", 2, type: "publishes")
+        relate("ratchet_crons", 6, "ratchet_authority", 1, type: "governed_by")
+        relate("ratchet_artifacts", 7, "ratchet_objects", 1, type: "models")
+        relate("product_sources", 7, "product_crons", 1, type: "feeds")
+        relate("product_crons", 1, "product_artifacts", 2, type: "writes")
+        relate("product_artifacts", 2, "product_sinks", 1, type: "publishes")
+        relate("product_crons", 1, "product_authority", 1, type: "governed_by")
+        relate("sources", 11, "crons", 8, type: "feeds")
+        relate("crons", 8, "artifacts", 10, type: "writes")
+        let lanes = { (names: [String]) in names.map { "\"\($0)\"" }.joined(separator: ",") }
+        let prose = { (index: Int) in
+            "{\"type\":\"markdown\",\"text\":\"## Section \(index)\\n\\nProse view \(index) with **bold** and a list.\\n\\n- one\\n- two\"}"
+        }
+        let views = [
+            prose(0),
+            "{\"type\":\"stats\",\"entities\":[\"telemetry\"]}",
+            prose(1),
+            "{\"type\":\"kanban\",\"entities\":[\"work\"],\"column\":\"column\",\"columns\":[\(lanes(workLanes))]}",
+            prose(2),
+            "{\"type\":\"kanban\",\"entities\":[\"product_cases\"],\"column\":\"status\",\"columns\":[\(lanes(caseLanes))]}",
+            "{\"type\":\"table\",\"entities\":[\"product_cases\"],\"columns\":[\"id\",\"title\",\"status\",\"owner\"]}",
+            prose(3),
+            "{\"type\":\"graph\",\"entities\":[\"ratchet_crons\",\"ratchet_artifacts\",\"ratchet_sources\",\"ratchet_sinks\",\"ratchet_authority\",\"ratchet_objects\"]}",
+            prose(4),
+            "{\"type\":\"graph\",\"entities\":[\"product_crons\",\"product_artifacts\",\"product_sources\",\"product_sinks\",\"product_authority\",\"product_objects\"]}",
+            prose(5),
+            "{\"type\":\"table\",\"entities\":[\"crons\"]}",
+            prose(6),
+            "{\"type\":\"table\",\"entities\":[\"sources\",\"artifacts\",\"sinks\",\"objects\"]}",
+        ]
+        return """
+        {"id":"\(boardArtifactID)","title":"Perf board",
+         "entities":{\(sets.joined(separator: ","))},
+         "relations":[\(relations.joined(separator: ","))],
+         "views":[\(views.joined(separator: ","))],
+         "actions":{"work":[{"field":"column","type":"choice","options":[\(lanes(workLanes))]}],
+                    "product_cases":[{"field":"status","type":"choice","options":[\(lanes(caseLanes))]}]}}
         """
     }
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Renders a ```kanban JSON block: declared columns side by side, each holding
 /// its cards. In artifact hosts (`actionableArtifactID` set) each card carries
-/// a live column picker — choosing another column moves the card through
+/// a move control — choosing another column moves the card through
 /// `ArtifactStore`, the same `choice` path dataset actions use. In chat
 /// transcripts it renders read-only. Clicking a card opens its ticket content
 /// in a consistently sized popover, independent of the board's column widths.
@@ -62,6 +62,11 @@ private struct KanbanCard: View {
     @State private var expandedColumns: Set<String> = []
     /// Column currently under a drag, for drop-target highlight. Nil = none.
     @State private var dropTarget: String?
+    /// The card whose move picker is open. ONE picker per board (see
+    /// `ArtifactChoicePrompt`): the per-card `Menu` this replaces was an
+    /// `NSPopUpButton` in every visible card — ~100 live AppKit views on a
+    /// two-board model artifact, each re-synced on every update.
+    @State private var movePrompt: ArtifactChoicePrompt?
 
     /// Board is interactive (drag-to-move, move menu) only in an artifact host,
     /// where `actionableArtifactID` is set. In a chat transcript it's read-only.
@@ -87,6 +92,7 @@ private struct KanbanCard: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Theme.border, lineWidth: 0.5)
         )
+        .artifactChoicePicker($movePrompt)
         // One popover for the whole board, not one per card. A per-card
         // `.popover` mounts an NSPopover for every rendered card, and the
         // columns (lazy stacks at the time) re-mounted those as cards scrolled
@@ -243,7 +249,7 @@ private struct KanbanCard: View {
                     dragHandle(for: card)
                 }
                 if let artifactID {
-                    moveMenu(for: card, artifactID: artifactID)
+                    moveButton(for: card, artifactID: artifactID)
                 }
             }
         }
@@ -340,50 +346,47 @@ private struct KanbanCard: View {
         }
     }
 
-    /// Move a card to a column via the same `choice` action path the move menu
-    /// uses. No-ops if the card is already there or the board isn't a host.
+    /// The `choice` action a move is: the configured movement field over the
+    /// board's columns. Shared by drag-and-drop and the move picker.
+    private var moveAction: ArtifactAction {
+        ArtifactAction(
+            kind: .choice, field: movementField, options: spec.columns,
+            bindingID: "", label: "", intentName: "", presentationRole: .normal
+        )
+    }
+
+    /// Move a card to a column via the same `choice` action path the move
+    /// picker uses. No-ops if the card is already there or the board isn't a host.
     private func move(cardID: String, to column: String) {
         dropTarget = nil
         guard let artifactID,
               let card = spec.cards.first(where: { $0.id == cardID }),
               card.column != column else { return }
-        let action = ArtifactAction(
-            kind: .choice, field: movementField, options: spec.columns,
-            bindingID: "", label: "", intentName: "", presentationRole: .normal
-        )
         ArtifactStore.shared.applyAction(
-            artifactID: artifactID, action: action, entryKey: cardID, value: column
+            artifactID: artifactID, action: moveAction, entryKey: cardID, value: column
         )
     }
 
-    /// Column picker → a `choice` action on the configured movement field.
-    private func moveMenu(for card: KanbanSpec.Card, artifactID: String) -> some View {
-        let action = ArtifactAction(
-            kind: .choice, field: movementField, options: spec.columns,
-            bindingID: "", label: "", intentName: "", presentationRole: .normal
-        )
-        return Menu {
-            ForEach(spec.columns, id: \.self) { column in
-                Button {
-                    ArtifactStore.shared.applyAction(
-                        artifactID: artifactID, action: action, entryKey: card.id, value: column
-                    )
-                } label: {
-                    if column == card.column {
-                        Label(column, systemImage: "checkmark")
-                    } else {
-                        Text(column)
-                    }
-                }
-            }
+    /// Opens the board's column picker for this card. A plain button: it
+    /// creates no AppKit popup until it is clicked (see `movePrompt`).
+    private func moveButton(for card: KanbanSpec.Card, artifactID: String) -> some View {
+        Button {
+            movePrompt = ArtifactChoicePrompt(
+                artifactID: artifactID, action: moveAction, entryKey: card.id,
+                currentValue: card.column, title: card.title
+            )
         } label: {
             Image(systemName: "arrow.left.arrow.right")
                 .font(.system(size: 9))
                 .foregroundStyle(Theme.tertiary)
+                .padding(.horizontal, 3)
+                .padding(.vertical, 1)
+                .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
+        .buttonStyle(.plain)
         .fixedSize()
         .help("Move card")
+        .accessibilityLabel("Move card")
     }
 }
 

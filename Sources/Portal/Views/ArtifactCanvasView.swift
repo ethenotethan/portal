@@ -49,7 +49,9 @@ internal struct ArtifactCanvasView: View {
         .background(Theme.background)
         .frame(minWidth: 700, minHeight: 480)
         .task { await store.pull() }
-        .onChange(of: store.sortedArtifacts.map(\.id)) { _, newIDs in
+        // Ids only: membership/order is all the layout reconciler cares
+        // about, and the store caches them — no per-body sort or record copy.
+        .onChange(of: store.sortedArtifactIDs) { _, newIDs in
             healthCounters.increment(HealthCounter.artifactRelayouts)
             reconcileLayout(artifactIDs: newIDs, bounds: canvasBounds)
         }
@@ -239,7 +241,11 @@ internal struct ArtifactCanvasView: View {
             // revision attribution (who's revising: a cron, an agent session,
             // or you) is inspectable on macOS too.
             if let artifact = selectedArtifact {
+                // Equatable on the record: this body runs on every
+                // `artifact.changed` for ANY artifact, and only the selected
+                // one changing may re-render the detail (#PR: model churn).
                 ArtifactDetailView(artifact: artifact)
+                    .equatable()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .id(artifact.id)
             } else {

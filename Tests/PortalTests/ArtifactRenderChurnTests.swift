@@ -69,6 +69,79 @@ internal struct ArtifactRenderChurnTests {
         #expect(decoded.supportsMaintainers)
     }
 
+    @Test("sorted artifacts are computed once per store change and shared across reads")
+    internal func sortedArtifactsAreCached() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = ArtifactStore(fileURL: dir.appendingPathComponent("artifacts.json"))
+        let gateway = UUID()
+        for index in 0..<5 {
+            var item = artifact(Self.maintained, rev: index)
+            item.updatedAt = Date(timeIntervalSince1970: TimeInterval(index))
+            store.seedArtifactForTesting(LivingArtifact(
+                id: "a\(index)", kind: "map", title: "A\(index)", content: item.content,
+                updatedAt: item.updatedAt, updatedBy: "cron:nightly", rev: index,
+                gatewayID: index.isMultiple(of: 2) ? gateway : nil
+            ))
+        }
+        // Recency order, and the id projection agrees with it.
+        #expect(store.sortedArtifacts.map(\.id) == ["a4", "a3", "a2", "a1", "a0"])
+        #expect(store.sortedArtifactIDs == ["a4", "a3", "a2", "a1", "a0"])
+        // Repeated reads hand back the same value without re-sorting.
+        let first = store.sortedArtifacts
+        #expect(store.sortedArtifacts == first)
+        #expect(store.sortedArtifactIDs == first.map(\.id))
+
+        // A change to the map invalidates: a newer bystander leads the list.
+        store.seedArtifactForTesting(LivingArtifact(
+            id: "b", kind: "map", title: "B", content: "{}",
+            updatedAt: Date(timeIntervalSince1970: 100), updatedBy: "cron:other", rev: 1
+        ))
+        #expect(store.sortedArtifactIDs.first == "b")
+        #expect(store.sortedArtifacts.count == 6)
+        // Removing invalidates too.
+        store.remove(id: "b")
+        #expect(store.sortedArtifactIDs == ["a4", "a3", "a2", "a1", "a0"])
+
+        // Focusing a gateway scopes the list and invalidates the cache.
+        store.focusedGatewayID = gateway
+        #expect(store.sortedArtifactIDs == ["a4", "a2", "a0"])
+        #expect(store.sortedArtifacts.allSatisfy { $0.gatewayID == gateway })
+        store.focusedGatewayID = nil
+        #expect(store.sortedArtifactIDs.count == 5)
+    }
+
+    @Test("the model renderer chain is value-equal for an unchanged artifact")
+    internal func modelChainEquality() {
+        let base = artifact("{\"entities\":{\"work\":{\"items\":[{\"id\":\"w1\"}]}}}", rev: 3)
+        #expect(ArtifactDetailView(artifact: base) == ArtifactDetailView(artifact: base))
+        var bumped = base
+        bumped.rev = 4
+        #expect(ArtifactDetailView(artifact: base) != ArtifactDetailView(artifact: bumped))
+        var edited = base
+        edited.content = "{\"entities\":{\"work\":{\"items\":[]}}}"
+        #expect(ArtifactDetailView(artifact: base) != ArtifactDetailView(artifact: edited))
+
+        let block = ModelBlockView(json: base.content, isStreaming: false, actionableArtifactID: base.id)
+        #expect(block == ModelBlockView(json: base.content, isStreaming: false, actionableArtifactID: base.id))
+        #expect(block != ModelBlockView(json: edited.content, isStreaming: false, actionableArtifactID: base.id))
+        #expect(block != ModelBlockView(json: base.content, isStreaming: false, actionableArtifactID: nil))
+    }
+
+    @Test("a choice prompt identifies one field of one entry and commits through the store")
+    internal func choicePromptIdentity() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let action = ArtifactAction(
+            kind: .choice, field: "status", options: ["open", "done"],
+            bindingID: "", label: "", intentName: "", presentationRole: .normal
+        )
+        let prompt = ArtifactChoicePrompt(artifactID: "a", action: action, entryKey: "r1", currentValue: "open", title: "Row 1")
+        #expect(prompt.id == "a|r1|status")
+        #expect(prompt == ArtifactChoicePrompt(artifactID: "a", action: action, entryKey: "r1", currentValue: "open", title: "Row 1"))
+        #expect(prompt != ArtifactChoicePrompt(artifactID: "a", action: action, entryKey: "r2", currentValue: "open", title: "Row 2"))
+    }
+
     @Test("list row inputs are value-equal for an unchanged artifact and differ when it changes")
     internal func rowInputsEquality() {
         let base = artifact(Self.maintained)

@@ -19,7 +19,9 @@ final class ArtifactStore: ObservableObject {
 
     static let shared = ArtifactStore()
 
-    @Published private(set) var artifacts: [String: LivingArtifact] = [:]
+    @Published internal private(set) var artifacts: [String: LivingArtifact] = [:] {
+        didSet { invalidateSortedArtifacts() }
+    }
 
     /// The fast-changing half of the store: per-slot query results and intent
     /// invocation states. A separate ObservableObject so a live query landing
@@ -79,20 +81,15 @@ final class ArtifactStore: ObservableObject {
     /// `sortedArtifacts` returns only artifacts owned by this gateway (plus
     /// legacy nil-gateway artifacts under the Hermes home gateway). New
     /// artifacts created while a gateway is focused are stamped with its id.
-    @Published internal var focusedGatewayID: UUID?
-
-    /// Artifacts sorted by recency for pickers, scoped to the focused
-    /// gateway when one is set. Legacy artifacts (nil gatewayID) are
-    /// treated as belonging to the Hermes home gateway and shown when no
-    /// session-scoped gateway is focused.
-    var sortedArtifacts: [LivingArtifact] {
-        let all = artifacts.values.sorted { $0.updatedAt > $1.updatedAt }
-        guard let focused = focusedGatewayID else { return all }
-        // Session-scoped backend focused: show only its artifacts.
-        // Nil-gateway (legacy/Hermes) artifacts are excluded when a
-        // session-scoped gateway is active — they belong to Hermes.
-        return all.filter { $0.gatewayID == focused }
+    @Published internal var focusedGatewayID: UUID? {
+        didSet { invalidateSortedArtifacts() }
     }
+
+    /// `sortedArtifacts` / `sortedArtifactIDs`, computed once per change of
+    /// `artifacts` or `focusedGatewayID` (both `didSet`s clear them) — see the
+    /// sorted-list extension below.
+    private var sortedArtifactsCache: [LivingArtifact]?
+    private var sortedArtifactIDsCache: [String]?
 
     private convenience init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -910,5 +907,45 @@ extension ArtifactStore {
                 startQueryTask(slot)
             }
         }
+    }
+}
+
+// MARK: - Sorted list (cached per change, not per read)
+
+extension ArtifactStore {
+    /// Artifacts sorted by recency for pickers, scoped to the focused
+    /// gateway when one is set. Legacy artifacts (nil gatewayID) are
+    /// treated as belonging to the Hermes home gateway and shown when no
+    /// session-scoped gateway is focused.
+    ///
+    /// Cached until `artifacts` or `focusedGatewayID` changes. The canvas body
+    /// reads this several times per evaluation and evaluates on every
+    /// `artifact.changed` for ANY artifact; sorting and copying 70 records
+    /// (some carrying 100 KB bodies) on each read was measurable churn.
+    internal var sortedArtifacts: [LivingArtifact] {
+        if let cached = sortedArtifactsCache { return cached }
+        PerfCounter.tick("artifacts.sort")
+        let all = artifacts.values.sorted { $0.updatedAt > $1.updatedAt }
+        // Session-scoped backend focused: show only its artifacts.
+        // Nil-gateway (legacy/Hermes) artifacts are excluded when a
+        // session-scoped gateway is active — they belong to Hermes.
+        let sorted = focusedGatewayID.map { focused in all.filter { $0.gatewayID == focused } } ?? all
+        sortedArtifactsCache = sorted
+        return sorted
+    }
+
+    /// The ids of `sortedArtifacts`, in order — what a view should observe
+    /// when it only cares about membership and ordering (the canvas layout
+    /// reconciler), so that change detection never copies the records.
+    internal var sortedArtifactIDs: [String] {
+        if let cached = sortedArtifactIDsCache { return cached }
+        let ids = sortedArtifacts.map(\.id)
+        sortedArtifactIDsCache = ids
+        return ids
+    }
+
+    fileprivate func invalidateSortedArtifacts() {
+        sortedArtifactsCache = nil
+        sortedArtifactIDsCache = nil
     }
 }
