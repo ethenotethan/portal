@@ -11223,17 +11223,17 @@
   },
   "deadcode": {
     "counts": {
-      "assignOnlyProperty": 147,
-      "redundantConformance": 6,
-      "redundantProtocol": 2,
+      "assignOnlyProperty": 155,
+      "redundantConformance": 5,
+      "redundantProtocol": 1,
       "redundantPublicAccessibility": 4,
-      "unused": 324
+      "unused": 269
     },
-    "total": 483,
+    "total": 434,
     "sites": [
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
-        "line": 73,
+        "line": 135,
         "kind": "var.parameter",
         "name": "window",
         "hint": "unused"
@@ -11260,25 +11260,67 @@
         "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/ActivityItem.swift",
-        "line": 134,
+        "file": "Sources/Portal/Models/ArchitectureGatesDocument.swift",
+        "line": 100,
         "kind": "var.instance",
-        "name": "encoding",
+        "name": "line",
         "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/ActivityStore.swift",
-        "line": 65,
+        "file": "Sources/Portal/Models/ArchitectureGatesDocument.swift",
+        "line": 185,
         "kind": "var.instance",
-        "name": "unreadCount",
-        "hint": "unused"
+        "name": "events",
+        "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/ActivityStore.swift",
-        "line": 87,
-        "kind": "function.method.instance",
-        "name": "saveNow()",
-        "hint": "unused"
+        "file": "Sources/Portal/Models/ArchitectureGatesDocument.swift",
+        "line": 186,
+        "kind": "var.instance",
+        "name": "path",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ArchitectureGatesDocument.swift",
+        "line": 353,
+        "kind": "var.instance",
+        "name": "scripts",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ArchitectureGatesDocument.swift",
+        "line": 376,
+        "kind": "var.instance",
+        "name": "excludedCount",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ArchitectureGatesDocument.swift",
+        "line": 395,
+        "kind": "var.instance",
+        "name": "evidence",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ArchitectureGatesDocument.swift",
+        "line": 408,
+        "kind": "var.instance",
+        "name": "kind",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ArchitectureRevisionsDocument.swift",
+        "line": 76,
+        "kind": "var.instance",
+        "name": "revision",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ArchitectureRevisionsDocument.swift",
+        "line": 255,
+        "kind": "var.instance",
+        "name": "service",
+        "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/CalendarSpec.swift",
@@ -11288,116 +11330,172 @@
         "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/CentaurWorkflow.swift",
-        "line": 10,
-        "kind": "var.instance",
-        "name": "taskID",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/CentaurWorkflow.swift",
-        "line": 78,
-        "kind": "var.instance",
-        "name": "timezone",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/ChartSpec.swift",
-        "line": 234,
-        "kind": "function.method.static",
-        "name": "looksLikeChartJSON(_:)",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 29,
-        "kind": "var.instance",
-        "name": "usage",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 58,
+        "line": 74,
         "kind": "function.constructor",
         "name": "init(from:)",
         "hint": "redundantPublicAccessibility"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 173,
+        "line": 279,
         "kind": "var.instance",
         "name": "elapsedSeconds",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 215,
+        "line": 321,
         "kind": "var.instance",
         "name": "startedAt",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 216,
+        "line": 322,
         "kind": "var.instance",
         "name": "updatedAt",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 407,
+        "line": 513,
         "kind": "var.instance",
         "name": "isReady",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 530,
+        "line": 638,
         "kind": "function.constructor",
         "name": "init(from:)",
         "hint": "redundantPublicAccessibility"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 556,
+        "line": 664,
         "kind": "function.method.static",
         "name": "setLocalCacheOnly(_:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 560,
+        "line": 668,
         "kind": "function.method.instance",
         "name": "encode(to:)",
         "hint": "redundantPublicAccessibility"
       },
       {
-        "file": "Sources/Portal/Models/CronRunHistory.swift",
-        "line": 53,
-        "kind": "function.constructor",
-        "name": "init(testing:)",
-        "hint": "unused"
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 14,
+        "kind": "var.instance",
+        "name": "id",
+        "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/CronRunHistory.swift",
-        "line": 213,
-        "kind": "function.method.instance",
-        "name": "save()",
-        "hint": "unused"
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 15,
+        "kind": "var.instance",
+        "name": "content",
+        "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/DashboardLayout.swift",
-        "line": 36,
-        "kind": "function.method.instance",
-        "name": "remove(_:)",
-        "hint": "unused"
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 16,
+        "kind": "var.instance",
+        "name": "isStreaming",
+        "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/DashboardPanel.swift",
-        "line": 138,
-        "kind": "var.static",
-        "name": "titleBarHeight",
-        "hint": "unused"
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 17,
+        "kind": "var.instance",
+        "name": "showAvatar",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 18,
+        "kind": "var.instance",
+        "name": "showTimestamp",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 19,
+        "kind": "var.instance",
+        "name": "status",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 20,
+        "kind": "var.instance",
+        "name": "reasoning",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 21,
+        "kind": "var.instance",
+        "name": "traceUpdatedAt",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 22,
+        "kind": "var.instance",
+        "name": "traceBlockCount",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 23,
+        "kind": "var.instance",
+        "name": "toolCallSignature",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 24,
+        "kind": "var.instance",
+        "name": "attachmentCount",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 25,
+        "kind": "var.instance",
+        "name": "userAttachmentCount",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 26,
+        "kind": "var.instance",
+        "name": "skillCount",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 27,
+        "kind": "var.instance",
+        "name": "hasGraphSnapshot",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/ChatMessageRenderKey.swift",
+        "line": 28,
+        "kind": "var.instance",
+        "name": "usageTotal",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/CodeGraph.swift",
+        "line": 49,
+        "kind": "var.instance",
+        "name": "confidence",
+        "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/DelegationBatch.swift",
@@ -11405,13 +11503,6 @@
         "kind": "var.instance",
         "name": "parentID",
         "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
-        "line": 73,
-        "kind": "function.method.instance",
-        "name": "allRecordsSorted()",
-        "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/DelegationBatchRecord.swift",
@@ -11429,287 +11520,266 @@
       },
       {
         "file": "Sources/Portal/Models/DomainProtocols.swift",
-        "line": 75,
+        "line": 134,
         "kind": "protocol",
         "name": "TokenAccountable",
         "hint": "redundantProtocol"
       },
       {
         "file": "Sources/Portal/Models/DomainProtocols.swift",
-        "line": 87,
+        "line": 146,
         "kind": "var.instance",
         "name": "name",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/DomainProtocols.swift",
-        "line": 88,
+        "line": 147,
         "kind": "var.instance",
         "name": "context",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/DomainProtocols.swift",
-        "line": 89,
+        "line": 148,
         "kind": "var.instance",
         "name": "summary",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/DomainProtocols.swift",
-        "line": 90,
+        "line": 149,
         "kind": "var.instance",
         "name": "durationSeconds",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/DomainProtocols.swift",
-        "line": 91,
+        "line": 150,
         "kind": "var.instance",
         "name": "isComplete",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/FeedArticle.swift",
-        "line": 340,
+        "line": 391,
         "kind": "var.instance",
         "name": "hasMore",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/FeedArticle.swift",
-        "line": 352,
+        "line": 403,
         "kind": "var.instance",
         "name": "authorName",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/FeedArticle.swift",
-        "line": 353,
+        "line": 404,
         "kind": "var.instance",
         "name": "authorHandle",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/FeedArticle.swift",
-        "line": 361,
+        "line": 412,
         "kind": "var.instance",
         "name": "total",
         "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/GatewayCapabilities.swift",
-        "line": 9,
-        "kind": "var.instance",
-        "name": "label",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/GatewayCapabilities.swift",
-        "line": 37,
-        "kind": "var.instance",
-        "name": "supportsImagePrompts",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/GatewayDebugSnapshot.swift",
-        "line": 45,
-        "kind": "var.instance",
-        "name": "pendingRequestCount",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 94,
+        "line": 98,
         "kind": "var.instance",
         "name": "isSessionScopedRequestEvent",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 366,
+        "line": 415,
         "kind": "var.instance",
         "name": "reasoningEffort",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 367,
+        "line": 416,
         "kind": "var.instance",
         "name": "fast",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 368,
+        "line": 417,
         "kind": "var.instance",
         "name": "tools",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 369,
+        "line": 418,
         "kind": "var.instance",
         "name": "skills",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 370,
+        "line": 419,
         "kind": "var.instance",
         "name": "cwd",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 371,
+        "line": 420,
         "kind": "var.instance",
         "name": "version",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 373,
+        "line": 422,
         "kind": "var.instance",
         "name": "mcpServers",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 404,
+        "line": 453,
         "kind": "protocol",
         "name": "TokenAccountable",
         "hint": "redundantConformance"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 417,
+        "line": 466,
         "kind": "var.instance",
         "name": "costUSD",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 436,
+        "line": 485,
         "kind": "var.instance",
         "name": "name",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 437,
+        "line": 486,
         "kind": "var.instance",
         "name": "status",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 445,
+        "line": 494,
         "kind": "var.instance",
         "name": "rendered",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 446,
+        "line": 495,
         "kind": "var.instance",
         "name": "warning",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 476,
+        "line": 525,
         "kind": "var.instance",
         "name": "name",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 480,
+        "line": 529,
         "kind": "var.instance",
         "name": "todos",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 507,
+        "line": 556,
         "kind": "var.instance",
         "name": "id",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 508,
+        "line": 557,
         "kind": "var.instance",
         "name": "content",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 509,
+        "line": 558,
         "kind": "var.instance",
         "name": "status",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 541,
+        "line": 590,
         "kind": "var.instance",
         "name": "sessionKey",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 543,
+        "line": 592,
         "kind": "var.instance",
         "name": "rawArgs",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 628,
+        "line": 677,
         "kind": "var.instance",
         "name": "taskCount",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 629,
+        "line": 678,
         "kind": "var.instance",
         "name": "taskIndex",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 631,
+        "line": 680,
         "kind": "var.instance",
         "name": "parentID",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 632,
+        "line": 681,
         "kind": "var.instance",
         "name": "depth",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 659,
+        "line": 708,
         "kind": "var.instance",
         "name": "goal",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 660,
+        "line": 709,
         "kind": "var.instance",
         "name": "taskCount",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 661,
+        "line": 710,
         "kind": "var.instance",
         "name": "taskIndex",
         "hint": "assignOnlyProperty"
@@ -11758,51 +11828,9 @@
       },
       {
         "file": "Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift",
-        "line": 10,
-        "kind": "var.instance",
-        "name": "isSuccess",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift",
-        "line": 30,
-        "kind": "var.static",
-        "name": "sessionNotFound",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift",
-        "line": 31,
-        "kind": "var.static",
-        "name": "sessionBusy",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift",
-        "line": 35,
+        "line": 29,
         "kind": "struct",
         "name": "JSONRPCEventMessage",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/Learning/Curriculum.swift",
-        "line": 22,
-        "kind": "var.instance",
-        "name": "sourceSessionID",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/LivingArtifact.swift",
-        "line": 91,
-        "kind": "var.instance",
-        "name": "supportsMaintainers",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/NetworkGraphSpec.swift",
-        "line": 39,
-        "kind": "function.constructor",
-        "name": "init(id:label:group:size:)",
         "hint": "unused"
       },
       {
@@ -11848,88 +11876,18 @@
         "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Models/PromptBreakdown.swift",
-        "line": 19,
-        "kind": "var.instance",
-        "name": "isExpandableByDefault",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/PromptBreakdown.swift",
-        "line": 27,
-        "kind": "var.instance",
-        "name": "sessionID",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/PromptBreakdown.swift",
-        "line": 50,
-        "kind": "var.instance",
-        "name": "totalTokens",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/PromptBreakdown.swift",
-        "line": 52,
-        "kind": "var.instance",
-        "name": "contextUsagePercent",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/PromptBreakdown.swift",
-        "line": 127,
-        "kind": "var.static",
-        "name": "mock",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/Models/Quiz/FlashcardModels.swift",
-        "line": 64,
+        "line": 70,
         "kind": "var.instance",
         "name": "cardID",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/Quiz/FlashcardModels.swift",
-        "line": 74,
-        "kind": "var.instance",
-        "name": "lastReviewedAt",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/Quiz/FlashcardModels.swift",
-        "line": 99,
+        "line": 105,
         "kind": "var.instance",
         "name": "sourceSessionID",
         "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/Quiz/QuizModels.swift",
-        "line": 176,
-        "kind": "var.instance",
-        "name": "sourceSessionID",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/Quiz/QuizModels.swift",
-        "line": 182,
-        "kind": "var.instance",
-        "name": "wrongAnswers",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/Session.swift",
-        "line": 71,
-        "kind": "var.instance",
-        "name": "localTitle",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SessionFolder.swift",
-        "line": 5,
-        "kind": "struct",
-        "name": "SessionFolder",
-        "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/SessionRunEvent.swift",
@@ -11937,41 +11895,6 @@
         "kind": "protocol",
         "name": "TokenAccountable",
         "hint": "redundantConformance"
-      },
-      {
-        "file": "Sources/Portal/Models/SessionRunEvent.swift",
-        "line": 14,
-        "kind": "var.instance",
-        "name": "apiCalls",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SessionRunEvent.swift",
-        "line": 25,
-        "kind": "var.instance",
-        "name": "duration",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SessionRunEvent.swift",
-        "line": 30,
-        "kind": "var.instance",
-        "name": "durationLabel",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SessionTimelineEvent.swift",
-        "line": 13,
-        "kind": "var.instance",
-        "name": "iconName",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SessionTimelineEvent.swift",
-        "line": 24,
-        "kind": "var.instance",
-        "name": "colorHex",
-        "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/SessionTimelineEvent.swift",
@@ -12032,16 +11955,30 @@
       {
         "file": "Sources/Portal/Models/SessionTimelineEvent.swift",
         "line": 52,
-        "kind": "struct",
-        "name": "SessionTimeline",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SessionTimelineEvent.swift",
-        "line": 52,
         "kind": "protocol",
         "name": "TokenAccountable",
         "hint": "redundantConformance"
+      },
+      {
+        "file": "Sources/Portal/Models/SessionTimelineEvent.swift",
+        "line": 53,
+        "kind": "var.instance",
+        "name": "sessionID",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/SessionTimelineEvent.swift",
+        "line": 54,
+        "kind": "var.instance",
+        "name": "events",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/SessionTimelineEvent.swift",
+        "line": 55,
+        "kind": "var.instance",
+        "name": "totalDurationSeconds",
+        "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/Skill.swift",
@@ -12122,37 +12059,30 @@
       },
       {
         "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 5,
-        "kind": "struct",
-        "name": "SpawnTreeEntry",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 25,
-        "kind": "struct",
-        "name": "SpawnTreeSnapshot",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 58,
+        "line": 7,
         "kind": "var.instance",
-        "name": "goal",
+        "name": "path",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 59,
+        "line": 8,
         "kind": "var.instance",
-        "name": "taskCount",
+        "name": "sessionID",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 60,
+        "line": 11,
         "kind": "var.instance",
-        "name": "taskIndex",
+        "name": "label",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
+        "line": 12,
+        "kind": "var.instance",
+        "name": "subagentCount",
         "hint": "assignOnlyProperty"
       },
       {
@@ -12161,111 +12091,6 @@
         "kind": "var.instance",
         "name": "depth",
         "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 62,
-        "kind": "var.instance",
-        "name": "status",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 63,
-        "kind": "var.instance",
-        "name": "model",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 66,
-        "kind": "var.instance",
-        "name": "apiCalls",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 67,
-        "kind": "var.instance",
-        "name": "costUSD",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 68,
-        "kind": "var.instance",
-        "name": "filesRead",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 69,
-        "kind": "var.instance",
-        "name": "filesWritten",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 70,
-        "kind": "var.instance",
-        "name": "durationSeconds",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 71,
-        "kind": "var.instance",
-        "name": "children",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 73,
-        "kind": "var.instance",
-        "name": "totalTokens",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 78,
-        "kind": "function.method.static",
-        "name": "from(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 107,
-        "kind": "var.instance",
-        "name": "model",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 110,
-        "kind": "var.instance",
-        "name": "cacheReadTokens",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 111,
-        "kind": "var.instance",
-        "name": "cacheWriteTokens",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnTreeModels.swift",
-        "line": 118,
-        "kind": "var.instance",
-        "name": "compressions",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/StatTileSpec.swift",
-        "line": 46,
-        "kind": "function.constructor",
-        "name": "init(label:value:unit:delta:deltaLabel:upIsGood:trend:)",
-        "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/ThoughtGraphNode.swift",
@@ -12325,30 +12150,9 @@
       },
       {
         "file": "Sources/Portal/Models/WikiEventTimeline.swift",
-        "line": 91,
+        "line": 88,
         "kind": "var.instance",
         "name": "directiveBody",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/WikiEventTimeline.swift",
-        "line": 158,
-        "kind": "var.instance",
-        "name": "since",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/WikiEventTimeline.swift",
-        "line": 159,
-        "kind": "var.instance",
-        "name": "until",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/WikiGraph.swift",
-        "line": 8,
-        "kind": "var.instance",
-        "name": "tags",
         "hint": "assignOnlyProperty"
       },
       {
@@ -12360,6 +12164,13 @@
       },
       {
         "file": "Sources/Portal/Models/WikiGraph.swift",
+        "line": 11,
+        "kind": "var.instance",
+        "name": "updated",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Models/WikiGraph.swift",
         "line": 12,
         "kind": "var.instance",
         "name": "confidence",
@@ -12367,157 +12178,157 @@
       },
       {
         "file": "Sources/Portal/Models/WikiGraph.swift",
-        "line": 13,
-        "kind": "var.instance",
-        "name": "contested",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/WikiGraph.swift",
-        "line": 19,
-        "kind": "var.instance",
-        "name": "integrationLinks",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/WikiGraph.swift",
-        "line": 52,
-        "kind": "var.instance",
-        "name": "tagPathTree",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/WikiGraph.swift",
-        "line": 64,
-        "kind": "struct",
-        "name": "TaxonomyNode",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/WikiGraph.swift",
-        "line": 96,
-        "kind": "var.instance",
-        "name": "path",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/WikiGraph.swift",
-        "line": 100,
+        "line": 114,
         "kind": "struct",
         "name": "ExpandedLinkStatus",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/AgentBackend.swift",
-        "line": 41,
+        "line": 80,
         "kind": "var.instance",
         "name": "sessionInfoPublisher",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/AgentBackend.swift",
-        "line": 117,
-        "kind": "var.instance",
-        "name": "supportsInteractivePrompts",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/AgentBackend.swift",
-        "line": 119,
-        "kind": "var.instance",
-        "name": "supportsSubagentEvents",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/AgentBackend.swift",
-        "line": 138,
-        "kind": "var.instance",
-        "name": "supportsSessionIntrospection",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/AgentBackend.swift",
-        "line": 225,
+        "line": 209,
         "kind": "var.instance",
         "name": "sessionInfoPublisher",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurClient.swift",
-        "line": 256,
-        "kind": "function.method.instance",
-        "name": "workflowRun(runID:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurClient.swift",
-        "line": 431,
-        "kind": "class",
-        "name": "StreamActivityMarker",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurClient.swift",
-        "line": 435,
-        "kind": "protocol",
-        "name": "RawEventLogProviding",
-        "hint": "redundantConformance"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurClient.swift",
-        "line": 447,
-        "kind": "function.method.instance",
-        "name": "rawEventLog(sessionID:afterEventID:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurClient.swift",
-        "line": 520,
-        "kind": "var.instance",
-        "name": "sessionInfoPublisher",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurClient.swift",
-        "line": 597,
-        "kind": "var.instance",
-        "name": "executionID",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurWikiClient+Timeline.swift",
-        "line": 12,
-        "kind": "function.method.instance",
-        "name": "fetchEventTimeline(days:since:until:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurWikiClient.swift",
-        "line": 25,
-        "kind": "struct",
-        "name": "WikiSearchResult",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurWikiClient.swift",
-        "line": 44,
-        "kind": "function.method.instance",
-        "name": "search(query:limit:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/CentaurWikiClient.swift",
-        "line": 152,
-        "kind": "function.method.instance",
-        "name": "search(query:limit:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/ChatHistoryStore.swift",
-        "line": 101,
+        "line": 155,
         "kind": "function.method.instance",
         "name": "firstUserMessage(forSession:)",
         "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Services/CurriculumStore.swift",
+        "line": 63,
+        "kind": "function.method.instance",
+        "name": "load(id:)",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 211,
+        "kind": "var.instance",
+        "name": "timestamp",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 213,
+        "kind": "var.instance",
+        "name": "name",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 214,
+        "kind": "var.instance",
+        "name": "sessionID",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 215,
+        "kind": "var.instance",
+        "name": "detail",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 219,
+        "kind": "var.instance",
+        "name": "reason",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 221,
+        "kind": "var.instance",
+        "name": "lastAt",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 224,
+        "kind": "var.instance",
+        "name": "connectionState",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 225,
+        "kind": "var.instance",
+        "name": "socketURL",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 226,
+        "kind": "var.instance",
+        "name": "isAuthenticated",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 227,
+        "kind": "var.instance",
+        "name": "hasCFAuthCookie",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 228,
+        "kind": "var.instance",
+        "name": "activeSessionID",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 229,
+        "kind": "var.instance",
+        "name": "lastSessionKey",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 232,
+        "kind": "var.instance",
+        "name": "reconnectAttempt",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 233,
+        "kind": "var.instance",
+        "name": "lastOpenAt",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 234,
+        "kind": "var.instance",
+        "name": "lastCloseAt",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 235,
+        "kind": "var.instance",
+        "name": "lastErrorAt",
+        "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/DiagnosticBundle.swift",
+        "line": 236,
+        "kind": "var.instance",
+        "name": "lastError",
+        "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Services/FileDownloadManager.swift",
@@ -12556,49 +12367,49 @@
       },
       {
         "file": "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "line": 12,
+        "line": 46,
         "kind": "struct",
         "name": "WikiTaxonomyResponse",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "line": 40,
+        "line": 74,
         "kind": "var.instance",
         "name": "source",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "line": 63,
+        "line": 97,
         "kind": "var.instance",
         "name": "label",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "line": 85,
+        "line": 119,
         "kind": "var.instance",
         "name": "limit",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "line": 89,
+        "line": 123,
         "kind": "var.instance",
         "name": "hasMore",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "line": 274,
+        "line": 405,
         "kind": "function.method.instance",
         "name": "wikiTaxonomy(wiki:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient+Wiki.swift",
-        "line": 295,
+        "line": 426,
         "kind": "function.method.instance",
         "name": "wikiExpandLinks(slug:wiki:)",
         "hint": "unused"
@@ -12640,170 +12451,51 @@
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 1893,
+        "line": 1995,
         "kind": "function.method.instance",
         "name": "peekSession(sessionKey:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 1928,
+        "line": 2030,
         "kind": "struct",
         "name": "PeekResult",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClientWrapper.swift",
-        "line": 153,
-        "kind": "function.method.instance",
-        "name": "disconnectStandardChatClients()",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/GatewayClientWrapper.swift",
-        "line": 188,
+        "line": 88,
         "kind": "var.instance",
         "name": "url",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Services/GatewayClientWrapper.swift",
-        "line": 189,
+        "line": 89,
         "kind": "var.instance",
         "name": "apiKey",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Services/GatewayClientWrapper.swift",
-        "line": 190,
+        "line": 90,
         "kind": "var.instance",
         "name": "cfCookieValue",
         "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 23,
-        "kind": "enumelement",
-        "name": "available",
+        "file": "Sources/Portal/Services/LocalChatService.swift",
+        "line": 230,
+        "kind": "var.instance",
+        "name": "isPreparing",
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 54,
+        "file": "Sources/Portal/Services/LocalChatService.swift",
+        "line": 232,
         "kind": "var.instance",
-        "name": "limit",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 55,
-        "kind": "var.instance",
-        "name": "offset",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 60,
-        "kind": "var.instance",
-        "name": "title",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 61,
-        "kind": "var.instance",
-        "name": "preview",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 62,
-        "kind": "var.instance",
-        "name": "source",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 64,
-        "kind": "var.instance",
-        "name": "startedAt",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 65,
-        "kind": "var.instance",
-        "name": "lastActive",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 68,
-        "kind": "var.instance",
-        "name": "archived",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 139,
-        "kind": "var.instance",
-        "name": "usage",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 171,
-        "kind": "var.instance",
-        "name": "redirectDelegate",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 173,
-        "kind": "var.instance",
-        "name": "decoder",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 235,
-        "kind": "function.method.instance",
-        "name": "sessions(limit:offset:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 265,
-        "kind": "function.method.instance",
-        "name": "config()",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/HermesStandardClient.swift",
-        "line": 269,
-        "kind": "function.method.instance",
-        "name": "updateConfig(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/KeychainStore.swift",
-        "line": 214,
-        "kind": "function.method.instance",
-        "name": "saveCentaurAPIKey(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/KeychainStore.swift",
-        "line": 219,
-        "kind": "function.method.instance",
-        "name": "loadCentaurAPIKey()",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/KeychainStore.swift",
-        "line": 234,
-        "kind": "function.method.instance",
-        "name": "deleteCentaurAPIKey()",
+        "name": "lastError",
         "hint": "unused"
       },
       {
@@ -12828,27 +12520,6 @@
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/Services/QuizStore.swift",
-        "line": 44,
-        "kind": "function.method.instance",
-        "name": "loadQuiz(id:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/QuizStore.swift",
-        "line": 86,
-        "kind": "function.method.instance",
-        "name": "deleteAllQuizzes()",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/RawEventLog.swift",
-        "line": 103,
-        "kind": "protocol",
-        "name": "RawEventLogProviding",
-        "hint": "redundantProtocol"
-      },
-      {
         "file": "Sources/Portal/Services/ReasoningSummarizer.swift",
         "line": 39,
         "kind": "var.instance",
@@ -12856,38 +12527,17 @@
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/Services/SRSEngine.swift",
-        "line": 15,
-        "kind": "var.static",
-        "name": "defaultEaseFactor",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/Services/SRSStore.swift",
-        "line": 44,
-        "kind": "function.method.instance",
-        "name": "saveDecks(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/SRSStore.swift",
-        "line": 53,
+        "line": 51,
         "kind": "function.method.instance",
         "name": "loadDeck(id:)",
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/Services/SRSStore.swift",
-        "line": 85,
-        "kind": "function.method.instance",
-        "name": "dueDecks()",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Services/SRSStore.swift",
-        "line": 102,
-        "kind": "function.method.instance",
-        "name": "updateCardState(deckID:cardID:newState:)",
+        "file": "Sources/Portal/Services/SessionHealthMonitor.swift",
+        "line": 284,
+        "kind": "var.parameter",
+        "name": "reading",
         "hint": "unused"
       },
       {
@@ -12976,35 +12626,35 @@
       },
       {
         "file": "Sources/Portal/Services/SkillStore.swift",
-        "line": 29,
+        "line": 51,
         "kind": "var.instance",
         "name": "timestamp",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Services/SkillStore.swift",
-        "line": 30,
+        "line": 52,
         "kind": "var.instance",
         "name": "version",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Services/SkillStore.swift",
-        "line": 265,
+        "line": 301,
         "kind": "function.method.instance",
         "name": "backgroundRefresh()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/SkillStore.swift",
-        "line": 270,
+        "line": 306,
         "kind": "function.method.instance",
         "name": "preFetchAll()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/SkillStore.swift",
-        "line": 394,
+        "line": 430,
         "kind": "function.method.instance",
         "name": "syncWithGateway()",
         "hint": "unused"
@@ -13015,6 +12665,13 @@
         "kind": "var.instance",
         "name": "generatedAt",
         "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Services/SpeechPlaybackSession.swift",
+        "line": 10,
+        "kind": "var.global",
+        "name": "log",
+        "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/TweetContentService.swift",
@@ -13059,6 +12716,20 @@
         "hint": "unused"
       },
       {
+        "file": "Sources/Portal/Utilities/LiveObjectRegistry.swift",
+        "line": 87,
+        "kind": "var.static",
+        "name": "artifactCanvas",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Utilities/LiveObjectRegistry.swift",
+        "line": 140,
+        "kind": "var.static",
+        "name": "relayoutGuardTrips",
+        "hint": "unused"
+      },
+      {
         "file": "Sources/Portal/Utilities/MacInputTextField.swift",
         "line": 7,
         "kind": "var.global",
@@ -13067,7 +12738,7 @@
       },
       {
         "file": "Sources/Portal/Utilities/MacInputTextField.swift",
-        "line": 441,
+        "line": 444,
         "kind": "var.instance",
         "name": "view",
         "hint": "assignOnlyProperty"
@@ -13081,7 +12752,7 @@
       },
       {
         "file": "Sources/Portal/Utilities/MainThreadWatchdog.swift",
-        "line": 228,
+        "line": 252,
         "kind": "var.instance",
         "name": "monitor",
         "hint": "assignOnlyProperty"
@@ -13103,8 +12774,8 @@
       {
         "file": "Sources/Portal/Utilities/PerfCounter.swift",
         "line": 57,
-        "kind": "function.method.static",
-        "name": "tick(_:)",
+        "kind": "var.parameter",
+        "name": "key",
         "hint": "unused"
       },
       {
@@ -13136,6 +12807,34 @@
         "hint": "unused"
       },
       {
+        "file": "Sources/Portal/Utilities/PortalLogger.swift",
+        "line": 80,
+        "kind": "var.parameter",
+        "name": "privacy",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Utilities/PortalLogger.swift",
+        "line": 88,
+        "kind": "var.parameter",
+        "name": "privacy",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Utilities/PortalLogger.swift",
+        "line": 99,
+        "kind": "enumelement",
+        "name": "sensitive",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Utilities/PortalLogger.swift",
+        "line": 100,
+        "kind": "enumelement",
+        "name": "auto",
+        "hint": "unused"
+      },
+      {
         "file": "Sources/Portal/ViewModels/CelebrationManager.swift",
         "line": 6,
         "kind": "var.global",
@@ -13151,122 +12850,101 @@
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 377,
+        "line": 568,
+        "kind": "function.method.instance",
+        "name": "isDriven(by:)",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
+        "line": 574,
         "kind": "var.instance",
         "name": "fileDownloadManager",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 1277,
+        "line": 1931,
         "kind": "var.parameter",
         "name": "eventSessionID",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 1320,
+        "line": 1974,
         "kind": "function.method.instance",
         "name": "loadSessionHistory()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 1480,
+        "line": 2193,
         "kind": "function.method.instance",
         "name": "clearAttachments()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2062,
+        "line": 3342,
         "kind": "function.method.instance",
         "name": "loadLocalHistory(sessionID:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2079,
+        "line": 3359,
         "kind": "function.method.instance",
         "name": "deleteLocalHistory(sessionID:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2091,
+        "line": 3371,
         "kind": "function.method.instance",
         "name": "createLocalTestSession(id:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2108,
+        "line": 3388,
         "kind": "function.method.instance",
         "name": "switchToLocalTestSession(id:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2113,
+        "line": 3393,
         "kind": "var.instance",
         "name": "testCachedMessageCount",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2118,
+        "line": 3398,
         "kind": "function.method.instance",
         "name": "simulateTestResumeResult(displayID:runtimeID:history:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2137,
-        "kind": "function.method.instance",
-        "name": "applyTestEvent(_:sessionID:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2270,
+        "line": 3557,
         "kind": "function.method.instance",
         "name": "appendThinkingTrace(_:kind:to:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 3288,
+        "line": 4720,
         "kind": "function.method.instance",
         "name": "notifyResponseCompleteIfNeeded(payload:eventSessionID:)",
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 10,
+        "file": "Sources/Portal/ViewModels/CodeGraphSource.swift",
+        "line": 27,
         "kind": "var.instance",
-        "name": "searchText",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 11,
-        "kind": "var.instance",
-        "name": "filterStatus",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 12,
-        "kind": "var.instance",
-        "name": "timeWindow",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 13,
-        "kind": "var.instance",
-        "name": "sortOrder",
-        "hint": "unused"
+        "name": "lastGraph",
+        "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/ViewModels/CronFilterState.swift",
@@ -13276,92 +12954,22 @@
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 20,
-        "kind": "var.instance",
-        "name": "expandedCategories",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 24,
-        "kind": "enum",
-        "name": "FilterStatus",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 41,
-        "kind": "enum",
-        "name": "TimeWindow",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 72,
-        "kind": "enum",
-        "name": "SortOrder",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 82,
+        "file": "Sources/Portal/ViewModels/CronGraphViewModel.swift",
+        "line": 222,
         "kind": "function.method.instance",
-        "name": "apply(to:)",
+        "name": "diff(for:)",
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 97,
-        "kind": "function.method.instance",
-        "name": "matchesSearch(_:query:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 108,
-        "kind": "function.method.instance",
-        "name": "sorted(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 122,
-        "kind": "function.method.instance",
-        "name": "count(for:in:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 130,
-        "kind": "function.method.instance",
-        "name": "grouped(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 134,
-        "kind": "function.method.instance",
-        "name": "isExpanded(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 138,
-        "kind": "function.method.instance",
-        "name": "toggleExpanded(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/CronFilterState.swift",
-        "line": 148,
-        "kind": "function.method.instance",
-        "name": "expandAll(in:)",
+        "file": "Sources/Portal/ViewModels/CronGraphViewModel.swift",
+        "line": 499,
+        "kind": "var.parameter",
+        "name": "point",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift",
-        "line": 66,
+        "line": 69,
         "kind": "function.method.instance",
         "name": "continueCourse()",
         "hint": "unused"
@@ -13375,35 +12983,28 @@
       },
       {
         "file": "Sources/Portal/ViewModels/PersonaManager.swift",
-        "line": 58,
+        "line": 45,
         "kind": "function.method.instance",
         "name": "syncFromGateway(_:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/PersonaManager.swift",
-        "line": 99,
+        "line": 86,
         "kind": "function.method.instance",
         "name": "derivePersona(personalityName:gatewayName:personaMD:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/PersonaManager.swift",
-        "line": 118,
+        "line": 105,
         "kind": "function.method.instance",
         "name": "personaFromMD(_:personalityName:gatewayName:)",
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/ViewModels/Quiz/QuizViewModel.swift",
-        "line": 107,
-        "kind": "var.instance",
-        "name": "hasFlashcardDeck",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/ViewModels/SessionListViewModel.swift",
-        "line": 296,
+        "line": 303,
         "kind": "function.method.instance",
         "name": "gatewayIDForSession(databaseID:)",
         "hint": "unused"
@@ -13424,56 +13025,56 @@
       },
       {
         "file": "Sources/Portal/ViewModels/SessionListViewModel.swift",
-        "line": 667,
+        "line": 689,
         "kind": "function.method.instance",
         "name": "addTag(_:to:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/SessionListViewModel.swift",
-        "line": 672,
+        "line": 694,
         "kind": "function.method.instance",
         "name": "removeTag(_:from:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/SettingsViewModel.swift",
-        "line": 225,
+        "line": 203,
         "kind": "var.instance",
         "name": "hasCompletedOnboarding",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/SettingsViewModel.swift",
-        "line": 578,
+        "line": 558,
         "kind": "function.method.instance",
         "name": "makeGatewayClient()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/SkillsViewModel.swift",
-        "line": 106,
+        "line": 33,
         "kind": "function.method.instance",
         "name": "refresh()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/SkillsViewModel.swift",
-        "line": 114,
+        "line": 41,
         "kind": "function.method.instance",
         "name": "backgroundRefresh()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/SkillsViewModel.swift",
-        "line": 176,
+        "line": 103,
         "kind": "enum",
         "name": "DiagnosticTest",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/SkillsViewModel.swift",
-        "line": 180,
+        "line": 107,
         "kind": "function.method.instance",
         "name": "runDiagnostic(_:)",
         "hint": "unused"
@@ -13536,38 +13137,45 @@
       },
       {
         "file": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
-        "line": 88,
+        "line": 93,
         "kind": "var.instance",
         "name": "selectedNodeTitle",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
-        "line": 109,
+        "line": 114,
         "kind": "var.instance",
         "name": "taxonomyTree",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
-        "line": 818,
+        "line": 847,
         "kind": "var.parameter",
         "name": "point",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/AgentPanel.swift",
-        "line": 8,
+        "line": 5,
         "kind": "struct",
         "name": "AgentPanel",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/AgentPanel.swift",
-        "line": 84,
+        "line": 58,
         "kind": "struct",
         "name": "StateSpinner",
         "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/Architecture/ArchitectureGatesSectionView.swift",
+        "line": 11,
+        "kind": "var.instance",
+        "name": "document",
+        "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
@@ -13584,15 +13192,8 @@
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
-        "line": 288,
-        "kind": "var.instance",
-        "name": "isPresenting",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/Views/ArtifactsPane.swift",
-        "line": 631,
+        "line": 634,
         "kind": "var.parameter",
         "name": "revision",
         "hint": "unused"
@@ -13603,6 +13204,13 @@
         "kind": "var.instance",
         "name": "isPreviewVisible",
         "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/Blocks/BlueprintBlockView.swift",
+        "line": 117,
+        "kind": "var.instance",
+        "name": "size",
+        "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
@@ -13664,238 +13272,196 @@
         "file": "Sources/Portal/Views/ChatView.swift",
         "line": 29,
         "kind": "var.instance",
-        "name": "avatarY",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 30,
-        "kind": "var.instance",
         "name": "pendingScrollTask",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 35,
+        "line": 34,
         "kind": "var.instance",
         "name": "distanceBelowFold",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 40,
+        "line": 39,
         "kind": "var.instance",
         "name": "chatViewportHeight",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 89,
-        "kind": "var.instance",
-        "name": "messageLeadingPadding",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 94,
-        "kind": "var.instance",
-        "name": "hasBotContent",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 135,
+        "line": 121,
         "kind": "var.instance",
         "name": "savedArtifactsMenu",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 170,
+        "line": 156,
         "kind": "function.method.instance",
         "name": "iconForKind(_:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 182,
+        "line": 169,
         "kind": "var.instance",
         "name": "chatBottomContentPadding",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 194,
-        "kind": "var.instance",
-        "name": "currentAvatarExpression",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 458,
-        "kind": "var.instance",
-        "name": "latestAssistantTurnProbe",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 482,
+        "line": 473,
         "kind": "var.instance",
         "name": "bottomFoldSentinel",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 497,
+        "line": 488,
         "kind": "function.method.instance",
         "name": "jumpToLatestButton(proxy:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 528,
+        "line": 519,
         "kind": "var.instance",
         "name": "jumpButtonBottomInset",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 540,
+        "line": 531,
         "kind": "var.instance",
         "name": "chatToolbar",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 549,
+        "line": 540,
         "kind": "var.instance",
         "name": "macChatToolbar",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 793,
+        "line": 780,
         "kind": "var.instance",
         "name": "personaBadge",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 811,
+        "line": 798,
         "kind": "var.instance",
         "name": "responseStyleMenuItems",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 825,
+        "line": 812,
         "kind": "var.instance",
         "name": "remoteTurnBadge",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 846,
+        "line": 833,
         "kind": "var.instance",
         "name": "stopButton",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 856,
+        "line": 843,
         "kind": "var.instance",
         "name": "creatingSessionIndicator",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 876,
+        "line": 863,
         "kind": "var.instance",
         "name": "messageListArea",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1119,
+        "line": 1131,
         "kind": "var.instance",
         "name": "renderedMessages",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1129,
+        "line": 1141,
         "kind": "var.instance",
         "name": "latestMessageRenderKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1140,
+        "line": 1152,
         "kind": "var.instance",
         "name": "activeToolCallRenderKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1242,
+        "line": 1254,
         "kind": "function.method.instance",
         "name": "scheduleScrollToBottom(proxy:reason:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1253,
+        "line": 1265,
         "kind": "function.method.instance",
         "name": "scrollToBottom(proxy:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1279,
-        "kind": "struct",
-        "name": "FloatingAvatarView",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1318,
-        "kind": "struct",
-        "name": "LatestBotTurnYKey",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1325,
+        "line": 1287,
         "kind": "struct",
         "name": "ChatViewportHeightKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1335,
+        "line": 1297,
         "kind": "struct",
         "name": "BottomFoldDistanceKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1344,
+        "line": 1306,
         "kind": "struct",
         "name": "SkinPickerView",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 2039,
+        "line": 2051,
         "kind": "struct",
         "name": "DebugLogPanel",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 2237,
+        "line": 2249,
         "kind": "struct",
         "name": "ErrorBannerView",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/ContentView.swift",
+        "line": 16,
+        "kind": "var.instance",
+        "name": "ttsService",
         "hint": "unused"
       },
       {
@@ -13907,56 +13473,49 @@
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 36,
+        "line": 42,
         "kind": "var.instance",
         "name": "showCronSheet",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 50,
+        "line": 56,
         "kind": "var.instance",
         "name": "selectedTab",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 54,
+        "line": 60,
         "kind": "var.instance",
         "name": "activeSkin",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 55,
+        "line": 61,
         "kind": "var.instance",
         "name": "wiredClient",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 1310,
+        "line": 1292,
         "kind": "var.parameter",
         "name": "previousID",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 1412,
-        "kind": "var.instance",
-        "name": "sessionCreationStatusBar",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 1588,
+        "line": 1462,
         "kind": "var.instance",
         "name": "newSessionControl",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ContentView.swift",
-        "line": 1606,
+        "line": 1472,
         "kind": "var.instance",
         "name": "newSessionHelp",
         "hint": "unused"
@@ -13970,9 +13529,16 @@
       },
       {
         "file": "Sources/Portal/Views/CronDashboardView.swift",
-        "line": 6,
+        "line": 12,
         "kind": "struct",
         "name": "CronDashboardView",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/CronGraphCanvas.swift",
+        "line": 102,
+        "kind": "var.parameter",
+        "name": "pt",
         "hint": "unused"
       },
       {
@@ -13984,7 +13550,7 @@
       },
       {
         "file": "Sources/Portal/Views/CronListView.swift",
-        "line": 327,
+        "line": 293,
         "kind": "struct",
         "name": "CronJobDetailView",
         "hint": "unused"
@@ -14004,13 +13570,6 @@
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/Views/DelegationBatchNoticeView.swift",
-        "line": 10,
-        "kind": "struct",
-        "name": "DelegationBatchNoticeView",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/Views/Diagram/DiagramExplorerView.swift",
         "line": 12,
         "kind": "function.constructor",
@@ -14019,9 +13578,30 @@
       },
       {
         "file": "Sources/Portal/Views/Diagram/DiagramExplorerView.swift",
-        "line": 404,
+        "line": 497,
         "kind": "var.parameter",
         "name": "pt",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/DiagramZoomCanvas.swift",
+        "line": 214,
+        "kind": "var.parameter",
+        "name": "note",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/DiagramZoomCanvas.swift",
+        "line": 218,
+        "kind": "var.parameter",
+        "name": "note",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/DiagramZoomCanvas.swift",
+        "line": 222,
+        "kind": "var.parameter",
+        "name": "recognizer",
         "hint": "unused"
       },
       {
@@ -14033,7 +13613,7 @@
       },
       {
         "file": "Sources/Portal/Views/GitHubReleaseCard.swift",
-        "line": 213,
+        "line": 221,
         "kind": "struct",
         "name": "GitHubReleaseCard_Previews",
         "hint": "unused"
@@ -14068,7 +13648,7 @@
       },
       {
         "file": "Sources/Portal/Views/Learning/LearningDashboardView.swift",
-        "line": 410,
+        "line": 411,
         "kind": "struct",
         "name": "LearningDashboardView_Previews",
         "hint": "unused"
@@ -14082,45 +13662,52 @@
       },
       {
         "file": "Sources/Portal/Views/MarkdownContentView.swift",
-        "line": 162,
+        "line": 180,
         "kind": "function.method.instance",
         "name": "resetForTesting()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/MarkdownContentView.swift",
-        "line": 540,
+        "line": 565,
         "kind": "var.instance",
         "name": "text",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Views/MarkdownContentView.swift",
-        "line": 541,
+        "line": 566,
         "kind": "var.instance",
         "name": "baseColor",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Views/MarkdownContentView.swift",
-        "line": 542,
+        "line": 567,
         "kind": "var.instance",
         "name": "baseFont",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Views/MarkdownContentView.swift",
-        "line": 1398,
+        "line": 1423,
         "kind": "var.instance",
         "name": "isOpen",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/MarkdownContentView.swift",
-        "line": 1785,
+        "line": 1867,
         "kind": "var.instance",
         "name": "reflectionWebView",
         "hint": "assignOnlyProperty"
+      },
+      {
+        "file": "Sources/Portal/Views/MessageBubbleHost.swift",
+        "line": 8,
+        "kind": "struct",
+        "name": "MessageBubbleHost",
+        "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/MissionControl/SessionsDashboard.swift",
@@ -14250,7 +13837,7 @@
       },
       {
         "file": "Sources/Portal/Views/SettingsView.swift",
-        "line": 435,
+        "line": 447,
         "kind": "function.method.instance",
         "name": "labeledField(_:content:)",
         "hint": "unused"
@@ -14267,6 +13854,13 @@
         "line": 3,
         "kind": "struct",
         "name": "SkillMarkdownEditor",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/Skills/SkillsCanvasView.swift",
+        "line": 19,
+        "kind": "var.instance",
+        "name": "settings",
         "hint": "unused"
       },
       {
@@ -14292,35 +13886,35 @@
       },
       {
         "file": "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
-        "line": 7,
+        "line": 6,
         "kind": "var.instance",
         "name": "skin",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
-        "line": 14,
+        "line": 13,
         "kind": "function.method.instance",
         "name": "streamingPanel(state:activeToolCalls:personaName:accentColor:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
-        "line": 42,
+        "line": 41,
         "kind": "var.instance",
         "name": "persona",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
-        "line": 189,
+        "line": 187,
         "kind": "struct",
         "name": "DarkMangaStreamingIndicator",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
-        "line": 268,
+        "line": 266,
         "kind": "struct",
         "name": "StreamingBrailleSpinner",
         "hint": "unused"
@@ -14344,6 +13938,13 @@
         "line": 5,
         "kind": "struct",
         "name": "StreamingStatusBar",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/StreamingStatusBar.swift",
+        "line": 100,
+        "kind": "struct",
+        "name": "ExpandableToolRow",
         "hint": "unused"
       },
       {
@@ -14495,14 +14096,14 @@
       },
       {
         "file": "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift",
-        "line": 1618,
+        "line": 1626,
         "kind": "var.parameter",
         "name": "pt",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift",
-        "line": 1699,
+        "line": 1707,
         "kind": "struct",
         "name": "ThoughtGraphViewPreviews",
         "hint": "unused"
@@ -14523,7 +14124,7 @@
       },
       {
         "file": "Sources/Portal/Views/ToolCallView.swift",
-        "line": 296,
+        "line": 313,
         "kind": "struct",
         "name": "ToolCallView",
         "hint": "unused"
@@ -14536,6 +14137,13 @@
         "hint": "unused"
       },
       {
+        "file": "Sources/Portal/Views/Wiki/WikiEventsPageView.swift",
+        "line": 4,
+        "kind": "var.global",
+        "name": "log",
+        "hint": "unused"
+      },
+      {
         "file": "Sources/Portal/Views/Wiki/WikiGraph2DCanvas.swift",
         "line": 191,
         "kind": "var.parameter",
@@ -14544,9 +14152,16 @@
       },
       {
         "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 53,
+        "line": 58,
         "kind": "var.parameter",
         "name": "context",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiPageEditorView.swift",
+        "line": 321,
+        "kind": "var.instance",
+        "name": "isBusy",
         "hint": "unused"
       },
       {
@@ -14558,16 +14173,100 @@
       },
       {
         "file": "Sources/Portal/Views/YouTubeVideoCard.swift",
-        "line": 219,
+        "line": 223,
         "kind": "struct",
         "name": "YouTubeVideoCard_Previews",
         "hint": "unused"
       },
       {
+        "file": "Tests/PortalTests/ChatLocalDiscussionTests.swift",
+        "line": 32,
+        "kind": "var.instance",
+        "name": "isPreparing",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/ChatLocalDiscussionTests.swift",
+        "line": 33,
+        "kind": "var.instance",
+        "name": "lastError",
+        "hint": "unused"
+      },
+      {
         "file": "Tests/PortalTests/ChatVoiceRecordingTests.swift",
-        "line": 14,
+        "line": 16,
         "kind": "var.instance",
         "name": "sessionInfoPublisher",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/LiveSessionSwitchBackTests.swift",
+        "line": 402,
+        "kind": "var.instance",
+        "name": "sessionInfoPublisher",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/ModelBadgeTests.swift",
+        "line": 103,
+        "kind": "var.instance",
+        "name": "sessionInfoPublisher",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/NewSessionFirstPromptTests.swift",
+        "line": 30,
+        "kind": "var.instance",
+        "name": "sessionInfoPublisher",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/PageIntentTests.swift",
+        "line": 31,
+        "kind": "var.instance",
+        "name": "sessionInfoPublisher",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
+        "line": 62,
+        "kind": "var.static",
+        "name": "messageCount",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
+        "line": 63,
+        "kind": "var.static",
+        "name": "messageRenders",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
+        "line": 64,
+        "kind": "var.static",
+        "name": "sessionCount",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
+        "line": 65,
+        "kind": "var.static",
+        "name": "sidebarRenders",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
+        "line": 293,
+        "kind": "function.method.static",
+        "name": "makeMessages(count:)",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
+        "line": 304,
+        "kind": "function.method.static",
+        "name": "makeSessions(count:)",
         "hint": "unused"
       }
     ]
