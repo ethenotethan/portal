@@ -1,5 +1,5 @@
 {
-  "_comment": "Performance ratchet baseline — deterministic WORK COUNTS (not timings), keyed by counter name: algorithmic op counts in the hot pure layout paths (sankey.*, graph.*), SwiftUI body evaluations of the artifact views on mount and after one state change (<scenario>.view.body.<View>). Recorded by the Perf-count harness (Tests/PortalTests/PerfCountHarnessTests.swift) under -DPERF_COUNTERS with FIXED-SIZE fixtures, so every count is deterministic to the integer on any machine. FLOOR: no counter may exceed the value here (an O(n)->O(n^2) regression blows it up); improvements (fewer ops) are welcome and lock in via `make perf-baseline`. Fixture sizes live in the harness; changing one is a deliberate regen. See scripts/check-perf-ratchet.py and docs/architecture-rules.md.",
+  "_comment": "Performance ratchet baseline \u2014 deterministic WORK COUNTS (not timings), keyed by counter name: algorithmic op counts in the hot pure layout paths (sankey.*, graph.*), SwiftUI body evaluations of the artifact views on mount and after one state change (<scenario>.view.body.<View>). Recorded by the Perf-count harness (Tests/PortalTests/PerfCountHarnessTests.swift) under -DPERF_COUNTERS with FIXED-SIZE fixtures, so every count is deterministic to the integer on any machine. FLOOR: no counter may exceed the value here (an O(n)->O(n^2) regression blows it up); improvements (fewer ops) are welcome and lock in via `make perf-baseline`. Fixture sizes live in the harness; changing one is a deliberate regen. See scripts/check-perf-ratchet.py and docs/architecture-rules.md.",
   "counts": {
     "artifact.maintainerParse": 40,
     "artifact.query.coalesced": 15,
@@ -50,6 +50,17 @@
     "model.mount.view.body.ModelEntityTable": 2,
     "sankey.pack": 24,
     "sankey.relax": 66,
-    "sessions.sidebarSort": 4
+    "sessions.sidebarSort": 4,
+    "wiki.frames.view.body.WikiFileTreeSidebar": 0,
+    "wiki.frames.view.body.WikiGraphControlsBar": 0,
+    "wiki.frames.view.body.WikiGraphView": 0,
+    "wiki.hitTest.candidates": 764,
+    "wiki.hover.view.body.WikiFileTreeSidebar": 0,
+    "wiki.hover.view.body.WikiGraphControlsBar": 0,
+    "wiki.hover.view.body.WikiGraphView": 0,
+    "wiki.mount.view.body.WikiFileTreeSidebar": 1,
+    "wiki.mount.view.body.WikiGraphControlsBar": 2,
+    "wiki.mount.view.body.WikiGraphView": 1,
+    "wiki.physics.pairs": 47020
   }
 }

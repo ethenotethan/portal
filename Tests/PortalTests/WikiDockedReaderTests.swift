@@ -252,7 +252,8 @@ internal struct WikiGraphPreloadTests {
         )
         vm.setupSimulation()
         // Nominal fallback: nodes + links seed even with no real canvas.
-        #expect(vm.simNodes.count == 2)
+        #expect(vm.nodeMeta.count == 2)
+        #expect(vm.simulation.positions.count == 2)
         #expect(vm.simLinks.count == 1)
         #expect(vm.settledAgainstNominalSize)
         // The one-time re-fit refuses without a real canvas — flag survives.

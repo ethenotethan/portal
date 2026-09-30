@@ -1984,7 +1984,7 @@
       ],
       "summary": "The user selects a wiki and taps load. WikiGraphViewModel first shows any cached WikiGraph from Application Support, then requests a fresh scan through the wiki JSON-RPC namespace on the Harness gateway and stores the result back in the cache for the next visit.",
       "title": "Pick a wiki and load its graph",
-      "trigger": "trigger-143ab043cdfa"
+      "trigger": "trigger-d6b6a92c6e3f"
     },
     {
       "evidence": [
