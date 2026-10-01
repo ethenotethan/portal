@@ -17,6 +17,7 @@ internal struct WikiReaderPane: View {
     internal var showsShowInGraph = true
 
     internal var body: some View {
+        let _ = PerfCounter.tick("view.body.WikiReaderPane")
         Group {
             if let path = viewModel.selectedPath {
                 pageView(path: path)

@@ -96,7 +96,7 @@ struct WikiGraphViewModelTests {
     @Test("Selecting a node makes its page the shared current page")
     func nodeSelectSetsPath() {
         let vm = makeVM()
-        guard let idx = vm.simNodes.firstIndex(where: { $0.id == "beta" }) else {
+        guard let idx = vm.nodeIndexByID["beta"] else {
             Issue.record("beta node missing")
             return
         }
@@ -112,7 +112,7 @@ struct WikiGraphViewModelTests {
         vm.navigate(to: "entities/gamma.md")
         let idx = vm.selectedNodeIndex
         #expect(idx != nil)
-        if let idx { #expect(vm.simNodes[idx].id == "gamma") }
+        if let idx { #expect(vm.nodeMeta[idx].id == "gamma") }
     }
 
     @Test("Node select ↔ path select round-trip")
@@ -178,7 +178,7 @@ struct WikiGraphViewModelTests {
         vm.setupSimulation()
         let idx = vm.selectedNodeIndex
         #expect(idx != nil)
-        if let idx { #expect(vm.simNodes[idx].id == "beta") }
+        if let idx { #expect(vm.nodeMeta[idx].id == "beta") }
     }
 
     @Test("Backlink index is built from the graph on assignment")
@@ -292,9 +292,9 @@ struct WikiGraphViewModelTests {
         let idx = vm.selectedNodeIndex
         #expect(idx != nil)
         if let idx {
-            #expect(vm.simNodes[idx].id == "beta")
+            #expect(vm.nodeMeta[idx].id == "beta")
             // Centered: node's screen position lands on the canvas center.
-            let pos = vm.simNodes[idx].position
+            let pos = vm.simulation.positions[idx]
             let screenX = pos.x * vm.zoom + vm.panOffset.width
             let screenY = pos.y * vm.zoom + vm.panOffset.height
             #expect(abs(screenX - 400) < 0.001)
@@ -305,7 +305,7 @@ struct WikiGraphViewModelTests {
     @Test("Activating a node selects its page and opens the reader")
     func activateNodeOpensReader() {
         let vm = makeVM()
-        guard let idx = vm.simNodes.firstIndex(where: { $0.id == "alpha" }) else {
+        guard let idx = vm.nodeIndexByID["alpha"] else {
             Issue.record("alpha node missing")
             return
         }
@@ -339,36 +339,36 @@ struct WikiGraphViewModelTests {
         #expect(vm.is3D)
         var idx = vm.selectedNodeIndex
         #expect(idx != nil)
-        if let idx { #expect(vm.simNodes[idx].id == "gamma") }
+        if let idx { #expect(vm.nodeMeta[idx].id == "gamma") }
 
         vm.setRendering3D(false)
         #expect(!vm.is3D)
         idx = vm.selectedNodeIndex
         #expect(idx != nil)
         if let idx {
-            #expect(vm.simNodes[idx].id == "gamma")
+            #expect(vm.nodeMeta[idx].id == "gamma")
             // Back in 2D the selected node is re-centered.
-            let pos = vm.simNodes[idx].position
+            let pos = vm.simulation.positions[idx]
             #expect(abs(pos.x * vm.zoom + vm.panOffset.width - 400) < 0.001)
         }
 
         // Same-value set is a no-op (no reseed churn).
-        let positions = vm.simNodes.map(\.position)
+        let positions = vm.simulation.positions
         vm.setRendering3D(false)
-        #expect(vm.simNodes.map(\.position) == positions)
+        #expect(vm.simulation.positions == positions)
     }
 
     @Test("Fit-to-view centers the graph's bounding box in the canvas")
     internal func fitToViewCentersGraph() throws {
         let vm = makeVM()
         // Place nodes at a known, off-center bounding box.
-        for i in vm.simNodes.indices {
-            vm.simNodes[i].position = CGPoint(x: 100 + CGFloat(i) * 200, y: 100)
+        for i in vm.simulation.positions.indices {
+            vm.simulation.setPosition(CGPoint(x: 100 + CGFloat(i) * 200, y: 100), at: i)
         }
         vm.fitToView()
         // The bounding-box center must map to the canvas center at the chosen zoom.
-        let minX = try #require(vm.simNodes.map(\.position.x).min())
-        let maxX = try #require(vm.simNodes.map(\.position.x).max())
+        let minX = try #require(vm.simulation.positions.map(\.x).min())
+        let maxX = try #require(vm.simulation.positions.map(\.x).max())
         let cx = (minX + maxX) / 2
         let screenX = cx * vm.zoom + vm.panOffset.width
         #expect(abs(screenX - vm.canvasSize.width / 2) < 0.001)
@@ -676,8 +676,8 @@ struct WikiGraphViewModelTests {
         )
     }
 
-    private func node(path: String, type: String) -> WikiGraphViewModel.SimNode {
-        WikiGraphViewModel.SimNode(id: path, position: .zero, type: type, label: path, path: path)
+    private func node(path: String, type: String) -> WikiSimNodeMeta {
+        WikiSimNodeMeta(id: path, type: type, label: path, path: path)
     }
 
     /// The grouping key is the page's folder: a path collapses to its directory,

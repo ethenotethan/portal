@@ -117,6 +117,19 @@ internal struct GraphMouseInterceptor: NSViewRepresentable {
 /// so the adaptive host stays a thin composition layer.
 internal struct WikiGraph2DCanvas: View {
     @ObservedObject internal var viewModel: WikiGraphViewModel
+    /// The per-frame state (positions, painter's order, hover, camera). This
+    /// canvas is the only wiki view that observes it, so a physics frame or a
+    /// hovered node redraws the canvas and nothing else on the surface.
+    @ObservedObject internal var simulation: WikiSimulationStore
+
+    /// Labels drawn per frame beyond the anchor and its neighbours, by zoom:
+    /// zoomed out a 5k graph would otherwise queue thousands of Text draws.
+    internal static func labelCap(zoom: CGFloat) -> Int { zoom < 1.0 ? 200 : 600 }
+
+    internal init(viewModel: WikiGraphViewModel) {
+        self.viewModel = viewModel
+        self.simulation = viewModel.simulation
+    }
 
     @State private var mouseState = MouseState.idle
     @State private var dragStartPan: CGSize = .zero
@@ -128,6 +141,7 @@ internal struct WikiGraph2DCanvas: View {
     }
 
     internal var body: some View {
+        let _ = PerfCounter.tick("view.body.WikiGraph2DCanvas")
         ZStack {
             canvas
 
@@ -154,7 +168,7 @@ internal struct WikiGraph2DCanvas: View {
 
     private func handleMouseDown(_ pt: CGPoint) {
         mouseState = .deciding
-        dragStartPan = viewModel.panOffset
+        dragStartPan = simulation.panOffset
         dragStartPoint = pt
         dragNodeIndex = viewModel.hitTest(point: pt)
     }
@@ -175,7 +189,7 @@ internal struct WikiGraph2DCanvas: View {
                 }
             }
         case .panning:
-            viewModel.panOffset = CGSize(
+            simulation.panOffset = CGSize(
                 width: dragStartPan.width + dx,
                 height: dragStartPan.height + dy
             )
@@ -200,10 +214,10 @@ internal struct WikiGraph2DCanvas: View {
     }
 
     private func handleScrollWheel(_ delta: CGSize) {
-        viewModel.noteInteraction()
-        viewModel.panOffset = CGSize(
-            width: viewModel.panOffset.width + delta.width,
-            height: viewModel.panOffset.height + delta.height
+        simulation.noteInteraction()
+        simulation.panOffset = CGSize(
+            width: simulation.panOffset.width + delta.width,
+            height: simulation.panOffset.height + delta.height
         )
     }
 
@@ -214,7 +228,7 @@ internal struct WikiGraph2DCanvas: View {
                 switch mouseState {
                 case .idle:
                     mouseState = .deciding
-                    dragStartPan = viewModel.panOffset
+                    dragStartPan = simulation.panOffset
                     dragStartPoint = value.startLocation
                     dragNodeIndex = viewModel.hitTest(point: value.startLocation)
                 case .deciding:
@@ -228,7 +242,7 @@ internal struct WikiGraph2DCanvas: View {
                         }
                     }
                 case .panning:
-                    viewModel.panOffset = CGSize(
+                    simulation.panOffset = CGSize(
                         width: dragStartPan.width + value.translation.width,
                         height: dragStartPan.height + value.translation.height
                     )
@@ -259,15 +273,19 @@ internal struct WikiGraph2DCanvas: View {
                 let hasSelection = viewModel.highlightAnchor != nil
                 let filtering = viewModel.isFiltering
                 let filteredSet = viewModel.filteredNodeIndices
-                let zoom = viewModel.zoom
-                let pan = viewModel.panOffset
+                let zoom = simulation.zoom
+                let pan = simulation.panOffset
+                let positions = simulation.positions
+                let meta = viewModel.nodeMeta
+                let hovered = simulation.hoveredNodeIndex
+                let selected = viewModel.selectedNodeIndex
                 // The camera or cursor is moving — click-drag/pan (tracked here)
-                // or hover/pinch/scroll (tracked on the VM). Draw a cheaper frame
-                // while it holds: the ambient per-node glow and gradient body
-                // fills are the dominant per-frame cost on a large graph, and
-                // they're imperceptible mid-motion. Full fidelity returns at rest.
+                // or hover/pinch/scroll (tracked on the store). Draw a cheaper
+                // frame while it holds: the ambient per-node glow and gradient
+                // body fills are the dominant per-frame cost on a large graph,
+                // and they're imperceptible mid-motion. Full fidelity returns at rest.
                 let interacting = mouseState == .panning || mouseState == .draggingNode
-                    || viewModel.isInteracting
+                    || simulation.isInteracting
 
                 // Visible world rect, padded past the largest node glow, for
                 // culling — off-screen nodes/edges cost nothing.
@@ -288,12 +306,12 @@ internal struct WikiGraph2DCanvas: View {
                 var litEdges = Path()
                 var dimEdges = Path()
                 var quietEdges = Path()
+                let edgeLabelColor = (Color(hex: "8a8aff") ?? Theme.accent)
                 for (linkIndex, (si, ti)) in viewModel.simLinks.enumerated() {
-                    guard viewModel.simNodes.indices.contains(si),
-                          viewModel.simNodes.indices.contains(ti) else { continue }
+                    guard positions.indices.contains(si), positions.indices.contains(ti) else { continue }
 
-                    let sp = viewModel.simNodes[si].position
-                    let tp = viewModel.simNodes[ti].position
+                    let sp = positions[si]
+                    let tp = positions[ti]
                     // Cull edges with both endpoints off-screen.
                     if !visibleWorld.contains(sp) && !visibleWorld.contains(tp) { continue }
 
@@ -330,19 +348,16 @@ internal struct WikiGraph2DCanvas: View {
                         context.draw(
                             Text(relationLabel)
                                 .font(.system(size: 9, weight: .medium))
-                                .foregroundColor((Color(hex: "8a8aff") ?? Theme.accent).opacity(0.85)),
+                                .foregroundColor(edgeLabelColor.opacity(0.85)),
                             at: ctrl, anchor: .center
                         )
-                    } else if isConnected, hasSelection,
-                       let selIdx = viewModel.selectedNodeIndex,
-                       viewModel.simNodes.indices.contains(selIdx) {
-                        let source = viewModel.simNodes[si]
-                        let target = viewModel.simNodes[ti]
+                    } else if isConnected, hasSelection, let selIdx = selected,
+                              meta.indices.contains(selIdx), meta.indices.contains(si), meta.indices.contains(ti) {
                         let labelText: String
-                        if source.id == viewModel.simNodes[selIdx].id {
-                            labelText = "→ \(target.label)"
-                        } else if target.id == viewModel.simNodes[selIdx].id {
-                            labelText = "← \(source.label)"
+                        if si == selIdx {
+                            labelText = "→ \(meta[ti].label)"
+                        } else if ti == selIdx {
+                            labelText = "← \(meta[si].label)"
                         } else {
                             labelText = ""
                         }
@@ -350,7 +365,7 @@ internal struct WikiGraph2DCanvas: View {
                             context.draw(
                                 Text(labelText)
                                     .font(.system(size: 9, weight: .medium))
-                                    .foregroundColor(Color(hex: "8a8aff")!.opacity(0.7)),
+                                    .foregroundColor(edgeLabelColor.opacity(0.7)),
                                 at: ctrl, anchor: .center
                             )
                         }
@@ -358,12 +373,12 @@ internal struct WikiGraph2DCanvas: View {
                 }
                 context.stroke(
                     litEdges,
-                    with: .color((Color(hex: "8a8aff") ?? Theme.accent).opacity(0.55)),
+                    with: .color(edgeLabelColor.opacity(0.55)),
                     lineWidth: 1.6
                 )
                 context.stroke(
                     dimEdges,
-                    with: .color((Color(hex: "8a8aff") ?? Theme.accent).opacity(0.06)),
+                    with: .color(edgeLabelColor.opacity(0.06)),
                     lineWidth: 1.6
                 )
                 context.stroke(
@@ -373,21 +388,20 @@ internal struct WikiGraph2DCanvas: View {
                 )
 
                 // ── Nodes with radial glow + gradient ──
-                // Painter's order comes from the VM's cached drawOrder —
+                // Painter's order comes from the store's cached drawOrder —
                 // recomputed only when positions change, never per frame.
-                for index in viewModel.drawOrder {
-                    guard viewModel.simNodes.indices.contains(index) else { continue }
-                    let node = viewModel.simNodes[index]
-                    let pos = node.position
+                for index in simulation.drawOrder {
+                    guard positions.indices.contains(index), meta.indices.contains(index) else { continue }
+                    let pos = positions[index]
                     // Cull off-screen nodes.
                     guard visibleWorld.contains(pos) else { continue }
-                    let isSelected = viewModel.selectedNodeIndex == index
-                    let isHovered = viewModel.hoveredNodeIndex == index
+                    let isSelected = selected == index
+                    let isHovered = hovered == index
                     let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
                     let matchFilter = !filtering || filteredSet.contains(index)
                     let baseOpacity: CGFloat = isConnected ? (matchFilter ? 1.0 : 0.13) : 0.18
                     let r = viewModel.nodeRadius(at: index)
-                    let base = viewModel.color(forNode: node)
+                    let base = viewModel.color(forNode: meta[index])
 
                     // Glow halo — an expensive radial gradient per node. At rest
                     // every connected node carries one (the neural-glow look);
@@ -446,26 +460,35 @@ internal struct WikiGraph2DCanvas: View {
                 // Skipped while the camera or cursor moves — click-drag/pan,
                 // hover, pinch-zoom, scroll-pan: hundreds of Text draws are the
                 // priciest pass per frame, and labels only matter once motion
-                // stops, so they pop back a beat after the last move.
+                // stops, so they pop back a beat after the last move. Only the
+                // nodes in the grid cells under the viewport are candidates,
+                // and beyond the anchor + its neighbours the pass is capped.
                 guard !interacting else { return }
                 context.transform = .identity
                 let neighborSet: Set<Int> = hasSelection ? Set(viewModel.selectedNodeNeighbors()) : []
-                for (index, node) in viewModel.simNodes.enumerated() {
+                let labelCap = Self.labelCap(zoom: zoom)
+                var drawnLabels = 0
+                for index in simulation.indices(in: visibleWorld) {
+                    guard meta.indices.contains(index), positions.indices.contains(index) else { continue }
                     let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
                     let matchesFilter = !filtering || filteredSet.contains(index)
                     guard isConnected && matchesFilter else { continue }
-                    let isAnchor = viewModel.selectedNodeIndex == index || viewModel.hoveredNodeIndex == index
+                    let isAnchor = selected == index || hovered == index
                     let isNeighbor = neighborSet.contains(index)
-                    if viewModel.zoom < 0.7 && !isAnchor && !isNeighbor { continue }
+                    if !isAnchor && !isNeighbor {
+                        if zoom < 0.7 || drawnLabels >= labelCap { continue }
+                        drawnLabels += 1
+                    }
                     let r = viewModel.nodeRadius(at: index)
+                    let position = positions[index]
                     let screenPos = CGPoint(
-                        x: node.position.x * viewModel.zoom + viewModel.panOffset.width + r * viewModel.zoom + 4,
-                        y: node.position.y * viewModel.zoom + viewModel.panOffset.height
+                        x: position.x * zoom + pan.width + r * zoom + 4,
+                        y: position.y * zoom + pan.height
                     )
                     guard screenPos.x > -50, screenPos.x < size.width + 50,
                           screenPos.y > -20, screenPos.y < size.height + 20 else { continue }
                     context.draw(
-                        Text(node.label)
+                        Text(meta[index].label)
                             .font(.system(size: isAnchor ? 12 : 11,
                                           weight: isAnchor ? .semibold : .medium))
                             .foregroundColor(.white.opacity(isAnchor ? 1.0 : 0.82)),
@@ -475,7 +498,7 @@ internal struct WikiGraph2DCanvas: View {
             }
             .onAppear {
                 viewModel.canvasSize = geo.size
-                if geo.size != .zero && viewModel.simNodes.isEmpty && !viewModel.graph.pages.isEmpty {
+                if geo.size != .zero && viewModel.nodeMeta.isEmpty && !viewModel.graph.pages.isEmpty {
                     viewModel.setupSimulation()
                 } else {
                     // Preloaded graph (settled in the background against the
@@ -485,7 +508,7 @@ internal struct WikiGraph2DCanvas: View {
             }
             .onChange(of: geo.size) { _, newSize in
                 viewModel.canvasSize = newSize
-                if newSize != .zero && viewModel.simNodes.isEmpty && !viewModel.graph.pages.isEmpty {
+                if newSize != .zero && viewModel.nodeMeta.isEmpty && !viewModel.graph.pages.isEmpty {
                     viewModel.setupSimulation()
                 } else {
                     viewModel.refitForFirstDisplayIfNeeded()

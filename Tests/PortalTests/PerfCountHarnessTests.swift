@@ -65,6 +65,9 @@ internal struct PerfCountHarnessTests {
     private static let sidebarRenders = 20     // → 20 sidebar body evaluations
     private static let boardWorkItems = 32     // → first kanban: 32 cards over 7 lanes (+ per-card move control)
     private static let boardCaseItems = 64     // → second kanban: 64 cards over 12 lanes, and a table with row actions
+    private static let wikiNodes = 2_000       // → a large wiki (above the 1,500 freeze limit) …
+    private static let wikiLinks = 6_000       // … with the real wiki's link/page ratio
+    private static let wikiFrames = 30         // → 30 published physics frames, 30 hover moves
     #if PERF_COUNTERS
     private static let boardStoreArtifacts = 40  // → artifacts in the store the board pane observes
     private static let boardStoreReads = 20    // → sortedArtifacts reads per canvas body evaluation
@@ -285,6 +288,88 @@ internal struct PerfCountHarnessTests {
         // 96 cards and 64 action rows must construct none.
         #expect(unrelated["view.body.ArtifactChoicePicker"] == nil, "a choice picker was built without a row being triaged")
         #expect(merged["board.mount.view.body.ArtifactChoicePicker"] == 0, "mounting the board built a choice picker")
+        #endif
+
+        try Self.record(merged)
+    }
+
+    @MainActor
+    @Test("Wiki graph op counts match the committed baseline")
+    internal func recordWikiOpCounts() throws {
+        var merged: [String: Int] = [:]
+        // ── Scenario: wiki.physics / wiki.hitTest (pure) ─────────────────────
+        // One physics step over a 2k-node wiki laid out on a deterministic
+        // spiral (the real wiki's density), then 30 hit tests. With the grid,
+        // repulsion visits the 3×3 cells around each node — not every pair.
+        let graph = WikiGraphFixtures.graph(nodes: Self.wikiNodes, links: Self.wikiLinks)
+        let links = WikiGraphFixtures.indexedLinks(graph)
+        let layout = WikiGraphFixtures.spiralPositions(count: Self.wikiNodes, spacing: 60, canvas: Self.surfaceSize)
+        PerfCounter.reset()
+        _ = WikiPhysics2D.step(WikiPhysics2D.Frame(positions: layout), links: links, alpha: 0.5, canvasSize: Self.surfaceSize, iterations: 1)
+        merged.merge(PerfCounter.snapshot()) { _, new in new }
+
+        let viewModel = WikiGraphViewModel()
+        viewModel.canvasSize = Self.surfaceSize
+        viewModel.presettleEnabled = false
+        viewModel.availableWikis = ["perf"]   // the host skips wiki.list discovery
+        viewModel.graph = graph
+        viewModel.setupSimulation()
+        viewModel.simulation.adopt(positions: layout)
+        viewModel.fitToView()
+        PerfCounter.reset()
+        for probe in 0..<Self.wikiFrames {
+            let p = layout[probe * 61 % Self.wikiNodes]
+            _ = viewModel.hitTest(point: CGPoint(x: p.x * viewModel.zoom + viewModel.panOffset.width, y: p.y * viewModel.zoom + viewModel.panOffset.height))
+        }
+        merged.merge(PerfCounter.snapshot()) { _, new in new }
+
+        // ── Scenario: wiki.mount / wiki.frames / wiki.hover (host) ───────────
+        // The real adaptive host with the sidebar open, then 30 physics frames
+        // published by the simulation store, then 30 hover moves. Only the
+        // canvas may re-evaluate for either; the graph host, sidebar and
+        // controls bar observe the shared view model, which stays silent.
+        viewModel.showFileTree = true
+        PerfCounter.reset()
+        let wikiHost = Self.mount(
+            WikiGraphView(viewModel: viewModel)
+                .environmentObject(GatewayClientWrapper())
+                .environmentObject(GatewayCapabilitiesStore())
+        )
+        var passes = Self.settle(wikiHost)
+        merged.merge(Self.wikiCounts("wiki.mount", passes: passes)) { _, new in new }
+
+        PerfCounter.reset()
+        wikiHost.host.layoutCount = 0
+        for frame in 1...Self.wikiFrames {
+            let shift = CGFloat(frame)
+            viewModel.simulation.applyFrame(positions: layout.map { CGPoint(x: $0.x + shift, y: $0.y) })
+            RunLoop.main.run(until: Date().addingTimeInterval(0.005))
+        }
+        passes = Self.settle(wikiHost)
+        let frames = PerfCounter.snapshot()
+        merged.merge(Self.wikiCounts("wiki.frames", passes: passes)) { _, new in new }
+
+        PerfCounter.reset()
+        wikiHost.host.layoutCount = 0
+        for probe in 0..<Self.wikiFrames {
+            let p = viewModel.simulation.positions[probe * 61 % Self.wikiNodes]
+            viewModel.updateHover(at: CGPoint(x: p.x * viewModel.zoom + viewModel.panOffset.width, y: p.y * viewModel.zoom + viewModel.panOffset.height))
+            RunLoop.main.run(until: Date().addingTimeInterval(0.005))
+        }
+        passes = Self.settle(wikiHost)
+        let hover = PerfCounter.snapshot()
+        merged.merge(Self.wikiCounts("wiki.hover", passes: passes)) { _, new in new }
+        wikiHost.window.orderOut(nil)
+
+        #if PERF_COUNTERS
+        for view in ["WikiGraphView", "WikiFileTreeSidebar", "WikiGraphControlsBar"] {
+            #expect(frames["view.body.\(view)"] == nil, "\(view) re-rendered on a physics frame")
+            #expect(hover["view.body.\(view)"] == nil, "\(view) re-rendered on hover")
+        }
+        #expect((frames["view.body.WikiGraph2DCanvas"] ?? 0) > 0, "the canvas must redraw for a frame")
+        #expect((hover["view.body.WikiGraph2DCanvas"] ?? 0) > 0, "the canvas must redraw for a hover change")
+        #expect((merged["wiki.physics.pairs"] ?? .max) < Self.wikiNodes * (Self.wikiNodes - 1) / 2 / 10, "grid repulsion must visit far fewer than all pairs")
+        #expect((merged["wiki.hitTest.candidates"] ?? .max) < Self.wikiFrames * Self.wikiNodes / 10, "hit testing must not scan every node")
         #endif
 
         try Self.record(merged)
@@ -711,5 +796,34 @@ internal struct PerfCountHarnessTests {
         for row in 0..<6 { lines.append("| a\(row) | b\(row) | c\(row) |") }
         lines += ["", "```swift", "let x = 1", "print(x)", "```", ""]
         return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - Wiki scenario helpers
+
+extension PerfCountHarnessTests {
+    /// The wiki scenarios record a FIXED key set, zeros included, for the same
+    /// reason as the board: the counters that must stay at zero across frames
+    /// and hover have to be in the baseline to be ratcheted. The canvas body
+    /// count is deliberately left out of the ratchet — how many of the 30
+    /// published frames SwiftUI coalesces into one body evaluation depends on
+    /// run-loop timing, which a strict integer ceiling would turn into flake;
+    /// the in-test `> 0` assertion covers "the canvas redraws".
+    #if PERF_COUNTERS
+    fileprivate static let wikiBodyCounters = [
+        "view.body.WikiGraphView", "view.body.WikiFileTreeSidebar", "view.body.WikiGraphControlsBar",
+    ]
+    #endif
+
+    fileprivate static func wikiCounts(_ scenario: String, passes: Int) -> [String: Int] {
+        var out: [String: Int] = [:]
+        #if PERF_COUNTERS
+        _ = passes
+        let snapshot = PerfCounter.snapshot()
+        for key in wikiBodyCounters {
+            out["\(scenario).\(key)"] = snapshot[key] ?? 0
+        }
+        #endif
+        return out
     }
 }

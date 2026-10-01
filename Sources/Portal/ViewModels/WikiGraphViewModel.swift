@@ -58,7 +58,9 @@ final class WikiGraphViewModel: ObservableObject {
     /// the event not existing.
     @Published internal var focusedEventKey: String?
     @Published var selectedNodeIndex: Int?
-    @Published var hoveredNodeIndex: Int?
+    /// Hover lives on the simulation store (it changes per mouse move);
+    /// forwarded for callers that only hold the view model.
+    internal var hoveredNodeIndex: Int? { simulation.hoveredNodeIndex }
 
     /// What the wiki says its ingestion sources ARE, built from its
     /// `type: event-type` pages. `.empty` until those pages are read (and
@@ -91,8 +93,8 @@ final class WikiGraphViewModel: ObservableObject {
     }
 
     var selectedNodeTitle: String? {
-        guard let idx = selectedNodeIndex, simNodes.indices.contains(idx) else { return nil }
-        return simNodes[idx].label
+        guard let idx = selectedNodeIndex, nodeMeta.indices.contains(idx) else { return nil }
+        return nodeMeta[idx].label
     }
     @Published var isLoading = false
     @Published var error: String?
@@ -126,11 +128,13 @@ final class WikiGraphViewModel: ObservableObject {
         }
 
         let terms = q.split(separator: " ").map(String.init)
+        // One id→page index per query, not one per node (the old computed
+        // lookup rebuilt a 5k-entry dictionary inside the filter closure).
+        let pageIndex = indexLookup
 
-        filteredNodeIndices = Set(simNodes.indices.filter { idx in
-            guard simNodes.indices.contains(idx) else { return false }
-            let pageIdx = indexLookup[simNodes[idx].id]
-            guard let pi = pageIdx, graph.pages.indices.contains(pi) else { return true }
+        filteredNodeIndices = Set(nodeMeta.indices.filter { idx in
+            let node = nodeMeta[idx]
+            guard let pi = pageIndex[node.id], graph.pages.indices.contains(pi) else { return true }
 
             let page = graph.pages[pi]
 
@@ -142,7 +146,6 @@ final class WikiGraphViewModel: ObservableObject {
 
             // Search filter: must match label or type
             if !terms.isEmpty {
-                let node = simNodes[idx]
                 let haystack = "\(node.label.lowercased()) \(node.type.lowercased())"
                 return terms.allSatisfy { haystack.contains($0) }
             }
@@ -160,68 +163,47 @@ final class WikiGraphViewModel: ObservableObject {
         return lookup
     }
 
-    struct SimNode: Identifiable, Sendable {
-        let id: String
-        var position: CGPoint
-        var velocity: CGVector = .zero
-        var position3D: SIMD3<Float> = .zero
-        var velocity3D: SIMD3<Float> = .zero
-        var isDragging = false
-        let type: String
-        let label: String
-        /// The page's file path, e.g. "entities/chain/base.md". The graph colors
-        /// nodes by their folder branch (see `color(forNode:)`), which is derived
-        /// from this rather than `type` — real compendia keep `type` flat.
-        internal let path: String
-    }
+    /// Node identity (id, label, path, type), index-aligned with the
+    /// simulation store's position buffers. Published once per graph load —
+    /// never per frame. See WikiSimNodeMeta.
+    @Published internal private(set) var nodeMeta: [WikiSimNodeMeta] = []
+    /// id → node index, so selection sync doesn't scan 5k nodes.
+    internal private(set) var nodeIndexByID: [String: Int] = [:]
+    /// Everything that changes per frame or per mouse move: positions,
+    /// velocities, painter's order, hover, camera, the physics clock. Only the
+    /// canvases observe it; this object never publishes on a frame.
+    internal let simulation = WikiSimulationStore()
 
-    @Published var simNodes: [SimNode] = []
     @Published var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
     /// Per-edge relationship label, aligned 1:1 with `simLinks` (built in the
     /// same pass). `nil` = a plain, untyped wikilink with nothing to render.
     @Published internal private(set) var simLinkLabels: [String?] = []
-    /// Node indices sorted by Y (painter's order for the 2D canvas).
-    /// Recomputed ONLY when positions actually change — setup, applied
-    /// physics frames, drags, settle adoption — never per canvas frame, so
-    /// panning doesn't pay an O(n log n) sort at 60 Hz.
-    internal private(set) var drawOrder: [Int] = []
+    /// Node indices sorted by Y (painter's order for the 2D canvas); owned by
+    /// the simulation store, forwarded for callers holding the view model.
+    internal var drawOrder: [Int] { simulation.drawOrder }
     private(set) var degrees: [Int] = []
     private(set) var adjacency: [Set<Int>] = []
 
-    private func recomputeDrawOrder() {
-        drawOrder = simNodes.indices.sorted { simNodes[$0].position.y < simNodes[$1].position.y }
-    }
-
-    private let friction: CGFloat = 0.92
-    private let springLength: CGFloat = 120
-    private let springConstant: CGFloat = 0.008
-    private let chargeConstant: CGFloat = 8000
-    private let centerPull: CGFloat = 0.0005
-    private let iterationsPerFrame = 2
-    private let maxVelocity: CGFloat = 30
-    private let maxRepulsionForce: CGFloat = 500
-
-    private var alpha: CGFloat = 1.0
-    private let alphaDecay: CGFloat = 0.0228
-    private let alphaMin: CGFloat = 0.002
-    /// Bumped per settle so a stale background relaxation can't overwrite a
-    /// newer graph (see WikiGraphViewModel+Layout).
-    var settleGeneration = 0
-    private let dragReheat: CGFloat = 0.15
-    var simAlpha: CGFloat { alpha }
+    internal var simAlpha: CGFloat { simulation.alpha }
     /// 2D canvas vs 3D SceneKit rendering of the same graph — a toggle in
     /// the graph controls, not a separate top-level mode.
     @Published var is3D = false
 
-    private let springLength3D: Float = 160
-    private let chargeConstant3D: Float = 20000
-    private let centerPull3D: Float = 0.0008
-    private let maxVelocity3D: Float = 30
-    private let seedSpacing3D: Float = 50
-
-    @Published var zoom: CGFloat = 1.0
-    @Published var panOffset: CGSize = .zero
-    var canvasSize: CGSize = .zero
+    /// Camera state forwarded from the simulation store (it changes per
+    /// gesture event; observers that only need it on change subscribe to
+    /// `simulation.$zoom`).
+    internal var zoom: CGFloat {
+        get { simulation.zoom }
+        set { simulation.zoom = newValue }
+    }
+    internal var panOffset: CGSize {
+        get { simulation.panOffset }
+        set { simulation.panOffset = newValue }
+    }
+    internal var canvasSize: CGSize {
+        get { simulation.canvasSize }
+        set { simulation.canvasSize = newValue }
+    }
 
     /// Per-graph color for each folder branch (e.g. "entities/chain"), rebuilt
     /// whenever `graph` changes. Every branch present in the graph gets its own
@@ -236,7 +218,7 @@ final class WikiGraphViewModel: ObservableObject {
     /// hierarchy lives — every `type` is flat ("org", "chain", "meta") while the
     /// nesting is entirely in the path ("entities/chain/base.md"). Keying color
     /// off `type` left ~all nodes grey; keying off the path folder groups them.
-    internal func color(forNode node: SimNode) -> Color {
+    internal func color(forNode node: WikiSimNodeMeta) -> Color {
         if let branch = Self.branchKey(for: node.path), let color = nestedTypeColors[branch] {
             return color
         }
@@ -282,8 +264,8 @@ final class WikiGraphViewModel: ObservableObject {
     /// presentation (size ∝ ingress+egress).
     func recomputeRadii() {
         let maxDegree = degrees.max() ?? 0
-        cachedRadii = simNodes.indices.map { index in
-            let base = nodeRadius(for: simNodes[index].type)
+        cachedRadii = nodeMeta.indices.map { index in
+            let base = nodeRadius(for: nodeMeta[index].type)
             let degree = degrees.indices.contains(index) ? degrees[index] : 0
             guard maxDegree > 0, degree > 0 else { return base }
             return base + sqrt(CGFloat(degree) / CGFloat(maxDegree)) * 16
@@ -440,7 +422,9 @@ final class WikiGraphViewModel: ObservableObject {
         loadGeneration += 1
         wikiDiscoveryGeneration += 1
         graph = .empty
-        simNodes.removeAll()
+        nodeMeta = []
+        nodeIndexByID = [:]
+        simulation.clear()
         loadedSource = nil
         loadedWiki = nil
         hasLoadedOnce = false
@@ -526,7 +510,7 @@ final class WikiGraphViewModel: ObservableObject {
     func syncNodeSelection(toPath path: String?) {
         guard let path,
               let page = graph.pages.first(where: { $0.path == path }),
-              let idx = simNodes.firstIndex(where: { $0.id == page.id }) else {
+              let idx = nodeIndexByID[page.id] else {
             selectedNodeIndex = nil
             return
         }
@@ -536,17 +520,17 @@ final class WikiGraphViewModel: ObservableObject {
     /// Selects the graph node AND makes its page the shared current page,
     /// pushing the previous page onto the reader's back stack.
     func selectNode(_ index: Int) {
-        guard simNodes.indices.contains(index) else { return }
+        guard nodeMeta.indices.contains(index) else { return }
         selectedNodeIndex = index
-        if let page = graph.pages.first(where: { $0.id == simNodes[index].id }) {
+        if let page = graph.pages.first(where: { $0.id == nodeMeta[index].id }) {
             navigate(to: page.path)
         }
     }
 
     /// Centers the 2D viewport on a node at the current zoom.
     func centerOnNode(_ index: Int) {
-        guard simNodes.indices.contains(index), canvasSize != .zero else { return }
-        let pos = simNodes[index].position
+        guard simulation.positions.indices.contains(index), canvasSize != .zero else { return }
+        let pos = simulation.positions[index]
         panOffset = CGSize(
             width: canvasSize.width / 2 - pos.x * zoom,
             height: canvasSize.height / 2 - pos.y * zoom
@@ -676,222 +660,112 @@ final class WikiGraphViewModel: ObservableObject {
     private func setup2D() {
         let center = CGPoint(x: effectiveCanvasSize.width / 2, y: effectiveCanvasSize.height / 2)
         var rng = SystemRandomNumberGenerator()
-        simNodes = graph.pages.map { page in
+        // Seed radius grows with √n past 200 so a 5k-node wiki doesn't start as
+        // one impenetrable blob; small graphs keep the old 50…200 ring.
+        let spread = max(200, 20 * Double(graph.pages.count).squareRoot())
+        let seeded: [CGPoint] = graph.pages.map { _ in
             let angle = Double.random(in: 0...(2 * .pi), using: &rng)
-            let dist = Double.random(in: 50...200, using: &rng)
-            return SimNode(id: page.id, position: CGPoint(x: center.x + cos(angle) * dist, y: center.y + sin(angle) * dist), type: page.type, label: page.title, path: page.path)
+            let dist = Double.random(in: 50...spread, using: &rng)
+            return CGPoint(x: center.x + cos(angle) * dist, y: center.y + sin(angle) * dist)
         }
-        finishSetup()
-        settleAndReveal()
+        finishSetup(positions: seeded, positions3D: nil)
+        if presettleEnabled { settleAndReveal() }
     }
+
+    /// Tests that need a deterministic layout adopt positions directly and
+    /// switch the off-main pre-settle off; the app never touches this.
+    internal var presettleEnabled = true
 
     private func setup3D() {
         var rng = SystemRandomNumberGenerator()
         // Seed radius grows with cbrt(n) so node density stays roughly constant.
-        let spread = Float(cbrt(Double(max(graph.pages.count, 1)))) * seedSpacing3D
-        simNodes = graph.pages.map { page in
+        let spread = Float(cbrt(Double(max(graph.pages.count, 1)))) * Self.seedSpacing3D
+        let seeded: [SIMD3<Float>] = graph.pages.map { _ in
             let phi = Float.random(in: 0...(2 * .pi), using: &rng)
             let theta = Float.random(in: (-Float.pi / 2)...(Float.pi / 2), using: &rng)
             let r = Float.random(in: (spread * 0.4)...spread, using: &rng)
-            let position3D = SIMD3(r * cos(theta) * cos(phi), r * cos(theta) * sin(phi), r * sin(theta))
-            return SimNode(id: page.id, position: .zero, position3D: position3D, type: page.type, label: page.title, path: page.path)
+            return SIMD3(r * cos(theta) * cos(phi), r * cos(theta) * sin(phi), r * sin(theta))
         }
-        finishSetup()
+        finishSetup(positions: nil, positions3D: seeded)
     }
 
-    private func finishSetup() {
+    private static let seedSpacing3D: Float = 50
+
+    /// Build identity, links, degrees and adjacency for the page set (first
+    /// occurrence of a duplicate id wins), then hand the seeded buffers to the
+    /// simulation store. `positions`/`positions3D` are index-aligned with
+    /// `graph.pages`; whichever is nil is filled with zeros.
+    private func finishSetup(positions: [CGPoint]?, positions3D: [SIMD3<Float>]?) {
         var seenIds = Set<String>()
-        simNodes = simNodes.filter { node in guard !seenIds.contains(node.id) else { return false }; seenIds.insert(node.id); return true }
-        let idToIndex = Dictionary(uniqueKeysWithValues: simNodes.enumerated().map { ($1.id, $0) })
+        var meta: [WikiSimNodeMeta] = []
+        var kept2D: [CGPoint] = []
+        var kept3D: [SIMD3<Float>] = []
+        for (offset, page) in graph.pages.enumerated() where seenIds.insert(page.id).inserted {
+            meta.append(WikiSimNodeMeta(id: page.id, type: page.type, label: page.title, path: page.path))
+            kept2D.append(positions?[offset] ?? .zero)
+            kept3D.append(positions3D?[offset] ?? .zero)
+        }
+        nodeIndexByID = Dictionary(uniqueKeysWithValues: meta.enumerated().map { ($1.id, $0) })
+        let idToIndex = nodeIndexByID
         let resolved: [(edge: (sourceIndex: Int, targetIndex: Int), label: String?)] = graph.links.compactMap { link in
             guard let si = idToIndex[link.source], let ti = idToIndex[link.target] else { return nil }
             return ((si, ti), link.displayRelation)
         }
-        simLinks = resolved.map(\.edge)
-        simLinkLabels = resolved.map(\.label)
-        degrees = Array(repeating: 0, count: simNodes.count)
-        adjacency = Array(repeating: Set<Int>(), count: simNodes.count)
-        for (si, ti) in simLinks {
+        let links = resolved.map(\.edge)
+        degrees = Array(repeating: 0, count: meta.count)
+        adjacency = Array(repeating: Set<Int>(), count: meta.count)
+        for (si, ti) in links {
             if degrees.indices.contains(si) { degrees[si] += 1; adjacency[si].insert(ti) }
             if degrees.indices.contains(ti) { degrees[ti] += 1; adjacency[ti].insert(si) }
         }
+        nodeMeta = meta
+        simLinks = links
+        simLinkLabels = resolved.map(\.label)
         recomputeRadii()
-        recomputeDrawOrder()
-        alpha = 1.0
-        // Invalidate any physics frame still computing against the old node set.
-        physicsGeneration += 1
-        physicsInFlight = false
+        // Rebuilding invalidates any physics frame or settle still computing
+        // against the old node set; the store bumps its generations.
+        simulation.reset(positions: kept2D, positions3D: kept3D, links: links, adjacency: adjacency, is3D: is3D)
         updateFilteredNodes()
         // Rebuilding invalidates node indices; carry the shared page
         // selection back into the fresh sim so mode switches keep context.
         syncNodeSelection(toPath: selectedPath)
     }
 
-    func tick() { if is3D { tick3D() } else { tick2D() } }
-
-    /// True while a 2D physics frame is being computed off the main thread.
-    /// The Timer tick skips kicking off a new frame while one is in flight, so
-    /// slow frames drop cleanly instead of queueing up main-thread work.
-    private var physicsInFlight = false
-    /// Bumped whenever the node set is rebuilt (setup / mode switch). A physics
-    /// frame computed against a stale generation is discarded on completion, so
-    /// a reload mid-drag can't write old positions over the fresh graph.
-    private var physicsGeneration = 0
-
-    /// Advance the 2D layout one frame — OFF the main thread. The O(n²) force
-    /// integration used to run synchronously here on @MainActor, so dragging
-    /// (which keeps alpha hot) saturated the same thread that processes mouse
-    /// events and redraws the Canvas — the choppy-navigation regression on
-    /// large graphs. Now the step runs on a background executor via the
-    /// `nonisolated static stepPhysics2D`, and only the (cheap) position
-    /// write-back and single @Published publish happen on main.
-    private func tick2D() {
-        guard !physicsInFlight, canvasSize != .zero, simNodes.count > 1 else { return }
-        let anyDragging = simNodes.contains { $0.isDragging }
-        guard alpha > alphaMin || anyDragging else { return }
-
-        physicsInFlight = true
-        let generation = physicsGeneration
-        let snapshot = simNodes
-        let links = simLinks
-        let currentAlpha = alpha
-        let size = canvasSize
-        let iterations = iterationsPerFrame
-        let params = physicsParams
-
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let stepped = Self.stepPhysics2D(
-                nodes: snapshot, links: links, alpha: currentAlpha,
-                canvasSize: size, iterations: iterations, params: params
-            )
-            await self?.applyPhysicsFrame(stepped, generation: generation)
-        }
+    /// One frame of the simulation clock. The store only advances when there
+    /// is something to integrate (see `WikiSimulationStore.shouldTick`); the
+    /// pre-settle owns the graph while `isSettling`.
+    internal func tick() {
+        guard !isSettling else { return }
+        simulation.tick()
     }
 
-    /// Merge an off-main physics frame back into the published node set. Runs
-    /// on the main actor. Nodes the user is actively dragging keep their LIVE
-    /// position (the drag moved them since the snapshot) — the physics step
-    /// already froze them, but the user may have dragged further meanwhile.
-    private func applyPhysicsFrame(_ stepped: [SimNode], generation: Int) {
-        // A stale frame (graph rebuilt underneath us) must not release the
-        // in-flight guard — a newer frame already owns it. Bail without
-        // touching the flag or the node set.
-        guard generation == physicsGeneration else { return }
-        physicsInFlight = false
-        // Drop the frame if we flipped to 3D or the node set changed shape.
-        guard !is3D, stepped.count == simNodes.count else { return }
-
-        let anyDragging = simNodes.contains { $0.isDragging }
-        var merged = simNodes
-        for i in merged.indices where !merged[i].isDragging {
-            merged[i].position = stepped[i].position
-            merged[i].velocity = stepped[i].velocity
-        }
-        simNodes = merged
-        recomputeDrawOrder()
-        if anyDragging { alpha = max(alpha, dragReheat) } else { alpha += (alphaMin - alpha) * alphaDecay }
+    internal func startDragging(index: Int, at point: CGPoint) {
+        simulation.startDragging(index: index)
     }
 
-    private func tick3D() {
-        guard simNodes.count > 1 else { return }
-        let anyDragging = simNodes.contains { $0.isDragging }
-        guard alpha > alphaMin || anyDragging else { return }
-        let charge: Float = chargeConstant3D
-        let maxForce = Float(maxRepulsionForce)
-        let springK = Float(springConstant)
-        // Simulate into a local copy so the @Published publisher fires once per tick.
-        var nodes = simNodes
-        for _ in 0..<iterationsPerFrame {
-            var forces = Array(repeating: SIMD3<Float>.zero, count: nodes.count)
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                for j in (i + 1)..<nodes.count {
-                    let d = nodes[i].position3D - nodes[j].position3D
-                    let distSq = simd_length_squared(d)
-                    guard distSq > 0.01 else { continue }
-                    let raw = charge / distSq
-                    let f = min(raw, maxForce)
-                    let dir = d / sqrt(distSq)
-                    forces[i] += dir * f; forces[j] -= dir * f
-                }
-            }
-            for (si, ti) in simLinks {
-                let d = nodes[ti].position3D - nodes[si].position3D
-                let dist = simd_length(d)
-                guard dist > 0 else { continue }
-                let f = (dist - springLength3D) * springK
-                let dir = d / dist
-                forces[si] += dir * f; forces[ti] -= dir * f
-            }
-            // d3 forceX/Y/Z-style centering: pull each node toward the origin so
-            // disconnected components stay bounded (the old uniform -mean shift didn't).
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                forces[i] -= nodes[i].position3D * centerPull3D
-            }
-            let fAlpha = Float(CGFloat(alpha))
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                var v = nodes[i].velocity3D
-                v = (v + forces[i] * fAlpha) * Float(friction)
-                let speed = simd_length(v)
-                if speed > maxVelocity3D { v *= maxVelocity3D / speed }
-                nodes[i].velocity3D = v
-                nodes[i].position3D += v
-            }
-        }
-        simNodes = nodes
-        if anyDragging { alpha = max(alpha, dragReheat) } else { alpha += (alphaMin - alpha) * alphaDecay }
-    }
-
-    func startDragging(index: Int, at point: CGPoint) {
-        guard simNodes.indices.contains(index) else { return }
-        simNodes[index].isDragging = true; simNodes[index].velocity = .zero
-        alpha = max(alpha, dragReheat)
-    }
-
-    func dragNode(index: Int, to point: CGPoint) {
-        guard simNodes.indices.contains(index) else { return }
+    internal func dragNode(index: Int, to point: CGPoint) {
         let mx = (point.x - panOffset.width) / zoom
         let my = (point.y - panOffset.height) / zoom
-        simNodes[index].position = CGPoint(x: mx, y: my)
-        recomputeDrawOrder()
-        alpha = max(alpha, dragReheat)
+        simulation.dragNode(index: index, to: CGPoint(x: mx, y: my))
     }
 
-    func stopDragging(index: Int) { guard simNodes.indices.contains(index) else { return }; simNodes[index].isDragging = false }
+    internal func stopDragging(index: Int) { simulation.stopDragging(index: index) }
+
     internal func updateHover(at point: CGPoint) {
         noteInteraction()
-        let idx = hitTest(point: CGPoint(x: point.x, y: point.y)); if idx != hoveredNodeIndex { hoveredNodeIndex = idx }
+        simulation.setHover(hitTest(point: point))
     }
-    func clearHover() { if hoveredNodeIndex != nil { hoveredNodeIndex = nil } }
-    var highlightAnchor: Int? { selectedNodeIndex ?? hoveredNodeIndex }
+    internal func clearHover() { simulation.setHover(nil) }
+    internal var highlightAnchor: Int? { selectedNodeIndex ?? simulation.hoveredNodeIndex }
 
     /// True while the user is actively moving the camera or cursor over the
-    /// canvas — hovering, pinch-zooming, or scroll-panning. The 2D canvas draws
-    /// a cheaper frame while this holds (no ambient per-node glow, no gradient
-    /// body fills, no label pass — the expensive passes on a large graph) and
-    /// restores the full-fidelity render once motion stops. The drag/pan states
-    /// the canvas already tracks locally cover click-drag; this covers the input
-    /// paths that leave `mouseState` idle (hover, magnify, scroll wheel), which
-    /// otherwise repaint every node's radial gradients on each event.
-    @Published internal private(set) var isInteracting = false
-    private var interactionSettleTask: Task<Void, Never>?
+    /// canvas — see `WikiSimulationStore.isInteracting`, which the canvas
+    /// observes directly.
+    internal var isInteracting: Bool { simulation.isInteracting }
 
-    /// Mark a camera/cursor interaction as ongoing and (re)arm the settle timer.
-    /// Publishes only on the leading edge, so a continuous gesture flips the flag
-    /// once, not once per event. Full fidelity returns a beat after the last move.
-    internal func noteInteraction() {
-        if !isInteracting { isInteracting = true }
-        interactionSettleTask?.cancel()
-        interactionSettleTask = Task { @MainActor [weak self] in
-            // Cancellation (a newer interaction re-armed the timer) is the
-            // expected exit — swallow only that, and don't clear the flag.
-            do { try await Task.sleep(nanoseconds: 120_000_000) } catch { return }
-            guard let self, !Task.isCancelled else { return }
-            self.isInteracting = false
-        }
-    }
+    /// Mark a camera/cursor interaction as ongoing (leading-edge publish on
+    /// the simulation store; full fidelity returns a beat after the last move).
+    internal func noteInteraction() { simulation.noteInteraction() }
 
     func selectedNodeNeighbors() -> [Int] {
         guard let sel = selectedNodeIndex else { return [] }
@@ -997,7 +871,7 @@ extension WikiGraphViewModel {
     /// graph instead of the "Laying out…" spinner. The one-time re-fit on
     /// first display (`refitForFirstDisplayIfNeeded`) corrects the framing
     /// for the real size.
-    private static let nominalCanvasSize = CGSize(width: 1280, height: 800)
+    internal static let nominalCanvasSize = CGSize(width: 1280, height: 800)
     internal var effectiveCanvasSize: CGSize {
         canvasSize == .zero ? Self.nominalCanvasSize : canvasSize
     }
@@ -1011,87 +885,43 @@ extension WikiGraphViewModel {
         fitToView()
     }
 
-    /// Immutable snapshot of the 2D force constants so the physics step can
-    /// run as a `nonisolated static` (usable from a background task) without
-    /// touching @MainActor instance state.
-    struct Physics2DParams: Sendable {
-        let friction, springLength, springConstant, chargeConstant: CGFloat
-        let centerPull, maxVelocity, maxRepulsionForce: CGFloat
-    }
-
-    var physicsParams: Physics2DParams {
-        Physics2DParams(
-            friction: friction, springLength: springLength, springConstant: springConstant,
-            chargeConstant: chargeConstant, centerPull: centerPull,
-            maxVelocity: maxVelocity, maxRepulsionForce: maxRepulsionForce
-        )
-    }
-
     /// Relaxes the freshly-seeded 2D layout off the main thread, then reveals
     /// it already-settled and framed — the graph "clicks into place" instead
-    /// of visibly exploding apart. Cheap graphs settle in a couple frames;
-    /// large ones are capped so this never blocks perceptibly. The live tick
-    /// still runs afterward (alpha is low), so dragging/reheat behave as before.
+    /// of visibly exploding apart. The store runs the relaxation in
+    /// cancellable chunks (a reload drops it) and adopts the result at rest;
+    /// above `WikiSimulationStore.liveSimulationNodeLimit` the graph then
+    /// stays frozen until a drag.
     func settleAndReveal() {
-        guard !is3D, simNodes.count > 1 else {
+        guard !is3D, nodeMeta.count > 1 else {
             isSettling = false
             return
         }
-        settleGeneration += 1
-        let generation = settleGeneration
         isSettling = true
         // Track whether this settle ran before any real canvas existed
         // (the connect-time preload) — the canvas re-frames once on its
         // first display to correct for its real size.
         settledAgainstNominalSize = canvasSize == .zero
-
-        let seed = simNodes
-        let links = simLinks
-        let size = effectiveCanvasSize
-        let params = physicsParams
-        let iterations = iterationsPerFrame
-        // More nodes need more relaxation, but cap the work so the pause is
-        // imperceptible even on large graphs.
-        let steps = min(300, max(60, seed.count))
-
-        Task.detached(priority: .userInitiated) {
-            var nodes = seed
-            var a: CGFloat = 1.0
-            for _ in 0..<steps {
-                nodes = Self.stepPhysics2D(
-                    nodes: nodes, links: links, alpha: a,
-                    canvasSize: size, iterations: iterations, params: params
-                )
-                a += (0.002 - a) * 0.0228
-                if a < 0.02 { break }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let adopted = await self.simulation.presettle()
+            guard adopted else {
+                // Superseded by a newer settle (which owns the flag) or by a
+                // reset with no settle at all (3D) — only the latter clears.
+                if !self.simulation.isPresettling { self.isSettling = false }
+                return
             }
-            let settled = nodes
-            await MainActor.run { [weak self] in
-                guard let self, generation == self.settleGeneration else { return }
-                // Only adopt if the graph hasn't been rebuilt underneath us.
-                guard self.simNodes.count == settled.count else {
-                    self.isSettling = false
-                    return
-                }
-                for i in settled.indices where self.simNodes.indices.contains(i) {
-                    self.simNodes[i].position = settled[i].position
-                    self.simNodes[i].velocity = .zero
-                }
-                self.recomputeDrawOrder()
-                self.alpha = self.alphaMin      // arrive at rest; no on-screen spread
-                // Frame the whole graph, unless a page is already selected —
-                // then keep that node centered (Show in Graph / mode switch).
-                if let sel = self.selectedNodeIndex, self.simNodes.indices.contains(sel) {
-                    self.centerOnNode(sel)
-                } else {
-                    self.fitToView()
-                }
-                // fitToView just framed for the LIVE effective size — if a
-                // real canvas appeared mid-settle it got the right frame; if
-                // not, the first display re-fits once via the flag.
-                self.settledAgainstNominalSize = self.canvasSize == .zero
-                self.isSettling = false
+            // Frame the whole graph, unless a page is already selected —
+            // then keep that node centered (Show in Graph / mode switch).
+            if let sel = self.selectedNodeIndex, self.nodeMeta.indices.contains(sel) {
+                self.centerOnNode(sel)
+            } else {
+                self.fitToView()
             }
+            // fitToView just framed for the LIVE effective size — if a
+            // real canvas appeared mid-settle it got the right frame; if
+            // not, the first display re-fits once via the flag.
+            self.settledAgainstNominalSize = self.canvasSize == .zero
+            self.isSettling = false
         }
     }
 
@@ -1099,13 +929,13 @@ extension WikiGraphViewModel {
     /// picks a zoom that leaves a comfortable margin, so nodes read at a
     /// legible size the moment the view appears (clamped to the pinch range).
     func fitToView() {
-        guard !is3D, simNodes.count > 1 else { return }
+        guard !is3D, simulation.positions.count > 1 else { return }
         let size = effectiveCanvasSize
         var minX = CGFloat.greatestFiniteMagnitude, minY = CGFloat.greatestFiniteMagnitude
         var maxX = -CGFloat.greatestFiniteMagnitude, maxY = -CGFloat.greatestFiniteMagnitude
-        for node in simNodes {
-            minX = min(minX, node.position.x); maxX = max(maxX, node.position.x)
-            minY = min(minY, node.position.y); maxY = max(maxY, node.position.y)
+        for position in simulation.positions {
+            minX = min(minX, position.x); maxX = max(maxX, position.x)
+            minY = min(minY, position.y); maxY = max(maxY, position.y)
         }
         let graphW = max(maxX - minX, 1), graphH = max(maxY - minY, 1)
         let margin: CGFloat = 80
@@ -1120,62 +950,5 @@ extension WikiGraphViewModel {
             width: size.width / 2 - cx * newZoom,
             height: size.height / 2 - cy * newZoom
         )
-    }
-
-    /// One frame of 2D force integration over `iterations` sub-steps. Pure:
-    /// takes node/link state in, returns advanced nodes out. Shared by the
-    /// live tick and the off-main pre-settle so both produce identical layouts.
-    nonisolated static func stepPhysics2D(
-        nodes input: [SimNode], links: [(sourceIndex: Int, targetIndex: Int)],
-        alpha: CGFloat, canvasSize: CGSize, iterations: Int, params: Physics2DParams
-    ) -> [SimNode] {
-        var nodes = input
-        for _ in 0..<iterations {
-            var forces = Array(repeating: CGVector.zero, count: nodes.count)
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                for j in (i + 1)..<nodes.count {
-                    let dx = nodes[i].position.x - nodes[j].position.x
-                    let dy = nodes[i].position.y - nodes[j].position.y
-                    let distSq = dx * dx + dy * dy
-                    guard distSq > 0.01 else { continue }
-                    let rawForce = params.chargeConstant / distSq
-                    let force = min(rawForce, params.maxRepulsionForce)
-                    let dist = sqrt(distSq)
-                    let fx = (dx / dist) * force; let fy = (dy / dist) * force
-                    forces[i].dx += fx; forces[i].dy += fy
-                    forces[j].dx -= fx; forces[j].dy -= fy
-                }
-            }
-            for (si, ti) in links {
-                let dx = nodes[ti].position.x - nodes[si].position.x
-                let dy = nodes[ti].position.y - nodes[si].position.y
-                let dist = sqrt(dx * dx + dy * dy)
-                guard dist > 0 else { continue }
-                let force = (dist - params.springLength) * params.springConstant
-                let fx = (dx / dist) * force; let fy = (dy / dist) * force
-                forces[si].dx += fx; forces[si].dy += fy
-                forces[ti].dx -= fx; forces[ti].dy -= fy
-            }
-            let meanX = nodes.reduce(0) { $0 + $1.position.x } / CGFloat(nodes.count)
-            let meanY = nodes.reduce(0) { $0 + $1.position.y } / CGFloat(nodes.count)
-            let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                forces[i].dx += (center.x - meanX) * params.centerPull
-                forces[i].dy += (center.y - meanY) * params.centerPull
-            }
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                var v = nodes[i].velocity
-                v.dx = (v.dx + forces[i].dx * alpha) * params.friction
-                v.dy = (v.dy + forces[i].dy * alpha) * params.friction
-                let speed = sqrt(v.dx * v.dx + v.dy * v.dy)
-                if speed > params.maxVelocity { let scale = params.maxVelocity / speed; v.dx *= scale; v.dy *= scale }
-                nodes[i].velocity = v
-                nodes[i].position.x += v.dx; nodes[i].position.y += v.dy
-            }
-        }
-        return nodes
     }
 }

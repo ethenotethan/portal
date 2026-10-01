@@ -48,6 +48,7 @@ internal struct WikiFileTreeSidebar: View {
     @State private var searchText = ""
 
     internal var body: some View {
+        let _ = PerfCounter.tick("view.body.WikiFileTreeSidebar")
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
