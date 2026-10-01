@@ -3,9 +3,9 @@ import Foundation
 @testable import Portal
 
 @Suite("Activity Item")
-struct ActivityItemTests {
+internal struct ActivityItemTests {
     @Test("parses gateway activity item with artifact and action")
-    func parseActivityItem() {
+    internal func parseActivityItem() {
         let payload: [String: AnyCodable] = [
             "id": AnyCodable("act_123"),
             "created_at": AnyCodable(1_700_000_000.0),
@@ -54,7 +54,7 @@ struct ActivityItemTests {
     }
 
     @Test("parses activity.created gateway event")
-    func parseActivityCreatedGatewayEvent() {
+    internal func parseActivityCreatedGatewayEvent() {
         let activity: [String: AnyCodable] = [
             "id": AnyCodable("act_evt"),
             "created_at": AnyCodable(1_700_000_000.0),
@@ -77,7 +77,7 @@ struct ActivityItemTests {
     }
 
     @Test("parses dismissed and read flag aliases from gateway payloads")
-    func parsesReadDismissedAliases() {
+    internal func parsesReadDismissedAliases() {
         let payload: [String: AnyCodable] = [
             "id": AnyCodable("act_aliases"),
             "is_read": AnyCodable(true),
@@ -193,7 +193,7 @@ struct ActivityItemTests {
     }
 
     @Test("activity events parse direct payloads as well as nested activity payloads")
-    func parseDirectActivityPayloadGatewayEvent() {
+    internal func parseDirectActivityPayloadGatewayEvent() {
         let direct = GatewayEvent.from(type: "activity.created", payload: .dictionary([
             "id": AnyCodable("act_direct"),
             "title": AnyCodable("Direct activity"),
