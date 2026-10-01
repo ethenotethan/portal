@@ -78,8 +78,8 @@ internal enum InteractiveGraphSelection {
 
     internal static func selectedID(in viewModel: WikiGraphViewModel) -> String? {
         guard let index = viewModel.selectedNodeIndex,
-              viewModel.simNodes.indices.contains(index) else { return nil }
-        return viewModel.simNodes[index].id
+              viewModel.nodeMeta.indices.contains(index) else { return nil }
+        return viewModel.nodeMeta[index].id
     }
 }
 
@@ -107,12 +107,14 @@ internal struct InteractiveGraphView: View {
     @State private var dragNodeIndex: Int?
     @State private var lastPinchScale: CGFloat = 1.0
     @State private var is3DMode = false
+    /// Bumped on every simulation-store publish (physics frame, hover, camera)
+    /// so the inline canvas below redraws; the store owns the 30 Hz clock and
+    /// only runs it while something is integrating.
+    @State private var simulationFrame = 0
 
     private enum MouseState {
         case idle, deciding, panning, draggingNode
     }
-
-    private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
     private var externalSelectionValue: String? { externalSelection?.wrappedValue }
 
@@ -123,7 +125,7 @@ internal struct InteractiveGraphView: View {
                 .overlay(alignment: .topTrailing) { controlStrip }
 
             if let selIdx = viewModel.selectedNodeIndex,
-               viewModel.simNodes.indices.contains(selIdx) {
+               viewModel.nodeMeta.indices.contains(selIdx) {
                 Divider()
                 selectionPanel(nodeIndex: selIdx)
                     .frame(width: 240)
@@ -131,12 +133,8 @@ internal struct InteractiveGraphView: View {
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
-        .onReceive(timer) { _ in
-            guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
-            viewModel.tick()
-        }
-        .onChange(of: viewModel.zoom) { _, _ in
-            lastPinchScale = viewModel.zoom
+        .onReceive(viewModel.simulation.objectWillChange) { _ in
+            simulationFrame &+= 1
         }
         .onChange(of: graph) { _, newGraph in
             viewModel.graph = newGraph
@@ -247,7 +245,7 @@ internal struct InteractiveGraphView: View {
             }
             .onChange(of: geo.size) { _, newSize in
                 viewModel.canvasSize = newSize
-                if newSize != .zero && viewModel.simNodes.isEmpty && !viewModel.graph.pages.isEmpty {
+                if newSize != .zero && viewModel.nodeMeta.isEmpty && !viewModel.graph.pages.isEmpty {
                     viewModel.setupSimulation()
                 }
             }
@@ -258,7 +256,10 @@ internal struct InteractiveGraphView: View {
 
     private var graphCanvas: some View {
         Canvas { context, size in
+            let _ = simulationFrame
             let hasSelection = viewModel.highlightAnchor != nil
+            let positions = viewModel.simulation.positions
+            let meta = viewModel.nodeMeta
 
             context.translateBy(x: viewModel.panOffset.width, y: viewModel.panOffset.height)
             context.scaleBy(x: viewModel.zoom, y: viewModel.zoom)
@@ -266,8 +267,8 @@ internal struct InteractiveGraphView: View {
             // Curved edges
             for (linkIndex, link) in viewModel.simLinks.enumerated() {
                 let (si, ti) = link
-                guard viewModel.simNodes.indices.contains(si),
-                      viewModel.simNodes.indices.contains(ti) else { continue }
+                guard positions.indices.contains(si),
+                      positions.indices.contains(ti) else { continue }
 
                 let isConnected = !hasSelection || viewModel.linkIsConnectedToSelection(si, ti)
                 let opacity: CGFloat = isConnected ? 0.55 : 0.06
@@ -281,8 +282,8 @@ internal struct InteractiveGraphView: View {
                     ? (semanticColor ?? Color(hex: "8a8aff") ?? Theme.accent).opacity(opacity)
                     : Theme.secondary.opacity(opacity)
 
-                let sp = viewModel.simNodes[si].position
-                let tp = viewModel.simNodes[ti].position
+                let sp = positions[si]
+                let tp = positions[ti]
 
                 let mid = CGPoint(x: (sp.x + tp.x) / 2, y: (sp.y + tp.y) / 2)
                 let dx = tp.x - sp.x
@@ -316,14 +317,12 @@ internal struct InteractiveGraphView: View {
 
                 if isConnected, hasSelection,
                    let selIdx = viewModel.selectedNodeIndex,
-                   viewModel.simNodes.indices.contains(selIdx) {
-                    let source = viewModel.simNodes[si]
-                    let target = viewModel.simNodes[ti]
+                   meta.indices.contains(selIdx), meta.indices.contains(si), meta.indices.contains(ti) {
                     let labelText: String
-                    if source.id == viewModel.simNodes[selIdx].id {
-                        labelText = "→ \(target.label)"
-                    } else if target.id == viewModel.simNodes[selIdx].id {
-                        labelText = "← \(source.label)"
+                    if si == selIdx {
+                        labelText = "→ \(meta[ti].label)"
+                    } else if ti == selIdx {
+                        labelText = "← \(meta[si].label)"
                     } else {
                         labelText = ""
                     }
@@ -338,12 +337,9 @@ internal struct InteractiveGraphView: View {
                 }
             }
 
-            // Nodes with glow + gradient
-            let drawOrder = viewModel.simNodes.indices.sorted {
-                viewModel.simNodes[$0].position.y < viewModel.simNodes[$1].position.y
-            }
-            for index in drawOrder {
-                let node = viewModel.simNodes[index]
+            // Nodes with glow + gradient, in the store's cached painter's order.
+            for index in viewModel.simulation.drawOrder where meta.indices.contains(index) && positions.indices.contains(index) {
+                let node = meta[index]
                 let isSelected = viewModel.selectedNodeIndex == index
                 let isHovered = viewModel.hoveredNodeIndex == index
                 let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
@@ -352,7 +348,7 @@ internal struct InteractiveGraphView: View {
                 let semanticNode = networkGraphSemantics?.node(id: node.id)
                 let base = semanticNode?.kind.map(GraphVisualStyle.nodeColor(forKind:))
                     ?? Self.typeColor(node.type)
-                let pos = node.position
+                let pos = positions[index]
 
                 if isConnected {
                     let glowR = r * (isSelected || isHovered ? 3.4 : 2.4)
@@ -408,7 +404,7 @@ internal struct InteractiveGraphView: View {
             // Labels (screen space, unscaled; culled at low zoom)
             context.transform = .identity
             let neighborSet = Set(viewModel.selectedNodeNeighbors())
-            for (index, node) in viewModel.simNodes.enumerated() {
+            for (index, node) in meta.enumerated() where positions.indices.contains(index) {
                 let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
                 guard isConnected else { continue }
                 let isAnchor = viewModel.selectedNodeIndex == index || viewModel.hoveredNodeIndex == index
@@ -416,8 +412,8 @@ internal struct InteractiveGraphView: View {
                 if viewModel.zoom < 0.7 && !isAnchor && !isNeighbor { continue }
                 let r = viewModel.nodeRadius(at: index)
                 let screenPos = CGPoint(
-                    x: node.position.x * viewModel.zoom + viewModel.panOffset.width + r * viewModel.zoom + 4,
-                    y: node.position.y * viewModel.zoom + viewModel.panOffset.height
+                    x: positions[index].x * viewModel.zoom + viewModel.panOffset.width + r * viewModel.zoom + 4,
+                    y: positions[index].y * viewModel.zoom + viewModel.panOffset.height
                 )
                 guard screenPos.x > -50, screenPos.x < size.width + 50,
                       screenPos.y > -20, screenPos.y < size.height + 20 else { continue }
@@ -552,7 +548,7 @@ internal struct InteractiveGraphView: View {
 
     @ViewBuilder
     private func selectionPanel(nodeIndex: Int) -> some View {
-        let node = viewModel.simNodes[nodeIndex]
+        let node = viewModel.nodeMeta[nodeIndex]
         let neighbors = viewModel.selectedNodeNeighbors()
 
         VStack(alignment: .leading, spacing: 0) {
@@ -601,8 +597,8 @@ internal struct InteractiveGraphView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(neighbors, id: \.self) { neighborIndex in
-                        if viewModel.simNodes.indices.contains(neighborIndex) {
-                            let neighbor = viewModel.simNodes[neighborIndex]
+                        if viewModel.nodeMeta.indices.contains(neighborIndex) {
+                            let neighbor = viewModel.nodeMeta[neighborIndex]
                             Button {
                                 viewModel.selectedNodeIndex = neighborIndex
                             } label: {

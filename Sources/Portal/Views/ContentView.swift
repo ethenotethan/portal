@@ -160,11 +160,13 @@ internal struct ContentView: View {
             if connected {
                 Task { await sessionList.refreshSessions() }
                 Task { await capabilitiesStore.refresh(using: gatewayClientWrapper.client) }
-                // Warm the wiki graph now, at connect, so the surface is already
-                // populated the first time it's opened instead of scanning on
-                // .onAppear and showing a blank "Loading…" until the round-trip
-                // returns. Guarded on an empty graph so a live graph is never
-                // re-fetched, and it's a no-op when nothing opens the wiki.
+                // Warm both halves of the wiki surface now, at connect: the
+                // graph data and the named-wiki registry that feeds its picker.
+                // Keeping their freshness guards independent prevents a warm
+                // default graph from leaving the dropdown stuck on "default".
+                if wikiViewModel.availableWikis.isEmpty {
+                    Task { await wikiViewModel.discoverWikis(client: gatewayClientWrapper.client) }
+                }
                 if wikiViewModel.graph.pages.isEmpty {
                     Task { await wikiViewModel.load(client: gatewayClientWrapper.client) }
                 }
@@ -381,6 +383,7 @@ internal struct ContentView: View {
                 showCronSheet = true
             }
         )
+        .equatable()
         .environmentObject(sessionList)
     }
 
@@ -1033,6 +1036,7 @@ internal struct ContentView: View {
                             showCronDashboard = true
                         }
                     )
+                    .equatable()
                     .environmentObject(sessionList)
                     .frame(width: macSidebarWidth)
                     // Creation feedback docks under the sidebar that owns the

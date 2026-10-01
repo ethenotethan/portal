@@ -40,8 +40,13 @@ private final class PageIntentBackendSpy: AgentBackend, @unchecked Sendable {
     var pagePrompts: [(sessionID: String, prompt: String)] { prompts.filter { $0.prompt.contains("attached to one of its pages") } }
     private(set) var submitted: [(sessionID: String, text: String)] = []
     var failPrompt = false
+    var createDelay: Duration?
+    var promptDelay: Duration?
 
     func createSession(cols: Int) async throws -> String {
+        if let createDelay {
+            try await Task.sleep(for: createDelay)
+        }
         let id = "sess-\(createdSessions.count + 1)"
         createdSessions.append(id)
         return id
@@ -55,6 +60,9 @@ private final class PageIntentBackendSpy: AgentBackend, @unchecked Sendable {
     func respondClarify(requestID: String, answer: String) async throws {}
     func setConfig(key: String, value: String, sessionID: String?) async throws {}
     func setEphemeralPrompt(sessionID: String, prompt: String) async throws {
+        if let promptDelay {
+            try await Task.sleep(for: promptDelay)
+        }
         if failPrompt { throw GatewayError.invalidResponse("prompt refused") }
         prompts.append((sessionID, prompt))
     }
@@ -208,6 +216,18 @@ internal struct PageIntentDockModelTests {
         PageIntentContext.wiki(name: name, availableWikis: [], selectedPage: nil, pinnedPaths: [], searchQuery: query, focusedEventKey: nil, pageCount: 1)
     }
 
+    /// Two `async let` children start in no guaranteed order: under a serialized
+    /// coverage run the second could begin before the first, "newest" was applied
+    /// and then overwritten by "first", and the test failed for a reason that had
+    /// nothing to do with the model. `preload` publishes its context synchronously
+    /// on entry, so waiting for that makes "first, then newest" the actual order.
+    private func untilPreloadBegan(_ model: PageIntentDockModel, query: String) async {
+        for _ in 0..<10_000 {
+            if model.context?.stateLines.contains("Search filter in effect: \"\(query)\"") == true { return }
+            await Task.yield()
+        }
+    }
+
     private func makeModel(backend: PageIntentBackendSpy, voice: DockVoiceFake) -> PageIntentDockModel {
         let model = PageIntentDockModel()
         model.configure(backend: backend)
@@ -219,38 +239,92 @@ internal struct PageIntentDockModelTests {
         return model
     }
 
-    @Test("open creates the session, sets the page prompt, primes once, and starts listening; reopen does not re-prime")
-    internal func openPrimesOnce() async {
+    @Test("the launcher offers distinct chat and voice expansion buttons")
+    internal func explicitModes() {
+        #expect(PageIntentMode.allCases == [.chat, .voice])
+        #expect(Set(PageIntentMode.allCases.map(\.title)).count == 2)
+        #expect(Set(PageIntentMode.allCases.map(\.systemImage)).count == 2)
+    }
+
+    @Test("overlapping preload refreshes share one session and finish on the newest context")
+    internal func overlappingPreloadsCoalesce() async {
+        let backend = PageIntentBackendSpy()
+        backend.createDelay = .milliseconds(100)
+        backend.promptDelay = .milliseconds(100)
+        let model = makeModel(backend: backend, voice: DockVoiceFake())
+
+        async let first: Void = model.preload(context: wikiContext("research", query: "first"))
+        await untilPreloadBegan(model, query: "first")
+        async let second: Void = model.preload(context: wikiContext("research", query: "newest"))
+        _ = await (first, second)
+
+        #expect(backend.createdSessions == ["sess-1"])
+        #expect(model.context?.stateLines.contains("Search filter in effect: \"newest\"") == true)
+        #expect(backend.pagePrompts.count == 1, "coalesced callers must not race duplicate prompt writes")
+        #expect(backend.pagePrompts.last?.prompt.contains("Search filter in effect: \"newest\"") == true)
+        #expect(backend.submitted.count == 1, "one scope receives one priming turn")
+    }
+
+    @Test("established session refreshes coalesce prompt writes")
+    internal func establishedSessionRefreshesCoalesce() async {
+        let backend = PageIntentBackendSpy()
+        let model = makeModel(backend: backend, voice: DockVoiceFake())
+        await model.preload(context: wikiContext("research"))
+        backend.promptDelay = .milliseconds(100)
+
+        async let first: Void = model.preload(context: wikiContext("research", query: "first"))
+        await untilPreloadBegan(model, query: "first")
+        async let newest: Void = model.preload(context: wikiContext("research", query: "newest"))
+        _ = await (first, newest)
+
+        #expect(backend.pagePrompts.count == 2, "initial prompt plus one coalesced refresh")
+        #expect(backend.pagePrompts.last?.prompt.contains("Search filter in effect: \"newest\"") == true)
+    }
+
+    @Test("preload prepares context without opening a mode; chat and voice expand only when explicitly selected")
+    internal func preloadThenExplicitMode() async {
         let backend = PageIntentBackendSpy()
         let voice = DockVoiceFake()
         let model = makeModel(backend: backend, voice: voice)
-        await model.open(context: wikiContext("research"))
-        #expect(model.isOpen)
-        #expect(model.activeScope == .wiki(name: "research"))
+
+        await model.preload(context: wikiContext("research"))
+
+        #expect(!model.isOpen)
+        #expect(model.activeScope == nil, "preloading must not activate a page mode")
         #expect(backend.createdSessions == ["sess-1"])
         #expect(backend.pagePrompts.count == 1)
         #expect(backend.pagePrompts.first?.prompt.contains("Wiki: research") == true)
         #expect(backend.pagePrompts.first?.prompt.hasPrefix(ChatViewModel.appFormattingPrompt) == true, "the chat's base prompt is kept, the page is appended")
         #expect(backend.submitted.count == 1)
         #expect(backend.submitted.first?.text.contains("Load the context for this page now") == true)
-        #expect(voice.conversationStarts == 1)
-        #expect(model.activeChat?.isConversationActive == true)
+        #expect(voice.conversationStarts == 0, "preloading context must not run the local voice model")
+        #expect(model.activeChat == nil)
+        #expect(model.openScopes == [.wiki(name: "research")])
         #expect(model.status == nil)
+
+        await model.open(context: wikiContext("research"), mode: .chat)
+        #expect(model.isOpen)
+        #expect(model.activeMode == .chat)
+        #expect(backend.createdSessions.count == 1, "chat expansion reuses the preloaded session")
+        #expect(backend.submitted.count == 1, "chat expansion does not wait on another priming turn")
+        #expect(voice.conversationStarts == 0, "chat expansion does not start voice")
+
         await model.close()
         #expect(!model.isOpen)
-        #expect(model.activeChat?.isConversationActive == false, "closing ends the mic")
-        await model.open(context: wikiContext("research"))
+        await model.open(context: wikiContext("research"), mode: .voice)
         #expect(backend.createdSessions.count == 1, "the session is kept across close/open")
         #expect(backend.submitted.count == 1, "priming happens once per scope")
         #expect(backend.pagePrompts.count == 1, "an unchanged context does not re-set the prompt")
-        #expect(voice.conversationStarts == 2)
+        #expect(model.activeMode == .voice)
+        #expect(voice.conversationStarts == 1, "voice starts only after the explicit voice expansion")
+        #expect(model.activeChat?.isConversationActive == true)
     }
 
     @Test("a changed context re-sets the prompt without re-priming; an equal one is ignored")
     internal func contextRefresh() async {
         let backend = PageIntentBackendSpy()
         let model = makeModel(backend: backend, voice: DockVoiceFake())
-        await model.open(context: wikiContext("research"))
+        await model.open(context: wikiContext("research"), mode: .chat)
         await model.refreshPrompt(wikiContext("research"))
         #expect(backend.pagePrompts.count == 1)
         await model.refreshPrompt(wikiContext("research", query: "mlx"))
@@ -272,10 +346,10 @@ internal struct PageIntentDockModelTests {
         let backend = PageIntentBackendSpy()
         let voice = DockVoiceFake()
         let model = makeModel(backend: backend, voice: voice)
-        await model.open(context: wikiContext("research"))
+        await model.open(context: wikiContext("research"), mode: .voice)
         let research = model.activeChat
         let cron = PageIntentContext.cronGraph(selectedNode: nil, collapsedGroups: [], showRevisions: false, nodeCount: 0, jobCount: 0)
-        await model.open(context: cron)
+        await model.open(context: cron, mode: .voice)
         #expect(model.activeScope == .cronGraph)
         #expect(backend.createdSessions == ["sess-1", "sess-2"])
         #expect(research?.isConversationActive == false, "one voice conversation at a time")
@@ -290,12 +364,12 @@ internal struct PageIntentDockModelTests {
         let voice = DockVoiceFake()
         voice.isEnabledAndAvailable = false
         let model = makeModel(backend: backend, voice: voice)
-        await model.open(context: wikiContext("ops"))
+        await model.open(context: wikiContext("ops"), mode: .voice)
         #expect(model.isOpen)
-        #expect(model.status == "Voice is unavailable here — type below.")
+        #expect(model.status == "Voice is unavailable here — choose Chat instead.")
         #expect(backend.submitted.count == 1, "priming still happens")
         let unconfigured = PageIntentDockModel()
-        await unconfigured.open(context: wikiContext("ops"))
+        await unconfigured.open(context: wikiContext("ops"), mode: .chat)
         #expect(unconfigured.status?.contains("No gateway client") == true)
         #expect(unconfigured.activeChat == nil)
     }
@@ -309,7 +383,7 @@ internal struct PageIntentDockModelTests {
         model.onOpenInChat = { handed.append($0) }
         model.openInChat()
         #expect(handed.isEmpty, "nothing to open before a session exists")
-        await model.open(context: wikiContext("research"))
+        await model.open(context: wikiContext("research"), mode: .chat)
         #expect(model.status?.contains("Could not send the page context") == true)
         model.openInChat()
         #expect(handed == ["sess-1"])

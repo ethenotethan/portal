@@ -168,4 +168,60 @@ internal struct SidebarRenderCostTests {
         #expect(store.localSessionIDs().contains(id))
         #expect(store.hasLocalMessages(forSession: id))
     }
+
+    // MARK: - The tiers are computed once per change, not once per render
+
+    @MainActor
+    private func viewModel(with sessions: [Session]) -> SessionListViewModel {
+        let vm = SessionListViewModel()
+        vm.sessions = sessions
+        return vm
+    }
+
+    @Test("the view model caches the tiers until its sessions change")
+    @MainActor
+    internal func tiersAreCachedUntilSessionsChange() {
+        let vm = viewModel(with: [session("a", lastActive: Date(timeIntervalSince1970: 1)), session("b", lastActive: Date(timeIntervalSince1970: 2))])
+        #expect(!vm.hasCachedSidebarSections, "nothing is sorted until the sidebar asks")
+        PerfCounter.reset()
+        let first = vm.sidebarSections()
+        for _ in 0..<20 { #expect(vm.sidebarSections() == first) }
+        #expect(vm.hasCachedSidebarSections)
+        #expect(first.mine.map(\.id) == ["b", "a"], "most recent first")
+        #if PERF_COUNTERS
+        #expect(PerfCounter.snapshot()["sessions.sidebarSort"] == 4, "one sort per tier, once, across twenty reads")
+        #endif
+    }
+
+    @Test("a pin, an archive, a run-state change or a refresh invalidates the tiers")
+    @MainActor
+    internal func mutationsInvalidateTheTiers() {
+        let vm = viewModel(with: [session("a", lastActive: Date(timeIntervalSince1970: 1)), session("b", lastActive: Date(timeIntervalSince1970: 2))])
+        _ = vm.sidebarSections()
+        vm.setPinned(true, for: "a")
+        #expect(!vm.hasCachedSidebarSections)
+        #expect(vm.sidebarSections().mine.map(\.id) == ["a", "b"], "the pinned row rises")
+        vm.archiveSession(id: "b")
+        #expect(!vm.hasCachedSidebarSections)
+        let afterArchive = vm.sidebarSections()
+        #expect(afterArchive.mine.map(\.id) == ["a"] && afterArchive.archived.map(\.id) == ["b"])
+        vm.setRunState(.streaming, for: "a")
+        #expect(!vm.hasCachedSidebarSections, "a live dot is a session mutation too")
+        _ = vm.sidebarSections()
+        vm.sessions = []
+        #expect(!vm.hasCachedSidebarSections)
+        #expect(vm.sidebarSections() == SessionSidebarSections())
+    }
+
+    @Test("the view's historical names still resolve to the model's partition")
+    internal func viewAliasesForwardToTheModel() {
+        let sections: SessionListView.SidebarSections = SessionListView.partition(
+            [session("mine"), session("theirs", gatewayID: nil, source: "telegram")],
+            includes: { _ in true }, sort: sortByRecency
+        )
+        #expect(sections == SessionSidebarSections.partition(
+            [session("mine"), session("theirs", gatewayID: nil, source: "telegram")],
+            includes: { _ in true }, sort: sortByRecency
+        ))
+    }
 }

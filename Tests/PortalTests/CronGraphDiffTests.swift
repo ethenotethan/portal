@@ -233,6 +233,17 @@ internal struct CronGraphDiffTests {
         ])
     }
 
+    @Test("a maintains edge reads as tending, not as delivering")
+    internal func maintainsEdgeHasItsOwnVerb() {
+        let nodes = [job("abc123", "sweep"), resource("artifact:bkk", "Bangkok")]
+        let before = CronGraph(nodes: nodes, edges: [])
+        let after = CronGraph(nodes: nodes, edges: [
+            CronGraphEdge(source: "abc123", target: "artifact:bkk", type: "maintains"),
+        ])
+        #expect(summaries(before, after) == ["sweep now maintains Bangkok"])
+        #expect(summaries(after, before) == ["sweep no longer maintains Bangkok"])
+    }
+
     @Test("retyping an edge is a removal plus an addition")
     internal func retypedEdgesAreTwoStatements() {
         // Edge identity includes the type, and it should: a job that used to write

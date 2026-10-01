@@ -169,4 +169,20 @@ internal struct ArchitectureSurfaceModelTests {
         #expect(ArchitectureSurfaceModel.checkSummary(bare) == "Check unavailable")
         #expect(ArchitectureSurfaceModel.friendly(GatewayError.notConnected) == GatewayError.notConnected.localizedDescription)
     }
+
+    @Test("unknown-method errors name the method and blame the gateway build, not the model")
+    internal func unknownMethodHint() {
+        let spelled = GatewayError.rpcError(JSONRPCError(code: 5024, message: "unknown method: architecture.diff"))
+        let hint = ArchitectureSurfaceModel.friendly(spelled)
+        #expect(hint.contains("`architecture.diff`"))
+        #expect(hint.contains("redeploy the gateway"))
+
+        let reserved = GatewayError.rpcError(JSONRPCError(code: -32601, message: "Method not found"))
+        #expect(ArchitectureSurfaceModel.unknownMethod(in: JSONRPCError(code: -32601, message: "Method not found")) == "this method")
+        #expect(ArchitectureSurfaceModel.friendly(reserved).contains("redeploy the gateway"))
+
+        let ordinary = GatewayError.rpcError(JSONRPCError(code: 4033, message: "no model compiled for portal"))
+        #expect(ArchitectureSurfaceModel.friendly(ordinary) == "no model compiled for portal")
+        #expect(ArchitectureSurfaceModel.unknownMethod(in: JSONRPCError(code: 4033, message: "no model compiled for portal")) == nil)
+    }
 }

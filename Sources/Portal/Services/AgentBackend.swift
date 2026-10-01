@@ -26,12 +26,30 @@ internal struct ResumedSession {
     internal var sessionID: String
     internal var messages: [[String: AnyCodable]]
     internal var inflight: InflightTurn?
+    /// The gateway's session-level verdict on whether a turn is running.
+    internal var running: ResumedTurnVerdict
 
-    internal init(sessionID: String, messages: [[String: AnyCodable]], inflight: InflightTurn? = nil) {
+    internal init(
+        sessionID: String,
+        messages: [[String: AnyCodable]],
+        inflight: InflightTurn? = nil,
+        running: ResumedTurnVerdict = .unknown
+    ) {
         self.sessionID = sessionID
         self.messages = messages
         self.inflight = inflight
+        self.running = running
     }
+}
+
+/// The gateway's session-level `running` flag from a `session.resume` reply.
+/// `.stopped` is an explicit "nothing in flight" (the harness always sends the
+/// flag); `.unknown` means the reply carried no verdict at all, which is not
+/// evidence that a locally observed turn has ended.
+internal enum ResumedTurnVerdict: Equatable {
+    case unknown
+    case running
+    case stopped
 }
 
 /// The turn a resumed session is running right now, as the gateway sees it.

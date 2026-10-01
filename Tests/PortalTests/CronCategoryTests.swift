@@ -103,9 +103,11 @@ internal struct CronCategoryTests {
         var refreshed = original
         refreshed.schedule = "every 15m"
         refreshed.lastStatus = "error"
+        let different = job("other")
 
         #expect(original == refreshed)
-        #expect(Set([original, refreshed]).count == 1)
+        #expect(original != different)
+        #expect(Set([original, refreshed, different]).count == 2)
     }
 
     // MARK: - Normalizing a typed name (rename == recategorize)

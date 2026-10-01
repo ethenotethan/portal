@@ -549,7 +549,12 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertEqual("artifacts", page_by_label["ArtifactStore"])
         self.assertEqual("skills", page_by_label["SkillStore"])
         # Started by the shell, reached by no page's view tree: placed by the namespace it invokes.
-        self.assertEqual("cron", page_by_label["CronPoller"])
+        # (CronPoller used to be this anchor; it now reaches cron.* through the
+        # CronPollSource seam, whose production adopter is GatewayClient, so the
+        # compiler attributes those calls to the transport and the poller is a
+        # scheduler, not a caller.)
+        self.assertEqual("settings", page_by_label["SessionMetaSyncService"])
+        self.assertNotIn("CronPoller", page_by_label)
         resolutions = {n["label"]: n.get("page_resolution") for n in interplay["nodes"] if "page_resolution" in n}
         # ChatViewModel is reachable from multiple navigation roots; the
         # declared chat-state component resolves that tie to the chat page.
@@ -627,7 +632,10 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertEqual(["pendingRequests"], call["guarded_resources"])
         # Resolution happens outside the lock; the pool mutation happens inside it.
         fulfill = [step["kind"] for step in sections["fulfillRequest"]["steps"]]
-        self.assertEqual(["acquire", "pool_remove", "release", "pool_resolve"], fulfill)
+        # `publish` is the late-response subject (`lateResponses.send`) that fires
+        # after the lock is released and before the continuation is resumed.
+        self.assertEqual(["acquire", "pool_remove", "release", "publish", "pool_resolve"], fulfill)
+        self.assertLess(fulfill.index("release"), fulfill.index("publish"))  # nothing is published under the lock
         self.assertEqual(["pendingRequests"], sections["fulfillRequest"]["guarded_resources"])
         self.assertIn("swift.lifecycle.pool_remove", self.model["evidence_metadata"]["rules"])
         self.assertTrue(call["steps"][1]["guarded"])

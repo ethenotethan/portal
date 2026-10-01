@@ -366,7 +366,7 @@
       ],
       "summary": "The canvas renders the living artifacts held by ArtifactStore, which loads and persists them as artifacts.json in Application Support. Opening an artifact's detail runs a .task that hands the gateway client to CronListViewModel and refreshes cron jobs over the cron namespace so maintainer info is current.",
       "title": "Open the Artifacts page",
-      "trigger": "trigger-7f334a7d5c59"
+      "trigger": "trigger-2b0e66e5fa92"
     },
     {
       "evidence": [
@@ -414,7 +414,7 @@
       ],
       "summary": "The user taps Pull to refresh an artifact into the store, or Remove to drop it. Both actions mutate ArtifactStore, which rewrites the artifact map to artifacts.json so the change survives relaunch.",
       "title": "Pull or remove an artifact on the canvas",
-      "trigger": "trigger-f3fa03caa7f4"
+      "trigger": "trigger-86901d8d660a"
     },
     {
       "evidence": [
@@ -546,7 +546,7 @@
       ],
       "summary": "The agent pauses and asks a question or requests tool approval. The user picks an option or types an answer in the banner. ChatViewModel sends the clarify (or approval) RPC through GatewayClient to the gateway, the pending request resolves, and the run resumes with new events flowing back on the eventStream.",
       "title": "Answer a clarification or approval request",
-      "trigger": "trigger-ba34e2c9dffb"
+      "trigger": "trigger-d63500514852"
     },
     {
       "evidence": [
@@ -634,7 +634,7 @@
       ],
       "summary": "While a reply is streaming, the user taps Stop. ChatViewModel sends a session interrupt RPC through GatewayClient to the gateway, which halts the run. A final event arrives on the eventStream, ChatViewModel clears the streaming flag, and SessionRunHistoryStore records the run end with its token and cost totals.",
       "title": "Stop a reply that is still streaming",
-      "trigger": "trigger-4f3df57045df"
+      "trigger": "trigger-8d1f61693619"
     },
     {
       "evidence": [
@@ -734,7 +734,7 @@
       ],
       "summary": "The user submits a prompt. ChatViewModel calls the prompt RPC through GatewayClient, which registers a pending continuation and sends the frame over the WebSocket to the Harness gateway. Streamed events come back on the AgentBackend eventStream, ChatViewModel appends deltas to the transcript, and ChatHistoryStore persists the session to disk.",
       "title": "Send a prompt and watch the reply stream in",
-      "trigger": "trigger-82504040d98d"
+      "trigger": "trigger-7936740a5d89"
     },
     {
       "evidence": [
@@ -822,7 +822,7 @@
       ],
       "summary": "The user taps the mic to record, then taps again to stop. ChatViewModel sends the captured audio through the voice RPC to the gateway for transcription and a run. Reply events return on the eventStream, and ChatViewModel drives TTSService to speak the streamed sentences on-device.",
       "title": "Speak a prompt and hear the reply",
-      "trigger": "trigger-a02de4ca4815"
+      "trigger": "trigger-c3fdc426a341"
     },
     {
       "evidence": [
@@ -1006,7 +1006,7 @@
       ],
       "summary": "The user swipes a row or taps Pause or Resume in the job detail. CronListViewModel sends a cron.manage request through the cron extension and the shared WebSocket; the gateway toggles the job's enabled state and the view model re-lists jobs so the row updates.",
       "title": "Pause or resume a job",
-      "trigger": "trigger-51ca406e086f"
+      "trigger": "trigger-6545d54aad13"
     },
     {
       "evidence": [
@@ -1190,7 +1190,7 @@
       ],
       "summary": "The user swipes to delete a row or taps Remove in the detail. CronListViewModel issues a cron.manage remove through the cron extension; the request is correlated in the pending pool, the gateway deletes the job, and the list refreshes without it.",
       "title": "Remove a job",
-      "trigger": "trigger-b72d0ed401b6"
+      "trigger": "trigger-c6c4888394f4"
     },
     {
       "evidence": [
@@ -1984,7 +1984,7 @@
       ],
       "summary": "The user selects a wiki and taps load. WikiGraphViewModel first shows any cached WikiGraph from Application Support, then requests a fresh scan through the wiki JSON-RPC namespace on the Harness gateway and stores the result back in the cache for the next visit.",
       "title": "Pick a wiki and load its graph",
-      "trigger": "trigger-e728c9c6595f"
+      "trigger": "trigger-d6b6a92c6e3f"
     },
     {
       "evidence": [
@@ -2082,7 +2082,7 @@
       ],
       "summary": "The Graphs page appears. CronInterflowGraphView's onAppear asks CronGraphViewModel to load the cron interflow graph over the cron JSON-RPC namespace, records the observed configuration in CronGraphRevisionStore, and GraphsView's task seeds CronRunHistoryStore so run badges and history are ready.",
       "title": "Open the Graphs page",
-      "trigger": "trigger-801347710668"
+      "trigger": "trigger-29f4fd19d3c1"
     },
     {
       "evidence": [
@@ -2176,7 +2176,7 @@
       ],
       "summary": "The user taps the refresh button. CronGraphViewModel re-issues the cron graph and changeset calls through GatewayClient, which registers a pending continuation, sends the frame over the WebSocket, resolves the reply when the gateway responds, and appends any new configuration to the revision store.",
       "title": "Refresh the cron interflow graph",
-      "trigger": "trigger-4e1b37cf8158"
+      "trigger": "trigger-2a55cb104ddf"
     },
     {
       "evidence": [

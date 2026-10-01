@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let interactionLog = PortalLogger(category: "WikiGraphViewModel")
+
 // MARK: - Canvas hit-testing & tap selection
 //
 // The pointer surface for the 2D canvas: mapping a screen point to a node,
@@ -9,6 +11,15 @@ import SwiftUI
 // mutate.
 
 extension WikiGraphViewModel {
+
+    internal func discoverWikis(client: GatewayClient) async {
+        let generation = wikiDiscoveryGeneration
+        do {
+            let wikis = try await client.wikiList()
+            guard isCurrentWikiDiscovery(generation) else { return }
+            availableWikis = wikis.map(\.name)
+        } catch { interactionLog.warning("wiki.list failed: \(error.localizedDescription)") }
+    }
 
     /// Keep picker state and graph-load ordering in lockstep. Picker actions
     /// run synchronously, while scans run in unstructured tasks; assigning the
@@ -29,16 +40,16 @@ extension WikiGraphViewModel {
     }
 
     /// The topmost node under a canvas point in model space, or nil for empty
-    /// canvas. Walks back-to-front so the visually-on-top node wins a tie.
+    /// canvas. Queries the simulation store's spatial grid — the cell under the
+    /// cursor and its eight neighbours — instead of walking every node; the
+    /// highest index still wins a tie, as the old back-to-front walk did.
     internal func hitTest(point: CGPoint) -> Int? {
         let mx = (point.width - panOffset.width) / zoom
         let my = (point.height - panOffset.height) / zoom
-        let modelPoint = CGPoint(x: mx, y: my)
-        for (index, node) in simNodes.enumerated().reversed() {
-            let r = nodeRadius(for: node.type) + 4
-            if abs(node.position.x - modelPoint.x) < r && abs(node.position.y - modelPoint.y) < r { return index }
+        let meta = nodeMeta
+        return simulation.hitTest(modelPoint: CGPoint(x: mx, y: my)) { index in
+            (meta.indices.contains(index) ? nodeRadius(for: meta[index].type) : 5) + 4
         }
-        return nil
     }
 
     internal func handleTap(at point: CGPoint) {

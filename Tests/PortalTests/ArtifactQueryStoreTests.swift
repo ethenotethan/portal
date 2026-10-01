@@ -26,13 +26,27 @@ private final class FakeQueryGateway: ArtifactGateway {
     private(set) var setCalls: [(title: String?, replace: Bool)] = []
     private(set) var actionLogCalls: [(bindingID: String?, limit: Int)] = []
 
+    /// When true, `artifactQueryInvoke` parks until `releaseInvokes()` — the
+    /// slow-gateway case where change events arrive mid-fetch.
+    var holdInvokes = false
+    private var heldInvokes: [CheckedContinuation<Void, Never>] = []
+
     func artifactQueryInvoke(
         artifactID: String, artifactRev: Int, queryID: String,
         params: [String: AnyCodable], cursor: String?
     ) async throws -> ArtifactQueryResult? {
         invokeCalls.append((artifactRev, queryID, params, cursor))
+        if holdInvokes {
+            await withCheckedContinuation { heldInvokes.append($0) }
+        }
         if let invokeError { throw invokeError }
         return invokeResult
+    }
+
+    func releaseInvokes() {
+        let waiting = heldInvokes
+        heldInvokes = []
+        for continuation in waiting { continuation.resume() }
     }
 
     func artifactQuerySubscribe(
@@ -331,5 +345,97 @@ private struct ArtifactQueryStoreTests {
             Issue.record("expected failed, got \(String(describing: store.queryStates[slot("once", "{}")]))")
             return
         }
+    }
+}
+
+// Change-event bursts against a slow gateway: at most one invoke in flight per
+// slot, one follow-up for everything that arrived meanwhile, nothing for a
+// page that has since gone away.
+@Suite("Artifact query coalescing")
+@MainActor
+private struct ArtifactQueryCoalescingTests {
+    private static let queries = ArtifactQuery.parse([
+        ["id": "rows", "query": "artifact.rows", "params": [:], "live": ["mode": "poll", "interval_s": 5]],
+    ])
+
+    private func makeStore() -> (ArtifactStore, FakeQueryGateway) {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("artifact-coalesce-tests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = ArtifactStore(fileURL: dir.appendingPathComponent("artifacts.json"))
+        store.seedArtifactForTesting(LivingArtifact(
+            id: "dash", kind: "html", title: "Dash", content: "<html/>",
+            updatedAt: Date(timeIntervalSince1970: 0), updatedBy: "test", rev: 3,
+            queries: Self.queries))
+        let fake = FakeQueryGateway()
+        fake.subscribeResult = ArtifactQueryResult(
+            outcome: .ok(data: .dictionary([:]), etag: "e1", nextCursor: nil), subscription: "h1")
+        fake.invokeResult = ArtifactQueryResult(
+            outcome: .ok(data: .dictionary([:]), etag: "e2", nextCursor: nil), subscription: nil)
+        store.injectClientForTesting(fake)
+        return (store, fake)
+    }
+
+    private let slot = ArtifactStore.QuerySlot(artifactID: "dash", queryID: "rows", rawParams: "", rawCursor: "")
+
+    private func settle(_ predicate: @escaping () -> Bool) async {
+        for _ in 0..<10_000 where !predicate() { await Task.yield() }
+    }
+
+    private func change(_ store: ArtifactStore) {
+        store.applyGatewayEventForTesting(
+            .artifactQueryChanged(artifactID: "dash", queryID: "rows", status: "ok", reason: ""))
+    }
+
+    @Test("a burst of change events during one fetch costs one follow-up, not one fetch each")
+    internal func burstCoalesces() async {
+        let (store, fake) = makeStore()
+        store.runQuery(artifactID: "dash", queryID: "rows", rawParams: "")
+        await settle { fake.subscribeCalls.count == 1 && store.queryStates[self.slot] != .loading }
+
+        fake.holdInvokes = true
+        change(store)
+        await settle { fake.invokeCalls.count == 1 }
+        change(store)
+        change(store)
+        change(store)
+        await Task.yield()
+        #expect(fake.invokeCalls.count == 1, "changes during an in-flight invoke must not stack")
+
+        // The first invoke lands: exactly one follow-up starts (still held).
+        fake.releaseInvokes()
+        await settle { fake.invokeCalls.count == 2 }
+        await Task.yield()
+        #expect(fake.invokeCalls.count == 2)
+
+        // The follow-up lands with nothing new pending: the slot goes idle.
+        fake.holdInvokes = false
+        fake.releaseInvokes()
+        await settle { store.queryStates[self.slot] == .ok(payload: "{}", etag: "e2", nextCursor: nil) }
+        await Task.yield()
+        #expect(fake.invokeCalls.count == 2)
+
+        // Idle again: the next change fetches immediately.
+        change(store)
+        await settle { fake.invokeCalls.count == 3 }
+    }
+
+    @Test("a page released mid-fetch gets no follow-up even if changes arrived")
+    internal func releaseDropsPendingRefetch() async {
+        let (store, fake) = makeStore()
+        store.runQuery(artifactID: "dash", queryID: "rows", rawParams: "")
+        await settle { fake.subscribeCalls.count == 1 && store.queryStates[self.slot] != .loading }
+
+        fake.holdInvokes = true
+        change(store)
+        await settle { fake.invokeCalls.count == 1 }
+        change(store)
+        store.releaseQueries(artifactID: "dash")
+        fake.holdInvokes = false
+        fake.releaseInvokes()
+        await settle { fake.unsubscribed == ["h1"] }
+        for _ in 0..<50 { await Task.yield() }
+        #expect(fake.invokeCalls.count == 1)
+        #expect(store.queryStates[slot] == nil)
     }
 }

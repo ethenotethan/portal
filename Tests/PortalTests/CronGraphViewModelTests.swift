@@ -17,6 +17,27 @@ internal struct CronGraphViewModelTests {
         return vm
     }
 
+    @Test("expanded legend occupies at most one eighth of a large graph")
+    internal func expandedLegendStaysWithinOneEighthOfLargeGraph() {
+        let graphSize = CGSize(width: 1_200, height: 800)
+
+        let legendSize = CronGraphLegendLayout.expandedSize(in: graphSize)
+
+        #expect(legendSize == CGSize(width: 300, height: 400))
+        #expect(legendSize.width * legendSize.height <= graphSize.width * graphSize.height / 8)
+    }
+
+    @Test("runtime legend reserves the page-intent session toggle footprint")
+    internal func runtimeLegendClearsPageIntentToggle() {
+        let pageIntentWidth = PageIntentDockButton.reservedWidth
+        let graphTrailingEdge: CGFloat = 1_000
+        let legendTrailingEdge = graphTrailingEdge
+            - CronGraphLegendLayout.trailingPadding(reserving: pageIntentWidth)
+        let pageIntentLeadingEdge = graphTrailingEdge - pageIntentWidth
+
+        #expect(legendTrailingEdge < pageIntentLeadingEdge)
+    }
+
     // MARK: - selectNode(withID:)
 
     @Test("selectNode(withID:) selects the node carrying that id")
@@ -313,6 +334,61 @@ internal struct CronGraphViewModelTests {
         for flow in ["reads", "writes", "feeds", "notify"] {
             #expect(!vm.edgeIsContainment(flow))
         }
+    }
+
+    @Test("maintains is a structural edge in the artifact hue, listed between Writes and Feeds")
+    internal func maintainsEdgeIsStructuralAndArtifactTinted() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                cron("job", "job"),
+                cron("downstream", "downstream"),
+                CronGraphNode(id: "artifact:bkk", kind: "artifact", type: "artifact", label: "Bangkok",
+                              description: "", schedule: nil, enabled: true, usesLLM: false,
+                              lastStatus: nil, deliver: nil, artifactID: "bkk", artifactKind: "map",
+                              rev: 3, updatedAt: nil, updatedBy: "cron:job", maintainers: ["cron:job"]),
+                CronGraphNode(id: "telegram:x", kind: "sink", type: "telegram", label: "x", description: "",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: [
+                CronGraphEdge(source: "job", target: "artifact:bkk", type: "writes"),
+                CronGraphEdge(source: "job", target: "artifact:bkk", type: "maintains"),
+                CronGraphEdge(source: "job", target: "downstream", type: "feeds"),
+                CronGraphEdge(source: "job", target: "telegram:x", type: "notify"),
+            ]
+        ))
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+
+        // Its own legend row in dataflow order — never folded into "Delivers".
+        let legend = vm.edgeLegend
+        #expect(legend.map(\.type) == ["writes", "maintains", "feeds", "deliver"])
+        #expect(legend.map(\.label) == ["Writes", "Maintains", "Feeds", "Delivers"])
+        #expect(CronGraphViewModel.structuralEdgeLegend.map(\.type) == ["reads", "writes", "maintains", "feeds", "hosts"])
+
+        // "Who tends this artifact" reads in artifact orange, distinct from dataflow violet and the sink tint.
+        #expect(vm.edgeColor(forType: "maintains") == vm.color(forKind: "artifact"))
+        #expect(vm.edgeColor(forType: "maintains") != vm.edgeColor(forType: "writes"))
+        #expect(vm.edgeColor(forType: "maintains") != vm.edgeColor(forType: "notify"))
+        // Data does move along it, so it keeps its arrowhead.
+        #expect(!vm.edgeIsContainment("maintains"))
+    }
+
+    @Test("a maintains-only graph does not show a Delivers row")
+    internal func maintainsAloneIsNotADelivery() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                cron("job", "job"),
+                CronGraphNode(id: "artifact:bkk", kind: "artifact", type: "artifact", label: "Bangkok",
+                              description: "", schedule: nil, enabled: true, usesLLM: false,
+                              lastStatus: nil, deliver: nil, artifactID: "bkk"),
+            ],
+            edges: [CronGraphEdge(source: "job", target: "artifact:bkk", type: "maintains")]
+        ))
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+        #expect(vm.edgeLegend.map(\.type) == ["maintains"])
     }
 
     @Test("SPO relationships render as relationships rather than deliveries")

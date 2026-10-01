@@ -438,7 +438,7 @@
         "title": "Performance op-counts",
         "job": "ratchet/performance",
         "source": {"kind": "perf", "path": "perf-baseline.json"},
-        "measures": "Deterministic counts (not time) under -DPERF_COUNTERS over fixed fixtures: algorithmic operations in the hot pure layout paths, SwiftUI body evaluations of the artifact views on mount and after one state change, and hosting-view layout passes to settle.",
+        "measures": "Deterministic counts (not time) under -DPERF_COUNTERS over fixed fixtures: algorithmic operations in the hot pure layout paths, and SwiftUI body evaluations of the artifact views on mount and after one state change.",
         "floor": "Every counter at most base; the ceiling is read from base via git show.",
         "patch": null
       },

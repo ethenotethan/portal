@@ -19,8 +19,16 @@ internal struct WikiGraphControlsBar: View {
     /// Events entry unrenderable on the harness.
     internal let hasEventsSurface: Bool
     internal let onRefresh: () -> Void
+    /// Whether the graph stats card is shown; persisted by the owner.
+    @Binding internal var showStats: Bool
+
+    /// Zoom readout, fed by the store's zoom publisher (deduplicated) so the
+    /// bar re-renders when the zoom changes — never on a physics frame, pan or
+    /// hover, which also live on the store.
+    @State private var zoomPercent: Int?
 
     internal var body: some View {
+        let _ = PerfCounter.tick("view.body.WikiGraphControlsBar")
         HStack(spacing: 6) {
             if !viewModel.is3D {
                 zoomCluster
@@ -53,6 +61,10 @@ internal struct WikiGraphControlsBar: View {
         }
         .foregroundStyle(Theme.secondary)
         .padding(12)
+        .onReceive(viewModel.simulation.$zoom.removeDuplicates()) { zoom in
+            let percent = Int(zoom * 100)
+            if zoomPercent != percent { zoomPercent = percent }
+        }
     }
 
     // MARK: - Zoom (2D canvas only; SceneKit owns the 3D camera)
@@ -67,7 +79,7 @@ internal struct WikiGraphControlsBar: View {
             }
             .buttonStyle(.borderless)
 
-            Text("\(Int(viewModel.zoom * 100))%")
+            Text("\(zoomPercent ?? Int(viewModel.zoom * 100))%")
                 .font(.caption2.monospacedDigit())
                 .frame(minWidth: 32)
 
@@ -124,6 +136,18 @@ internal struct WikiGraphControlsBar: View {
         }
         .buttonStyle(.borderless)
         .help(viewModel.showFileTree ? "Hide page browser" : "Browse pages")
+
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showStats.toggle()
+            }
+        } label: {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(showStats ? Theme.accent : Theme.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help(showStats ? "Hide graph stats" : "Graph stats — nodes, edges, structure")
 
         historyControl
     }

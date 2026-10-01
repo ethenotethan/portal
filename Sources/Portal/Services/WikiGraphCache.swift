@@ -9,14 +9,21 @@ private let log = PortalLogger(category: "WikiGraphCache")
 /// immediately, then refreshes it in the background from `wiki.scan`.
 ///
 /// All disk access runs OFF the main actor. Reads hop to a detached task and
-/// hand the decoded graph back; writes are fire-and-forget on a background
-/// task. The view model only ever calls these async/void methods, so it never
-/// performs synchronous file I/O itself (`no_sync_io_on_main`).
+/// hand the decoded graph back; writes are fire-and-forget on one serial
+/// background queue, so two stores to the same key land in the order they were
+/// made (detached tasks carry no such guarantee, and a later store racing an
+/// earlier one would leave the older graph on disk). The view model only ever
+/// calls these async/void methods, so it never performs synchronous file I/O
+/// itself (`no_sync_io_on_main`).
 internal struct WikiGraphCache {
 
     /// Directory holding one JSON file per cache key. Overridable so tests
     /// drive a scratch dir instead of Application Support.
     private let directory: URL
+
+    /// One FIFO for every cache's writes: ordering between stores is the point,
+    /// and a single background queue is cheaper than one per instance.
+    private static let writes = DispatchQueue(label: "com.ethenotethan.Portal.wiki-graph-cache", qos: .background)
 
     internal init(directory: URL? = nil) {
         if let directory {
@@ -50,13 +57,14 @@ internal struct WikiGraphCache {
         }.value
     }
 
-    /// Persist the graph for (identity, wiki). Fire-and-forget on a background
-    /// task; a write failure is logged, never surfaced (the cache is a pure
-    /// optimization — the live scan is the source of truth).
+    /// Persist the graph for (identity, wiki). Fire-and-forget on the serial
+    /// write queue (encoding included, so the caller never blocks); a write
+    /// failure is logged, never surfaced (the cache is a pure optimization — the
+    /// live scan is the source of truth).
     internal func store(_ graph: WikiGraph, identity: String, wiki: String?) {
         let url = fileURL(identity: identity, wiki: wiki)
         let dir = directory
-        Task.detached(priority: .background) {
+        Self.writes.async {
             do {
                 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                 let data = try JSONEncoder().encode(graph)
@@ -64,6 +72,16 @@ internal struct WikiGraphCache {
             } catch {
                 log.error("wiki graph cache write failed: \(error.localizedDescription)")
             }
+        }
+    }
+
+    /// Resolves once every store issued before the call has been written (or
+    /// has failed and been logged). The queue is FIFO, so waiting for a marker
+    /// enqueued now waits for everything ahead of it. Used by tests; production
+    /// code never needs to know when a write lands.
+    internal func flush() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            Self.writes.async { continuation.resume() }
         }
     }
 

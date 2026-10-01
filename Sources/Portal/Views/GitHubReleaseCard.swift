@@ -69,9 +69,17 @@ internal struct GitHubReleaseCard: View {
 
             if let releaseBody {
                 VStack(alignment: .leading, spacing: 0) {
-                    MarkdownContentView(text: releaseBody)
-                        .lineLimit(isExpanded ? nil : 8)
-                        .clipped()
+                    if isExpanded {
+                        MarkdownContentView(text: releaseBody)
+                    } else {
+                        // MarkdownContentView is a stack of independently
+                        // rendered blocks, so an inherited line limit still
+                        // lets a long release occupy the whole viewport.
+                        MarkdownText(text: releaseBody)
+                            .foregroundStyle(Theme.secondary)
+                            .lineLimit(5)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(.top, 6)
 

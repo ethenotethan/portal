@@ -30,6 +30,9 @@ internal struct WikiGraphView: View {
     /// plain title, so the view still stands alone.
     internal var surfaceSelection: Binding<GraphSurface>?
 
+    /// The stats card toggle, remembered per graph surface.
+    @AppStorage("portal.graphStats.wiki") private var showGraphStats = false
+
     @ObservedObject internal var viewModel: WikiGraphViewModel
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
@@ -84,9 +87,10 @@ internal struct WikiGraphView: View {
     @State private var showWikiPicker = false
     @State private var showGlossaryEditor = false
     @State private var glossaryWikiAtOpen: String?
-    @State private var lastPinchScale: CGFloat = 1.0
-
-    private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+    /// Zoom at the start of the current pinch; nil between gestures. Read from
+    /// the simulation store on the first change so this view never has to
+    /// observe the camera (which moves per gesture event).
+    @State private var pinchBaseZoom: CGFloat?
 
     #if os(macOS)
     private let sidebarWidth: CGFloat = 240
@@ -118,17 +122,12 @@ internal struct WikiGraphView: View {
     // MARK: - Body
 
     internal var body: some View {
+        // The simulation clock lives on WikiSimulationStore: a Task that runs
+        // only while something is integrating. Nothing here fires per frame.
+        let _ = PerfCounter.tick("view.body.WikiGraphView")
         adaptiveLayout
             .background(Theme.background)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onReceive(timer) { _ in
-                guard !viewModel.isSettling else { return }
-                guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
-                viewModel.tick()
-            }
-            .onChange(of: viewModel.zoom) { _, _ in
-                lastPinchScale = viewModel.zoom
-            }
             .sheet(isPresented: $showWikiPicker) {
                 WikiPathPickerSheet(
                     selectedPath: $viewModel.selectedWikiPath,
@@ -367,8 +366,17 @@ internal struct WikiGraphView: View {
                     showGlossaryEditor = true
                 } : nil,
                 hasEventsSurface: hasEventsSurface,
-                onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } }
+                onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } },
+                showStats: $showGraphStats
             )
+        }
+        .overlay(alignment: .bottomLeading) {
+            if showGraphStats {
+                GraphStatsPanel(title: "Wiki graph", stats: viewModel.graphStats)
+                    .equatable()
+                    .padding(12)
+                    .transition(.opacity)
+            }
         }
     }
 
@@ -455,8 +463,9 @@ internal struct WikiGraphView: View {
     private var pinchGesture: some Gesture {
         MagnificationGesture()
             .onChanged { value in
-                let targetZoom = lastPinchScale * value
-                let clamped = max(0.3, min(5.0, targetZoom))
+                let base = pinchBaseZoom ?? viewModel.zoom
+                if pinchBaseZoom == nil { pinchBaseZoom = base }
+                let clamped = max(0.3, min(5.0, base * value))
                 let oldZoom = viewModel.zoom
                 guard abs(clamped - oldZoom) > 0.001 else { return }
                 let c = CGPoint(x: viewModel.canvasSize.width / 2,
@@ -464,7 +473,7 @@ internal struct WikiGraphView: View {
                 viewModel.zoomAtPoint(factor: clamped / oldZoom, around: c)
             }
             .onEnded { _ in
-                lastPinchScale = viewModel.zoom
+                pinchBaseZoom = nil
             }
     }
 
@@ -492,7 +501,7 @@ internal struct WikiGraphView: View {
                     Image(systemName: "line.3.horizontal.decrease")
                         .font(.caption2)
                         .foregroundStyle(Theme.accent)
-                    Text("\(viewModel.filteredNodeIndices.count) of \(viewModel.simNodes.count) nodes")
+                    Text("\(viewModel.filteredNodeIndices.count) of \(viewModel.nodeMeta.count) nodes")
                         .font(.caption2)
                         .foregroundStyle(Theme.accent)
                     Button {

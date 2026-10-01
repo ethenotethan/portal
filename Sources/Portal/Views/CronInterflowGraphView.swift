@@ -35,11 +35,18 @@ internal struct CronInterflowGraphView: View {
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
     private let healthTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
-    /// Whether the bottom-left legend is expanded. Persisted so the choice sticks
+    /// Whether the bottom-right legend is expanded. Persisted so the choice sticks
     /// across launches and stays in step between the inline panel and the
     /// full-screen surface. The legend stacks kinds, cron categories, and group
     /// toggles, so on a busy graph folding it away reclaims real estate.
     @AppStorage("cronGraphLegendExpanded") private var isLegendExpanded = true
+    /// The stats card toggle, remembered per graph surface.
+    @AppStorage("portal.graphStats.cron") private var showGraphStats = false
+    /// The living artifacts this app knows — decides whether an `artifact:<id>`
+    /// node in the dock can offer "Open artifact".
+    @ObservedObject private var artifactStore = ArtifactStore.shared
+    /// The living artifact opened from the dock, shown over the graph.
+    @State private var presentedArtifact: LivingArtifact?
 
     internal var body: some View {
         ZStack {
@@ -56,6 +63,7 @@ internal struct CronInterflowGraphView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .cronArtifactPresentation($presentedArtifact)
         .onReceive(timer) { _ in
             guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
             viewModel.tick()
@@ -95,6 +103,7 @@ internal struct CronInterflowGraphView: View {
                 CronGraphCanvas(viewModel: viewModel)
                 legendOverlay
                 controlsOverlay
+                statsOverlay
             }
             if showsInlineDetailCard, let node = viewModel.selectedNode {
                 Divider().overlay(Theme.border)
@@ -160,6 +169,10 @@ internal struct CronInterflowGraphView: View {
             HStack(spacing: 10) {
                 commitmentChip
                 Spacer()
+                controlButton(system: "chart.bar.doc.horizontal", isActive: showGraphStats) {
+                    showGraphStats.toggle()
+                }
+                .help(showGraphStats ? "Hide graph stats" : "Graph stats — nodes, edges, structure")
                 controlButton(system: "clock.arrow.circlepath",
                               isActive: viewModel.showRevisions) {
                     viewModel.showRevisions.toggle()
@@ -193,6 +206,22 @@ internal struct CronInterflowGraphView: View {
             Spacer()
         }
         .padding(14)
+    }
+
+    @ViewBuilder
+    private var statsOverlay: some View {
+        if showGraphStats {
+            VStack {
+                Spacer()
+                HStack {
+                    GraphStatsPanel(title: "Runtime graph", stats: viewModel.graphStats)
+                        .equatable()
+                    Spacer()
+                }
+            }
+            .padding(14)
+            .transition(.opacity)
+        }
     }
 
     /// The graph's commitment — a content address for the dataflow as
@@ -266,37 +295,37 @@ internal struct CronInterflowGraphView: View {
     }
 
     private var legendOverlay: some View {
-        VStack {
-            Spacer()
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    legendHeader
-                    if isLegendExpanded {
-                        ForEach(CronGraphViewModel.legend, id: \.kind) { entry in
-                            HStack(spacing: 7) {
-                                CronNodeGlyphShape(glyph: viewModel.glyph(forKind: entry.kind))
-                                    .fill(viewModel.color(forKind: entry.kind))
-                                    .frame(width: 11, height: 11)
-                                Text(entry.label)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(Theme.secondary)
+        GeometryReader { geometry in
+            let expandedSize = CronGraphLegendLayout.expandedSize(in: geometry.size)
+            VStack(alignment: .leading, spacing: 6) {
+                legendHeader
+                if isLegendExpanded {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(CronGraphViewModel.legend, id: \.kind) { entry in
+                                HStack(spacing: 7) {
+                                    CronNodeGlyphShape(glyph: viewModel.glyph(forKind: entry.kind))
+                                        .fill(viewModel.color(forKind: entry.kind))
+                                        .frame(width: 11, height: 11)
+                                    Text(entry.label)
+                                        .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondary)
+                                }
                             }
+                            edgeLegendRows
+                            categoryLegendRows
+                            groupToggleRows
                         }
-                        edgeLegendRows
-                        categoryLegendRows
-                        groupToggleRows
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(10)
-                .background(Theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 9)
-                        .stroke(Theme.secondary.opacity(0.15), lineWidth: 1)
-                )
-                Spacer()
             }
+            .padding(10).frame(width: isLegendExpanded ? expandedSize.width : nil, alignment: .leading)
+            .frame(maxHeight: isLegendExpanded ? expandedSize.height : nil, alignment: .topLeading)
+            .background(Theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.secondary.opacity(0.15), lineWidth: 1))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .padding(CronGraphLegendLayout.insets(reserving: PageIntentDockButton.reservedWidth))
         }
-        .padding(14)
     }
 
     /// The legend's toggle: the whole row is the hit target, so a single click
@@ -471,6 +500,9 @@ internal struct CronInterflowGraphView: View {
                     if let health = node.health {
                         CronServiceHealthDetails(health: health)
                     }
+                    if node.isLivingArtifact {
+                        artifactDetails(node)
+                    }
                     if !node.sourceFiles.isEmpty {
                         sourceFilesList(node.sourceFiles)
                     }
@@ -634,5 +666,132 @@ internal struct CronInterflowGraphView: View {
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
         }
+    }
+}
+
+// MARK: - Living artifact dock rows
+
+extension CronInterflowGraphView {
+    /// A living artifact's record — kind, revision, last writer, declared
+    /// maintainers — and the hop into the artifact itself when this app holds
+    /// it. Maintainers that are jobs on the graph re-select that job, the same
+    /// walk the connections list offers; one naming a job the graph lacks is
+    /// shown by its raw id so a stale declaration is visible rather than lost.
+    @ViewBuilder
+    private func artifactDetails(_ node: CronGraphNode) -> some View {
+        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
+        Text("Artifact")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(Theme.secondary.opacity(0.7))
+        HStack(spacing: 6) {
+            if let artifactKind = node.artifactKind {
+                Text(artifactKind)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(viewModel.color(forKind: "artifact"))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(viewModel.color(forKind: "artifact").opacity(0.15), in: Capsule())
+            }
+            if let rev = node.rev {
+                Text("rev \(rev)")
+                    .font(.system(size: 9, design: .monospaced))
+                    .monospaced()
+                    .foregroundStyle(Theme.tertiary)
+            }
+        }
+        if let updatedBy = node.updatedBy {
+            let when = node.updatedAtDate?.relativeString ?? node.updatedAt ?? "at an unknown time"
+            detailRow(icon: "clock.arrow.circlepath",
+                      value: "updated \(when) by \(viewModel.graph.actorLabel(for: updatedBy))")
+        }
+        if !node.maintainerRefs.isEmpty {
+            Text("Maintained by")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Theme.secondary.opacity(0.7))
+            ForEach(node.maintainerRefs) { ref in
+                maintainerRow(ref)
+            }
+        }
+        if let artifactID = node.artifactID, let artifact = artifactStore.artifacts[artifactID] {
+            Button {
+                presentedArtifact = artifact
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "arrow.up.forward.square")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 12)
+                    Text("Open artifact")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                    Spacer(minLength: 4)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("runtime.graph.open-artifact")
+            .help("Open this artifact")
+        }
+    }
+
+    @ViewBuilder
+    private func maintainerRow(_ ref: MaintainerRef) -> some View {
+        let label = viewModel.graph.actorLabel(for: ref.raw)
+        if case .cron(let jobID) = ref, viewModel.simNodes.contains(where: { $0.id == jobID }) {
+            Button { viewModel.selectNode(withID: jobID) } label: {
+                HStack(spacing: 7) {
+                    CronNodeGlyphShape(glyph: viewModel.glyph(forKind: "cron"))
+                        .fill(viewModel.nodeColor(kind: "cron", label: label))
+                        .frame(width: 9, height: 9)
+                    Text(label)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 7) {
+                Image(systemName: "wrench.and.screwdriver")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(width: 12)
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+}
+
+internal enum CronGraphLegendLayout {
+    internal static let edgePadding: CGFloat = 14
+    internal static let maximumWidth: CGFloat = 300
+    internal static let minimumWidth: CGFloat = 220
+    internal static let maximumHeight: CGFloat = 420
+    internal static let minimumHeight: CGFloat = 180
+
+    internal static func expandedSize(in availableSize: CGSize) -> CGSize {
+        let usableWidth = max(0, availableSize.width - edgePadding * 2)
+        let usableHeight = max(0, availableSize.height - edgePadding * 2)
+        let preferredWidth = max(minimumWidth, availableSize.width * 0.25)
+        let preferredHeight = max(minimumHeight, availableSize.height * 0.5)
+        return CGSize(
+            width: min(usableWidth, min(maximumWidth, preferredWidth)),
+            height: min(usableHeight, min(maximumHeight, preferredHeight))
+        )
+    }
+
+    internal static func trailingPadding(reserving reservedWidth: CGFloat) -> CGFloat {
+        edgePadding + max(0, reservedWidth)
+    }
+
+    internal static func insets(reserving reservedWidth: CGFloat) -> EdgeInsets {
+        EdgeInsets(top: edgePadding, leading: edgePadding, bottom: edgePadding,
+                   trailing: trailingPadding(reserving: reservedWidth))
     }
 }
