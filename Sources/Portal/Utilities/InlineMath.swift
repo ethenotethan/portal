@@ -11,10 +11,10 @@ import Foundation
 /// - Currency stays untouched: a span must not begin or end with
 ///   whitespace ("$5 and $10" never matches).
 /// - Display math ($$…$$) is untouched — MathView typesets it properly.
-enum InlineMath {
+internal enum InlineMath {
 
     /// Rewrite every convertible `$…$` span in `text`.
-    static func render(_ text: String) -> String {
+    internal static func render(_ text: String) -> String {
         guard text.contains("$") else { return text }
         var result = ""
         var rest = Substring(text)
@@ -46,7 +46,7 @@ enum InlineMath {
 
     /// Convert one span's TeX to Unicode, or nil if any part is beyond a
     /// faithful character-level conversion.
-    static func convert(_ span: String) -> String? {
+    internal static func convert(_ span: String) -> String? {
         guard !span.isEmpty,
               span.first?.isWhitespace == false,
               span.last?.isWhitespace == false,
