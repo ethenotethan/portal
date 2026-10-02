@@ -427,10 +427,10 @@ struct LivingArtifactTests {
 }
 
 @Suite("Artifact Diff")
-struct ArtifactDiffTests {
+internal struct ArtifactDiffTests {
 
     @Test("Map diff summarizes added/removed/regrouped markers")
-    func mapDiff() {
+    internal func mapDiff() throws {
         let old = """
         {"markers": [
           {"lat": 1, "lon": 2, "label": "Ekkamai loft", "group": "shortlist", "note": "38k"},
@@ -443,25 +443,27 @@ struct ArtifactDiffTests {
           {"lat": 5, "lon": 6, "label": "Ari studio", "group": "shortlist"}
         ]}
         """
-        let lines = ArtifactDiff.describe(kind: "map", old: old, new: new)!
+        let lines = try #require(ArtifactDiff.describe(kind: "map", old: old, new: new))
         #expect(lines.contains("Added Ari studio"))
         #expect(lines.contains("Removed Old place"))
         #expect(lines.contains("Ekkamai loft: shortlist → rejected"))
     }
 
     @Test("Identical content yields no diff; non-map kinds get a size note")
-    func fallbacks() {
+    internal func fallbacks() throws {
         #expect(ArtifactDiff.describe(kind: "map", old: "{}", new: "{}") == nil)
-        let lines = ArtifactDiff.describe(kind: "chart", old: "{\"a\":1}", new: "{\"a\":1,\"b\":2}")!
+        let lines = try #require(
+            ArtifactDiff.describe(kind: "chart", old: "{\"a\":1}", new: "{\"a\":1,\"b\":2}")
+        )
         #expect(lines.count == 1)
         #expect(lines[0].contains("+6 chars"))
     }
 
     @Test("Note-only changes are called out without group noise")
-    func noteChange() {
+    internal func noteChange() throws {
         let old = "{\"markers\": [{\"lat\":1,\"lon\":2,\"label\":\"A\",\"group\":\"g\",\"note\":\"x\"}]}"
         let new = "{\"markers\": [{\"lat\":1,\"lon\":2,\"label\":\"A\",\"group\":\"g\",\"note\":\"y\"}]}"
-        let lines = ArtifactDiff.describe(kind: "map", old: old, new: new)!
+        let lines = try #require(ArtifactDiff.describe(kind: "map", old: old, new: new))
         #expect(lines == ["A: note updated"])
     }
 }
