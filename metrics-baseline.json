@@ -11227,9 +11227,9 @@
       "redundantConformance": 5,
       "redundantProtocol": 1,
       "redundantPublicAccessibility": 4,
-      "unused": 267
+      "unused": 259
     },
-    "total": 432,
+    "total": 424,
     "sites": [
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
@@ -11352,28 +11352,14 @@
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 506,
-        "kind": "var.instance",
-        "name": "isReady",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 631,
+        "line": 624,
         "kind": "function.constructor",
         "name": "init(from:)",
         "hint": "redundantPublicAccessibility"
       },
       {
         "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 657,
-        "kind": "function.method.static",
-        "name": "setLocalCacheOnly(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/ChatMessage.swift",
-        "line": 661,
+        "line": 650,
         "kind": "function.method.instance",
         "name": "encode(to:)",
         "hint": "redundantPublicAccessibility"
@@ -11583,196 +11569,189 @@
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 98,
-        "kind": "var.instance",
-        "name": "isSessionScopedRequestEvent",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 415,
+        "line": 406,
         "kind": "var.instance",
         "name": "reasoningEffort",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 416,
+        "line": 407,
         "kind": "var.instance",
         "name": "fast",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 417,
+        "line": 408,
         "kind": "var.instance",
         "name": "tools",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 418,
+        "line": 409,
         "kind": "var.instance",
         "name": "skills",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 419,
+        "line": 410,
         "kind": "var.instance",
         "name": "cwd",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 420,
+        "line": 411,
         "kind": "var.instance",
         "name": "version",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 422,
+        "line": 413,
         "kind": "var.instance",
         "name": "mcpServers",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 453,
+        "line": 444,
         "kind": "protocol",
         "name": "TokenAccountable",
         "hint": "redundantConformance"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 466,
+        "line": 457,
         "kind": "var.instance",
         "name": "costUSD",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 485,
+        "line": 476,
         "kind": "var.instance",
         "name": "name",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 486,
+        "line": 477,
         "kind": "var.instance",
         "name": "status",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 494,
+        "line": 485,
         "kind": "var.instance",
         "name": "rendered",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 495,
+        "line": 486,
         "kind": "var.instance",
         "name": "warning",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 525,
+        "line": 516,
         "kind": "var.instance",
         "name": "name",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 529,
+        "line": 520,
         "kind": "var.instance",
         "name": "todos",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 556,
+        "line": 547,
         "kind": "var.instance",
         "name": "id",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 557,
+        "line": 548,
         "kind": "var.instance",
         "name": "content",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 558,
+        "line": 549,
         "kind": "var.instance",
         "name": "status",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 590,
+        "line": 581,
         "kind": "var.instance",
         "name": "sessionKey",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 592,
+        "line": 583,
         "kind": "var.instance",
         "name": "rawArgs",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 677,
+        "line": 668,
         "kind": "var.instance",
         "name": "taskCount",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 678,
+        "line": 669,
         "kind": "var.instance",
         "name": "taskIndex",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 680,
+        "line": 671,
         "kind": "var.instance",
         "name": "parentID",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 681,
+        "line": 672,
         "kind": "var.instance",
         "name": "depth",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 708,
+        "line": 699,
         "kind": "var.instance",
         "name": "goal",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 709,
+        "line": 700,
         "kind": "var.instance",
         "name": "taskCount",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 710,
+        "line": 701,
         "kind": "var.instance",
         "name": "taskIndex",
         "hint": "assignOnlyProperty"
@@ -12017,35 +11996,28 @@
       },
       {
         "file": "Sources/Portal/Models/SpawnNode.swift",
-        "line": 82,
-        "kind": "var.instance",
-        "name": "runningDescendantCount",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SpawnNode.swift",
-        "line": 106,
+        "line": 101,
         "kind": "var.instance",
         "name": "readableTranscript",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/SpawnNode.swift",
-        "line": 128,
+        "line": 123,
         "kind": "var.instance",
         "name": "isTerminal",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/SpawnNode.swift",
-        "line": 183,
+        "line": 178,
         "kind": "enumelement",
         "name": "user",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/SpawnNode.swift",
-        "line": 185,
+        "line": 180,
         "kind": "enumelement",
         "name": "tool",
         "hint": "unused"
@@ -12402,49 +12374,49 @@
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 83,
+        "line": 94,
         "kind": "function.method.instance",
         "name": "delegationStatus()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 92,
+        "line": 103,
         "kind": "function.method.instance",
         "name": "subagentInterrupt(subagentID:sessionID:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 106,
+        "line": 117,
         "kind": "function.method.instance",
         "name": "spawnTreeList(sessionID:crossSession:limit:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 136,
+        "line": 147,
         "kind": "function.method.instance",
         "name": "spawnTreeLoad(path:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 158,
+        "line": 169,
         "kind": "function.method.instance",
         "name": "sessionTimeline(sessionID:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 1995,
+        "line": 2033,
         "kind": "function.method.instance",
         "name": "peekSession(sessionKey:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 2030,
+        "line": 2068,
         "kind": "struct",
         "name": "PeekResult",
         "hint": "unused"
@@ -12667,52 +12639,10 @@
         "hint": "assignOnlyProperty"
       },
       {
-        "file": "Sources/Portal/Utilities/Constants.swift",
-        "line": 5,
-        "kind": "var.static",
-        "name": "productionGatewayURL",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Utilities/Constants.swift",
-        "line": 6,
-        "kind": "var.static",
-        "name": "defaultGatewayPort",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Utilities/Constants.swift",
-        "line": 8,
-        "kind": "var.static",
-        "name": "maxMessageLength",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Utilities/Constants.swift",
-        "line": 9,
-        "kind": "var.static",
-        "name": "reconnectDelay",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Utilities/Constants.swift",
-        "line": 10,
-        "kind": "var.static",
-        "name": "maxReconnectDelay",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/Utilities/LiveObjectRegistry.swift",
         "line": 87,
         "kind": "var.static",
         "name": "artifactCanvas",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Utilities/LiveObjectRegistry.swift",
-        "line": 140,
-        "kind": "var.static",
-        "name": "relayoutGuardTrips",
         "hint": "unused"
       },
       {
@@ -13123,23 +13053,37 @@
       },
       {
         "file": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
-        "line": 93,
+        "line": 95,
         "kind": "var.instance",
         "name": "selectedNodeTitle",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
-        "line": 114,
+        "line": 116,
         "kind": "var.instance",
         "name": "taxonomyTree",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
-        "line": 847,
+        "line": 187,
+        "kind": "var.instance",
+        "name": "simAlpha",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
+        "line": 742,
         "kind": "var.parameter",
         "name": "point",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
+        "line": 764,
+        "kind": "var.instance",
+        "name": "isInteracting",
         "hint": "unused"
       },
       {
@@ -13179,7 +13123,7 @@
       },
       {
         "file": "Sources/Portal/Views/ArtifactsPane.swift",
-        "line": 634,
+        "line": 644,
         "kind": "var.parameter",
         "name": "revision",
         "hint": "unused"
@@ -13197,13 +13141,6 @@
         "kind": "var.instance",
         "name": "size",
         "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
-        "line": 154,
-        "kind": "var.instance",
-        "name": "store",
-        "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
@@ -13536,7 +13473,7 @@
       },
       {
         "file": "Sources/Portal/Views/CronListView.swift",
-        "line": 293,
+        "line": 294,
         "kind": "struct",
         "name": "CronJobDetailView",
         "hint": "unused"
@@ -13564,7 +13501,7 @@
       },
       {
         "file": "Sources/Portal/Views/Diagram/DiagramExplorerView.swift",
-        "line": 497,
+        "line": 493,
         "kind": "var.parameter",
         "name": "pt",
         "hint": "unused"
@@ -14131,14 +14068,14 @@
       },
       {
         "file": "Sources/Portal/Views/Wiki/WikiGraph2DCanvas.swift",
-        "line": 191,
+        "line": 205,
         "kind": "var.parameter",
         "name": "pt",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 58,
+        "line": 62,
         "kind": "var.parameter",
         "name": "context",
         "hint": "unused"
@@ -14243,14 +14180,21 @@
       },
       {
         "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
-        "line": 293,
+        "line": 382,
+        "kind": "var.static",
+        "name": "wroteSnapshot",
+        "hint": "unused"
+      },
+      {
+        "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
+        "line": 566,
         "kind": "function.method.static",
         "name": "makeMessages(count:)",
         "hint": "unused"
       },
       {
         "file": "Tests/PortalTests/PerfCountHarnessTests.swift",
-        "line": 304,
+        "line": 577,
         "kind": "function.method.static",
         "name": "makeSessions(count:)",
         "hint": "unused"
