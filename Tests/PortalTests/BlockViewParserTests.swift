@@ -470,16 +470,16 @@ internal struct ArtifactDiffTests {
 }
 
 @Suite("Dataset Kind")
-struct DatasetKindTests {
+internal struct DatasetKindTests {
 
     @Test("Spec parses rows, derives columns with key first, stringifies values")
-    func specParsing() {
-        let spec = DatasetSpec.parse("""
+    internal func specParsing() throws {
+        let spec = try #require(DatasetSpec.parse("""
         {"key": "login", "rows": [
           {"login": "greg", "commits": 44, "active": true},
           {"login": "amy", "name": "Amy"}
         ]}
-        """)!
+        """))
         #expect(spec.key == "login")
         #expect(spec.columns.first == "login")           // key leads derived columns
         #expect(spec.columns.contains("commits"))
@@ -503,10 +503,10 @@ struct DatasetKindTests {
     }
 
     @Test("Dataset diff reports added/removed/changed rows by key")
-    func diff() {
+    internal func diff() throws {
         let old = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 41}, {\"login\": \"gone\", \"commits\": 2}]}"
         let new = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 44}, {\"login\": \"fresh\", \"commits\": 1}]}"
-        let lines = ArtifactDiff.describe(kind: "dataset", old: old, new: new)!
+        let lines = try #require(ArtifactDiff.describe(kind: "dataset", old: old, new: new))
         #expect(lines.contains("Added fresh"))
         #expect(lines.contains("Removed gone"))
         #expect(lines.contains("greg: commits changed"))
