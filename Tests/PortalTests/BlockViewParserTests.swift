@@ -270,12 +270,12 @@ struct NetworkGraphSpecTests {
     }
 
     @Test("Layout is deterministic and places all nodes within bounds")
-    func layoutDeterministic() {
-        let spec = NetworkGraphSpec.parse("""
+    internal func layoutDeterministic() throws {
+        let spec = try #require(NetworkGraphSpec.parse("""
         {"nodes": [{"id": "a"}, {"id": "b"}, {"id": "c"}, {"id": "d"}],
          "edges": [{"from": "a", "to": "b"}, {"from": "b", "to": "c"},
                    {"from": "c", "to": "d"}, {"from": "d", "to": "a"}]}
-        """)!
+        """))
         let first = NetworkGraphLayout.layout(spec, width: 600)
         let second = NetworkGraphLayout.layout(spec, width: 600)
         #expect(first.placed.count == 4)
@@ -288,7 +288,8 @@ struct NetworkGraphSpecTests {
         }
         // Connected square should not collapse to a point.
         let xs = first.placed.map(\.position.x)
-        #expect((xs.max()! - xs.min()!) > 50)
+        let bounds = try #require(xs.min().flatMap { minX in xs.max().map { (minX, $0) } })
+        #expect((bounds.1 - bounds.0) > 50)
     }
 
     @Test("Single-node layout centers the node in intrinsic and fitted canvases")
