@@ -3,7 +3,7 @@ import Foundation
 @testable import Portal
 
 @Suite("Session Exporter — Markdown")
-struct SessionExporterMarkdownTests {
+internal struct SessionExporterMarkdownTests {
 
     private let fixedDate = Date(timeIntervalSince1970: 1_750_000_000)
     private let utc = TimeZone.gmt
@@ -18,7 +18,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Empty session renders header and placeholder")
-    func emptySession() {
+    internal func emptySession() {
         let md = export([])
         #expect(md.hasPrefix("# Test Session\n"))
         #expect(md.contains("_This session has no messages._"))
@@ -26,7 +26,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Roles render as user / assistant sections in order")
-    func roleFormatting() {
+    internal func roleFormatting() {
         let md = export([
             ChatMessage(role: .user, content: "What is 2+2?"),
             ChatMessage(role: .assistant, content: "It is **4**."),
@@ -43,7 +43,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Metadata header includes session key, gateway, model, dates, usage")
-    func metadataHeader() {
+    internal func metadataHeader() {
         let usage = SessionUsage(
             model: "claude-opus-4", inputTokens: 1200, outputTokens: 340,
             cacheReadTokens: nil, cacheWriteTokens: nil, totalTokens: 1540,
@@ -74,7 +74,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Tool calls render as structured sections with input and result")
-    func toolCallSections() {
+    internal func toolCallSections() {
         let tool = ToolCallRecord(
             id: "t1",
             name: "Bash",
@@ -92,7 +92,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Incomplete tool calls are marked")
-    func incompleteToolCall() {
+    internal func incompleteToolCall() {
         let tool = ToolCallRecord(id: "t2", name: "WebSearch", context: "query", isComplete: false)
         let md = export([ChatMessage(role: .assistant, content: "", toolCalls: [tool])])
         #expect(md.contains("### 🔧 tool: WebSearch (incomplete)"))
@@ -138,7 +138,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Code fences inside message content are preserved verbatim")
-    func codeFencePreservation() {
+    internal func codeFencePreservation() {
         let content = """
         Here is code:
 
@@ -153,7 +153,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Tool output containing triple backticks gets a longer fence")
-    func fenceEscaping() {
+    internal func fenceEscaping() {
         let payload = "outer\n```\ninner fence\n```\nend"
         let lines = SessionExporter.fenced(payload, language: "text")
         #expect(lines.first == "````text")
@@ -166,7 +166,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Reasoning renders as a collapsed details block")
-    func reasoningBlock() {
+    internal func reasoningBlock() {
         let md = export([ChatMessage(role: .assistant, content: "Answer", reasoning: "I should think about this.")])
         #expect(md.contains("<details>"))
         #expect(md.contains("<summary>💭 Reasoning</summary>"))
@@ -175,7 +175,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Thinking trace takes precedence over legacy reasoning string")
-    func thinkingTracePrecedence() {
+    internal func thinkingTracePrecedence() {
         var trace = ThinkingTrace()
         trace.append("step one\n", kind: .thinking)
         trace.append("step two", kind: .reasoning)
@@ -189,7 +189,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Attachments are referenced by filename, not embedded")
-    func attachmentReferences() {
+    internal func attachmentReferences() {
         var message = ChatMessage(role: .assistant, content: "See chart.")
         message.attachments = [FileAttachment(remoteURL: URL(string: "https://gw/files/s1/chart.png")!)]
         let md = export([message])
@@ -216,7 +216,7 @@ struct SessionExporterMarkdownTests {
     }
 
     @Test("Interrupted turn status is noted")
-    func turnStatus() {
+    internal func turnStatus() {
         let md = export([ChatMessage(role: .assistant, content: "Partial answer", status: "interrupted")])
         #expect(md.contains("_Turn status: interrupted_"))
     }
@@ -234,10 +234,10 @@ struct SessionExporterMarkdownTests {
 }
 
 @Suite("Session Exporter — Filenames")
-struct SessionExporterFilenameTests {
+internal struct SessionExporterFilenameTests {
 
     @Test("Filename slugs title and appends timestamp + extension")
-    func filenameFormat() {
+    internal func filenameFormat() {
         let date = Date(timeIntervalSince1970: 1_750_000_000) // 2025-06-15 15:06:40 UTC
         let name = SessionExporter.filename(
             title: "My Research: Phase 2!",
@@ -249,21 +249,21 @@ struct SessionExporterFilenameTests {
     }
 
     @Test("Empty and symbol-only titles fall back to hermes-session")
-    func slugFallback() {
+    internal func slugFallback() {
         #expect(SessionExporter.slugify("") == "hermes-session")
         #expect(SessionExporter.slugify("///:::") == "hermes-session")
         #expect(SessionExporter.slugify("Héllo Wörld") == "héllo-wörld")
     }
 
     @Test("Long titles are truncated to 60 characters")
-    func slugTruncation() {
+    internal func slugTruncation() {
         let slug = SessionExporter.slugify(String(repeating: "a", count: 100))
         #expect(slug.count == 60)
     }
 }
 
 @Suite("Session Exporter — PDF")
-struct SessionExporterPDFTests {
+internal struct SessionExporterPDFTests {
 
     @Test("PDF data is non-empty and starts with %PDF magic bytes")
     @MainActor
