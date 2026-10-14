@@ -566,16 +566,33 @@ struct MarkdownText: View {
     var baseColor: Color?
     var baseFont: Font?
 
-    /// The pre-computed attributed string. Parsing happens once in init
-    /// so body() is O(1) — critical during streaming where the parent
-    /// may re-evaluate frequently but the text changes token-by-token.
+    /// The pre-computed attributed string. Parsing happens in init so
+    /// body() is O(1) — but init itself re-runs on every parent body
+    /// evaluation, so the parse is memoized: a hybrid artifact (prose +
+    /// dataset tables + kanban) used to re-run `AttributedString(markdown:)`
+    /// for every paragraph and every table cell on each invalidation, which
+    /// is what made scrolling those artifacts hang.
     private let rendered: AttributedString
+
+    /// Sized for whole documents: a single 50×6 dataset is 300 cells.
+    private static let renderMemo = RenderMemo<AttributedString>(limit: 4096)
+
+    internal var renderedForTesting: AttributedString { rendered }
 
     init(text: String, baseColor: Color? = nil, baseFont: Font? = nil) {
         self.text = text
         self.baseColor = baseColor
         self.baseFont = baseFont
-        self.rendered = Self.render(text, baseColor: baseColor, baseFont: baseFont)
+        self.rendered = Self.memoizedRender(text, baseColor: baseColor, baseFont: baseFont)
+    }
+
+    /// Keyed on the RESOLVED color/font, not the optional inputs: a nil
+    /// `baseColor` means `Theme.primary`, which changes with the theme.
+    private static func memoizedRender(_ input: String, baseColor: Color?, baseFont: Font?) -> AttributedString {
+        let color = baseColor ?? Theme.primary
+        let font = baseFont ?? .system(size: 14)
+        let key = "\(color.hashValue)\u{1F}\(font.hashValue)\u{1F}\(input)"
+        return renderMemo.value(for: key) { render(input, baseColor: color, baseFont: font) }
     }
 
     var body: some View {
@@ -1282,8 +1299,10 @@ struct TableView: View {
     }
 
     private var columnWidths: [CGFloat] {
-        headers.indices.map { index in
-            let values = [headers[index]] + normalizedRows.map { index < $0.count ? $0[index] : "" }
+        // Normalize once, not once per column.
+        let rows = normalizedRows
+        return headers.indices.map { index in
+            let values = [headers[index]] + rows.map { index < $0.count ? $0[index] : "" }
             let longest = values.map { visualRenderedLength($0) }.max() ?? 0
             let headerLength = visualRenderedLength(headers[index])
             let characterWidth: CGFloat = 8
