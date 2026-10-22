@@ -270,6 +270,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// The probe-then-dial task `connect()` spawns, kept so `disconnect()` can
     /// cancel it before it reaches `openWebSocket()`.
     private var connectTask: Task<Void, Never>?
+    /// Ceiling on the HTTP health probe `connect()` runs before dialing. Tests
+    /// shorten it so a probe against a server that never answers HTTP does not
+    /// hold the test for the production five seconds.
+    internal var healthProbeTimeout: TimeInterval = 5
     /// Bumped each time `openWebSocket()` installs a transport, so a completion
     /// handler captured against an earlier transport can tell it is stale without
     /// holding that task or comparing object addresses that may be reused.
@@ -569,7 +573,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         guard let url = Self.healthProbeURL(for: gatewayURL) else { return -1 }
 
         var request = URLRequest(url: url)
-        request.timeoutInterval = 5
+        request.timeoutInterval = healthProbeTimeout
         // GET, not HEAD — the gateway's /health rejects HEAD with 405.
         request.httpMethod = "GET"
         if !apiKey.isEmpty {
@@ -599,7 +603,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
 
         var request = URLRequest(url: healthURL)
-        request.timeoutInterval = 5
+        request.timeoutInterval = healthProbeTimeout
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }

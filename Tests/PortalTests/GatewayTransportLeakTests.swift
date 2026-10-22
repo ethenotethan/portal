@@ -340,12 +340,12 @@ internal struct GatewayTransportLeakTests {
         defer { server.stop() }
 
         let client = GatewayClient(gatewayURL: server.endpoint, apiKey: "")
+        // The fixture never answers HTTP, so the probe runs to its ceiling;
+        // shorten it and give the cancelled task comfortably longer to misbehave.
+        client.healthProbeTimeout = 0.3
         client.connect()
         client.disconnect()
-
-        // The probe has a 5 s ceiling against a server that never answers HTTP;
-        // give the cancelled task comfortably longer than that to misbehave.
-        try await Task.sleep(nanoseconds: 6_500_000_000)
+        try await Task.sleep(nanoseconds: 1_200_000_000)
         #expect(
             server.upgradeCount == 0,
             "the dial queued behind the health probe ran after disconnect()"
