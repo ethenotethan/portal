@@ -114,6 +114,8 @@ internal enum SessionTurnBuilder {
                 hasher.combine(tool.startedAt)
                 hasher.combine(tool.completedAt)
                 hasher.combine(tool.summary?.count ?? -1)
+                hasher.combine(tool.context?.count ?? -1)
+                hasher.combine(tool.durationSeconds)
                 hasher.combine(tool.riskLevel?.rawValue)
             }
             if let snapshot = message.graphSnapshot {

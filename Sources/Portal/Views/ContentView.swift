@@ -290,6 +290,7 @@ internal struct ContentView: View {
         activityInbox.clearAll()
 
         Task {
+            await intentDock.resetForGatewaySwitch()
             // force: the URL/key changed, so the existing signature check must
             // be bypassed to actually recreate the transport.
             await gatewayClientWrapper.connectWithRetry(using: settings)

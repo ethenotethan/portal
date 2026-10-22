@@ -4180,7 +4180,6 @@ client.eventStream
             }
 
         case .reasoningDelta(let text):
-            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             // Same as `.messageDelta`: only the pending buffer carries the text.
             // Rebuilding `existing + text` here copied the whole accumulated
             // reasoning string per token into a discarded state.
@@ -4194,7 +4193,6 @@ client.eventStream
             }
 
         case .thinkingDelta(let text):
-            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     appendPendingVisibleThinkingDelta(text, owner: displayID, separator: "\n")

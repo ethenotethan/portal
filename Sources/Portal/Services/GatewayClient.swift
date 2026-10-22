@@ -270,6 +270,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// The probe-then-dial task `connect()` spawns, kept so `disconnect()` can
     /// cancel it before it reaches `openWebSocket()`.
     private var connectTask: Task<Void, Never>?
+    /// Bumped each time `openWebSocket()` installs a transport, so a completion
+    /// handler captured against an earlier transport can tell it is stale without
+    /// holding that task or comparing object addresses that may be reused.
+    private var transportGeneration = 0
 
     /// True once a socket has actually opened since the reconnect budget was
     /// last granted. This is what makes `resetReconnectBudget` safe.
@@ -739,6 +743,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         let task = newSession.webSocketTask(with: request)
         self.webSocketTask = task
+        transportGeneration += 1
         debugSnapshot.lastOpenAt = Date()
         refreshDebugSnapshot()
         task.resume()
@@ -887,7 +892,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func sendPing() async {
         guard let task = webSocketTask else { return }
         let start = Date()
-        let pinged = ObjectIdentifier(task)
+        let generation = transportGeneration
         task.sendPing { [weak self] error in
             if let error = error {
                 log.debug("Ping failed: \(error)")
@@ -897,8 +902,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     // it as a drop tore down the healthy replacement: stopped
                     // its ping loop, failed its pending RPCs, scheduled another
                     // dial. Only the current transport's ping may do that.
-                    guard let self, let current = self.webSocketTask,
-                          ObjectIdentifier(current) == pinged else { return }
+                    guard let self, self.transportGeneration == generation else { return }
                     self.lastPingRTT = nil
                     self.handleDisconnect(reason: "Ping failed: \(error.localizedDescription)")
                 }
