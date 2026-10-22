@@ -4017,9 +4017,13 @@ client.eventStream
             SessionRunHistoryStore.shared.recordRunStart(sessionID: displayID)
 
         case .messageDelta(let text, _):
+            // Existence check only. The text reaches the transcript through the
+            // pending-delta buffers and the 500 ms flush; `state` is never
+            // written back for a delta (see the persist switch below), so
+            // appending here too only copy-on-wrote the whole messages array
+            // per token and then threw the copy away.
             if let msgID = state.streamingMessageID,
-               let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
-                state.messages[idx].content += text
+               state.messages.contains(where: { $0.id == msgID }) {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     recordPerfEvent("sessionMessageDelta", bytes: text.count)
                     claimDeltaBuffers(for: displayID)
@@ -4175,11 +4179,10 @@ client.eventStream
 
         case .reasoningDelta(let text):
             if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
+            // Same as `.messageDelta`: only the pending buffer carries the text.
+            // Rebuilding `existing + text` here copied the whole accumulated
+            // reasoning string per token into a discarded state.
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
-                if let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                    let existing = state.messages[idx].reasoning ?? ""
-                    state.messages[idx].reasoning = existing + text
-                }
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     claimDeltaBuffers(for: displayID)
                     pendingVisibleReasoningDelta += text
