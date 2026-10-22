@@ -360,8 +360,11 @@ final class ChatViewModel: ObservableObject {
     @Published internal private(set) var isConversationActive: Bool = false
 
     /// Smoothed 0...1 microphone level while a conversation is capturing, so the
-    /// orb can expand and shrink with the user's voice. Zero when idle.
-    @Published internal private(set) var voiceLevel: Float = 0
+    /// orb can expand and shrink with the user's voice. Zero when idle. Kept on
+    /// its own observable object (see `AudioLevelMeter`): publishing ~10 Hz mic
+    /// samples from this view model re-rendered the whole transcript per sample.
+    internal let voiceMeter = AudioLevelMeter()
+    internal var voiceLevel: Float { voiceMeter.level }
 
     /// The open local side-discussion, if any: a spoken exchange about one
     /// assistant reply that runs entirely on this machine. Non-nil is what routes
@@ -2501,7 +2504,7 @@ client.eventStream
             self?.updateVoiceLevel(level)
         }
         inputText = ""
-        voiceLevel = 0
+        voiceMeter.reset()
         isVoiceRecording = true
         if conversation {
             await localVoiceService.startConversation()
@@ -2537,8 +2540,7 @@ client.eventStream
     /// moving average tames the ~10 Hz buffer jitter so the orb pulses smoothly
     /// with the voice instead of strobing.
     private func updateVoiceLevel(_ raw: Float) {
-        let clamped = max(0, min(1, raw))
-        voiceLevel = voiceLevel * 0.7 + clamped * 0.3
+        voiceMeter.fold(raw)
     }
 
     /// Submit an on-device transcript as the user's prompt, mirroring the
@@ -2578,7 +2580,7 @@ client.eventStream
         isConversationActive = false
         isBargingIn = false
         isVoiceRecording = false
-        voiceLevel = 0
+        voiceMeter.reset()
         conversationSpeaker.stop()
         // A local discussion only exists as a spoken exchange, so closing the mic
         // closes it too rather than leaving it open with no way to talk. It stays
