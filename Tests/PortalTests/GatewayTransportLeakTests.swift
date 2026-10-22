@@ -283,6 +283,75 @@ internal struct GatewayTransportLeakTests {
         )
     }
 
+    /// A client the wrapper has discarded can still be asked to dial by work
+    /// that was in flight when it was torn down: `callWithRetry` forcing a
+    /// reconnect after a 12 s timeout, a restart wait, or the probe-then-dial
+    /// task `connect()` spawned. Each of those used to open a socket on the
+    /// orphan. Once open, that socket passed the `session === urlSession` check
+    /// (it IS that instance's current session), so the orphan ran its own ping
+    /// loop and receive loop for the rest of the process, parsing every
+    /// broadcast for subscribers that no longer existed, with nobody holding a
+    /// reference to disconnect it. One more established socket per occurrence,
+    /// compounding over the sleep/wake cycles of a multi-day run.
+    @Test("a disconnected client refuses to dial again")
+    @MainActor
+    internal func disconnectedClientDoesNotRedial() async throws {
+        let server = try SilentWebSocketServer()
+        defer { server.stop() }
+
+        let client = GatewayClient(gatewayURL: server.endpoint, apiKey: "")
+        client.connect()
+        try await waitFor { server.upgradeCount >= 1 }
+        let upgradesBeforeDisconnect = server.upgradeCount
+        client.disconnect()
+
+        // The two post-teardown dial paths a stale timeout or restart wait can
+        // reach. Neither may produce a new upgrade.
+        await client.forceReconnectAndWait(timeout: 0)
+        let started = Date()
+        let returned = await client.waitForGatewayReturn(timeout: 2)
+        #expect(!returned, "a torn-down client must not report the gateway as back")
+        #expect(
+            Date().timeIntervalSince(started) < 1.5,
+            "the restart wait must bail out on a disconnected client, not spin to its deadline"
+        )
+        try await Task.sleep(nanoseconds: 500_000_000)
+
+        #expect(
+            server.upgradeCount == upgradesBeforeDisconnect,
+            """
+            The gateway saw \(server.upgradeCount - upgradesBeforeDisconnect) new WebSocket \
+            upgrade(s) from a client that had been disconnected. A redial on a discarded \
+            client is an orphan transport with its own ping and receive loops that nothing \
+            will ever tear down.
+            """
+        )
+        if case .disconnected = client.connectionState {} else {
+            Issue.record("a disconnected client must stay .disconnected, got \(client.connectionState)")
+        }
+    }
+
+    /// `connect()` probes HTTP before dialing. A `disconnect()` that lands while
+    /// that probe is in flight must cancel the dial it was about to make.
+    @Test("disconnecting during the connect probe cancels the dial")
+    @MainActor
+    internal func disconnectDuringProbeCancelsDial() async throws {
+        let server = try SilentWebSocketServer()
+        defer { server.stop() }
+
+        let client = GatewayClient(gatewayURL: server.endpoint, apiKey: "")
+        // The fixture never answers HTTP, so the probe runs to its ceiling;
+        // shorten it and give the cancelled task comfortably longer to misbehave.
+        client.healthProbeTimeout = 0.3
+        client.connect()
+        client.disconnect()
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        #expect(
+            server.upgradeCount == 0,
+            "the dial queued behind the health probe ran after disconnect()"
+        )
+    }
+
     /// Poll until `condition` holds or the deadline passes. Returns quietly on
     /// timeout; the caller asserts, so the failure message stays on the claim
     /// rather than on the waiting.

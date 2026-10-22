@@ -58,6 +58,10 @@ extension GatewayClient {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if case .connected = connectionState { return true }
+            // A client torn down mid-wait stays down; keep looping and it would
+            // spin until the deadline, since `forceReconnectAndWait` no longer
+            // dials for it.
+            if isIntentionalDisconnect { return false }
             let remaining = deadline.timeIntervalSinceNow
             if remaining <= 0 { break }
             await forceReconnectAndWait(timeout: min(Self.restartDialInterval, remaining))

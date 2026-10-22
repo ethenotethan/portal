@@ -14,9 +14,6 @@ internal struct VoiceConversationCard: View {
     /// how `SpeechSettingsSection` observes it), surfaced under the caption when
     /// the mic follows a device change so the momentary gap reads as handled.
     @ObservedObject private var localVoice = LocalVoiceService.shared
-    /// The speaker owns the live output loudness; while the assistant talks the
-    /// orb breathes with its voice rather than sitting on a canned animation.
-    @ObservedObject private var tts = TTSService.shared
 
     internal var body: some View {
         let phase = chatViewModel.conversationPhase
@@ -85,18 +82,11 @@ internal struct VoiceConversationCard: View {
     }
 
     private func orb(for phase: ChatViewModel.ConversationPhase) -> some View {
-        // Listening pulses with the user's mic; speaking with the assistant's
-        // own voice; thinking rests (no one is talking).
-        let level: Double
-        switch phase {
-        case .listening: level = Double(chatViewModel.voiceLevel)
-        case .speaking: level = Double(tts.outputLevel)
-        case .thinking: level = 0
-        }
-        return ConversationOrb(
+        MeteredConversationOrb(
             visual: chatViewModel.conversationVisual,
             phase: phase,
-            level: level
+            inputMeter: chatViewModel.voiceMeter,
+            outputMeter: TTSService.shared.outputMeter
         )
     }
 
@@ -110,6 +100,28 @@ internal struct VoiceConversationCard: View {
 }
 
 // MARK: - Orb selection
+
+/// The orb driven by the live audio meters. Listening pulses with the user's
+/// mic; speaking with the assistant's own voice; thinking rests (no one is
+/// talking). This is the ONLY view that observes the meters, so their ~10 Hz
+/// samples re-render this 56pt orb and nothing else — the card, the transcript
+/// and the canvas around it are untouched by a sample.
+internal struct MeteredConversationOrb: View {
+    internal let visual: ConversationVisual
+    internal let phase: ChatViewModel.ConversationPhase
+    @ObservedObject internal var inputMeter: AudioLevelMeter
+    @ObservedObject internal var outputMeter: AudioLevelMeter
+
+    internal var body: some View {
+        let level: Double
+        switch phase {
+        case .listening: level = Double(inputMeter.level)
+        case .speaking: level = Double(outputMeter.level)
+        case .thinking: level = 0
+        }
+        return ConversationOrb(visual: visual, phase: phase, level: level)
+    }
+}
 
 /// The phase-animated orb, in whichever look Settings selected. Its own view so
 /// every spoken surface renders the same thing — the local-discussion pane

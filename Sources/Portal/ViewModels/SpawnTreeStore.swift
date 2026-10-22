@@ -13,7 +13,19 @@ final class SpawnTreeStore: ObservableObject {
 
     /// Buffer for events that arrive before a tree is created for their session.
     /// Keyed by sessionID; flushed when createTree() is called.
+    ///
+    /// Bounded. A tree is only ever created for a session this app starts (New
+    /// Session), so for every session selected from the sidebar, run by another
+    /// client or by cron, the buffer was the final resting place of every
+    /// lifecycle event — tool starts, completes, full message texts — for the
+    /// life of the process. Per-session and per-key caps keep the replay-on-
+    /// create behavior for the race it exists for while bounding what an
+    /// unwatched session can pin.
     private var eventBuffer: [String: [(GatewayEvent, String)]] = [:]
+    private static let maxBufferedEventsPerSession = 256
+    private static let maxBufferedSessions = 32
+    /// Keys of `eventBuffer`, oldest first, for eviction.
+    private var bufferedSessionOrder: [String] = []
 
     /// Maps stable database session IDs to the current runtime gateway session ID.
     /// Mission Control may be opened with either ID; events only carry the runtime ID.
@@ -62,7 +74,7 @@ final class SpawnTreeStore: ObservableObject {
             .collect(.byTimeOrCount(DispatchQueue.main, .milliseconds(32), 30))
             .sink { [weak self] batch in
                 for (event, sessionID) in batch {
-                    self?.handleEvent(event, sessionID: sessionID)
+                    self?.ingest(event, sessionID: sessionID)
                 }
             }
             .store(in: &cancellables)
@@ -70,7 +82,9 @@ final class SpawnTreeStore: ObservableObject {
 
     // MARK: - Event Handling
 
-    private func handleEvent(_ event: GatewayEvent, sessionID: String?) {
+    /// Feed one gateway event. The subscription above calls this per event;
+    /// tests call it directly.
+    internal func ingest(_ event: GatewayEvent, sessionID: String?) {
         switch event {
         case .messageDelta, .thinkingDelta, .reasoningDelta,
              .subagentThinking, .subagentProgress:
@@ -118,9 +132,9 @@ final class SpawnTreeStore: ObservableObject {
         let tree = treeFor(runtimeID: runtimeID, displayID: displayID)
 
         guard let tree else {
-            eventBuffer[runtimeID, default: []].append((event, runtimeID))
+            buffer(event, runtimeID: runtimeID, under: runtimeID)
             if displayID != runtimeID {
-                eventBuffer[displayID, default: []].append((event, runtimeID))
+                buffer(event, runtimeID: runtimeID, under: displayID)
             }
             return
         }
@@ -300,17 +314,44 @@ final class SpawnTreeStore: ObservableObject {
     }
 
     private func flushBufferedEvents(for sessionID: String) {
-        guard let buffered = eventBuffer.removeValue(forKey: sessionID) else { return }
+        guard let buffered = discardBuffered(for: sessionID) else { return }
         for (event, runtimeID) in buffered {
             let displayID = displayIDByRuntimeSessionID[runtimeID] ?? sessionID
             if let tree = treeFor(runtimeID: runtimeID, displayID: displayID) {
                 processEventOnTree(event, tree: tree, runtimeSessionID: runtimeID)
             } else {
-                eventBuffer[sessionID, default: []].append((event, runtimeID))
+                buffer(event, runtimeID: runtimeID, under: sessionID)
                 break
             }
         }
     }
+
+    private func buffer(_ event: GatewayEvent, runtimeID: String, under key: String) {
+        if eventBuffer[key] == nil {
+            bufferedSessionOrder.append(key)
+            while bufferedSessionOrder.count > Self.maxBufferedSessions {
+                eventBuffer.removeValue(forKey: bufferedSessionOrder.removeFirst())
+            }
+        }
+        eventBuffer[key, default: []].append((event, runtimeID))
+        if let count = eventBuffer[key]?.count, count > Self.maxBufferedEventsPerSession {
+            eventBuffer[key]?.removeFirst(count - Self.maxBufferedEventsPerSession)
+        }
+    }
+
+    @discardableResult
+    private func discardBuffered(for key: String) -> [(GatewayEvent, String)]? {
+        bufferedSessionOrder.removeAll { $0 == key }
+        return eventBuffer.removeValue(forKey: key)
+    }
+
+    /// Buffered events held for a session that has no tree — for tests.
+    internal func bufferedEventCount(for sessionID: String) -> Int {
+        eventBuffer[sessionID]?.count ?? 0
+    }
+
+    /// Sessions with buffered events — for tests.
+    internal var bufferedSessionCount: Int { eventBuffer.count }
 
     private func mergeTree(_ source: SessionTree, into destination: SessionTree) {
         destination.root.status = source.root.status
@@ -392,11 +433,11 @@ final class SpawnTreeStore: ObservableObject {
     /// Remove a session tree.
     func removeTree(sessionID: String) {
         sessions.removeAll { $0.sessionID == sessionID }
-        eventBuffer.removeValue(forKey: sessionID)
+        discardBuffered(for: sessionID)
         rootAssistantTranscriptEntryIDBySession.removeValue(forKey: sessionID)
         if let runtimeID = runtimeIDByDisplaySessionID.removeValue(forKey: sessionID) {
             displayIDByRuntimeSessionID.removeValue(forKey: runtimeID)
-            eventBuffer.removeValue(forKey: runtimeID)
+            discardBuffered(for: runtimeID)
             rootAssistantTranscriptEntryIDBySession.removeValue(forKey: runtimeID)
         }
         if let displayID = displayIDByRuntimeSessionID.removeValue(forKey: sessionID) {

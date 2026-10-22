@@ -360,8 +360,11 @@ final class ChatViewModel: ObservableObject {
     @Published internal private(set) var isConversationActive: Bool = false
 
     /// Smoothed 0...1 microphone level while a conversation is capturing, so the
-    /// orb can expand and shrink with the user's voice. Zero when idle.
-    @Published internal private(set) var voiceLevel: Float = 0
+    /// orb can expand and shrink with the user's voice. Zero when idle. Kept on
+    /// its own observable object (see `AudioLevelMeter`): publishing ~10 Hz mic
+    /// samples from this view model re-rendered the whole transcript per sample.
+    internal let voiceMeter = AudioLevelMeter()
+    internal var voiceLevel: Float { voiceMeter.level }
 
     /// The open local side-discussion, if any: a spoken exchange about one
     /// assistant reply that runs entirely on this machine. Non-nil is what routes
@@ -794,9 +797,11 @@ client.eventStream
         // Handle reconnection. Session creation is explicit from the Sessions UI;
         // reconnect should not implicitly create an invisible chat that races with
         // the New Session button and leaves the list empty on compact iOS.
-        client.onReconnected = { [weak self] in
-            self?.handleGatewayReconnected()
-        }
+        client.reconnectedPublisher
+            .sink { [weak self] in
+                self?.handleGatewayReconnected()
+            }
+            .store(in: &cancellables)
     }
 
     /// React to a gateway connection-state transition. Extracted from the
@@ -847,7 +852,7 @@ client.eventStream
     /// creation is explicit from the Sessions UI; reconnect should not
     /// implicitly create an invisible chat that races with the New Session
     /// button and leaves the list empty on compact iOS. Extracted from the
-    /// `onReconnected` closure so it can be exercised directly.
+    /// `reconnectedPublisher` sink so it can be exercised directly.
     private func handleGatewayReconnected() {
         Task { await reconcileAfterReconnect() }
     }
@@ -2501,7 +2506,7 @@ client.eventStream
             self?.updateVoiceLevel(level)
         }
         inputText = ""
-        voiceLevel = 0
+        voiceMeter.reset()
         isVoiceRecording = true
         if conversation {
             await localVoiceService.startConversation()
@@ -2537,8 +2542,7 @@ client.eventStream
     /// moving average tames the ~10 Hz buffer jitter so the orb pulses smoothly
     /// with the voice instead of strobing.
     private func updateVoiceLevel(_ raw: Float) {
-        let clamped = max(0, min(1, raw))
-        voiceLevel = voiceLevel * 0.7 + clamped * 0.3
+        voiceMeter.fold(raw)
     }
 
     /// Submit an on-device transcript as the user's prompt, mirroring the
@@ -2578,7 +2582,7 @@ client.eventStream
         isConversationActive = false
         isBargingIn = false
         isVoiceRecording = false
-        voiceLevel = 0
+        voiceMeter.reset()
         conversationSpeaker.stop()
         // A local discussion only exists as a spoken exchange, so closing the mic
         // closes it too rather than leaving it open with no way to talk. It stays
@@ -4015,9 +4019,13 @@ client.eventStream
             SessionRunHistoryStore.shared.recordRunStart(sessionID: displayID)
 
         case .messageDelta(let text, _):
+            // Existence check only. The text reaches the transcript through the
+            // pending-delta buffers and the 500 ms flush; `state` is never
+            // written back for a delta (see the persist switch below), so
+            // appending here too only copy-on-wrote the whole messages array
+            // per token and then threw the copy away.
             if let msgID = state.streamingMessageID,
-               let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
-                state.messages[idx].content += text
+               state.messages.contains(where: { $0.id == msgID }) {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     recordPerfEvent("sessionMessageDelta", bytes: text.count)
                     claimDeltaBuffers(for: displayID)
@@ -4172,12 +4180,10 @@ client.eventStream
             }
 
         case .reasoningDelta(let text):
-            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
+            // Same as `.messageDelta`: only the pending buffer carries the text.
+            // Rebuilding `existing + text` here copied the whole accumulated
+            // reasoning string per token into a discarded state.
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
-                if let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                    let existing = state.messages[idx].reasoning ?? ""
-                    state.messages[idx].reasoning = existing + text
-                }
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     claimDeltaBuffers(for: displayID)
                     pendingVisibleReasoningDelta += text
@@ -4187,7 +4193,6 @@ client.eventStream
             }
 
         case .thinkingDelta(let text):
-            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     appendPendingVisibleThinkingDelta(text, owner: displayID, separator: "\n")

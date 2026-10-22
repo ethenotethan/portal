@@ -260,7 +260,24 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private var isReconnectScheduled = false
     private static let maxReconnectDelay: TimeInterval = 30
     static let maxReconnectAttempts: Int = 10
-    private var isIntentionalDisconnect = false
+    /// Set by `disconnect()`, cleared by `connect()`. Every path that can open a
+    /// socket checks it: a client the wrapper has already replaced must not dial
+    /// again from a probe, retry or restart wait that was in flight when it was
+    /// torn down — the orphan would come up with its own ping loop and receive
+    /// loop, parsing every broadcast for subscribers that no longer exist, pinned
+    /// by its URLSession with nobody left to disconnect it.
+    internal private(set) var isIntentionalDisconnect = false
+    /// The probe-then-dial task `connect()` spawns, kept so `disconnect()` can
+    /// cancel it before it reaches `openWebSocket()`.
+    private var connectTask: Task<Void, Never>?
+    /// Ceiling on the HTTP health probe `connect()` runs before dialing. Tests
+    /// shorten it so a probe against a server that never answers HTTP does not
+    /// hold the test for the production five seconds.
+    internal var healthProbeTimeout: TimeInterval = 5
+    /// Bumped each time `openWebSocket()` installs a transport, so a completion
+    /// handler captured against an earlier transport can tell it is stale without
+    /// holding that task or comparing object addresses that may be reused.
+    private var transportGeneration = 0
 
     /// True once a socket has actually opened since the reconnect budget was
     /// last granted. This is what makes `resetReconnectBudget` safe.
@@ -289,7 +306,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private(set) var activeSessionID: String?
 
     /// Callback for ChatViewModel to handle reconnection (resume vs create).
-    var onReconnected: (() async -> Void)?
+    private let reconnectedSubject = PassthroughSubject<Void, Never>()
+    internal var reconnectedPublisher: AnyPublisher<Void, Never> { reconnectedSubject.eraseToAnyPublisher() }
 
     // MARK: - Init
 
@@ -441,13 +459,15 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         refreshDebugSnapshot()
         recordDebugEvent(.state, name: "connect", detail: "opening")
 
-        Task {
+        connectTask?.cancel()
+        connectTask = Task {
             // Probe HTTP first for a useful status in the logs, but NEVER
             // let the probe veto the connection — a wrong-looking answer
             // here (proxy quirk, HEAD 405, unrelated server on the default
             // port) used to hard-fail with "HTTP status 404" while the
             // WebSocket itself would have connected fine.
             let httpStatus = await probeHTTPHealth()
+            guard !Task.isCancelled else { return }
             if httpStatus != 200 {
                 onLog?("⚠ HTTP health returned \(httpStatus) — trying WS anyway", true)
             }
@@ -553,7 +573,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         guard let url = Self.healthProbeURL(for: gatewayURL) else { return -1 }
 
         var request = URLRequest(url: url)
-        request.timeoutInterval = 5
+        request.timeoutInterval = healthProbeTimeout
         // GET, not HEAD — the gateway's /health rejects HEAD with 405.
         request.httpMethod = "GET"
         if !apiKey.isEmpty {
@@ -583,7 +603,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
 
         var request = URLRequest(url: healthURL)
-        request.timeoutInterval = 5
+        request.timeoutInterval = healthProbeTimeout
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
@@ -681,6 +701,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     private func openWebSocket() {
+        guard !isIntentionalDisconnect else {
+            log.debug("openWebSocket skipped: client was disconnected")
+            return
+        }
         let url = gatewayURL, hasKey = !apiKey.isEmpty, hasCookie = cfAuthCookie != nil
         log.debug("Connecting to WS: \(url) auth=\(hasKey) cookie=\(hasCookie)")
         onLog?("Opening WebSocket to \(gatewayURL)…", false)
@@ -723,6 +747,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         let task = newSession.webSocketTask(with: request)
         self.webSocketTask = task
+        transportGeneration += 1
         debugSnapshot.lastOpenAt = Date()
         refreshDebugSnapshot()
         task.resume()
@@ -734,6 +759,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     func disconnect() {
         isIntentionalDisconnect = true
+        connectTask?.cancel()
+        connectTask = nil
         reconnectTask?.cancel()
         reconnectTask = nil
         // The armed backoff timer above never fires once cancelled; clear the
@@ -869,12 +896,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func sendPing() async {
         guard let task = webSocketTask else { return }
         let start = Date()
+        let generation = transportGeneration
         task.sendPing { [weak self] error in
             if let error = error {
                 log.debug("Ping failed: \(error)")
                 Task { @MainActor in
-                    self?.lastPingRTT = nil
-                    self?.handleDisconnect(reason: "Ping failed: \(error.localizedDescription)")
+                    // A ping outstanding on the transport `openWebSocket()` just
+                    // replaced fails when that transport is cancelled. Treating
+                    // it as a drop tore down the healthy replacement: stopped
+                    // its ping loop, failed its pending RPCs, scheduled another
+                    // dial. Only the current transport's ping may do that.
+                    guard let self, self.transportGeneration == generation else { return }
+                    self.lastPingRTT = nil
+                    self.handleDisconnect(reason: "Ping failed: \(error.localizedDescription)")
                 }
             } else {
                 // Pong round-trip time — the toolbar status pill's health signal.
@@ -1057,6 +1091,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// budget so a prior flaky stretch can't veto this user-triggered attempt.
     /// The teardown/dial itself is the same path auto-reconnect uses.
     internal func forceReconnectAndWait(timeout: Double) async {
+        guard !isIntentionalDisconnect else { return }
         reconnectAttempt = 0
         isReconnectScheduled = false
         hasConnectedSinceBudgetGrant = false
@@ -2408,6 +2443,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             }
         } catch {
             log.debug("receiveLoop error: \(error)")
+            // The loop of a transport that `openWebSocket()` replaced ends with
+            // an error as its task is cancelled. That is not a drop of the
+            // transport now in service, so it must not schedule a redial of it.
+            guard !Task.isCancelled, webSocketTask === self.webSocketTask else {
+                log.debug("receiveLoop ended for a replaced transport")
+                return
+            }
             switch connectionState {
             case .connecting, .connected, .reconnecting:
                 let nsError = error as NSError
@@ -2637,7 +2679,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             // Start keepalive pings
             startPingTimer()
 
-            await onReconnected?()
+            reconnectedSubject.send()
         }
     }
 

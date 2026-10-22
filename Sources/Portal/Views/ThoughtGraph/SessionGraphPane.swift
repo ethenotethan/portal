@@ -26,7 +26,7 @@ internal struct SessionGraphPane: View {
     private let liveTurnID = UUID()
 
     private var turns: [SessionTurn] {
-        var all = SessionTurnBuilder.turns(from: chatViewModel.messages)
+        var all = SessionTurnBuilder.memoizedTurns(from: chatViewModel.messages)
         if chatViewModel.isStreaming || !chatViewModel.activeToolCalls.isEmpty {
             let liveNodes = ThoughtGraphLayoutEngine.composeTimeline(
                 tools: Array(chatViewModel.activeToolCalls.values).sorted { $0.id < $1.id },

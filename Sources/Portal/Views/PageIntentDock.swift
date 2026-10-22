@@ -38,6 +38,7 @@ internal struct PageIntentDock: View {
     @ObservedObject internal var model: PageIntentDockModel
     internal let persona: Persona
     internal let skinProvider: ChatSkinProviding
+    internal let skin: ChatSkin
     @State private var showsContext = false
 
     internal static let height: CGFloat = 340
@@ -129,7 +130,7 @@ internal struct PageIntentDock: View {
 
     private func chatConversation(_ chat: ChatViewModel) -> some View {
         VStack(spacing: 0) {
-            ConversationPanel(chatViewModel: chat, persona: persona, skinProvider: skinProvider)
+            ConversationPanel(chatViewModel: chat, persona: persona, skinProvider: skinProvider, skin: skin)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             composer(chat)
         }

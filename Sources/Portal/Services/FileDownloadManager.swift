@@ -11,7 +11,10 @@ final class FileDownloadManager: NSObject, ObservableObject, URLSessionDownloadD
 
     // MARK: - Published State
 
-    /// Maps attachment UUID → download state. The owning view binds to this for UI updates.
+    /// Maps attachment UUID → in-flight download state. Entries are removed once
+    /// the download settles: the bytes are handed to the caller (who stores them
+    /// on the message's attachment and in the disk cache), so keeping a third
+    /// copy here pinned every file ever downloaded for the life of the manager.
     @Published var states: [UUID: FileAttachment.DownloadState] = [:]
 
     /// Maps attachment UUID → download progress (0.0–1.0), for progress bar/ring.
@@ -125,8 +128,8 @@ final class FileDownloadManager: NSObject, ObservableObject, URLSessionDownloadD
                 let data = try Data(contentsOf: location)
                 log.info("Download complete for attachment \(attachmentID): \(data.count) bytes")
 
-                self.states[attachmentID] = .ready(data: data)
-                self.progress[attachmentID] = 1.0
+                self.states.removeValue(forKey: attachmentID)
+                self.progress.removeValue(forKey: attachmentID)
                 self.taskToAttachmentID.removeValue(forKey: downloadTask.taskIdentifier)
 
                 // Persist to disk cache so file survives app restarts

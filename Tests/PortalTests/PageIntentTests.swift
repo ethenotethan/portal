@@ -30,7 +30,8 @@ private final class PageIntentBackendSpy: AgentBackend, @unchecked Sendable {
     }
     var sessionInfoPublisher: AnyPublisher<SessionInfo?, Never> { Just(nil).eraseToAnyPublisher() }
     var connectionState: GatewayClient.ConnectionState = .connected
-    var onReconnected: (() async -> Void)?
+    let reconnected = PassthroughSubject<Void, Never>()
+    var reconnectedPublisher: AnyPublisher<Void, Never> { reconnected.eraseToAnyPublisher() }
     var apiKey: String { "test-key" }
     var activeSessionID: String? { createdSessions.last }
 
@@ -244,6 +245,29 @@ internal struct PageIntentDockModelTests {
         #expect(PageIntentMode.allCases == [.chat, .voice])
         #expect(Set(PageIntentMode.allCases.map(\.title)).count == 2)
         #expect(Set(PageIntentMode.allCases.map(\.systemImage)).count == 2)
+    }
+
+    @Test("a gateway switch forgets the old gateway's sessions and primes afresh on the new one")
+    internal func gatewaySwitchResetsTheDock() async {
+        let oldGateway = PageIntentBackendSpy()
+        let model = makeModel(backend: oldGateway, voice: DockVoiceFake())
+        await model.preload(context: wikiContext("research", query: "first"))
+        #expect(oldGateway.createdSessions.count == 1)
+        let oldPromptCount = oldGateway.prompts.count
+
+        await model.resetForGatewaySwitch()
+        #expect(model.isOpen == false)
+        #expect(model.context == nil)
+
+        let newGateway = PageIntentBackendSpy()
+        model.configure(backend: newGateway)
+        await model.preload(context: wikiContext("research", query: "first"))
+        // A fresh session on the new gateway, primed there — and nothing more
+        // sent to the gateway that no longer owns the dock's session.
+        #expect(newGateway.createdSessions.count == 1)
+        #expect(!newGateway.pagePrompts.isEmpty)
+        #expect(newGateway.submitted.count == 1)
+        #expect(oldGateway.prompts.count == oldPromptCount)
     }
 
     @Test("overlapping preload refreshes share one session and finish on the newest context")

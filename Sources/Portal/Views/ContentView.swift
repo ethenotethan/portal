@@ -22,6 +22,10 @@ internal struct ContentView: View {
     // the user first opens the wiki panel. By the time the panel is visible
     // the graph is already there (or close to it) — no "Loading…" wait.
     @StateObject private var wikiViewModel = WikiGraphViewModel()
+    /// The Graphs page-intent dock. Owned at app level so its per-page agent
+    /// sessions persist across opening and closing the Graphs section instead
+    /// of being minted anew (session + priming turn) on every visit.
+    @StateObject private var intentDock = PageIntentDockModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject internal var xAuth: XAuthService
     @ObservedObject private var cronRunStore = CronRunHistoryStore.shared
@@ -286,6 +290,7 @@ internal struct ContentView: View {
         activityInbox.clearAll()
 
         Task {
+            await intentDock.resetForGatewaySwitch()
             // force: the URL/key changed, so the existing signature check must
             // be bypassed to actually recreate the transport.
             await gatewayClientWrapper.connectWithRetry(using: settings)
@@ -317,7 +322,7 @@ internal struct ContentView: View {
             }
             .tag(1)
 
-            GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore)
+            GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore, intentDock: intentDock)
                 .environmentObject(gatewayClientWrapper)
                 .tabItem {
                     Label("Graphs", systemImage: "network")
@@ -1186,7 +1191,7 @@ internal struct ContentView: View {
             }
 
             if showGraphs {
-                GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore)
+                GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore, intentDock: intentDock)
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)

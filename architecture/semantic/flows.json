@@ -546,7 +546,7 @@
       ],
       "summary": "The agent pauses and asks a question or requests tool approval. The user picks an option or types an answer in the banner. ChatViewModel sends the clarify (or approval) RPC through GatewayClient to the gateway, the pending request resolves, and the run resumes with new events flowing back on the eventStream.",
       "title": "Answer a clarification or approval request",
-      "trigger": "trigger-d63500514852"
+      "trigger": "trigger-e3fc9ab04f51"
     },
     {
       "evidence": [
@@ -634,7 +634,7 @@
       ],
       "summary": "While a reply is streaming, the user taps Stop. ChatViewModel sends a session interrupt RPC through GatewayClient to the gateway, which halts the run. A final event arrives on the eventStream, ChatViewModel clears the streaming flag, and SessionRunHistoryStore records the run end with its token and cost totals.",
       "title": "Stop a reply that is still streaming",
-      "trigger": "trigger-8d1f61693619"
+      "trigger": "trigger-8010950daad4"
     },
     {
       "evidence": [
@@ -734,7 +734,7 @@
       ],
       "summary": "The user submits a prompt. ChatViewModel calls the prompt RPC through GatewayClient, which registers a pending continuation and sends the frame over the WebSocket to the Harness gateway. Streamed events come back on the AgentBackend eventStream, ChatViewModel appends deltas to the transcript, and ChatHistoryStore persists the session to disk.",
       "title": "Send a prompt and watch the reply stream in",
-      "trigger": "trigger-7936740a5d89"
+      "trigger": "trigger-bfa2d9f6c6e7"
     },
     {
       "evidence": [
@@ -822,7 +822,7 @@
       ],
       "summary": "The user taps the mic to record, then taps again to stop. ChatViewModel sends the captured audio through the voice RPC to the gateway for transcription and a run. Reply events return on the eventStream, and ChatViewModel drives TTSService to speak the streamed sentences on-device.",
       "title": "Speak a prompt and hear the reply",
-      "trigger": "trigger-c3fdc426a341"
+      "trigger": "trigger-ee5058a3dbce"
     },
     {
       "evidence": [

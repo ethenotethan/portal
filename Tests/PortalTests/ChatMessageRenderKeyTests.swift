@@ -58,6 +58,30 @@ internal struct ChatMessageRenderKeyTests {
         #expect(ChatMessageRenderKey(skilled) != baseKey, "a skill")
     }
 
+    @Test("an attachment finishing or failing its download changes the key")
+    internal func attachmentDownloadStateIsPartOfTheKey() {
+        var pending = message()
+        pending.attachments = [FileAttachment(remoteURL: URL(string: "https://example.test/report.pdf")!)]
+        let pendingKey = ChatMessageRenderKey(pending)
+
+        var downloading = pending
+        downloading.attachments[0].downloadState = .downloading(progress: 0.5)
+        #expect(ChatMessageRenderKey(downloading) != pendingKey, "progress")
+
+        var ready = pending
+        ready.attachments[0].downloadState = .ready(data: Data([0x25, 0x50, 0x44, 0x46]))
+        #expect(ChatMessageRenderKey(ready) != pendingKey, "ready")
+
+        var failed = pending
+        failed.attachments[0].downloadState = .failed(error: "offline")
+        #expect(ChatMessageRenderKey(failed) != pendingKey, "failed")
+        #expect(ChatMessageRenderKey(failed) != ChatMessageRenderKey(ready), "ready vs failed")
+
+        var readyAgain = pending
+        readyAgain.attachments[0].downloadState = .ready(data: Data([0x00]))
+        #expect(ChatMessageRenderKey(readyAgain) == ChatMessageRenderKey(ready), "the bytes themselves are not compared")
+    }
+
     @Test("two different messages never share a key")
     internal func identityIsPartOfTheKey() {
         #expect(ChatMessageRenderKey(message()) != ChatMessageRenderKey(message()))
