@@ -34,6 +34,9 @@ internal struct SessionChatCanvas: View {
     /// matches the rest of the app.
     internal let persona: Persona
     internal let skinProvider: ChatSkinProviding
+    /// The skin behind `skinProvider`, forwarded so transcript rows can be
+    /// compared (the provider is an existential SwiftUI cannot compare).
+    internal let skin: ChatSkin
     /// Gateway client for the pinned session-usage badge (cumulative tokens /
     /// cost / context %). Session-global metrics that persist across turns.
     internal let client: GatewayClient
@@ -114,7 +117,7 @@ internal struct SessionChatCanvas: View {
     /// from the live transcript. Empty until the first turn completes enough to
     /// graph.
     private var turns: [SessionTurn] {
-        SessionTurnBuilder.turns(from: chatViewModel.messages)
+        SessionTurnBuilder.memoizedTurns(from: chatViewModel.messages)
     }
 
     /// The turn Turns mode is showing: the explicitly-selected one, else the
@@ -303,6 +306,7 @@ internal struct SessionChatCanvas: View {
                     chatViewModel: chatViewModel,
                     persona: persona,
                     skinProvider: skinProvider,
+                    skin: skin,
                     // Turns mode isolates the selected turn; Scroll shows it all.
                     focusedTurnID: displayMode == .turns ? selectedTurn?.id : nil
                 )

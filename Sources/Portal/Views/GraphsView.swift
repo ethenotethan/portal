@@ -215,7 +215,12 @@ internal struct GraphsView: View {
             // The dock lives over the page: the graph stays interactive above it.
             .overlay(alignment: .bottom) {
                 if intentDock.isOpen {
-                    PageIntentDock(model: intentDock, persona: personaManager.activePersona, skinProvider: dockSkin.makeProvider())
+                    PageIntentDock(
+                        model: intentDock,
+                        persona: personaManager.activePersona,
+                        skinProvider: dockSkin.makeProvider(),
+                        skin: dockSkin
+                    )
                         .transition(.move(edge: .bottom))
                 } else {
                     HStack {
