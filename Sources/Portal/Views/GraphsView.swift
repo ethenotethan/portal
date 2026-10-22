@@ -95,9 +95,13 @@ internal struct GraphsView: View {
     @EnvironmentObject private var personaManager: PersonaManager
 
     /// The "talk to this page" dock: one agent session per wiki and one for the
-    /// cron graph, primed with the page's state. Owned here so it survives the
-    /// wiki ↔ runtime switch and follows whichever surface is showing.
-    @StateObject private var intentDock = PageIntentDockModel()
+    /// cron graph, primed with the page's state. Owned by ContentView, not here:
+    /// this view is unmounted whenever Graphs is hidden, and a model owned here
+    /// was recreated on every open — a fresh Hermes session plus a priming LLM
+    /// turn per visit, never closed on the gateway, so the session list grew by
+    /// one each time. The model keeps its sessions while the app runs, which is
+    /// what the dock promises ("the session stays; reopening continues it").
+    @ObservedObject private var intentDock: PageIntentDockModel
     /// The chat skin the dock's transcript renders with — the same setting the
     /// chat page reads, so bubbles match.
     @AppStorage("chatSkin") private var dockSkin: ChatSkin = .tui
@@ -113,10 +117,12 @@ internal struct GraphsView: View {
     internal init(
         wikiViewModel: WikiGraphViewModel,
         cronGraphStore: CronGraphStore,
+        intentDock: PageIntentDockModel,
         overrideSource: (any WikiSource)? = nil
     ) {
         self.wikiViewModel = wikiViewModel
         self.overrideSource = overrideSource
+        _intentDock = ObservedObject(wrappedValue: intentDock)
         _cronGraphVM = StateObject(wrappedValue: CronGraphViewModel(graphStore: cronGraphStore))
     }
 

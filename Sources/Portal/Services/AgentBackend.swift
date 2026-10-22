@@ -82,8 +82,12 @@ protocol AgentBackend: AnyObject {
     /// Synchronous connection-state snapshot (guards in create/resume paths).
     var connectionState: GatewayClient.ConnectionState { get }
 
-    /// Invoked after an automatic reconnect restores the transport.
-    var onReconnected: (() async -> Void)? { get set }
+    /// Fires each time the transport opens. A publisher rather than a single
+    /// closure slot: several ChatViewModels share one client (the chat page plus
+    /// the page-intent docks), and with a slot the last one to wire up silently
+    /// replaced the others' reconnect handling — after the first Graphs open the
+    /// main chat never reconciled after a reconnect again.
+    var reconnectedPublisher: AnyPublisher<Void, Never> { get }
 
     /// Bearer credential attachments/downloads may need (empty when unused).
     var apiKey: String { get }

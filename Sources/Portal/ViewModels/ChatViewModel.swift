@@ -797,9 +797,11 @@ client.eventStream
         // Handle reconnection. Session creation is explicit from the Sessions UI;
         // reconnect should not implicitly create an invisible chat that races with
         // the New Session button and leaves the list empty on compact iOS.
-        client.onReconnected = { [weak self] in
-            self?.handleGatewayReconnected()
-        }
+        client.reconnectedPublisher
+            .sink { [weak self] in
+                self?.handleGatewayReconnected()
+            }
+            .store(in: &cancellables)
     }
 
     /// React to a gateway connection-state transition. Extracted from the
@@ -850,7 +852,7 @@ client.eventStream
     /// creation is explicit from the Sessions UI; reconnect should not
     /// implicitly create an invisible chat that races with the New Session
     /// button and leaves the list empty on compact iOS. Extracted from the
-    /// `onReconnected` closure so it can be exercised directly.
+    /// `reconnectedPublisher` sink so it can be exercised directly.
     private func handleGatewayReconnected() {
         Task { await reconcileAfterReconnect() }
     }

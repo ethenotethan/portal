@@ -298,7 +298,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private(set) var activeSessionID: String?
 
     /// Callback for ChatViewModel to handle reconnection (resume vs create).
-    var onReconnected: (() async -> Void)?
+    private let reconnectedSubject = PassthroughSubject<Void, Never>()
+    internal var reconnectedPublisher: AnyPublisher<Void, Never> { reconnectedSubject.eraseToAnyPublisher() }
 
     // MARK: - Init
 
@@ -2670,7 +2671,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             // Start keepalive pings
             startPingTimer()
 
-            await onReconnected?()
+            reconnectedSubject.send()
         }
     }
 
