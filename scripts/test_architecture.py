@@ -664,6 +664,21 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertTrue(all(r["status"] == "holds" for r in results), results)
         self.assertTrue(all(r["why"] for r in results))
 
+    def test_interplay_invariants_carry_a_layer(self) -> None:
+        results = self.model["interplay"]["invariants"]
+        self.assertTrue(all(r["layer"] in architecture.INVARIANT_LAYERS for r in results), results)
+        self.assertEqual(set(architecture.INVARIANT_LAYERS), {r["layer"] for r in results})
+        self.assertEqual([r["layer"] for r in results], [r["layer"] for r in self.model["ci"]["architectural"]["invariants"]])
+
+    def test_interplay_invariant_without_a_layer_is_rejected(self) -> None:
+        interplay = {"nodes": [], "edges": [], "pages": []}
+        entry = {"id": "operations-scoped", "kind": "operations_resolve_scope", "why": "scopes"}
+        for layer in ({}, {"layer": "mechanical"}):
+            declared = {"schema_version": "1.0.0", "invariants": [{**entry, **layer}]}
+            with self.assertRaises(architecture.ArchitectureError) as caught:
+                architecture.validate_interplay_invariants(interplay, {"operations": []}, declared)
+            self.assertIn("operations-scoped needs a layer", str(caught.exception))
+
     def test_interplay_invariants_fail_when_the_construction_drifts(self) -> None:
         def graph(*, guarded: bool, holds: bool) -> tuple[dict, dict]:
             ev = {"path": "Sources/Portal/Services/GatewayClient.swift", "line": 10}

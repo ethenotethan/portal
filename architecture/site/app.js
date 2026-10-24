@@ -276,6 +276,15 @@
     machines_complete: "Every state machine's states match what is declared and every state is entered by some transition; a new, renamed or orphaned state changes the construction and must be declared."
   };
 
+  // The rung of the pipeline each invariant pins. The list is grouped by it, so a
+  // reader sees which checks are about the extractor, which about what the model
+  // wrote, and which about a discipline the source must keep.
+  const INVARIANT_LAYER_TEXT = {
+    extraction: ["Extraction", "The mechanical model agrees with its own rules: every construct the extractor recognises is on the map, dispatched, zoned and populated as the rules say."],
+    enrichment: ["Enrichment", "What the model wrote is still a path over edges the map draws; a hop whose edge disappeared fails the build until the record is rewritten."],
+    policy: ["Policy", "A construction the source is required to keep: the lock discipline and lifecycle the critical-section picture assumes."],
+  };
+
   const INTERPLAY_SHARED_GROUP = "Shared core";
   // Declared external systems (config-specified, source-attributed) sit in their
   // own hull beneath the shared core; endpoint boxes hang off the gateway there.
@@ -2115,7 +2124,7 @@
     if (!list || !lede) return;
     const holding = invariants.filter((item) => item.status === "holds").length;
     lede.textContent = `${holding} of ${invariants.length} declared constructions hold on this build. Each is declared in architecture/interplay/invariants.json with a reason and checked by scripts/build_architecture.py; a violation fails the build rather than redrawing the map.`;
-    list.replaceChildren(...invariants.map((item) => {
+    const invariantItem = (item) => {
       const li = element("li", "invariant");
       const head = element("div", "invariant-head");
       head.append(
@@ -2125,6 +2134,19 @@
       );
       li.append(head, element("p", "", INVARIANT_KIND_TEXT[item.kind] || item.kind), element("p", "invariant-why", item.why));
       return li;
+    };
+    const layers = Object.keys(INVARIANT_LAYER_TEXT)
+      .map((layer) => [layer, invariants.filter((item) => item.layer === layer)])
+      .filter(([, items]) => items.length);
+    list.replaceChildren(...layers.map(([layer, items]) => {
+      const [title, rung] = INVARIANT_LAYER_TEXT[layer];
+      const group = element("section", "invariant-layer");
+      const holding = items.filter((item) => item.status === "holds").length;
+      group.append(element("h4", "", `${title} · ${holding} of ${items.length} hold`), element("p", "invariant-layer-rung", rung));
+      const ol = element("ol", "invariants-list");
+      ol.append(...items.map(invariantItem));
+      group.append(ol);
+      return group;
     }));
   }
 
@@ -3380,7 +3402,7 @@
       invariantsList.append(checkItem([
         element("span", `invariant-status ${item.status}`, item.status === "holds" ? "HOLDS" : "VIOLATED"),
         element("code", "", item.id),
-        element("span", "invariant-meta", item.kind.replace(/_/g, " "))
+        element("span", "invariant-meta", `${item.layer} · ${item.kind.replace(/_/g, " ")}`)
       ], item.why ? element("p", "", item.why) : null, []));
     });
     invariantsSection.append(invariantsList);

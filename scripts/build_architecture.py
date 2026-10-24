@@ -2575,6 +2575,14 @@ INVARIANT_KINDS = {
     "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
     "stores_mapped", "triggers_observed", "launch_zoned", "flows_traceable", "machines_complete",
 }
+# The rung of the pipeline an invariant pins. `extraction` invariants check the
+# mechanical model against its own rules (what the extractor recognises is on the
+# map, dispatched, zoned, populated); `enrichment` invariants check what the model
+# wrote against the map (a flow is still a path over drawn edges); `policy`
+# invariants check a construction the source is required to keep (the lock
+# discipline and lifecycle the critical-section picture assumes). The site groups
+# the list by this, so a reader knows which rung a violation is about.
+INVARIANT_LAYERS = ("extraction", "enrichment", "policy")
 
 
 def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str, Any],
@@ -2614,6 +2622,9 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
         seen_ids.add(entry["id"])
         if not isinstance(entry.get("why"), str) or not entry["why"].strip():
             raise ArchitectureError(f"interplay invariant {entry['id']} needs a why")
+        if entry.get("layer") not in INVARIANT_LAYERS:
+            raise ArchitectureError(f"interplay invariant {entry['id']} needs a layer, one of "
+                                    f"{', '.join(INVARIANT_LAYERS)}; got {entry.get('layer')!r}")
         kind = entry["kind"]
         problems: list[str] = []
         checked = 0
@@ -2783,7 +2794,7 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
             if empty:
                 problems.append(f"pages that own no construct: {empty}")
 
-        results.append({"id": entry["id"], "kind": kind, "status": "violated" if problems else "holds",
+        results.append({"id": entry["id"], "kind": kind, "layer": entry["layer"], "status": "violated" if problems else "holds",
                         "checked": checked, "why": entry["why"]})
         for problem in problems:
             violations.append(f"{entry['id']}: {problem} (why: {entry['why']})")
@@ -4697,7 +4708,7 @@ def build_ci_model(config: dict[str, Any], interplay: dict[str, Any]) -> dict[st
     lint_rules = read_lint_rules(ROOT / str(architectural_config["lint_config"]))
     tests = read_architecture_tests(ROOT / str(architectural_config["tests"]))
     invariants = [
-        {"id": item["id"], "kind": item["kind"], "status": item["status"], "why": item.get("why", "")}
+        {"id": item["id"], "kind": item["kind"], "layer": item["layer"], "status": item["status"], "why": item.get("why", "")}
         for item in interplay.get("invariants", [])
     ]
 

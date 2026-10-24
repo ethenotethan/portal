@@ -389,6 +389,9 @@ h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em;
 .invariants h3 { margin: 0 0 6px; font-size: 16px; letter-spacing: -.02em; color: var(--ink); }
 .invariants-lede { margin: 0 0 14px; max-width: 900px; color: var(--faint); }
 .invariants-list { margin: 0; padding-left: 28px; list-style: decimal; max-width: 980px; }
+.invariant-layer { margin: 0 0 18px; max-width: 980px; }
+.invariant-layer h4 { margin: 0 0 4px; font-size: 14px; letter-spacing: -.01em; color: var(--ink); }
+.invariant-layer-rung { margin: 0 0 8px; color: var(--faint); }
 .invariant::marker { color: var(--faint); font: 600 12px var(--mono); }
 .invariant { padding: 10px 0 10px 4px; border-top: 1px solid var(--line); }
 .invariant:first-child { border-top: 0; }
