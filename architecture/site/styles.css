@@ -427,6 +427,7 @@ h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em;
 .flow-meta { margin: 6px 0 0; color: var(--faint); font: 10px var(--mono); }
 .flow-trace { color: var(--accent); text-decoration: none; }
 .flow-trace:hover { text-decoration: underline; }
+.described-purpose { color: var(--ink); font-weight: 500; }
 .described-table { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 10px 0; font-size: 12px; }
 .described-table dt { color: var(--faint); font: 600 9px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding-top: 2px; }
 .described-table dd { margin: 0; color: var(--ink); }

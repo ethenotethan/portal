@@ -372,6 +372,18 @@ class Context:
         self.externals = self.model.get("externals") or {"systems": []}
         self.by_id = {node["id"]: node for node in self.interplay["nodes"]}
         self.by_key = {node["history_key"]: node for node in self.interplay["nodes"] if node["kind"] != "operation"}
+        self.line_counts = {item["path"]: item["line_count"] for item in self.files}
+        self.component_by_id = {c["id"]: c for c in self.model.get("components", [])}
+
+    def component_facts(self, component_id: str | None) -> dict[str, Any] | None:
+        """The declared description and the summarised component a construction belongs to:
+        the business context a purpose is written against."""
+        component = self.component_by_id.get(component_id or "")
+        if component is None:
+            return None
+        semantic = component.get("semantic") or {}
+        return {k: v for k, v in {"id": component["id"], "label": component["label"], "layer": component["layer"],
+                                  "description": component.get("description"), "summary": semantic.get("summary")}.items() if v}
 
     def edges_of(self, node: dict[str, Any]) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
@@ -438,6 +450,125 @@ def window_excerpt(text: str, line: int, radius: int = 6) -> dict[str, Any]:
     return {"from_line": lo, "text": "\n".join(lines[lo - 1:hi])}
 
 
+# The repository's own prose: the one place intent is written down. A purpose is
+# written against these paragraphs when they name the construction, and against
+# the code alone (saying so) when they do not.
+DOCS_CHARS = 2400
+DOCS_GLOBS = ("docs/*.md", "architecture/specifications/*.md", "README.md", "AGENTS.md")
+# Words of a Swift type or file name that name a shape, not a thing: alone they match everything.
+GENERIC_NAME_WORDS = {"view", "views", "model", "models", "store", "client", "service", "services", "manager", "helper", "helpers",
+                      "extension", "extensions", "utils", "types", "portal", "sources", "section", "sheet", "panel", "row", "list"}
+_DOCS_PARAGRAPHS: list[tuple[str, str]] | None = None
+
+
+def docs_paragraphs() -> list[tuple[str, str]]:
+    """Every paragraph of the repository's prose docs with its file, read once."""
+    global _DOCS_PARAGRAPHS
+    if _DOCS_PARAGRAPHS is None:
+        out: list[tuple[str, str]] = []
+        paths = sorted({path for pattern in DOCS_GLOBS for path in ROOT.glob(pattern) if path.is_file()})
+        for path in paths:
+            rel = path.relative_to(ROOT).as_posix()
+            for para in re.split(r"\n\s*\n", path.read_text(encoding="utf-8", errors="ignore")):
+                para = para.strip()
+                if 40 <= len(para) <= 1200 and not para.startswith(("```", "|")):
+                    out.append((rel, para))
+        _DOCS_PARAGRAPHS = out
+    return _DOCS_PARAGRAPHS
+
+
+def docs_for(label: str, paths: list[str]) -> list[dict[str, str]]:
+    """Paragraphs that name the construction: its label or a file stem (strong), or a
+    distinctive word of a camel-cased name (weak). Bounded by DOCS_CHARS, the paragraphs
+    naming the thing itself first, a doc titled for it before all."""
+    strong: set[str] = set()
+    words: set[str] = set()
+    if len(label) >= 4:
+        strong.add(label)
+    for path in paths:
+        stem = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+        if len(stem) >= 5 and stem.lower() not in GENERIC_NAME_WORDS:
+            strong.add(stem)
+        for word in re.split(r"[-_]|(?<=[a-z])(?=[A-Z])", stem):
+            if len(word) >= 6 and word.lower() not in GENERIC_NAME_WORDS:
+                words.add(word)
+    if not strong and not words:
+        return []
+    scored: list[tuple[int, str, str]] = []
+    for rel, para in docs_paragraphs():
+        doc_name = rel.rsplit("/", 1)[-1].lower()
+        in_title = any(name.lower() in doc_name for name in strong | words)
+        strong_hits = sum(1 for name in strong if name in para)
+        word_hits = sum(1 for name in words if name in para)
+        if strong_hits or word_hits or in_title:
+            scored.append((strong_hits * 3 + word_hits + (4 if in_title else 0), rel, para))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    out: list[dict[str, str]] = []
+    budget = DOCS_CHARS
+    for _score, rel, para in scored:
+        if len(para) > budget:
+            continue
+        out.append({"doc": rel, "text": para})
+        budget -= len(para)
+        if budget < 120:
+            break
+    return out
+
+
+def clip(text: str, limit: int) -> str:
+    """Cut prose at the last sentence end before ``limit``; a hard cut with an ellipsis when there is none."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    cut = max(text.rfind(". ", 0, limit - 1), text.rfind(".", 0, limit - 1))
+    if cut > limit // 2:
+        return text[:cut + 1].strip()
+    return text[:limit - 1].rstrip() + "…"
+
+
+def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compiler: Any, owner: str, line_counts: dict[str, int]) -> dict[str, Any]:
+    """Length caps are mechanical, so a response that overruns one is cut to it rather
+    than dropped, and a cited line past the end of a real file is pinned to its last
+    line; every repair is printed. Vocabulary and evidence-path errors are not repaired:
+    the validator rejects those and the reason is printed."""
+    out = dict(raw)
+    repairs: list[str] = []
+    for key, limit in (("summary", compiler.SEMANTIC_SUMMARY_MAX), ("purpose", compiler.SEMANTIC_PURPOSE_MAX)):
+        if isinstance(out.get(key), str) and len(out[key]) > limit:
+            out[key] = clip(out[key], limit)
+            repairs.append(f"{key} clipped")
+    fields = out.get("fields") if isinstance(out.get("fields"), dict) else {}
+    fixed: dict[str, Any] = {}
+    for name, value in fields.items():
+        spec = schema.get(name)
+        if spec and spec[0] == "str" and isinstance(value, str) and len(value) > spec[1]:
+            value = clip(value, spec[1])
+            repairs.append(f"{name} clipped")
+        if spec and spec[0] == "list_str" and isinstance(value, list):
+            kept = [item for item in value if isinstance(item, str) and len(item) <= spec[1]]
+            if len(kept) != len(value):
+                repairs.append(f"{name}: dropped {len(value) - len(kept)} over-long item(s)")
+            value = kept
+        if spec and spec[0] == "types" and isinstance(value, list):
+            # A nested type written with its outer type (`ArtifactStore.QuerySlot`) is declared by its own name.
+            unqualified = [item.rsplit(".", 1)[-1] if isinstance(item, str) else item for item in value]
+            if unqualified != value:
+                repairs.append(f"{name}: unqualified nested type name(s)")
+            value = unqualified
+        fixed[name] = value
+    out["fields"] = fixed
+    if isinstance(out.get("open_questions"), list):
+        out["open_questions"] = [clip(q, 200) for q in out["open_questions"] if isinstance(q, str)]
+    if isinstance(out.get("evidence"), list):
+        for site in out["evidence"]:
+            if isinstance(site, dict) and site.get("path") in line_counts and isinstance(site.get("line"), int) and site["line"] > line_counts[site["path"]]:
+                site["line"] = line_counts[site["path"]]
+                repairs.append(f"evidence line clamped in {site['path'].rsplit('/', 1)[-1]}")
+    if repairs:
+        print(f"repaired {owner}: {', '.join(sorted(set(repairs)))}", file=sys.stderr, flush=True)
+    return out
+
+
 def construct_targets(ctx: Context) -> list[dict[str, Any]]:
     """Every construct that carries a record: nodes with a schema kind, plus pages."""
     targets: list[dict[str, Any]] = []
@@ -466,9 +597,12 @@ def construct_facts(target: dict[str, Any], ctx: Context) -> dict[str, Any]:
                         excerpts.append({"path": path, **excerpt})
                         files.append(path)
                     break
+        components = sorted({n["component"] for n in members if n.get("component")})
         return {
             "key": target["key"], "kind": "page", "label": page["label"],
             "mechanical": {"roots": page.get("roots"), "namespaces": page.get("namespaces"), "type_count": page.get("type_count")},
+            "component": [ctx.component_facts(c) for c in components if ctx.component_facts(c)],
+            "docs": docs_for(page["label"], [*sorted(set(files)), *(page.get("roots") or [])]),
             "members": [{"key": n["history_key"], "kind": n["kind"], "label": n["label"]} for n in members],
             "triggers": [{"id": t["id"], "kind": t["kind"], "api": t["api"], "view": t.get("view"), "surface": t["surface"], "method": t["method"]} for t in triggers[:40]],
             "bounded_files": sorted(set(files)), "excerpts": excerpts, "prefilled": {},
@@ -529,6 +663,8 @@ def construct_facts(target: dict[str, Any], ctx: Context) -> dict[str, Any]:
                     budget -= 1
     return {
         "key": target["key"], "kind": target["kind"], "label": node["label"], "mechanical": mechanical,
+        "component": ctx.component_facts(node.get("component")),
+        "docs": docs_for(node["label"], [path for path in (node.get("path"), *sorted(allowed)) if path][:4]),
         "edges": edges[:60], "prefilled": prefilled, "bounded_files": sorted(allowed), "excerpts": excerpts,
     }
 
@@ -562,7 +698,9 @@ def construct_prompt(batch: list[dict[str, Any]], kind: str, ctx: Context, exist
     records = []
     for target in batch:
         facts = construct_facts(target, ctx)
-        facts["existing_record"] = existing.get(target["key"])
+        record = existing.get(target["key"])
+        if record:
+            facts["existing_record"] = {k: record[k] for k in ("summary", "purpose", "fields", "open_questions") if record.get(k) is not None}
         records.append(facts)
     packet = {"repository": ctx.model["repository"], "source_revision": source_revision, "kind": kind, "records": records}
     text = json.dumps(packet, indent=1, sort_keys=True, ensure_ascii=False)
@@ -581,6 +719,7 @@ Return one JSON object {{"records": [...]}} with exactly one record per input re
   "key": "the input key, unchanged",
   "kind": "{kind}",
   "summary": "one paragraph, present tense, what this construction is and does in the current source",
+  "purpose": "one paragraph, at most {compiler.SEMANTIC_PURPOSE_MAX} characters: why this exists in the product — the need it serves, for whom (the person running Portal, an operator of the gateway, the team), what it unlocks, and what stops working without it. Written from the `docs` paragraphs when they name it; from the code alone otherwise, with a clause saying the purpose is inferred.",
   "fields": {{ ...only fields from the schema below; omit a field rather than guess... }},
   "open_questions": ["what the excerpts do not settle"],
   "evidence": [{{"path": "a path from bounded_files", "line": 1}}]
@@ -595,7 +734,9 @@ Rules:
 - `record_type` must be Swift type names that appear in the excerpts.
 - Every evidence path must be in this record's bounded_files, with a line number inside the excerpt ranges you saw (from_line plus the offset).
 - Prefer an open question over an unsupported claim. Do not describe desired design.
-- Keep the summary under {compiler.SEMANTIC_SUMMARY_MAX} characters, open questions under 200. Output JSON only.
+- The summary says what it does; the purpose says why anyone wanted it. They must not repeat each other. A purpose that lists dependencies ("talks to the gateway and the Keychain") is rejected in review; name the outcome those dependencies buy. `component` is the declared module the construction sits in and `docs` are the repository's own paragraphs naming it: ground the purpose there.
+- Set every identifier, type, method, file, route, namespace and key you mention in backticks, in the summary, the purpose and every string field.
+- Keep the summary under {compiler.SEMANTIC_SUMMARY_MAX} characters, the purpose under {compiler.SEMANTIC_PURPOSE_MAX}, open questions under 200. Output JSON only.
 
 Packet:
 {text}
@@ -607,11 +748,12 @@ Packet:
             "properties": {
                 "key": {"type": "string"}, "kind": {"type": "string"},
                 "summary": {"type": "string", "maxLength": compiler.SEMANTIC_SUMMARY_MAX},
+                "purpose": {"type": "string", "maxLength": compiler.SEMANTIC_PURPOSE_MAX},
                 "fields": fields_json_schema(compiler.CONSTRUCT_SCHEMAS[kind]),
                 "open_questions": {"type": "array", "items": {"type": "string", "maxLength": 200}},
                 "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}},
             },
-            "required": ["key", "kind", "summary", "fields", "evidence"],
+            "required": ["key", "kind", "summary", "purpose", "fields", "evidence"],
         }}},
         "required": ["records"],
     }
@@ -665,6 +807,7 @@ def run_constructs(ctx: Context, targets: list[dict[str, Any]], source_revision:
             raw["source_revision"] = source_revision
             raw["model"] = model_name
             raw.pop("cited_hash", None)
+            raw = repair_record(raw, compiler.CONSTRUCT_SCHEMAS[kind], compiler, target["key"], ctx.line_counts)
             try:
                 record = compiler.validate_construct_record(raw, ctx.interplay, ctx.files, ctx.externals)
             except compiler.ArchitectureError as exc:

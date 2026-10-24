@@ -1786,7 +1786,7 @@
     concurrency_model: "Concurrency", reconnect_policy: "Reconnect", backpressure: "Backpressure", shared_by: "Shared by",
     settles_by: "Settles by", cancellation: "Cancellation", runtime: "Runtime", model_ids: "Models", memory_floor_gb: "Memory floor (GB)",
     loaded_when: "Loaded", unloaded_when: "Unloaded", supplies: "Supplies", configures: "Configures", loads: "Loads",
-    wraps: "Wraps", error_mapping: "Errors", purpose: "Purpose", request_shape: "Request", response_shape: "Response",
+    wraps: "Wraps", error_mapping: "Errors", request_shape: "Request", response_shape: "Response",
     idempotent: "Idempotent", streams: "Streams", entry_triggers: "Entry triggers", owns_state_in: "Owns state in",
     state: "State", reacts_to: "Reacts to", conformers: "Conformers"
   };
@@ -1801,7 +1801,9 @@
     const section = element("section", "inspector-section described");
     const head = element("h4", "", "Described");
     if (semantic.stale) head.append(element("span", "stale-badge", `stale · files changed since ${String(semantic.source_revision).slice(0, 9)}`));
-    section.append(head, element("p", "", semantic.summary));
+    // Why it exists comes first: the summary says what the construction does, the
+    // purpose says why anyone wanted it, and a reader meeting a box cold needs the why.
+    section.append(head, element("p", "described-purpose", semantic.purpose), element("p", "", semantic.summary));
     const fields = Object.entries(semantic.fields || {});
     if (fields.length) {
       const table = element("dl", "described-table");

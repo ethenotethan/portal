@@ -3358,6 +3358,10 @@ def attach_state_machines(interplay: dict[str, Any], files: list[dict[str, Any]]
 # reports what load_flows found.
 # ---------------------------------------------------------------------------
 SEMANTIC_SUMMARY_MAX = 400
+# The purpose says why the construction exists: the need it serves, for whom, what
+# it unlocks and what stops working without it. Longer than the summary because it
+# must name an outcome, not a mechanism, and say when it is inferred rather than documented.
+SEMANTIC_PURPOSE_MAX = 520
 SEMANTIC_NOTE_MAX = 120
 STORE_MEDIA = ("json_file", "plist_file", "sqlite", "user_defaults", "keychain", "in_memory", "mixed")
 # The mechanical persistence a medium must be compatible with.
@@ -3421,24 +3425,20 @@ CONSTRUCT_SCHEMAS: dict[str, dict[str, tuple[Any, ...]]] = {
         "error_mapping": ("str", 160),
     },
     "endpoint": {
-        "purpose": ("str", 200),
         "request_shape": ("str", 120),
         "response_shape": ("str", 120),
         "idempotent": ("bool",),
         "streams": ("bool",),
     },
     "page": {
-        "purpose": ("str", 200),
         "entry_triggers": ("triggers",),
         "owns_state_in": ("page_nodes",),
     },
     "surface": {
-        "purpose": ("str", 200),
         "state": ("list_str", 80),
         "reacts_to": ("list_str", 60),
     },
     "seam": {
-        "purpose": ("str", 200),
         "conformers": ("keys", {"conforms", "implements"}, "in"),
     },
 }
@@ -3570,6 +3570,11 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
         raise ArchitectureError(f"{owner} needs a summary")
     if len(summary) > SEMANTIC_SUMMARY_MAX:
         raise ArchitectureError(f"{owner} summary exceeds {SEMANTIC_SUMMARY_MAX} characters")
+    purpose = raw.get("purpose")
+    if not isinstance(purpose, str) or not purpose.strip():
+        raise ArchitectureError(f"{owner} needs a purpose: why the construction exists, not what it does")
+    if len(purpose) > SEMANTIC_PURPOSE_MAX:
+        raise ArchitectureError(f"{owner} purpose exceeds {SEMANTIC_PURPOSE_MAX} characters")
     schema = CONSTRUCT_SCHEMAS[expected_kind]
     body: dict[str, Any] = {}
     fields = raw.get("fields")
@@ -3601,7 +3606,7 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
     current_hash = cited_hash(cited, text_by_path)
     recorded_hash = raw.get("cited_hash")
     return {
-        "key": key, "kind": expected_kind, "summary": summary.strip(), "fields": body,
+        "key": key, "kind": expected_kind, "summary": summary.strip(), "purpose": purpose.strip(), "fields": body,
         "open_questions": open_questions, "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
         "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),

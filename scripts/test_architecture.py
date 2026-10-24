@@ -1003,7 +1003,7 @@ class ArchitectureCompilerTests(unittest.TestCase):
         externals = self.model["externals"]
         keychain = next(n for n in interplay["nodes"] if n["label"] == "KeychainStore")
         good = {
-            "key": keychain["history_key"], "kind": "store", "summary": "Wraps the Keychain.",
+            "key": keychain["history_key"], "kind": "store", "summary": "Wraps the Keychain.", "purpose": "Keeps gateway credentials out of plain files.",
             "fields": {"medium": "keychain", "sensitive": True, "readers": ["provider:operations-state:SettingsViewModel"], "record_type": ["SavedGateway"], "written_when": ["on_change"]},
             "evidence": [{"path": keychain["path"], "line": 10}], "open_questions": [],
         }
@@ -1026,6 +1026,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
             ({**good, "evidence": [{"path": "Sources/Portal/Views/ChatView.swift", "line": 1}]}, "bounded"),
             ({**good, "evidence": [{"path": keychain["path"], "line": 100000}]}, "not a line"),
             ({**good, "summary": "x" * 401}, "exceeds"),
+            ({k: v for k, v in good.items() if k != "purpose"}, "needs a purpose"),
+            ({**good, "purpose": "x" * 521}, "purpose exceeds"),
         ]
         for raw, needle in bad_cases:
             with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
@@ -1033,12 +1035,12 @@ class ArchitectureCompilerTests(unittest.TestCase):
             self.assertIn(needle, str(caught.exception))
         # Pages are constructs too; members must belong to the page.
         page = architecture.validate_construct_record(
-            {"key": "page:launch", "kind": "page", "summary": "Launch.", "fields": {"owns_state_in": [keychain["history_key"]]},
+            {"key": "page:launch", "kind": "page", "summary": "Launch.", "purpose": "Starts the session.", "fields": {"owns_state_in": [keychain["history_key"]]},
              "evidence": [{"path": keychain["path"], "line": 1}]}, interplay, files, externals)
         self.assertEqual("page", page["kind"])
         with self.assertRaises(architecture.ArchitectureError):
             architecture.validate_construct_record(
-                {"key": "page:chat", "kind": "page", "summary": "Chat.", "fields": {"owns_state_in": [keychain["history_key"]]},
+                {"key": "page:chat", "kind": "page", "summary": "Chat.", "purpose": "Starts the session.", "fields": {"owns_state_in": [keychain["history_key"]]},
                  "evidence": [{"path": keychain["path"], "line": 1}]}, interplay, files, externals)
 
     def test_flows_are_paths_over_edges_the_map_draws(self) -> None:
