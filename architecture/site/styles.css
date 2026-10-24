@@ -384,6 +384,7 @@ h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em;
 .interplay-node rect.core { fill: rgba(92, 168, 216, .08); stroke: #5ca8d8; stroke-width: 1.5; }
 .interplay-node rect.core.expanded { stroke-dasharray: none; fill: rgba(92, 168, 216, .14); }
 .interplay-node rect[data-holder="collapsed"] { stroke-dasharray: 4 3; }
+.relationship .relation-chain { display: block; color: var(--faint); font: 10.5px var(--mono); overflow-wrap: anywhere; }
 .inspector-steps .step-return { list-style: none; margin-left: -18px; color: var(--faint); font-style: italic; }
 .interplay-node rect.bus { fill: rgba(209, 111, 134, .08); stroke: #d16f86; stroke-width: 1.5; }
 .interplay-group.memory .interplay-group-rect { fill: rgba(92, 168, 216, .035); stroke-dasharray: 6 4; }

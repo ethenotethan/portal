@@ -73,6 +73,7 @@ BEHAVIOR_RULES = {
     "swift.usage.configures": "A launch-constructed type passed as a parameter to a method of a type that holds the transport core: it supplies what the transport connects with",
     "swift.state.machine": "A stored property of a type on the map whose type is an enum with two or more cases and which is assigned a case somewhere in the type: the object's lifecycle state",
     "swift.state.transition": "An assignment of an enum case to a machine property, attributed to the enclosing function; the from-state is read from an enclosing switch or if-case on the same property when there is one",
+    "swift.usage.injected_method": "A surface calls a method on a dependency it holds (a field typed as a protocol or a class, an object it constructs, a `.shared` singleton); the call is followed through the implementers' bodies up to three hops to the stores and external systems it reaches, with the chain of members on the edge",
     "swift.launch.starter": "A function of a type the App entry constructs (an App struct's @StateObject, a type or free function its body calls, or a class those construct) whose body starts a repeating Timer, or a while loop on a cancellation flag that awaits a sleep: a tick the process runs for its lifetime, with its interval and the calls of one round",
     "swift.state.resident": "A stored collection (dictionary, array, set, cache) of a type the App entry constructs, written somewhere in that type's own body: state resident in memory for the process lifetime",
     "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
@@ -3142,6 +3143,184 @@ def attach_launch_to_interplay(interplay: dict[str, Any], constructions: list[di
 
 
 # ---------------------------------------------------------------------------
+# Call index and the injected-method rule.
+#
+# The declaration census already names every type and function; the index keys
+# every member by `path#Type.member`, records the declared or constructed type of
+# every stored field, and which types conform to which protocols. A call in a
+# member body resolves only through what the index knows: `self.field.m(` through
+# the field's type (a protocol resolves to its conformers); `Type.m(`, `Type.shared.m(`
+# and `Type(...).m(` to that type; a bare `m(` to the same type; a receiver with no
+# known type only when exactly one store defines `m`. Nothing resolves by name alone.
+# ---------------------------------------------------------------------------
+TYPE_HEADER_RE = re.compile(r"\b(class|struct|actor|enum|protocol|extension)\s+([A-Z][A-Za-z0-9_]*)\s*(?:<[^{\n]*?>)?\s*(?::\s*([^{\n]*?))?\s*(?:where[^{\n]*)?\{")
+STORED_FIELD_RE = re.compile(
+    r"(?m)^[ \t]+(?:@[A-Za-z_][\w.]*(?:\([^)\n]*\))?\s+)*"
+    r"(?:(?:public|package|internal|private|fileprivate|private\(set\)|internal\(set\)|static|lazy|weak|unowned|nonisolated)\s+)*"
+    r"(?:var|let)\s+(?P<name>[a-z_]\w*)\s*(?::\s*\(?\s*(?:any\s+|some\s+)?(?P<type>[A-Z]\w*))?(?:[^=\n]*=\s*(?P<ctor>[A-Z]\w*)\s*(?:\(|\.\s*shared\b))?"
+)
+LOCAL_CONSTRUCTION_RE = re.compile(r"\b(?:let|var)\s+(?P<name>[a-z_]\w*)\s*(?::\s*(?P<type>[A-Z]\w*)[^=\n]*)?=\s*(?P<ctor>[A-Z]\w*)\s*(?:\(|\.\s*shared\b)")
+MEMBER_CALL_RE = re.compile(r"(?<![\w.])(?:self\s*[?!]?\s*\.\s*)?(?P<receiver>[a-z_]\w*)\s*[?!]?\s*\.\s*(?P<member>[a-z_]\w*)\s*\(")
+TYPE_CALL_RE = re.compile(r"(?<![\w.])(?P<type>[A-Z]\w*)\s*(?:\.\s*shared\s*|\([^()\n]*\)\s*)?\.\s*(?P<member>[a-z_]\w*)\s*\(")
+BARE_CALL_RE = re.compile(r"(?<![\w.])(?P<member>[a-z_]\w*)\s*\(")
+CALL_CHAIN_MAX_HOPS = 3
+INJECTED_SURFACE_KINDS = ("caller", "subscriber", "hub", "provider")
+
+
+def build_call_index(files: list[dict[str, Any]]) -> dict[str, Any]:
+    """Members, field types and conformers for every file: what a call can resolve through."""
+    members: dict[str, dict[str, Any]] = {}
+    members_by_type: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    field_types: dict[str, dict[str, str]] = defaultdict(dict)
+    conformers: dict[str, set[str]] = defaultdict(set)
+    protocols: set[str] = set()
+    types: set[str] = set()
+    for source in sorted(files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        for match in TYPE_HEADER_RE.finditer(code):
+            kind, name, inherited = match.group(1), match.group(2), match.group(3) or ""
+            if kind == "protocol":
+                protocols.add(name)
+            elif kind != "extension":
+                types.add(name)
+            for parent in re.findall(r"\b([A-Z]\w*)\b", inherited):
+                conformers[parent].add(name)
+        blocks = declaration_blocks(code)
+        for start, end, kind, name in blocks:
+            if kind != "func":
+                continue
+            owner, _ = enclosing_context(code, start)
+            if owner is None:
+                continue
+            member_id = f"{source['path']}#{owner}.{name}"
+            if member_id in members:
+                continue  # an overload: the first body stands for the name
+            members[member_id] = {"id": member_id, "type": owner, "member": name, "path": source["path"],
+                                  "line": code.count("\n", 0, start) + 1, "body": code[start:end]}
+            members_by_type[owner][name].append(member_id)
+        for match in STORED_FIELD_RE.finditer(code):
+            owner, function = enclosing_context(code, match.start())
+            if owner is None or function is not None:
+                continue
+            declared = match.group("type") or match.group("ctor")
+            if declared:
+                field_types[owner].setdefault(match.group("name"), declared)
+    return {"members": members, "members_by_type": members_by_type, "field_types": field_types,
+            "conformers": {k: sorted(v) for k, v in conformers.items()}, "protocols": protocols, "types": types}
+
+
+def callees_of(index: dict[str, Any], member_id: str, store_types: set[str]) -> list[str]:
+    """The member ids a member's body calls, resolved only through typed fields, constructed
+    objects, type names and the member's own type; an untyped receiver resolves only when
+    exactly one store defines the member."""
+    member = index["members"][member_id]
+    owner, body = member["type"], member["body"]
+    by_type = index["members_by_type"]
+    local_types = {m.group("name"): m.group("type") or m.group("ctor") for m in LOCAL_CONSTRUCTION_RE.finditer(body)}
+    out: list[str] = []
+
+    def add(type_name: str, name: str) -> None:
+        out.extend(by_type.get(type_name, {}).get(name, []))
+
+    for match in TYPE_CALL_RE.finditer(body):
+        if match.group("type") in index["types"]:
+            add(match.group("type"), match.group("member"))
+    for match in MEMBER_CALL_RE.finditer(body):
+        receiver, name = match.group("receiver"), match.group("member")
+        receiver_type = local_types.get(receiver) or index["field_types"].get(owner, {}).get(receiver)
+        if receiver_type is None:
+            candidates = [t for t in sorted(store_types) if name in by_type.get(t, {})]
+            if len(candidates) == 1:
+                add(candidates[0], name)
+            continue
+        if receiver_type in index["protocols"]:
+            for implementer in index["conformers"].get(receiver_type, []):
+                add(implementer, name)
+        else:
+            add(receiver_type, name)
+    for match in BARE_CALL_RE.finditer(body):
+        add(owner, match.group("member"))
+    seen: set[str] = set()
+    unique: list[str] = []
+    for item in out:
+        if item not in seen and item != member_id:
+            seen.add(item)
+            unique.append(item)
+    return unique
+
+
+def call_chains(index: dict[str, Any], start_type: str, store_types: set[str], max_hops: int = CALL_CHAIN_MAX_HOPS) -> dict[str, list[str]]:
+    """Every member reachable from a type's own members within ``max_hops`` calls, with the
+    shortest chain of `Type.member` labels that reaches it (breadth first, deterministic)."""
+    starts = sorted(mid for name in index["members_by_type"].get(start_type, {}) for mid in index["members_by_type"][start_type][name])
+    chains: dict[str, list[str]] = {}
+    frontier: list[tuple[str, list[str]]] = [(mid, [f"{start_type}.{index['members'][mid]['member']}"]) for mid in starts]
+    for mid, chain in frontier:
+        chains.setdefault(mid, chain)
+    for _hop in range(max_hops):
+        next_frontier: list[tuple[str, list[str]]] = []
+        for mid, chain in frontier:
+            for callee in callees_of(index, mid, store_types):
+                if callee in chains:
+                    continue
+                target = index["members"][callee]
+                chains[callee] = chain + [f"{target['type']}.{target['member']}"]
+                next_frontier.append((callee, chains[callee]))
+        frontier = next_frontier
+        if not frontier:
+            break
+    return chains
+
+
+def attach_injected_methods(interplay: dict[str, Any], files: list[dict[str, Any]], externals: dict[str, Any]) -> None:
+    """Follow every surface's calls through the dependencies it holds to the stores and
+    external systems they reach; the chain of members rides on the edge."""
+    nodes = interplay["nodes"]
+    edges = interplay["edges"]
+    index = build_call_index(files)
+    store_nodes = {node["label"]: node for node in nodes if node.get("store") or node["kind"] == "store"}
+    # A member reaches an external system when one of the system's signature hits sits inside
+    # the member's own body: the line, not the file, is the evidence.
+    external_hits: dict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+    drawn_ids = {node["id"] for node in nodes}
+    for system in externals.get("systems", []):
+        node_id = f"external:{system['id']}"
+        if node_id not in drawn_ids:
+            continue
+        link = {"id": node_id, "relation": BOUNDARY_RELATION_BY_CATEGORY.get(system["category"], "uses")}
+        for hit in system.get("usage", []):
+            for site in hit.get("evidence") or []:
+                external_hits[site["path"]].append((site["line"], link))
+    by_triple = {(edge["source"], edge["target"], edge["relation"]): edge for edge in edges}
+    added = 0
+    for surface in [n for n in nodes if n["kind"] in INJECTED_SURFACE_KINDS]:
+        chains = call_chains(index, surface["label"], set(store_nodes))
+        reached: dict[tuple[str, str], tuple[list[str], str]] = {}
+        for member_id, chain in sorted(chains.items(), key=lambda item: (len(item[1]), item[0])):
+            member = index["members"][member_id]
+            if member["type"] == surface["label"]:
+                continue
+            store = store_nodes.get(member["type"])
+            if store is not None and store["id"] != surface["id"]:
+                reached.setdefault((store["id"], "uses"), (chain, "usage"))
+            last_line = member["line"] + member["body"].count("\n")
+            for line, system in external_hits.get(member["path"], []):
+                if member["line"] <= line <= last_line:
+                    reached.setdefault((system["id"], system["relation"]), (chain, "boundary"))
+        for (target, relation), (chain, edge_class) in sorted(reached.items()):
+            edge = by_triple.get((surface["id"], target, relation))
+            if edge is None:
+                # An edge only the chain supports carries the rule; the site draws it on selection.
+                edge = {"source": surface["id"], "target": target, "class": edge_class, "relation": relation, "rule_id": "swift.usage.injected_method"}
+                edges.append(edge)
+                by_triple[(surface["id"], target, relation)] = edge
+                added += 1
+            edge.setdefault("chain", chain)
+    interplay["injected_methods"] = {"members_indexed": len(index["members"]), "edges_added": added}
+    edges.sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+
+
+# ---------------------------------------------------------------------------
 # Launch reach, starters and resident state: what the process runs and keeps.
 #
 # The App entry constructs a handful of objects and calls a handful of functions;
@@ -5542,6 +5721,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     stores = build_stores_model(files)
     attach_stores_to_interplay(interplay, stores, files)
     attach_externals_to_interplay(interplay, externals, stores)
+    attach_injected_methods(interplay, files, externals)
     attach_triggers_to_interplay(interplay, files)
     page_of_type, pages, page_ties = assign_pages(files, config)
     attach_pages_to_interplay(interplay, page_of_type, pages, page_ties, config, files)

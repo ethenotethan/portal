@@ -989,6 +989,53 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for needle in ('if (node.kind === "machine") return "machine";', "function machineMermaid(", "stateDiagram-v2", 'rect.setAttribute("class", "machine")', "machines_complete:"):
             self.assertIn(needle, app)
 
+    def test_call_index_resolves_calls_only_through_known_types(self) -> None:
+        def source(path, text):
+            return {"path": path, "component": "c", "_text": text, "declarations": [], "identifiers": [], "line_count": text.count("\n") + 1}
+        files = [
+            source("Sources/Portal/Services/AStore.swift", "protocol Saving {\n    func save()\n}\n\nfinal class AStore: Saving {\n    func save() {}\n}\n"),
+            source("Sources/Portal/Services/BStore.swift", "final class BStore {\n    func save() {}\n    func other() {}\n}\n"),
+            source("Sources/Portal/ViewModels/Surface.swift", "\n".join([
+                "final class Surface {",
+                "    private let a: AStore",
+                "    private var dep: (any Saving)?",
+                "    var thing = makeThing()",
+                "    func viaField() { a.save() }",
+                "    func viaProtocol() { dep?.save() }",
+                "    func viaLocal() { let s = BStore(); s.save() }",
+                "    func viaUntyped() { thing?.save() }",
+                "    func viaUnique() { thing?.other() }",
+                "    func viaBare() { helper() }",
+                "    func helper() {}",
+                "}", ""])),
+        ]
+        index = architecture.build_call_index(files)
+        stores = {"AStore", "BStore"}
+        a, b = "Sources/Portal/Services/AStore.swift#AStore.save", "Sources/Portal/Services/BStore.swift#BStore.save"
+
+        def callees(member):
+            return sorted(architecture.callees_of(index, f"Sources/Portal/ViewModels/Surface.swift#Surface.{member}", stores))
+        self.assertEqual([a], callees("viaField"))       # a field typed as the store
+        self.assertEqual([a], callees("viaProtocol"))    # a protocol-typed field resolves to its conformers
+        self.assertEqual([b], callees("viaLocal"))       # an object the body constructs
+        self.assertEqual([], callees("viaUntyped"))      # an untyped receiver and two stores defining save: nothing resolves by name alone
+        self.assertEqual(["Sources/Portal/Services/BStore.swift#BStore.other"], callees("viaUnique"))  # exactly one store defines it
+        self.assertEqual(["Sources/Portal/ViewModels/Surface.swift#Surface.helper"], callees("viaBare"))
+        chains = architecture.call_chains(index, "Surface", stores)
+        self.assertEqual(["Surface.viaField", "AStore.save"], chains[a])  # the shortest chain, first member in source order
+        # On the real tree: a view model reaches a store through its method with the chain recorded,
+        # and a hub reaches the on-device engine through a protocol-typed dependency.
+        edges = self.model["interplay"]["edges"]
+        cron = next(e for e in edges if e["source"] == "caller:operations-state:CronListViewModel" and e["target"] == "store:domain-models:CronRunHistoryStore" and e["relation"] == "uses")
+        self.assertEqual(["CronListViewModel.refreshJobs", "CronRunHistoryStore.detectNewRuns"], cron["chain"])
+        mlx = next(e for e in edges if e["source"] == "hub:ChatViewModel" and e["target"] == "external:apple-mlx")
+        self.assertEqual("ChatViewModel.openDiscussionSurface", mlx["chain"][0])
+        self.assertIn("LocalChatService.prepare", mlx["chain"])
+        self.assertTrue(all("chain" in e for e in edges if e.get("rule_id") == "swift.usage.injected_method"))
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ("function isChainOnlyEdge(", "relation-chain", "by call chain"):
+            self.assertIn(needle, app)
+
     def test_launch_started_ticks_and_resident_state_are_drawn_beside_their_holders(self) -> None:
         interplay = self.model["interplay"]
         triples = {(e["source"], e["target"], e["relation"]) for e in interplay["edges"]}

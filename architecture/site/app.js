@@ -497,6 +497,15 @@
     if (box.label === INTERPLAY_MEMORY_GROUP) return "IN-MEMORY";
     return "PAGE";
   }
+  // An edge only a call chain supports (a surface reaching a store or an external system
+  // through the members it calls) is drawn when one of its ends is selected: the chain
+  // is the inspector's story, not a line the whole map should carry.
+  function isChainOnlyEdge(edge) {
+    return edge.rule_id === "swift.usage.injected_method";
+  }
+  function chainEdgeHidden(edge) {
+    return isChainOnlyEdge(edge) && selectedInterplayId !== edge.source && selectedInterplayId !== edge.target;
+  }
   function isPushEdge(edge) {
     return ["notifies", "provides", "publish", "declares", "replays-into"].includes(edge.relation);
   }
@@ -1136,6 +1145,7 @@
       if (isContainmentEdge(edge, targetNode)) return; // drawn as containment
       if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return;
       if (["implements", "invokes", "extends"].includes(edge.relation)) return;
+      if (chainEdgeHidden(edge)) return;
       const repSource = repOf.get(edge.source) || edge.source;
       const repTarget = repOf.get(edge.target) || edge.target;
       if (repSource === repTarget) return; // internal to one collapsed hull
@@ -1179,6 +1189,7 @@
       if (isContainmentEdge(edge, targetNode)) return; // drawn as containment
       if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return; // containment
       if (["implements", "invokes", "extends"].includes(edge.relation)) return; // data for the inspector; the drawn flow is surface → client file → core → namespace
+      if (chainEdgeHidden(edge)) return;
       const edgeClass = isPushEdge(edge) ? "push" : edge.class;
       const path = svgElement("path", {
         d: interplayLinkPath(source, target),
@@ -1205,7 +1216,9 @@
         ? `notifies · ${subscriptionLabel(targetNode)}`
         : edge.relation === "calls" && sourceNode && targetNode
           ? `calls · ${triggerProvenance(sourceNode, targetNode)}`
-          : edge.relation;
+          : edge.chain
+            ? `${edge.relation} · through ${edge.chain.join(" → ")}`
+            : edge.relation;
       path.append(title);
       edgeGroup.append(path);
     });
@@ -2740,7 +2753,8 @@
           const row = element("div", "relationship");
           const direction = edge.source === node.id ? "→" : "←";
           row.append(element("strong", "", `${edge.relation} ${direction} ${other ? other.label : otherId}`));
-          row.append(element("span", "", `${edge.class} edge`));
+          row.append(element("span", "", `${edge.class} edge${isChainOnlyEdge(edge) ? " · by call chain" : ""}`));
+          if (edge.chain) row.append(element("span", "relation-chain", `through ${edge.chain.join(" → ")}`));
           relSection.append(row);
         });
       container.append(relSection);
