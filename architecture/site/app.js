@@ -296,7 +296,7 @@
   // lock and socket; engines no single page owns) are in-memory constructions,
   // not shared code. They get their own hull inside the application boundary.
   const INTERPLAY_MEMORY_GROUP = "In-memory constructions";
-  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, artifact: 1, operation: 2 };
+  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, artifact: 1, tick: 1, state: 1, operation: 2 };
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
   const componentById = new Map(model.components.map((component) => [component.id, component]));
@@ -391,9 +391,18 @@
   function isTransportContainer(node) {
     return node.kind === "owner" && ((node.roles || []).includes("transport") || (node.roles || []).includes("pool"));
   }
+  // A holder of ticks or resident state (a view model, store or service the App
+  // constructs) is drawn collapsed like the transport core: its rows open beneath
+  // it on a press, so the map stays readable while the state is one click away.
+  const HOLDER_MEMBER_KINDS = new Set(["tick", "state"]);
+  const HOLDER_KINDS = ["owner", "store", "provider", "caller", "subscriber", "hub"];
+  const holdersWithMembers = new Set(interplay.nodes.filter((n) => HOLDER_MEMBER_KINDS.has(n.kind) && n.owner_type).map((n) => `${n.component}|${n.owner_type}`));
+  function isExpandableHolder(node) {
+    return isTransportContainer(node) || (HOLDER_KINDS.includes(node.kind) && holdersWithMembers.has(`${node.component}|${node.label}`));
+  }
   function ownerMemberIds(owner) {
     return new Set(drawNodes
-      .filter((node) => ["resource", "section", "operation", "machine"].includes(node.kind) &&
+      .filter((node) => ["resource", "section", "operation", "machine", "tick", "state"].includes(node.kind) &&
         node.owner_type === owner.label && node.component === owner.component && node.sub_kind !== "event_bus")
       .map((node) => node.id));
   }
@@ -427,7 +436,7 @@
     const barOfMember = new Map();
     drawNodes.filter((node) => node.kind !== "transport" && isInterplayBar(node)).forEach((bar) => containerMemberIds(bar).forEach((id) => barOfMember.set(id, bar.id)));
     const ownerOfMember = new Map();
-    drawNodes.filter(isTransportContainer).forEach((owner) => ownerMemberIds(owner).forEach((id) => ownerOfMember.set(id, owner.id)));
+    drawNodes.filter(isExpandableHolder).forEach((owner) => ownerMemberIds(owner).forEach((id) => ownerOfMember.set(id, owner.id)));
     const chains = new Map();
     const counts = new Map();
     const groupsPresent = new Set();
@@ -599,8 +608,14 @@
     nodes.forEach((node) => {
       if (node.kind === "owner") ownerGroup.set(`${node.component}|${node.label}`, group.get(node.id));
     });
+    // Ticks and resident state follow the holder that starts or keeps them; a holder
+    // with no box of its own (a class the root view constructs) leaves them in the
+    // zone of the page that constructed them: the launch zone.
+    const holderGroup = new Map();
+    nodes.forEach((node) => { if (HOLDER_KINDS.includes(node.kind) && group.has(node.id)) holderGroup.set(`${node.component}|${node.label}`, group.get(node.id)); });
     nodes.forEach((node) => {
       if (group.has(node.id)) return;
+      if (HOLDER_MEMBER_KINDS.has(node.kind)) { group.set(node.id, holderGroup.get(`${node.component}|${node.owner_type}`) || pageZone(node)); return; }
       group.set(node.id, ownerGroup.get(`${node.component}|${node.owner_type}`) || INTERPLAY_SHARED_GROUP);
     });
     return group;
@@ -652,7 +667,7 @@
       bars.forEach((bar) => containerMemberIds(bar).forEach((id) => { if (inList.has(id)) containedBy.set(id, bar.id); }));
       // Expanded owners: their resources and sections are drawn in an inner hull
       // directly beneath the owner box, wherever the owner sits.
-      const expanded = list.filter((node) => isTransportContainer(node) && expandedOwners.has(node.id));
+      const expanded = list.filter((node) => isExpandableHolder(node) && expandedOwners.has(node.id));
       expanded.forEach((owner) => ownerMemberIds(owner).forEach((id) => { if (inList.has(id)) containedBy.set(id, owner.id); }));
       const rest = list.filter((node) => !barIds.has(node.id) && !containedBy.has(node.id));
       const INSET = 16;
@@ -686,7 +701,7 @@
       function expandOwners(items, startX, startY, columns) {
         let cursor = startY;
         let right = startX;
-        items.filter((node) => expandedOwners.has(node.id) && isTransportContainer(node)).forEach((owner) => {
+        items.filter((node) => expandedOwners.has(node.id) && isExpandableHolder(node)).forEach((owner) => {
           const members = list
             .filter((node) => containedBy.get(node.id) === owner.id)
             .sort((a, b) => kindRank(a) - kindRank(b) || (a.label || "").localeCompare(b.label || ""));
@@ -1228,6 +1243,7 @@
       else if (node.kind === "machine") rect.setAttribute("class", "machine");
       else if (isBusSpine(node)) rect.setAttribute("class", "bus");
       if (node.overlay_prose) rect.setAttribute("data-explained", "true");
+      if (isExpandableHolder(node) && !isTransportContainer(node)) rect.setAttribute("data-holder", expandedOwners.has(node.id) ? "expanded" : "collapsed");
       group.append(rect);
       if (!isInterplayBar(node)) {
         group.append(svgElement("line", { x1: 0, x2: 0, y1: 6, y2: position.height - 6, class: "node-rule" }));
@@ -1264,8 +1280,8 @@
           }
           selectInterplayNode(node.id);
         }, { keyboard: false });
-      } else if (isTransportContainer(node)) {
-        // Collapsed by default; a press expands the owner's resources and sections.
+      } else if (isExpandableHolder(node)) {
+        // Collapsed by default; a press expands the owner's resources, sections, ticks and state.
         wirePress(group, () => {
           if (expandedOwners.has(node.id)) expandedOwners.delete(node.id); else expandedOwners.add(node.id);
           selectedInterplayId = node.id;
@@ -1541,6 +1557,8 @@
   }
 
   function interplayKicker(node) {
+    if (node.kind === "tick") return `TICK · EVERY ${node.interval || "?"}`;
+    if (node.kind === "state") return node.published ? "RESIDENT STATE · PUBLISHED" : "RESIDENT STATE";
     if (node.kind === "hub") return "HUB";
     if (node.kind === "seam") return "SEAM";
     if (node.kind === "endpoint") return node.protocol === "jsonrpc" ? "JSON-RPC" : "REST";
@@ -1703,7 +1721,9 @@
       const guarded = (node.steps || []).filter((step) => step.guarded).length;
       return `${(node.lock_labels || []).join(", ")} · ${(node.steps || []).length} steps · ${guarded} under lock`;
     }
-    if (isTransportContainer(node)) {
+    if (node.kind === "tick") return `${(node.steps || []).length} call${(node.steps || []).length === 1 ? "" : "s"} per round · ${node.form}`;
+    if (node.kind === "state") return `${(node.writes || []).length} write${(node.writes || []).length === 1 ? "" : "s"} · ${node.declared_type || "collection"}`;
+    if (isExpandableHolder(node)) {
       const owned = ownerMemberIds(node).size;
       const holders = interplay.edges.filter((edge) => edge.target === node.id && edge.relation === "holds").length;
       const held = holders ? ` · held by ${holders} surface${holders === 1 ? "" : "s"}` : "";
@@ -2726,6 +2746,34 @@
       container.append(relSection);
     }
 
+    if (node.kind === "tick") {
+      const round = element("section", "inspector-section");
+      round.append(element("h4", "", `One round · every ${node.interval || "?"}`));
+      const list = element("ol", "inspector-steps");
+      (node.steps || []).forEach((step) => {
+        const li = document.createElement("li");
+        li.append(element("span", "step-path", `${step.call}()`), document.createTextNode(" "), sourceLink(step));
+        list.append(li);
+      });
+      const back = document.createElement("li");
+      back.className = "step-return";
+      back.textContent = node.form === "timer" ? `↺ the timer fires again after ${node.interval}` : `↺ sleeps ${node.interval}, checks ${node.condition || "the flag"}, repeats`;
+      list.append(back);
+      round.append(list);
+      container.append(round);
+    }
+    if (node.kind === "state") {
+      const writes = element("section", "inspector-section");
+      writes.append(element("h4", "", `Writes (${(node.writes || []).length})`));
+      const list = element("ul", "evidence-list");
+      (node.writes || []).forEach((write) => {
+        const li = document.createElement("li");
+        li.append(document.createTextNode(`${write.op}${write.function ? ` in ${write.function}()` : ""} · `), sourceLink(write));
+        list.append(li);
+      });
+      writes.append(list);
+      container.append(writes);
+    }
     if (node.path) {
       const evidenceSection = element("section", "inspector-section");
       evidenceSection.append(element("h4", "", "Source"));
@@ -2742,6 +2790,11 @@
 
   // Compact headline numbers for the inspector metrics grid, per node kind.
   function interplayInspectorMetrics(node) {
+    if (node.kind === "tick") return [[(node.steps || []).length, "Calls per round"], [node.interval || "?", "Interval"], [node.form, "Form"]];
+    if (node.kind === "state") {
+      const touched = interplay.edges.filter((edge) => edge.target === node.id && edge.relation === "touches").length;
+      return [[(node.writes || []).length, "Writes"], [touched, "Ticks touching"], [node.declared_type || "—", "Type"]];
+    }
     if (node.kind === "artifact") {
       return [[(node.stores || []).length, "Stores"], [(node.evidence || []).length, "Sites"], [String(node.sub_kind || "").replace(/_/g, " "), "Kind"]];
     }
@@ -2782,6 +2835,15 @@
   }
 
   function interplayInspectorSummary(node) {
+    if (node.kind === "tick") {
+      const round = (node.steps || []).map((step) => `${step.call}()`).join(" → ") || "nothing the grammar recognises as a call";
+      const how = node.form === "timer" ? `a repeating Timer every ${node.interval}` : `a loop on ${node.condition || "a flag"} that sleeps ${node.interval} between rounds`;
+      return `${node.owner_type}.${node.label.split(".").pop()}() starts ${how}; the process does this unprompted for as long as it runs. One round: ${round}. ${node.owner_type} is alive from launch (${node.reach && node.reach.hop === 0 ? "constructed by the App entry" : `constructed by ${(node.reach || {}).via || "the launch reach"}`}).`;
+    }
+    if (node.kind === "state") {
+      const functions = Array.from(new Set((node.writes || []).map((w) => w.function).filter(Boolean)));
+      return `${node.label}: a ${node.declared_type || "collection"} ${node.owner_type} keeps in memory for the process lifetime and writes in ${functions.length ? functions.map((f) => `${f}()`).join(", ") : "its body"}. ${node.published ? "Published: views re-render when it changes." : "Not published: internal bookkeeping."}`;
+    }
     if (node.kind === "artifact") {
       const system = interplayNodeById.get(`external:${node.system_id}`);
       const kind = String(node.sub_kind || "artifact").replace(/_/g, " ");

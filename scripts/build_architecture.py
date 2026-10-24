@@ -73,6 +73,8 @@ BEHAVIOR_RULES = {
     "swift.usage.configures": "A launch-constructed type passed as a parameter to a method of a type that holds the transport core: it supplies what the transport connects with",
     "swift.state.machine": "A stored property of a type on the map whose type is an enum with two or more cases and which is assigned a case somewhere in the type: the object's lifecycle state",
     "swift.state.transition": "An assignment of an enum case to a machine property, attributed to the enclosing function; the from-state is read from an enclosing switch or if-case on the same property when there is one",
+    "swift.launch.starter": "A function of a type the App entry constructs (an App struct's @StateObject, a type or free function its body calls, or a class those construct) whose body starts a repeating Timer, or a while loop on a cancellation flag that awaits a sleep: a tick the process runs for its lifetime, with its interval and the calls of one round",
+    "swift.state.resident": "A stored collection (dictionary, array, set, cache) of a type the App entry constructs, written somewhere in that type's own body: state resident in memory for the process lifetime",
     "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
     "swift.lifecycle.acquire": "lock() invoked on a named stored lock",
     "swift.lifecycle.release": "unlock() invoked on a named stored lock",
@@ -3140,6 +3142,310 @@ def attach_launch_to_interplay(interplay: dict[str, Any], constructions: list[di
 
 
 # ---------------------------------------------------------------------------
+# Launch reach, starters and resident state: what the process runs and keeps.
+#
+# The App entry constructs a handful of objects and calls a handful of functions;
+# those, and the classes they construct, are the objects alive for the process
+# lifetime. A function of one of them that starts a repeating Timer or loops on a
+# cancellation flag around a sleep is a tick: the process does this on its own,
+# unprompted, every interval. A stored collection one of them writes is resident
+# state: what the process remembers between ticks and interactions. Both are
+# drawn beside their holder with the holder's `starts` and `keeps` edges; a tick
+# `touches` the state its round names.
+# ---------------------------------------------------------------------------
+STARTER_LOOP_RE = re.compile(r"\bwhile\s+(?P<condition>true|!\s*[A-Za-z_][\w.]*|[A-Za-z_][\w.]*)\s*\{")
+STARTER_SLEEP_RE = re.compile(r"\b(?:Task\s*\.\s*sleep|Thread\s*\.\s*sleep|sleep)\s*\(")
+STARTER_TIMER_RE = re.compile(
+    r"\bTimer\s*\.\s*scheduledTimer\s*\(\s*withTimeInterval\s*:\s*(?P<interval>[^,\n]+),[^)\n]*\brepeats\s*:\s*true"
+    r"|\bTimer\s*\.\s*publish\s*\(\s*every\s*:\s*(?P<every>[^,)\n]+)"
+)
+ROUND_CALL_RE = re.compile(r"(?<![\w.])(?:self\s*\??\s*\.\s*)?(?P<receiver>[a-z_][A-Za-z0-9_]*)(?:\s*\??\s*\.\s*(?P<member>[a-z_][A-Za-z0-9_]*))?\s*\(")
+ROUND_CALL_SKIP_RECEIVERS = {"log", "logger", "print", "sleep", "guard", "min", "max", "abs", "String", "Int", "Double", "UInt64", "Date", "Duration"}
+ROUND_CALL_SKIP_NAMES = {"sleep", "print", "debug", "info", "error", "warning", "notice", "fault", "trace"}
+RESIDENT_PROPERTY_RE = re.compile(
+    r"(?m)^[ \t]+(?P<attrs>(?:@[A-Za-z_][\w.]*(?:\([^)\n]*\))?\s+)*)"
+    r"(?:(?:public|package|internal|private|fileprivate|private\(set\)|internal\(set\)|static|lazy|nonisolated|nonisolated\(unsafe\)|weak)\s+)*"
+    r"var\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*"
+    r"(?::\s*(?P<type>\[[^\n=]+?\]\??|Set<[^\n=]+?>\??|NSCache<[^\n=]+?>\??|OrderedDictionary<[^\n=]+?>\??|OrderedSet<[^\n=]+?>\??)\s*)?"
+    r"(?:=\s*(?P<init>\[:\]|\[\]|\[[^\n]*\]|Set<[^\n>]*>\(\)|Set\(\)|NSCache<[^\n>]*>\(\)|\[[^\n]*\]\(\)))?"
+    r"(?P<tail>[^\n]*)$"
+)
+RESIDENT_VIEW_ATTRIBUTES = ("@State", "@Binding", "@AppStorage", "@SceneStorage", "@Environment", "@FocusState", "@GestureState", "@Namespace")
+RESIDENT_WRITE_METHODS = ("append", "insert", "remove", "removeValue", "removeAll", "removeFirst", "removeLast", "merge", "updateValue",
+                          "formUnion", "subtract", "popLast", "popFirst", "swapAt", "sort", "reverse", "setObject", "removeObject", "removeAllObjects")
+LAUNCH_HOLDER_KINDS = ("owner", "store", "provider", "caller", "subscriber", "hub")
+
+
+def call_argument(code: str, open_paren: int) -> str:
+    """The text between a call's parentheses, balanced, without a leading argument label."""
+    depth, cursor = 0, open_paren
+    while cursor < len(code):
+        if code[cursor] == "(":
+            depth += 1
+        elif code[cursor] == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        cursor += 1
+    argument = code[open_paren + 1:cursor].strip()
+    return re.sub(r"^[a-zA-Z_]\w*\s*:\s*", "", argument)
+
+
+def describe_interval(raw: str) -> str:
+    """The interval as the source states it, without the unit arithmetic:
+    `UInt64(Self.pingInterval * 1_000_000_000)` → `Self.pingInterval s`, `.seconds(4)` → `4 s`, `500_000_000` → `0.5 s`."""
+    text = raw.strip()
+    unit = re.fullmatch(r"\.(seconds|milliseconds|microseconds|nanoseconds|minutes)\((.+)\)", text)
+    if unit:
+        return f"{unit.group(2)} {dict(seconds='s', milliseconds='ms', microseconds='µs', nanoseconds='ns', minutes='min')[unit.group(1)]}"
+    scaled = re.fullmatch(r"UInt64\((.+?)\s*\*\s*1_000_000_000\)", text)
+    if scaled:
+        return f"{scaled.group(1)} s"
+    if re.fullmatch(r"[0-9_]+", text):
+        return f"{int(text.replace('_', '')) / 1e9:g} s"
+    return text
+
+
+def launch_reach(launch_files: list[dict[str, Any]], files: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """The types alive for the process lifetime, by name: what the App structs construct or call
+    (hop 0: @StateObject types, types constructed in the App body, free functions it calls) and the
+    classes and actors those bodies construct or reach through a `.shared` (hop 1)."""
+    kind_of_type: dict[str, str] = {}
+    file_of_type: dict[str, dict[str, Any]] = {}
+    free_functions: dict[str, tuple[dict[str, Any], int, int]] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        for start, end, kind, name in declaration_blocks(code):
+            if kind == "func":
+                enclosing_type, _ = enclosing_context(code, start)
+                if enclosing_type is None:
+                    free_functions.setdefault(name, (source, start, end))
+            elif kind != "extension":
+                kind_of_type.setdefault(name, kind)
+                file_of_type.setdefault(name, source)
+    reach: dict[str, dict[str, Any]] = {}
+
+    def constructed_in(body: str) -> set[str]:
+        return {m.group(1) for m in re.finditer(r"(?<![\w.])([A-Z][A-Za-z0-9_]*)\s*(?:\(|\.\s*shared\b)", body) if m.group(1) in kind_of_type}
+
+    def called_in(body: str) -> set[str]:
+        return {m.group(1) for m in re.finditer(r"(?<![\w.])([a-z_][A-Za-z0-9_]*)\s*\(", body) if m.group(1) in free_functions}
+
+    hop0_bodies: list[tuple[str, str]] = []  # (via, body)
+    for source in sorted(launch_files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        for match in APP_STRUCT_RE.finditer(code):
+            open_brace = code.index("{", match.start())
+            body = code[open_brace + 1:balanced_block_end(code, open_brace + 1) - 1]
+            app = match.group(1)
+            for name in sorted(constructed_in(body)):
+                reach.setdefault(name, {"hop": 0, "via": app})
+            for name in sorted(called_in(body)):
+                hop0_bodies.append((f"{app}.{name}()", free_functions[name][0]["_text"] and masked_code(free_functions[name][0])[free_functions[name][1]:free_functions[name][2]]))
+    for name, entry in list(reach.items()):
+        source = file_of_type.get(name)
+        if source is None:
+            continue
+        code = masked_code(source)
+        for start, end in type_block_ranges(code, name):
+            hop0_bodies.append((name, code[start:end]))
+    for via, body in hop0_bodies:
+        for name in sorted(constructed_in(body)):
+            if name not in reach and kind_of_type.get(name) in ("class", "actor"):
+                reach[name] = {"hop": 1, "via": via}
+    for name, entry in reach.items():
+        entry["kind"] = kind_of_type.get(name)
+        entry["path"] = file_of_type[name]["path"] if name in file_of_type else None
+    return reach
+
+
+def round_calls(body: str, body_offset: int, code: str, text: str, path: str) -> list[dict[str, Any]]:
+    """The calls of one round of a tick, in source order, each once: what the process does every interval."""
+    calls: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for match in ROUND_CALL_RE.finditer(body):
+        receiver, member = match.group("receiver"), match.group("member")
+        if member is None:
+            if receiver in ROUND_CALL_SKIP_NAMES or receiver in ("if", "while", "for", "switch", "return", "throw", "catch", "defer", "repeat"):
+                continue
+            label = receiver
+        else:
+            if receiver in ROUND_CALL_SKIP_RECEIVERS or member in ROUND_CALL_SKIP_NAMES:
+                continue
+            label = f"{receiver}.{member}"
+        if label in seen:
+            continue
+        seen.add(label)
+        calls.append({"call": label, "path": path, "line": code.count("\n", 0, body_offset + match.start()) + 1})
+        if len(calls) >= 12:
+            break
+    return calls
+
+
+def extract_ticks(reach: dict[str, dict[str, Any]], files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every function of a reached type that starts a repeating Timer or a cancellation-flag loop around a sleep."""
+    ticks: list[dict[str, Any]] = []
+    for source in sorted(files, key=lambda item: item["path"]):
+        if not any(name in reach for name in source["declarations"]) and not any(name in reach for name in source["identifiers"]):
+            continue
+        code = masked_code(source)
+        text = source["_text"]
+        for start, end, kind, function in declaration_blocks(code):
+            if kind != "func":
+                continue
+            owner, _ = enclosing_context(code, start)
+            if owner is None or owner not in reach:
+                continue
+            body = code[start:end]
+            found: dict[str, Any] | None = None
+            for match in STARTER_LOOP_RE.finditer(body):
+                loop_end = balanced_block_end(body, match.end())
+                loop_body = body[match.end():loop_end - 1]
+                sleep = STARTER_SLEEP_RE.search(loop_body)
+                if sleep is None:
+                    continue
+                found = {"form": "loop", "condition": match.group("condition").replace(" ", ""),
+                         "interval": describe_interval(call_argument(loop_body, sleep.end() - 1)),
+                         "offset": start + match.start(), "steps": round_calls(loop_body, start + match.end(), code, text, source["path"])}
+                break
+            if found is None:
+                match = STARTER_TIMER_RE.search(body)
+                if match is not None:
+                    closure = body.find("{", match.end())
+                    closure_body = body[closure + 1:balanced_block_end(body, closure + 1) - 1] if closure != -1 else ""
+                    found = {"form": "timer", "condition": None, "interval": describe_interval(match.group("interval") or match.group("every") or ""),
+                             "offset": start + match.start(), "steps": round_calls(closure_body, start + closure + 1, code, text, source["path"]) if closure != -1 else []}
+            if found is None:
+                continue
+            ticks.append({
+                "owner_type": owner, "function": function, "component": source["component"], "path": source["path"],
+                "line": code.count("\n", 0, found["offset"]) + 1, "form": found["form"], "condition": found["condition"],
+                "interval": found["interval"], "steps": found["steps"], "rule_id": "swift.launch.starter",
+            })
+    ticks.sort(key=lambda item: (item["path"], item["line"]))
+    return ticks
+
+
+def extract_resident_state(reach: dict[str, dict[str, Any]], files: list[dict[str, Any]],
+                           drawn_resources: set[tuple[str, str]]) -> list[dict[str, Any]]:
+    """Every stored collection of a reached type that the type's own body writes; a field already
+    drawn as a resource (a continuation pool) is not drawn twice."""
+    states: list[dict[str, Any]] = []
+    for source in sorted(files, key=lambda item: item["path"]):
+        if not any(name in reach for name in source["declarations"]):
+            continue
+        code = masked_code(source)
+        for match in RESIDENT_PROPERTY_RE.finditer(code):
+            if not (match.group("type") or match.group("init")):
+                continue
+            attrs, tail = match.group("attrs") or "", match.group("tail") or ""
+            if any(attr in attrs for attr in RESIDENT_VIEW_ATTRIBUTES):
+                continue
+            if "{" in tail and "didSet" not in tail and "willSet" not in tail:
+                continue  # a computed property
+            owner, function = enclosing_context(code, match.start())
+            if owner is None or owner not in reach or function is not None:
+                continue
+            name = match.group("name")
+            if (owner, name) in drawn_resources:
+                continue
+            write_re = re.compile(
+                rf"(?<![\w.])(?:self\s*\.\s*)?{re.escape(name)}\s*(?:\[[^\n\]]*\]\s*(?:=(?!=)|\+=|-=)"
+                rf"|\.\s*(?:{'|'.join(RESIDENT_WRITE_METHODS)})\s*\(|=(?!=)|\+=)"
+            )
+            writes: list[dict[str, Any]] = []
+            declaration_line = code.count("\n", 0, match.start()) + 1
+            for start, end in type_block_ranges(code, owner):
+                for write in write_re.finditer(code, start, end):
+                    line = code.count("\n", 0, write.start()) + 1
+                    if line == declaration_line:
+                        continue
+                    _, in_function = enclosing_context(code, write.start())
+                    raw = re.sub(r"^self\s*\.\s*", "", write.group(0).strip())
+                    method = re.search(r"\.\s*([A-Za-z_]\w*)\s*\($", raw)
+                    op = "subscript" if "[" in raw else (method.group(1) if method else "assign")
+                    writes.append({"op": op, "function": in_function, "path": source["path"], "line": line})
+            if not writes:
+                continue
+            states.append({
+                "owner_type": owner, "name": name, "component": source["component"], "path": source["path"], "line": declaration_line,
+                "declared_type": (match.group("type") or match.group("init") or "").strip(), "published": "@Published" in attrs,
+                "writes": writes[:40], "rule_id": "swift.state.resident",
+            })
+    states.sort(key=lambda item: (item["path"], item["line"]))
+    return states
+
+
+def attach_ticks_and_state(interplay: dict[str, Any], files: list[dict[str, Any]], launch_files: list[dict[str, Any]]) -> None:
+    """Draw the ticks and resident state of the launch reach beside their holders."""
+    reach = launch_reach(launch_files, files)
+    nodes = interplay["nodes"]
+    edges = interplay["edges"]
+    existing = {(edge["source"], edge["target"], edge["relation"]) for edge in edges}
+    drawn_resources = {(node["owner_type"], node["label"]) for node in nodes if node["kind"] == "resource" and node.get("owner_type")}
+    ticks = extract_ticks(reach, files)
+    states = extract_resident_state(reach, files, drawn_resources)
+    holder_of: dict[str, dict[str, Any] | None] = {}
+
+    def holder(owner_type: str) -> dict[str, Any] | None:
+        if owner_type not in holder_of:
+            holder_of[owner_type] = next((n for kind in LAUNCH_HOLDER_KINDS for n in nodes if n["kind"] == kind and n["label"] == owner_type), None)
+        return holder_of[owner_type]
+
+    def add_edge(source: str, target: str, edge_class: str, relation: str) -> None:
+        if (source, target, relation) not in existing:
+            existing.add((source, target, relation))
+            edges.append({"source": source, "target": target, "class": edge_class, "relation": relation})
+
+    state_nodes: list[dict[str, Any]] = []
+    for state in states:
+        held = holder(state["owner_type"])
+        node = {
+            "id": f"state:{state['component'] or 'unassigned'}:{state['owner_type']}.{state['name']}", "kind": "state",
+            "label": f"{state['owner_type']}.{state['name']}", "component": state["component"], "owner_type": state["owner_type"],
+            "path": state["path"], "line": state["line"], "page": held.get("page") if held else LAUNCH_PAGE_ID,
+            "declared_type": state["declared_type"], "published": state["published"], "writes": state["writes"], "rule_id": state["rule_id"],
+            "reach": reach[state["owner_type"]],
+        }
+        nodes.append(node)
+        state_nodes.append(node)
+        if held is not None:
+            add_edge(held["id"], node["id"], "structure", "keeps")
+    for tick in ticks:
+        held = holder(tick["owner_type"])
+        node = {
+            "id": f"tick:{tick['component'] or 'unassigned'}:{tick['owner_type']}.{tick['function']}", "kind": "tick",
+            "label": f"{tick['owner_type']}.{tick['function']}", "component": tick["component"], "owner_type": tick["owner_type"],
+            "path": tick["path"], "line": tick["line"], "page": held.get("page") if held else LAUNCH_PAGE_ID,
+            "form": tick["form"], "condition": tick["condition"], "interval": tick["interval"], "steps": tick["steps"], "rule_id": tick["rule_id"],
+            "reach": reach[tick["owner_type"]],
+        }
+        nodes.append(node)
+        if held is not None:
+            add_edge(held["id"], node["id"], "lifecycle", "starts")
+        # The round touches the state its calls name: the loop body itself, and the bodies of
+        # the same-type functions it calls, one level down.
+        source = next((item for item in files if item["path"] == tick["path"]), None)
+        if source is None:
+            continue
+        code = masked_code(source)
+        called = {step["call"].split(".")[-1] for step in tick["steps"]}
+        touched_text = ""
+        for start, end, kind, name in declaration_blocks(code):
+            owner, _ = enclosing_context(code, start)
+            if kind == "func" and owner == tick["owner_type"] and (name == tick["function"] or name in called):
+                touched_text += code[start:end]
+        for state_node in state_nodes:
+            if state_node["owner_type"] == tick["owner_type"] and re.search(rf"\b{re.escape(state_node['label'].split('.')[-1])}\b", touched_text):
+                add_edge(node["id"], state_node["id"], "lifecycle", "touches")
+    interplay["launch"]["reach"] = {name: reach[name] for name in sorted(reach)}
+    interplay["launch"]["ticks"] = len(ticks)
+    interplay["launch"]["resident_state"] = len(states)
+    edges.sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+    nodes.sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
+
+
+# ---------------------------------------------------------------------------
 # State machines: an object's lifecycle as the source declares it.
 #
 # A machine is a stored property typed as an enum with two or more cases that the
@@ -4963,8 +5269,8 @@ def provenance_family(rule: str) -> str:
         return "store"
     if rule.startswith("swift.boundary.") or rule == "map.external":
         return "boundary"
-    if rule.startswith(("swift.task.", "swift.lifecycle.", "swift.resource.", "swift.state.")) or rule in (
-        "map.operation", "map.resource", "map.section", "map.machine"
+    if rule.startswith(("swift.task.", "swift.lifecycle.", "swift.resource.", "swift.state.", "swift.launch.")) or rule in (
+        "map.operation", "map.resource", "map.section", "map.machine", "map.tick", "map.state"
     ):
         return "behaviour"
     return "wiring"
@@ -5240,6 +5546,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     page_of_type, pages, page_ties = assign_pages(files, config)
     attach_pages_to_interplay(interplay, page_of_type, pages, page_ties, config, files)
     attach_launch_to_interplay(interplay, extract_launch_constructions(launch_files), files, config)
+    attach_ticks_and_state(interplay, files, launch_files)
     attach_state_machines(interplay, files)
     assign_history_keys(interplay)
     # Records may cite the launch roots too: they are part of the analysed tree.

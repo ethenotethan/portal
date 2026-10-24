@@ -989,6 +989,39 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for needle in ('if (node.kind === "machine") return "machine";', "function machineMermaid(", "stateDiagram-v2", 'rect.setAttribute("class", "machine")', "machines_complete:"):
             self.assertIn(needle, app)
 
+    def test_launch_started_ticks_and_resident_state_are_drawn_beside_their_holders(self) -> None:
+        interplay = self.model["interplay"]
+        triples = {(e["source"], e["target"], e["relation"]) for e in interplay["edges"]}
+        ticks = {n["label"]: n for n in interplay["nodes"] if n["kind"] == "tick"}
+        states = {n["label"]: n for n in interplay["nodes"] if n["kind"] == "state"}
+        # A launch-started poller: the transport core's keepalive loop, held by the core.
+        ping = ticks["GatewayClient.startPingTimer"]
+        self.assertEqual(("loop", "!Task.isCancelled", "Self.pingInterval s"), (ping["form"], ping["condition"], ping["interval"]))
+        self.assertEqual(["sendPing"], [step["call"] for step in ping["steps"]])
+        self.assertIn(("owner:hermes-services:GatewayClient", ping["id"], "starts"), triples)
+        self.assertEqual("swift.launch.starter", ping["rule_id"])
+        # A poller constructed by the root view: alive from launch, with the launch zone as its page.
+        cron = ticks["CronPoller.run"]
+        self.assertEqual(("loop", "launch", 1), (cron["form"], cron["page"], cron["reach"]["hop"]))
+        self.assertIn("tick", [step["call"] for step in cron["steps"]])
+        # A written dictionary field is resident state kept by its holder; the continuation pool
+        # already drawn as a resource is not drawn twice, and a function-local collection is not state.
+        timed_out = states["GatewayClient.timedOutRequestMethods"]
+        self.assertEqual("[Int: String]", timed_out["declared_type"])
+        self.assertEqual({"subscript", "removeValue"}, {w["op"] for w in timed_out["writes"]})
+        self.assertIn(("owner:hermes-services:GatewayClient", timed_out["id"], "keeps"), triples)
+        self.assertNotIn("GatewayClient.pendingRequests", states)
+        self.assertFalse([label for label in states if label.endswith(".params")])
+        self.assertTrue(all(n["rule_id"] == "swift.state.resident" for n in states.values()))
+        # The reach is the App entry's constructions and what they construct, one hop.
+        reach = interplay["launch"]["reach"]
+        self.assertEqual(0, reach["SettingsViewModel"]["hop"])
+        self.assertEqual(1, reach["GatewayClient"]["hop"])
+        self.assertEqual(len(ticks), interplay["launch"]["ticks"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ("function isExpandableHolder(", 'node.kind === "tick"', 'node.kind === "state"', "step-return"):
+            self.assertIn(needle, app)
+
     # ---- Semantic enrichment: described constructs and system flows ------------
 
     def _files(self):
