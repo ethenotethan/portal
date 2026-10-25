@@ -85,6 +85,20 @@
       "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
     },
     {
+      "id": "tasks-parsed",
+      "kind": "tasks_parsed",
+      "layer": "extraction",
+      "allow_unparsed": [],
+      "why": "Every Task the source creates, however its generics or arguments are spelled, is read by the task rules. A spelling they do not know would otherwise vanish from the map without a trace."
+    },
+    {
+      "id": "resources-parsed",
+      "kind": "resources_parsed",
+      "layer": "extraction",
+      "allow_unparsed": [],
+      "why": "Every stored property typed as a resource the rules know (socket, session, timer, lock, continuation pool, model container, subject) is read by the resource rules, so a new field cannot leave its owner looking idle."
+    },
+    {
       "id": "flows-traceable",
       "kind": "flows_traceable",
       "layer": "enrichment",

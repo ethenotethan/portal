@@ -273,7 +273,9 @@
     triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
     launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core.",
     flows_traceable: "Every declared system flow is a path over edges the map draws; a step whose edge disappeared, or fewer flows than declared, fails the build until the flow is updated.",
-    machines_complete: "Every state machine's states match what is declared and every state is entered by some transition; a new, renamed or orphaned state changes the construction and must be declared."
+    machines_complete: "Every state machine's states match what is declared and every state is entered by some transition; a new, renamed or orphaned state changes the construction and must be declared.",
+    tasks_parsed: "Every Task creation the source spells, however its generics or arguments are written, was read by the task rules; a shape they could not read fails the build with its file and line.",
+    resources_parsed: "Every stored property typed as a known resource (socket, session, timer, lock, continuation pool, model container, subject) was read by the resource rules; a shape they could not read fails the build with its file and line."
   };
 
   // The rung of the pipeline each invariant pins. The list is grouped by it, so a
@@ -4270,11 +4272,22 @@
     passTable.append(passHead, passBody);
     passes.append(passTable);
 
+    const completeness = (model.behavior || {}).completeness || {};
+    const unparsedItems = Object.values(completeness).flatMap((entry) => entry.unparsed || []);
+    const seen = Object.values(completeness).reduce((sum, entry) => sum + (entry.seen || 0), 0);
+    const unparsedGroup = behaviorGroup("Unparsed shapes", `${seen} task and resource shapes were seen by the broad patterns; ${unparsedItems.length} of them were not read by any rule. Each is a line the grammar does not know yet; the tasks-parsed and resources-parsed invariants fail the build on one unless it is allowed by name.`);
+    if (unparsedItems.length) {
+      const list = element("ul", "evidence-list");
+      unparsedItems.forEach((item) => { const li = document.createElement("li"); li.append(element("span", "chip", item.shape), document.createTextNode(` ${item.text} · `), sourceLink(item)); list.append(li); });
+      unparsedGroup.append(list);
+    } else {
+      unparsedGroup.append(element("p", "group-note", "Every shape seen was parsed."));
+    }
     const untouched = behaviorGroup("Untouched files", `${summary.untouched_files || 0} of ${summary.files || 0} analysed files were read by every pass and cited by none. They are assigned to a component and counted in the inventory; the map and the invariants say nothing about what is inside them.`);
     const list = element("div", "");
     list.id = "extraction-untouched";
     untouched.append(list);
-    container.replaceChildren(constructs, passes, untouched);
+    container.replaceChildren(constructs, passes, unparsedGroup, untouched);
     renderUntouchedFiles(list);
   }
 

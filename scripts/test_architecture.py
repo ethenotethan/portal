@@ -664,6 +664,44 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertTrue(all(r["status"] == "holds" for r in results), results)
         self.assertTrue(all(r["why"] for r in results))
 
+    def test_unparsed_task_and_resource_shapes_fail_the_build_by_line(self) -> None:
+        # The grammar reads `Task {` and `Task.detached {`; a generic spelling it does not know is
+        # seen by the broad pattern and reported, as is a stored resource it cannot read.
+        text = "\n".join([
+            "final class Poller {",
+            "    private var socket: URLSessionWebSocketTask?",
+            "    private let pending: [Int: CheckedContinuation<Int, Error>] = [:]",
+            "    private var sockets: [URLSessionWebSocketTask] = []",
+            "    func start() {",
+            "        Task { await self.tick() }",
+            "        Task<Void, Never> { await self.tick() }",
+            "        Task.immediate { await self.tick() }",
+            "        if Task.isCancelled { return }",
+            "    }",
+            "}",
+        ])
+        extracted = architecture.extract_behavioral_source("Sources/Portal/Services/Poller.swift", text, "hermes-services")
+        self.assertEqual([("resource", 4), ("task", 8)], [(item["shape"], item["line"]) for item in extracted["unparsed"]])
+        self.assertEqual(["Task", "Task", "pending", "socket"], sorted([t["label"] for t in extracted["task_sites"]] + [r["label"] for r in extracted["resources"]]))
+        behavior = {"operations": [], "completeness": {
+            "task_sites": {"seen": 2, "parsed": 1, "unparsed": [item for item in extracted["unparsed"] if item["shape"] == "task"]},
+            "resources": {"seen": 3, "parsed": 2, "unparsed": [item for item in extracted["unparsed"] if item["shape"] == "resource"]},
+        }}
+        declared = {"schema_version": "1.0.0", "invariants": [
+            {"id": "tasks-parsed", "kind": "tasks_parsed", "layer": "extraction", "why": "t"},
+            {"id": "resources-parsed", "kind": "resources_parsed", "layer": "extraction", "allow_unparsed": ["Sources/Portal/Services/Poller.swift:4"], "why": "r"},
+        ]}
+        with self.assertRaises(architecture.ArchitectureError) as caught:
+            architecture.validate_interplay_invariants({"nodes": [], "edges": [], "pages": []}, behavior, declared)
+        message = str(caught.exception)
+        self.assertIn("tasks-parsed: task shape at Sources/Portal/Services/Poller.swift:8 was seen but not parsed: Task.immediate", message)
+        self.assertNotIn("resources-parsed", message)
+        # The real tree parses every shape it sees today, and the counters are published.
+        completeness = self.model["behavior"]["completeness"]
+        self.assertEqual([], completeness["task_sites"]["unparsed"] + completeness["resources"]["unparsed"])
+        self.assertEqual(completeness["task_sites"]["seen"], completeness["task_sites"]["parsed"])
+        self.assertIn("Unparsed shapes", (ROOT / "architecture/site/app.js").read_text(encoding="utf-8"))
+
     def test_interplay_invariants_carry_a_layer(self) -> None:
         results = self.model["interplay"]["invariants"]
         self.assertTrue(all(r["layer"] in architecture.INVARIANT_LAYERS for r in results), results)

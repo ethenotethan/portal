@@ -47,8 +47,8 @@ DECLARATION_RE = re.compile(
 IDENTIFIER_RE = re.compile(r"\b[A-Z][A-Za-z0-9_]{3,}\b")
 
 BEHAVIOR_RULES = {
-    "swift.task.structured": "Task initializer with closure",
-    "swift.task.detached": "Task.detached closure",
+    "swift.task.structured": "Task initializer with closure, with or without explicit generics",
+    "swift.task.detached": "Task.detached closure, with or without explicit generics",
     "swift.task.stored_handle": "Stored property whose declared type is Task",
     "swift.task.cancel": "cancel() invoked on a named stored Task handle",
     "swift.resource.websocket.stored": "Stored property declared as URLSessionWebSocketTask",
@@ -57,7 +57,7 @@ BEHAVIOR_RULES = {
     "swift.resource.combine_subject.stored": "Stored property initialized as a PassthroughSubject or CurrentValueSubject",
     "swift.resource.continuation.stored": "Stored property declared as an AsyncStream continuation",
     "swift.resource.lock.stored": "Stored property declared or initialized as NSLock or OSAllocatedUnfairLock",
-    "swift.resource.timer.stored": "Stored property declared as Timer",
+    "swift.resource.timer.stored": "Stored property declared as Timer or initialised from Timer.publish / Timer.scheduledTimer",
     "swift.resource.rpc_pool.stored": "Stored property declared as a dictionary of CheckedContinuation (an in-flight request pool)",
     "swift.resource.on_device_model.stored": "Stored property declared as an MLX ModelContainer (an on-device language model)",
     "swift.resource.speech_synth.instantiated": "AVSpeechSynthesizer instantiated in a source owner (an on-device speech engine)",
@@ -422,8 +422,8 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
             r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Task\s*<"
         )),
-        ("task_detached", "swift.task.detached", re.compile(r"\bTask\s*\.\s*detached\s*(?:\([^)]*\)\s*)?\{")),
-        ("task", "swift.task.structured", re.compile(r"\bTask\s*(?:\([^)]*\)\s*)?\{")),
+        ("task_detached", "swift.task.detached", re.compile(r"\bTask\s*(?:<[^>\n]*>\s*)?\.\s*detached\s*(?:\([^)]*\)\s*)?\{")),
+        ("task", "swift.task.structured", re.compile(r"\bTask\s*(?:<[^>\n]*>\s*)?(?:\([^)]*\)\s*)?\{")),
         ("task_cancellation", "swift.task.cancel", re.compile(
             r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*\.\s*cancel\s*\("
         )),
@@ -454,7 +454,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
     ]
     for resource_kind, type_name, rule_id in stored_resource_specs:
         resource_re = re.compile(
-            rf"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
+            rf"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned|static|lazy|nonisolated)\s+)*"
             rf"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*{type_name}\s*(\?)?(?![A-Za-z0-9_])"
         )
         for match in resource_re.finditer(code):
@@ -483,7 +483,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "lock",
             "swift.resource.lock.stored",
             re.compile(
-                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|static|lazy|nonisolated)\s+)*"
                 r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*"
                 r"(?::\s*(?:NSLock|OSAllocatedUnfairLock)(?:\s*<[^\n>]+>)?\s*)?"
                 r"=\s*(?:NSLock|OSAllocatedUnfairLock)\s*(?:<[^\n>]+>)?\s*\("
@@ -493,8 +493,8 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "timer",
             "swift.resource.timer.stored",
             re.compile(
-                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
-                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Timer\s*(\?)?"
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|static|lazy|nonisolated)\s+)*"
+                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*Timer\s*(\?)?(?![A-Za-z0-9_])|(?::[^=\n]*)?=\s*Timer\s*\.\s*(?:publish|scheduledTimer)\s*\()"
             ),
         ),
         (
@@ -764,8 +764,48 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
 
     resources.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
     operations.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
+    unparsed = unparsed_shapes(code, text, path, task_sites, resources)
     return {"task_sites": task_sites,
-            "resources": resources, "operations": operations}
+            "resources": resources, "operations": operations, "unparsed": unparsed}
+
+
+# What the grammar is for, stated loosely enough to catch what it missed: any `Task`
+# creation however its generics or arguments are spelled, and any stored property
+# whose type or initialiser names a resource type a rule exists for. Each broad
+# match that no parsed site claims is an unparsed shape, and the `tasks-parsed` and
+# `resources-parsed` invariants fail the build naming its file and line, so a
+# spelling the rules do not know is a build error rather than a silent gap.
+# A `Task` spelling with a closure (any static member, generics or arguments), except a
+# `Task.isCancelled`-style read inside an `if`/`while`/`!`/`&&` condition, which creates nothing.
+TASK_SHAPE_RE = re.compile(r"(?m)(?<!!)(?<!\bif )(?<!&& )(?<!\|\| )\bTask\b(?:\s*<[^>\n]*>)?\s*(?:\.\s*[a-z]\w*)?\s*(?:\([^)]*\)\s*)?\{|^[ \t]*(?:\w+\s+)*(?:var|let)\s+[A-Za-z_]\w*\s*:\s*Task\s*<")
+RESOURCE_TYPE_NAMES = ("URLSessionWebSocketTask", "URLSession", "Timer", "NSLock", "OSAllocatedUnfairLock", "ModelContainer",
+                       "PassthroughSubject", "CurrentValueSubject")
+RESOURCE_SHAPE_RE = re.compile(
+    r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned|nonisolated|static|lazy)\s+)*(?:var|let)\s+[A-Za-z_]\w*\s*"
+    r"(?::[^={\n]*\b(?:" + "|".join(RESOURCE_TYPE_NAMES) + r")\b(?:[^={\n]*=|[^={\n]*$)|(?::[^={\n]*)?=\s*(?:" + "|".join(RESOURCE_TYPE_NAMES) + r")\b"
+    r"|:[^={\n]*\[[^\]\n]*:\s*CheckedContinuation\b)"
+)
+
+
+def unparsed_shapes(code: str, text: str, path: str, task_sites: list[dict[str, Any]], resources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every broad task or resource shape in a file that no parsed site claims, by line."""
+    task_lines = {item["evidence"]["line"] for item in task_sites}
+    resource_lines = {item["evidence"]["line"] for item in resources}
+    lines = text.splitlines()
+    out: list[dict[str, Any]] = []
+    for shape, pattern, claimed in (("task", TASK_SHAPE_RE, task_lines), ("resource", RESOURCE_SHAPE_RE, resource_lines)):
+        for match in pattern.finditer(code):
+            line = code.count("\n", 0, match.start()) + 1
+            if line in claimed:
+                continue
+            if shape == "resource":
+                # A resource type that is a function-local binding is not a stored resource.
+                owner_type, function = enclosing_context(code, match.start())
+                if owner_type is None or function is not None:
+                    continue
+            out.append({"shape": shape, "path": path, "line": line, "text": lines[line - 1].strip()[:160] if line <= len(lines) else ""})
+    out.sort(key=lambda item: (item["line"], item["shape"]))
+    return out
 
 
 def swift_string_literals(text: str) -> list[tuple[int, int, str]]:
@@ -1637,12 +1677,15 @@ def build_behavior_model(files: list[dict[str, Any]]) -> dict[str, Any]:
     collections: dict[str, list[dict[str, Any]]] = {
         "task_sites": [], "resources": [], "operations": []
     }
+    unparsed: list[dict[str, Any]] = []
     for source in files:
         extracted = extract_behavioral_source(
             source["path"], source["_text"], source["component"]
         )
         for name in collections:
             collections[name].extend(extracted[name])
+        unparsed.extend(extracted["unparsed"])
+    unparsed.sort(key=lambda item: (item["path"], item["line"], item["shape"]))
     for items in collections.values():
         items.sort(key=lambda item: (
             item["evidence"]["path"], item["evidence"]["line"], item["id"]
@@ -1699,7 +1742,13 @@ def build_behavior_model(files: list[dict[str, Any]]) -> dict[str, Any]:
         if pocket["resource_ids"] or pocket["task_handle_ids"]:
             pockets.append(pocket)
 
-    return {**collections, "pockets": pockets}
+    completeness = {
+        "task_sites": {"parsed": len(collections["task_sites"]), "unparsed": [item for item in unparsed if item["shape"] == "task"]},
+        "resources": {"parsed": len(collections["resources"]), "unparsed": [item for item in unparsed if item["shape"] == "resource"]},
+    }
+    for entry in completeness.values():
+        entry["seen"] = entry["parsed"] + len(entry["unparsed"])
+    return {**collections, "pockets": pockets, "completeness": completeness}
 
 
 def build_interplay_graph(
@@ -2577,6 +2626,7 @@ INVARIANT_KINDS = {
     "single_transport", "surfaces_hold_transport", "pool_guarded_by_lock", "pool_lifecycle_observed",
     "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
     "stores_mapped", "triggers_observed", "launch_zoned", "flows_traceable", "machines_complete",
+    "tasks_parsed", "resources_parsed",
 }
 # The rung of the pipeline an invariant pins. `extraction` invariants check the
 # mechanical model against its own rules (what the extractor recognises is on the
@@ -2784,6 +2834,15 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
                     problems.append(f"flow {flow['id']}: {problem}")
             if len(flows) < int(entry.get("min", 0)):
                 problems.append(f"only {len(flows)} flow(s) declared, need ≥ {entry.get('min', 0)}")
+
+        elif kind in ("tasks_parsed", "resources_parsed"):
+            counter = behavior.get("completeness", {}).get("task_sites" if kind == "tasks_parsed" else "resources", {"seen": 0, "unparsed": []})
+            checked = int(counter.get("seen", 0))
+            allowed = set(entry.get("allow_unparsed", []))
+            for item in counter.get("unparsed", []):
+                site = f"{item['path']}:{item['line']}"
+                if site not in allowed:
+                    problems.append(f"{item['shape']} shape at {site} was seen but not parsed: {item.get('text', '')}")
 
         elif kind == "pages_populated":
             allow_empty = set(entry.get("allow_empty", []))
