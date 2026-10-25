@@ -62,6 +62,11 @@ jobs:
           python3 -m unittest scripts/test_architecture.py
           node --check architecture/site/app.js
 
+      # The refresh may not leave the model-written layer staler than main:
+      # every record or flow still stale here was already stale on main.
+      - name: Enrichment is no staler than main
+        run: python3 scripts/check-constraint-growth.py HEAD
+
       - name: Open or update architecture pull request
         uses: peter-evans/create-pull-request@v7
         with:

@@ -131,6 +131,7 @@ architecture-check:
 	python3 scripts/check-contract-pins.py
 	python3 -m unittest scripts/test_architecture.py
 	node --check architecture/site/app.js
+	python3 scripts/check-constraint-growth.py origin/main
 
 # The System map at every commit that touched the app source: today's extractor
 # re-run over first-parent history into architecture/site/history.js, which the
