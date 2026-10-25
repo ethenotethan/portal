@@ -664,6 +664,59 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertTrue(all(r["status"] == "holds" for r in results), results)
         self.assertTrue(all(r["why"] for r in results))
 
+    def test_unparsed_task_and_resource_shapes_fail_the_build_by_line(self) -> None:
+        # The grammar reads `Task {` and `Task.detached {`; a generic spelling it does not know is
+        # seen by the broad pattern and reported, as is a stored resource it cannot read.
+        text = "\n".join([
+            "final class Poller {",
+            "    private var socket: URLSessionWebSocketTask?",
+            "    private let pending: [Int: CheckedContinuation<Int, Error>] = [:]",
+            "    private var sockets: [URLSessionWebSocketTask] = []",
+            "    func start() {",
+            "        Task { await self.tick() }",
+            "        Task<Void, Never> { await self.tick() }",
+            "        Task.immediate { await self.tick() }",
+            "        if Task.isCancelled { return }",
+            "    }",
+            "}",
+        ])
+        extracted = architecture.extract_behavioral_source("Sources/Portal/Services/Poller.swift", text, "hermes-services")
+        self.assertEqual([("resource", 4), ("task", 8)], [(item["shape"], item["line"]) for item in extracted["unparsed"]])
+        self.assertEqual(["Task", "Task", "pending", "socket"], sorted([t["label"] for t in extracted["task_sites"]] + [r["label"] for r in extracted["resources"]]))
+        behavior = {"operations": [], "completeness": {
+            "task_sites": {"seen": 2, "parsed": 1, "unparsed": [item for item in extracted["unparsed"] if item["shape"] == "task"]},
+            "resources": {"seen": 3, "parsed": 2, "unparsed": [item for item in extracted["unparsed"] if item["shape"] == "resource"]},
+        }}
+        declared = {"schema_version": "1.0.0", "invariants": [
+            {"id": "tasks-parsed", "kind": "tasks_parsed", "layer": "extraction", "why": "t"},
+            {"id": "resources-parsed", "kind": "resources_parsed", "layer": "extraction", "allow_unparsed": ["Sources/Portal/Services/Poller.swift:4"], "why": "r"},
+        ]}
+        with self.assertRaises(architecture.ArchitectureError) as caught:
+            architecture.validate_interplay_invariants({"nodes": [], "edges": [], "pages": []}, behavior, declared)
+        message = str(caught.exception)
+        self.assertIn("tasks-parsed: task shape at Sources/Portal/Services/Poller.swift:8 was seen but not parsed: Task.immediate", message)
+        self.assertNotIn("resources-parsed", message)
+        # The real tree parses every shape it sees today, and the counters are published.
+        completeness = self.model["behavior"]["completeness"]
+        self.assertEqual([], completeness["task_sites"]["unparsed"] + completeness["resources"]["unparsed"])
+        self.assertEqual(completeness["task_sites"]["seen"], completeness["task_sites"]["parsed"])
+        self.assertIn("Unparsed shapes", (ROOT / "architecture/site/app.js").read_text(encoding="utf-8"))
+
+    def test_interplay_invariants_carry_a_layer(self) -> None:
+        results = self.model["interplay"]["invariants"]
+        self.assertTrue(all(r["layer"] in architecture.INVARIANT_LAYERS for r in results), results)
+        self.assertEqual(set(architecture.INVARIANT_LAYERS), {r["layer"] for r in results})
+        self.assertEqual([r["layer"] for r in results], [r["layer"] for r in self.model["ci"]["architectural"]["invariants"]])
+
+    def test_interplay_invariant_without_a_layer_is_rejected(self) -> None:
+        interplay = {"nodes": [], "edges": [], "pages": []}
+        entry = {"id": "operations-scoped", "kind": "operations_resolve_scope", "why": "scopes"}
+        for layer in ({}, {"layer": "mechanical"}):
+            declared = {"schema_version": "1.0.0", "invariants": [{**entry, **layer}]}
+            with self.assertRaises(architecture.ArchitectureError) as caught:
+                architecture.validate_interplay_invariants(interplay, {"operations": []}, declared)
+            self.assertIn("operations-scoped needs a layer", str(caught.exception))
+
     def test_interplay_invariants_fail_when_the_construction_drifts(self) -> None:
         def graph(*, guarded: bool, holds: bool) -> tuple[dict, dict]:
             ev = {"path": "Sources/Portal/Services/GatewayClient.swift", "line": 10}
@@ -974,6 +1027,86 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for needle in ('if (node.kind === "machine") return "machine";', "function machineMermaid(", "stateDiagram-v2", 'rect.setAttribute("class", "machine")', "machines_complete:"):
             self.assertIn(needle, app)
 
+    def test_call_index_resolves_calls_only_through_known_types(self) -> None:
+        def source(path, text):
+            return {"path": path, "component": "c", "_text": text, "declarations": [], "identifiers": [], "line_count": text.count("\n") + 1}
+        files = [
+            source("Sources/Portal/Services/AStore.swift", "protocol Saving {\n    func save()\n}\n\nfinal class AStore: Saving {\n    func save() {}\n}\n"),
+            source("Sources/Portal/Services/BStore.swift", "final class BStore {\n    func save() {}\n    func other() {}\n}\n"),
+            source("Sources/Portal/ViewModels/Surface.swift", "\n".join([
+                "final class Surface {",
+                "    private let a: AStore",
+                "    private var dep: (any Saving)?",
+                "    var thing = makeThing()",
+                "    func viaField() { a.save() }",
+                "    func viaProtocol() { dep?.save() }",
+                "    func viaLocal() { let s = BStore(); s.save() }",
+                "    func viaUntyped() { thing?.save() }",
+                "    func viaUnique() { thing?.other() }",
+                "    func viaBare() { helper() }",
+                "    func helper() {}",
+                "}", ""])),
+        ]
+        index = architecture.build_call_index(files)
+        stores = {"AStore", "BStore"}
+        a, b = "Sources/Portal/Services/AStore.swift#AStore.save", "Sources/Portal/Services/BStore.swift#BStore.save"
+
+        def callees(member):
+            return sorted(architecture.callees_of(index, f"Sources/Portal/ViewModels/Surface.swift#Surface.{member}", stores))
+        self.assertEqual([a], callees("viaField"))       # a field typed as the store
+        self.assertEqual([a], callees("viaProtocol"))    # a protocol-typed field resolves to its conformers
+        self.assertEqual([b], callees("viaLocal"))       # an object the body constructs
+        self.assertEqual([], callees("viaUntyped"))      # an untyped receiver and two stores defining save: nothing resolves by name alone
+        self.assertEqual(["Sources/Portal/Services/BStore.swift#BStore.other"], callees("viaUnique"))  # exactly one store defines it
+        self.assertEqual(["Sources/Portal/ViewModels/Surface.swift#Surface.helper"], callees("viaBare"))
+        chains = architecture.call_chains(index, "Surface", stores)
+        self.assertEqual(["Surface.viaField", "AStore.save"], chains[a])  # the shortest chain, first member in source order
+        # On the real tree: a view model reaches a store through its method with the chain recorded,
+        # and a hub reaches the on-device engine through a protocol-typed dependency.
+        edges = self.model["interplay"]["edges"]
+        cron = next(e for e in edges if e["source"] == "caller:operations-state:CronListViewModel" and e["target"] == "store:domain-models:CronRunHistoryStore" and e["relation"] == "uses")
+        self.assertEqual(["CronListViewModel.refreshJobs", "CronRunHistoryStore.detectNewRuns"], cron["chain"])
+        mlx = next(e for e in edges if e["source"] == "hub:ChatViewModel" and e["target"] == "external:apple-mlx")
+        self.assertEqual("ChatViewModel.openDiscussionSurface", mlx["chain"][0])
+        self.assertIn("LocalChatService.prepare", mlx["chain"])
+        self.assertTrue(all("chain" in e for e in edges if e.get("rule_id") == "swift.usage.injected_method"))
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ("function isChainOnlyEdge(", "relation-chain", "by call chain"):
+            self.assertIn(needle, app)
+
+    def test_launch_started_ticks_and_resident_state_are_drawn_beside_their_holders(self) -> None:
+        interplay = self.model["interplay"]
+        triples = {(e["source"], e["target"], e["relation"]) for e in interplay["edges"]}
+        ticks = {n["label"]: n for n in interplay["nodes"] if n["kind"] == "tick"}
+        states = {n["label"]: n for n in interplay["nodes"] if n["kind"] == "state"}
+        # A launch-started poller: the transport core's keepalive loop, held by the core.
+        ping = ticks["GatewayClient.startPingTimer"]
+        self.assertEqual(("loop", "!Task.isCancelled", "Self.pingInterval s"), (ping["form"], ping["condition"], ping["interval"]))
+        self.assertEqual(["sendPing"], [step["call"] for step in ping["steps"]])
+        self.assertIn(("owner:hermes-services:GatewayClient", ping["id"], "starts"), triples)
+        self.assertEqual("swift.launch.starter", ping["rule_id"])
+        # A poller constructed by the root view: alive from launch, with the launch zone as its page.
+        cron = ticks["CronPoller.run"]
+        self.assertEqual(("loop", "launch", 1), (cron["form"], cron["page"], cron["reach"]["hop"]))
+        self.assertIn("tick", [step["call"] for step in cron["steps"]])
+        # A written dictionary field is resident state kept by its holder; the continuation pool
+        # already drawn as a resource is not drawn twice, and a function-local collection is not state.
+        timed_out = states["GatewayClient.timedOutRequestMethods"]
+        self.assertEqual("[Int: String]", timed_out["declared_type"])
+        self.assertEqual({"subscript", "removeValue"}, {w["op"] for w in timed_out["writes"]})
+        self.assertIn(("owner:hermes-services:GatewayClient", timed_out["id"], "keeps"), triples)
+        self.assertNotIn("GatewayClient.pendingRequests", states)
+        self.assertFalse([label for label in states if label.endswith(".params")])
+        self.assertTrue(all(n["rule_id"] == "swift.state.resident" for n in states.values()))
+        # The reach is the App entry's constructions and what they construct, one hop.
+        reach = interplay["launch"]["reach"]
+        self.assertEqual(0, reach["SettingsViewModel"]["hop"])
+        self.assertEqual(1, reach["GatewayClient"]["hop"])
+        self.assertEqual(len(ticks), interplay["launch"]["ticks"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ("function isExpandableHolder(", 'node.kind === "tick"', 'node.kind === "state"', "step-return"):
+            self.assertIn(needle, app)
+
     # ---- Semantic enrichment: described constructs and system flows ------------
 
     def _files(self):
@@ -988,7 +1121,7 @@ class ArchitectureCompilerTests(unittest.TestCase):
         externals = self.model["externals"]
         keychain = next(n for n in interplay["nodes"] if n["label"] == "KeychainStore")
         good = {
-            "key": keychain["history_key"], "kind": "store", "summary": "Wraps the Keychain.",
+            "key": keychain["history_key"], "kind": "store", "summary": "Wraps the Keychain.", "purpose": "Keeps gateway credentials out of plain files.",
             "fields": {"medium": "keychain", "sensitive": True, "readers": ["provider:operations-state:SettingsViewModel"], "record_type": ["SavedGateway"], "written_when": ["on_change"]},
             "evidence": [{"path": keychain["path"], "line": 10}], "open_questions": [],
         }
@@ -1011,6 +1144,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
             ({**good, "evidence": [{"path": "Sources/Portal/Views/ChatView.swift", "line": 1}]}, "bounded"),
             ({**good, "evidence": [{"path": keychain["path"], "line": 100000}]}, "not a line"),
             ({**good, "summary": "x" * 401}, "exceeds"),
+            ({k: v for k, v in good.items() if k != "purpose"}, "needs a purpose"),
+            ({**good, "purpose": "x" * 521}, "purpose exceeds"),
         ]
         for raw, needle in bad_cases:
             with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
@@ -1018,12 +1153,12 @@ class ArchitectureCompilerTests(unittest.TestCase):
             self.assertIn(needle, str(caught.exception))
         # Pages are constructs too; members must belong to the page.
         page = architecture.validate_construct_record(
-            {"key": "page:launch", "kind": "page", "summary": "Launch.", "fields": {"owns_state_in": [keychain["history_key"]]},
+            {"key": "page:launch", "kind": "page", "summary": "Launch.", "purpose": "Starts the session.", "fields": {"owns_state_in": [keychain["history_key"]]},
              "evidence": [{"path": keychain["path"], "line": 1}]}, interplay, files, externals)
         self.assertEqual("page", page["kind"])
         with self.assertRaises(architecture.ArchitectureError):
             architecture.validate_construct_record(
-                {"key": "page:chat", "kind": "page", "summary": "Chat.", "fields": {"owns_state_in": [keychain["history_key"]]},
+                {"key": "page:chat", "kind": "page", "summary": "Chat.", "purpose": "Starts the session.", "fields": {"owns_state_in": [keychain["history_key"]]},
                  "evidence": [{"path": keychain["path"], "line": 1}]}, interplay, files, externals)
 
     def test_flows_are_paths_over_edges_the_map_draws(self) -> None:
@@ -1074,6 +1209,53 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for declared in interplay.get("flows", []):
             self.assertEqual("traceable", declared["status"], declared)
         self.assertEqual("holds", next(i["status"] for i in interplay["invariants"] if i["id"] == "flows-traceable"))
+
+    def test_flow_steps_carry_detail_cited_inside_the_path_and_go_stale_by_line(self) -> None:
+        interplay = self.model["interplay"]
+        files = self._files()
+        core = "owner:hermes-services:GatewayClient"
+        vm = "Sources/Portal/ViewModels/ChatViewModel.swift"
+        steps = [
+            {"from": "caller:chat-state:ChatViewModel", "to": core, "relation": "holds", "detail": "The view model keeps the shared `GatewayClient`.", "cites": [{"path": vm, "line": 40}]},
+            {"from": "caller:chat-state:ChatViewModel", "to": "endpoint:jsonrpc:prompt", "relation": "invokes", "detail": "It sends the prompt.", "cites": [{"path": vm, "line": 41}]},
+            {"from": core, "to": "endpoint:jsonrpc:prompt", "relation": "dispatches"},
+        ]
+        good = {"id": "prompt-detail", "title": "Prompt with detail", "summary": "Detail per hop.", "journey": "chat_turn", "steps": steps}
+        flow = architecture.validate_flow(good, interplay, files)
+        self.assertEqual("traceable", flow["status"])
+        self.assertFalse(flow["stale"])
+        self.assertEqual([{"path": vm, "line": 40}], flow["steps"][0]["cites"])
+        self.assertEqual("", flow["steps"][2]["detail"])
+        self.assertEqual([(vm, 40), (vm, 41)], [(e["path"], e["line"]) for e in flow["evidence"]])
+        # A step may only cite files on its own path; a detail has a cap.
+        for raw, needle in [
+            ({**good, "steps": [{**steps[0], "cites": [{"path": "Sources/Portal/Services/KeychainStore.swift", "line": 1}]}, *steps[1:]]}, "step 1 cites"),
+            ({**good, "steps": [{**steps[0], "detail": "x" * 901}, *steps[1:]]}, "detail must be"),
+            ({**good, "steps": [{**steps[0], "cites": "nope"}, *steps[1:]]}, "cites must be"),
+        ]:
+            with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
+                architecture.validate_flow(raw, interplay, files)
+            self.assertIn(needle, str(caught.exception))
+        # The hash covers the lines around each citation: an edit there makes the flow stale,
+        # an edit elsewhere in the same file does not.
+        recorded = {**good, "cited_hash": flow["cited_hash"]}
+        self.assertFalse(architecture.validate_flow(recorded, interplay, files)["stale"])
+
+        def edited(line_number: int) -> list[dict]:
+            out = []
+            for item in files:
+                if item["path"] == vm:
+                    lines = item["_text"].split("\n")
+                    lines[line_number - 1] = lines[line_number - 1] + " // edited"
+                    item = {**item, "_text": "\n".join(lines)}
+                out.append(item)
+            return out
+        self.assertTrue(architecture.validate_flow(recorded, interplay, edited(42))["stale"])
+        self.assertFalse(architecture.validate_flow(recorded, interplay, edited(400))["stale"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ("function stepDetail(", "step-cites", "stale · cited lines changed", "function codeTokens(", "function inlineCode(",
+                       "const openJourneys", 'element("details", "journey")', "node.semantic.purpose"):
+            self.assertIn(needle, app)
 
     def test_described_constructs_fold_onto_nodes_and_the_site_renders_them(self) -> None:
         interplay = self.model["interplay"]
