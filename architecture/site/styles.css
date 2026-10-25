@@ -403,6 +403,12 @@ h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em;
 .flows-list { display: block; }
 .journey { margin: 22px 0 0; }
 .journey-title { margin: 0 0 8px; color: var(--ink); font: 600 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+details.journey > .journey-title { cursor: pointer; list-style: none; position: relative; padding-left: 16px; }
+details.journey > .journey-title::-webkit-details-marker { display: none; }
+details.journey > .journey-title::before { content: "▸"; position: absolute; left: 0; top: -1px; color: var(--faint); }
+details.journey[open] > .journey-title::before { content: "▾"; }
+details.journey > .journey-title:hover { color: var(--accent); }
+.inline-code code, .step-detail code, .described code { font: 11px var(--mono); color: var(--code-ink); background: rgba(127, 127, 127, .09); padding: 0 3px; border-radius: 3px; overflow-wrap: anywhere; }
 .flow { margin: 0 0 14px; padding: 0 0 0 14px; border-left: 2px solid var(--line); }
 .flow[open] { margin-bottom: 26px; }
 .flow.tracing { border-left-color: var(--accent); }

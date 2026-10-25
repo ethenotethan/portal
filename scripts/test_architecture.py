@@ -1253,7 +1253,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertTrue(architecture.validate_flow(recorded, interplay, edited(42))["stale"])
         self.assertFalse(architecture.validate_flow(recorded, interplay, edited(400))["stale"])
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
-        for needle in ("function stepDetail(", "step-cites", "stale · cited lines changed"):
+        for needle in ("function stepDetail(", "step-cites", "stale · cited lines changed", "function codeTokens(", "function inlineCode(",
+                       "const openJourneys", 'element("details", "journey")', "node.semantic.purpose"):
             self.assertIn(needle, app)
 
     def test_described_constructs_fold_onto_nodes_and_the_site_renders_them(self) -> None:

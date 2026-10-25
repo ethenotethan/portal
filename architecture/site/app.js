@@ -299,6 +299,14 @@
   // not shared code. They get their own hull inside the application boundary.
   const INTERPLAY_MEMORY_GROUP = "In-memory constructions";
   const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, artifact: 1, tick: 1, state: 1, operation: 2 };
+  // Holder tables live up here with the other tables: assignInterplayGroups() runs during
+  // init and must read them outside the temporal dead zone.
+  // A holder of ticks or resident state (a view model, store or service the App
+  // constructs) is drawn collapsed like the transport core: its rows open beneath
+  // it on a press, so the map stays readable while the state is one click away.
+  const HOLDER_MEMBER_KINDS = new Set(["tick", "state"]);
+  const HOLDER_KINDS = ["owner", "store", "provider", "caller", "subscriber", "hub"];
+  const holdersWithMembers = new Set(interplay.nodes.filter((n) => HOLDER_MEMBER_KINDS.has(n.kind) && n.owner_type).map((n) => `${n.component}|${n.owner_type}`));
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
   const componentById = new Map(model.components.map((component) => [component.id, component]));
@@ -314,6 +322,7 @@
   let selectedInterplayId = null;
   let selectedFlowId = null; // a traced system flow: its steps light up like a selection's path
   const openFlows = new Set(); // flows the reader has expanded; survives the re-render tracing causes
+  const openJourneys = new Set(); // journey groups the reader has opened; a closed group holds no cards
   const flows = interplay.flows || [];
   const flowById = new Map(flows.map((flow) => [flow.id, flow]));
   // Journey tables live up here because renderFlows() runs during init.
@@ -393,12 +402,6 @@
   function isTransportContainer(node) {
     return node.kind === "owner" && ((node.roles || []).includes("transport") || (node.roles || []).includes("pool"));
   }
-  // A holder of ticks or resident state (a view model, store or service the App
-  // constructs) is drawn collapsed like the transport core: its rows open beneath
-  // it on a press, so the map stays readable while the state is one click away.
-  const HOLDER_MEMBER_KINDS = new Set(["tick", "state"]);
-  const HOLDER_KINDS = ["owner", "store", "provider", "caller", "subscriber", "hub"];
-  const holdersWithMembers = new Set(interplay.nodes.filter((n) => HOLDER_MEMBER_KINDS.has(n.kind) && n.owner_type).map((n) => `${n.component}|${n.owner_type}`));
   function isExpandableHolder(node) {
     return isTransportContainer(node) || (HOLDER_KINDS.includes(node.kind) && holdersWithMembers.has(`${node.component}|${node.label}`));
   }
@@ -1270,6 +1273,12 @@
       // name is in the aria label and the inspector.
       title.textContent = node.kind === "artifact" && node.label.length > 30 ? `${node.label.slice(0, 29)}…` : node.label;
       group.append(kicker, title);
+      if (!node.hist && node.semantic && node.semantic.purpose) {
+        // Why it exists, on hover: the same sentence the inspector leads with.
+        const tip = svgElement("title", {});
+        tip.textContent = `${node.label} — ${node.semantic.purpose}`;
+        group.append(tip);
+      }
       if (node.kind !== "operation" && !isInterplayBar(node)) {
         const meta = svgElement("text", { x: 11, y: 41, class: "node-meta" });
         meta.textContent = interplayNodeMeta(node);
@@ -1832,25 +1841,80 @@
     if (typeof value === "string") return value.includes(":") && idByHistoryKey.has(value) ? nameOf(value) : value.replace(/_/g, " ");
     return String(value);
   }
+  // ---- Code-shaped tokens in prose -------------------------------------------
+  // Identifiers in model-written text render as inline code whether or not the
+  // writer backticked them: repository paths, Swift attributes, ENV_VARS, dotted
+  // and called names, camelCase and snake_case words, file names, plus the names
+  // the map itself knows (every drawn construction with a capital in its label).
+  // A lexical shape, nothing about what the words mean.
+  const CODE_TOKEN_RE = new RegExp([
+    String.raw`(?<![\w/])(?:Sources|App|docs|architecture|scripts|Tests|\.github)/[\w./\[\]()+-]*[\w)\]]`,  // repository paths
+    String.raw`@[A-Z][A-Za-z]+\b`,                                                                       // @Published, @StateObject, @MainActor
+    String.raw`\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b`,                                                       // ENV_VARS
+    String.raw`\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w+)+(?:\([^()\n]*\))?`,                                     // dotted names: KeychainStore.shared.saveGateways(…), session.list
+    String.raw`\b[A-Za-z_]\w*\([^()\n]*\)`,                                                              // calls(): load(), saveGateways(gateways)
+    String.raw`\b[a-z][a-z0-9]*(?:[A-Z][a-z0-9]+)+\b`,                                                    // camelCase
+    String.raw`\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b`,                                                        // snake_case
+    String.raw`\b[\w-]+\.(?:swift|json|md|yml|yaml|plist|sh|py)\b`,                                      // file names
+  ].join("|"), "g");
+  const KNOWN_IDENTIFIERS = new Set([
+    ...interplay.nodes.map((node) => node.label),
+    ...interplayPages.flatMap((page) => page.roots || []),
+    ...Object.keys((interplay.launch || {}).reach || {}),
+  ].filter((name) => typeof name === "string" && name.length >= 4 && /[A-Z]/.test(name) && !name.includes(" ")));
+  const WORD_RE = /\b[A-Za-z_][\w]*\b/g;
+  function codeTokens(text) {
+    const parts = [];
+    let last = 0;
+    const matches = [...text.matchAll(CODE_TOKEN_RE), ...[...text.matchAll(WORD_RE)].filter((m) => KNOWN_IDENTIFIERS.has(m[0]))].sort((a, b) => a.index - b.index);
+    for (const m of matches) {
+      const token = m[0];
+      if (m.index < last) continue; // inside a token already set
+      if (/^(?:e\.g|i\.e|etc|vs)\.?$/i.test(token)) continue;
+      if (m.index > last) parts.push(document.createTextNode(text.slice(last, m.index)));
+      parts.push(element("code", "auto", token));
+      last = m.index + token.length;
+    }
+    if (last < text.length) parts.push(document.createTextNode(text.slice(last)));
+    return parts;
+  }
+  // Backticked spans are code as written; the rest is tokenised.
+  function inlineCode(text) {
+    const span = element("span", "inline-code");
+    String(text).split(/(`[^`\n]+`)/).forEach((segment) => {
+      if (!segment) return;
+      if (segment.length > 2 && segment.startsWith("`") && segment.endsWith("`")) span.append(element("code", "", segment.slice(1, -1)));
+      else span.append(...codeTokens(segment));
+    });
+    return span;
+  }
+  function prose(text, className = "") {
+    const paragraph = element("p", className);
+    paragraph.append(inlineCode(text));
+    return paragraph;
+  }
+
   function describedSection(semantic) {
     const section = element("section", "inspector-section described");
     const head = element("h4", "", "Described");
     if (semantic.stale) head.append(element("span", "stale-badge", `stale · files changed since ${String(semantic.source_revision).slice(0, 9)}`));
     // Why it exists comes first: the summary says what the construction does, the
     // purpose says why anyone wanted it, and a reader meeting a box cold needs the why.
-    section.append(head, element("p", "described-purpose", semantic.purpose), element("p", "", semantic.summary));
+    section.append(head, prose(semantic.purpose, "described-purpose"), prose(semantic.summary));
     const fields = Object.entries(semantic.fields || {});
     if (fields.length) {
       const table = element("dl", "described-table");
       fields.forEach(([name, value]) => {
         table.append(element("dt", "", SEMANTIC_FIELD_LABELS[name] || name.replace(/_/g, " ")));
-        table.append(element("dd", "", semanticValue(value)));
+        const cell = element("dd");
+        cell.append(inlineCode(semanticValue(value)));
+        table.append(cell);
       });
       section.append(table);
     }
     if ((semantic.open_questions || []).length) {
       const questions = element("ul", "evidence-list");
-      semantic.open_questions.forEach((question) => questions.append(element("li", "", `? ${question}`)));
+      semantic.open_questions.forEach((question) => { const li = element("li"); li.append(document.createTextNode("? "), inlineCode(question)); questions.append(li); });
       section.append(element("p", "described-meta", "Open questions"), questions);
     }
     const evidence = element("ul", "evidence-list");
@@ -1974,7 +2038,7 @@
         wrap.append(pre);
         return;
       }
-      part.split(/\n\s*\n/).map((para) => para.trim()).filter(Boolean).forEach((para) => wrap.append(element("p", "", para)));
+      part.split(/\n\s*\n/).map((para) => para.trim()).filter(Boolean).forEach((para) => wrap.append(prose(para)));
     });
     if ((step.cites || []).length) {
       const cites = element("span", "step-cites");
@@ -2001,7 +2065,7 @@
     flow.steps.forEach((step) => {
       const li = document.createElement("li");
       li.append(element("span", "step-path", `${nameOf(step.from)} → ${step.relation.replace(/-/g, " ")} → ${nameOf(step.to)}`));
-      if (step.note) li.append(element("span", "step-note", step.note));
+      if (step.note) { const note = element("span", "step-note"); note.append(inlineCode(step.note)); li.append(note); }
       if (step.detail) li.append(stepDetail(step));
       steps.append(li);
     });
@@ -2106,16 +2170,19 @@
     const sections = [];
     let pageIndex = 0;
     groups.forEach((list, groupKey) => {
-      const section = element("section", "journey");
+      // A group's cards are built when it opens and released when it closes: the panel
+      // holds every flow with its steps' prose and a diagram each, and a page that keeps
+      // all of that in the DOM for the whole session pays for it on every style pass.
+      const section = element("details", "journey");
       let title;
       if (groupKey.startsWith("page:")) {
         pageIndex += 1;
-        title = `${JOURNEY_TITLES.page}${pageIndex === 1 ? "" : ""} · ${PAGE_LABEL.get(groupKey.slice(5)) || groupKey.slice(5)}`;
+        title = `${JOURNEY_TITLES.page} · ${PAGE_LABEL.get(groupKey.slice(5)) || groupKey.slice(5)}`;
       } else {
         title = JOURNEY_TITLES[groupKey] || groupKey;
       }
-      section.append(element("h4", "journey-title", title));
-      list.forEach((flow) => {
+      section.append(element("summary", "journey-title", `${title} · ${list.length} flow${list.length === 1 ? "" : "s"}`));
+      const buildCards = () => list.forEach((flow) => {
         // Collapsed by default: the header and one-line summary are the disclosure;
         // the diagram and the numbered procedure render on first expansion.
         const article = element("details", `flow${flow.id === selectedFlowId ? " tracing" : ""}`);
@@ -2128,7 +2195,7 @@
         if (flow.status !== "traceable") head.append(element("span", "invariant-status violated", "BROKEN"));
         if (flow.stale) head.append(element("span", "stale-badge", "stale · cited lines changed"));
         head.append(element("span", "flow-steps-count", `${flow.steps.length} steps`));
-        disclosure.append(head, element("p", "flow-summary", flow.summary));
+        disclosure.append(head, prose(flow.summary, "flow-summary"));
         article.append(disclosure);
         const body = element("div", "flow-body");
         article.append(body);
@@ -2155,12 +2222,12 @@
           let verb = step.relation.replace(/-/g, " ");
           if (step.relation === "triggers" && trigger) verb = `${trigger.api} · ${trigger.method}()${trigger.view ? ` in ${trigger.view}` : ""}`;
           li.append(element("strong", "", nameOf(step.from)), document.createTextNode(` ${verb} `), element("strong", "", nameOf(step.to)));
-          if (step.note) li.append(element("span", "step-note", step.note));
+          if (step.note) { const note = element("span", "step-note"); note.append(inlineCode(step.note)); li.append(note); }
           if (step.detail) li.append(stepDetail(step));
           procedure.append(li);
         });
         body.append(procedure);
-        if (flow.outcome) body.append(element("p", "flow-outcome", `Outcome: ${flow.outcome}`));
+        if (flow.outcome) body.append(prose(`Outcome: ${flow.outcome}`, "flow-outcome"));
         const meta = element("p", "flow-meta");
         meta.append(document.createTextNode(`${flow.steps.length} steps · written by ${flow.model} at ${String(flow.source_revision).slice(0, 9)} · `));
         const trace = document.createElement("a");
@@ -2171,6 +2238,18 @@
         meta.append(trace);
         body.append(meta);
         section.append(article);
+      });
+      const wanted = openJourneys.has(groupKey) || list.some((flow) => flow.id === selectedFlowId || openFlows.has(flow.id));
+      section.open = wanted;
+      if (wanted) buildCards();
+      section.addEventListener("toggle", () => {
+        if (section.open) {
+          openJourneys.add(groupKey);
+          if (!section.querySelector(".flow")) { buildCards(); renderMermaidDiagrams(); }
+        } else {
+          openJourneys.delete(groupKey);
+          section.querySelectorAll(".flow").forEach((card) => card.remove());
+        }
       });
       sections.push(section);
     });
@@ -2506,7 +2585,7 @@
     const heading = element("h3", "", node.label);
     container.append(badge, heading);
 
-    const summary = element("p", "", interplayInspectorSummary(node));
+    const summary = prose(interplayInspectorSummary(node));
     container.append(summary);
 
     const metrics = interplayInspectorMetrics(node);
