@@ -3531,6 +3531,36 @@ def cited_hash(paths: set[str], text_by_path: dict[str, str]) -> str:
     return digest.hexdigest()
 
 
+def cited_window_hash(sites: list[dict[str, Any]], text_by_path: dict[str, str]) -> str:
+    """The hash of the FLOW_CITE_RADIUS lines around every cited line: the provenance of
+    prose written from those lines, insensitive to edits elsewhere in the file."""
+    digest = hashlib.sha256()
+    for site in sorted(sites, key=lambda item: (item["path"], item["line"])):
+        lines = text_by_path.get(site["path"], "").splitlines()
+        lo, hi = max(1, site["line"] - FLOW_CITE_RADIUS), site["line"] + FLOW_CITE_RADIUS
+        digest.update(f"{site['path']}:{site['line']}".encode("utf-8"))
+        digest.update(b"\0")
+        digest.update("\n".join(lines[lo - 1:hi]).encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def flow_allowed_paths(steps: list[tuple[str, str]], page_id: str, interplay: dict[str, Any], files: list[dict[str, Any]]) -> set[str]:
+    """The files a flow may cite: those of the nodes its steps touch, the files of any page it
+    names, and the views holding the journey's triggers (where a flow starts)."""
+    by_key = {node["history_key"]: node for node in interplay["nodes"] if node["kind"] != "operation"}
+    allowed: set[str] = set()
+    for source, target in steps:
+        for key in (source, target):
+            node = by_key.get(key)
+            if node and node.get("path"):
+                allowed.add(node["path"])
+            if key.startswith("page:"):
+                allowed |= page_files(key.split(":", 1)[1], interplay, files)
+    allowed |= {t["path"] for t in interplay.get("triggers", []) if t.get("page") == page_id and t.get("path")}
+    return allowed
+
+
 def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]],
                               externals: dict[str, Any] | None = None) -> dict[str, Any]:
     """Validate one record against the model; returns the normalised record.
@@ -3734,6 +3764,11 @@ def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], exte
 
 FLOW_ID_RE = re.compile(r"^[a-z][a-z0-9-]{2,60}$")
 FLOW_MIN_STEPS, FLOW_MAX_STEPS = 3, 12
+# A step's detail is the prose for one hop, written from the source excerpts the
+# agent was shown; its cites are the lines that prose came from. The lines around
+# every citation are hashed, so the flow goes stale (not broken) when they change.
+FLOW_DETAIL_MAX = 900
+FLOW_CITE_RADIUS = 3
 # A flow belongs to one user journey: starting the app, doing a chat turn, or
 # entering and using one navigation page. The site orders and groups by this.
 FLOW_JOURNEYS = ("launch", "chat_turn", "page")
@@ -3779,12 +3814,18 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
         note = step.get("note", "")
         if not isinstance(note, str) or len(note) > SEMANTIC_NOTE_MAX:
             raise ArchitectureError(f"{owner} step {index} note must be a string of at most {SEMANTIC_NOTE_MAX} characters")
+        detail = step.get("detail", "")
+        if not isinstance(detail, str) or len(detail) > FLOW_DETAIL_MAX:
+            raise ArchitectureError(f"{owner} step {index} detail must be a string of at most {FLOW_DETAIL_MAX} characters")
+        cites = step.get("cites", [])
+        if not isinstance(cites, list) or not all(isinstance(c, dict) for c in cites):
+            raise ArchitectureError(f"{owner} step {index} cites must be a list of path and line objects")
         if index > 1 and source not in visited:
             raise ArchitectureError(f"{owner} step {index} starts at {source!r}, which no earlier step reached")
         if (source, target, relation) not in edges:
             problems.append(f"step {index}: no {relation} edge from {source} to {target} on the map")
         visited.update({source, target})
-        normalized_steps.append({"from": source, "to": target, "relation": relation, "note": note.strip()})
+        normalized_steps.append({"from": source, "to": target, "relation": relation, "note": note.strip(), "detail": detail.strip(), "cites": cites})
     trigger_id = raw.get("trigger")
     if trigger_id is not None:
         trigger = triggers.get(trigger_id)
@@ -3812,23 +3853,26 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
     interaction = raw.get("interaction", "")
     if not isinstance(interaction, str) or len(interaction) > 80:
         raise ArchitectureError(f"{owner} interaction must be a string of at most 80 characters")
-    allowed: set[str] = set()
-    for step in normalized_steps:
-        for key in (step["from"], step["to"]):
-            node = by_key.get(key)
-            if node and node.get("path"):
-                allowed.add(node["path"])
-            if key.startswith("page:"):
-                allowed |= page_files(key.split(":", 1)[1], interplay, files)
-    # The views that hold the journey's triggers are where a flow starts; they may be cited too.
-    allowed |= {t["path"] for t in triggers.values() if t.get("page") == page_id and t.get("path")}
+    allowed = flow_allowed_paths([(step["from"], step["to"]) for step in normalized_steps], page_id, interplay, files)
     line_counts = {item["path"]: item["line_count"] for item in files}
-    evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner)
+    # Each step cites the lines its detail was written from; the flow's evidence is their union
+    # plus any flow-level citation, and every one must be a line of a file this path may cite.
+    for index, step in enumerate(normalized_steps, start=1):
+        step["cites"] = validate_evidence_sites(step["cites"], allowed, line_counts, f"{owner} step {index}") if step["cites"] else []
+    raw_evidence = raw.get("evidence") if isinstance(raw.get("evidence"), list) else []
+    evidence = validate_evidence_sites(raw_evidence + [c for step in normalized_steps for c in step["cites"]], allowed, line_counts, owner)
+    # The same provenance a construct record carries, at line rather than file grain: the lines
+    # around every citation are hashed, and the flow is stale (not broken) once one changes.
+    text_by_path = {item["path"]: item["_text"] for item in files if "_text" in item}
+    current_hash = cited_window_hash(evidence, text_by_path)
+    recorded_hash = raw.get("cited_hash")
     return {
         "id": flow_id, "title": title.strip(), "summary": summary.strip(), "trigger": trigger_id,
         "journey": journey, "page": page_id, "interaction": interaction.strip(),
         "steps": normalized_steps, "outcome": outcome.strip(), "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
+        "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),
+        "stale": bool(recorded_hash is not None and recorded_hash != current_hash),
         "status": "broken" if problems else "traceable", "problems": problems, "authority": "synthesized",
     }
 
@@ -3858,6 +3902,7 @@ def load_flows(interplay: dict[str, Any], files: list[dict[str, Any]]) -> list[d
         flows.append(flow)
     page_order = {page["id"]: index for index, page in enumerate(interplay.get("pages", []))}
     flows.sort(key=lambda item: (FLOW_JOURNEYS.index(item["journey"]), page_order.get(item["page"], 99), item["id"]))
+    interplay["flow_counts"] = {"traceable": sum(1 for f in flows if f["status"] == "traceable"), "stale": sum(1 for f in flows if f["stale"])}
     by_key = {node["history_key"]: node for node in interplay["nodes"]}
     for flow in flows:
         for step in flow["steps"]:

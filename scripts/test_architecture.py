@@ -1092,6 +1092,52 @@ class ArchitectureCompilerTests(unittest.TestCase):
             self.assertEqual("traceable", declared["status"], declared)
         self.assertEqual("holds", next(i["status"] for i in interplay["invariants"] if i["id"] == "flows-traceable"))
 
+    def test_flow_steps_carry_detail_cited_inside_the_path_and_go_stale_by_line(self) -> None:
+        interplay = self.model["interplay"]
+        files = self._files()
+        core = "owner:hermes-services:GatewayClient"
+        vm = "Sources/Portal/ViewModels/ChatViewModel.swift"
+        steps = [
+            {"from": "caller:chat-state:ChatViewModel", "to": core, "relation": "holds", "detail": "The view model keeps the shared `GatewayClient`.", "cites": [{"path": vm, "line": 40}]},
+            {"from": "caller:chat-state:ChatViewModel", "to": "endpoint:jsonrpc:prompt", "relation": "invokes", "detail": "It sends the prompt.", "cites": [{"path": vm, "line": 41}]},
+            {"from": core, "to": "endpoint:jsonrpc:prompt", "relation": "dispatches"},
+        ]
+        good = {"id": "prompt-detail", "title": "Prompt with detail", "summary": "Detail per hop.", "journey": "chat_turn", "steps": steps}
+        flow = architecture.validate_flow(good, interplay, files)
+        self.assertEqual("traceable", flow["status"])
+        self.assertFalse(flow["stale"])
+        self.assertEqual([{"path": vm, "line": 40}], flow["steps"][0]["cites"])
+        self.assertEqual("", flow["steps"][2]["detail"])
+        self.assertEqual([(vm, 40), (vm, 41)], [(e["path"], e["line"]) for e in flow["evidence"]])
+        # A step may only cite files on its own path; a detail has a cap.
+        for raw, needle in [
+            ({**good, "steps": [{**steps[0], "cites": [{"path": "Sources/Portal/Services/KeychainStore.swift", "line": 1}]}, *steps[1:]]}, "step 1 cites"),
+            ({**good, "steps": [{**steps[0], "detail": "x" * 901}, *steps[1:]]}, "detail must be"),
+            ({**good, "steps": [{**steps[0], "cites": "nope"}, *steps[1:]]}, "cites must be"),
+        ]:
+            with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
+                architecture.validate_flow(raw, interplay, files)
+            self.assertIn(needle, str(caught.exception))
+        # The hash covers the lines around each citation: an edit there makes the flow stale,
+        # an edit elsewhere in the same file does not.
+        recorded = {**good, "cited_hash": flow["cited_hash"]}
+        self.assertFalse(architecture.validate_flow(recorded, interplay, files)["stale"])
+
+        def edited(line_number: int) -> list[dict]:
+            out = []
+            for item in files:
+                if item["path"] == vm:
+                    lines = item["_text"].split("\n")
+                    lines[line_number - 1] = lines[line_number - 1] + " // edited"
+                    item = {**item, "_text": "\n".join(lines)}
+                out.append(item)
+            return out
+        self.assertTrue(architecture.validate_flow(recorded, interplay, edited(42))["stale"])
+        self.assertFalse(architecture.validate_flow(recorded, interplay, edited(400))["stale"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ("function stepDetail(", "step-cites", "stale · cited lines changed"):
+            self.assertIn(needle, app)
+
     def test_described_constructs_fold_onto_nodes_and_the_site_renders_them(self) -> None:
         interplay = self.model["interplay"]
         described = [n for n in interplay["nodes"] if n.get("semantic")]

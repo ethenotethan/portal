@@ -854,6 +854,74 @@ JOURNEY_BRIEFS = {
 }
 
 
+FLOW_SOURCE_CHARS = 60_000
+FLOW_EXCERPT_LINES = 120
+
+
+def flow_source(ctx: Context, keys: set[str], page_id: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The source the flows agent writes from: a bounded excerpt of every construction in the
+    journey's scope, the views holding the journey's triggers first, capped at FLOW_SOURCE_CHARS.
+    Returns the excerpts and the line windows they cover; a citation outside them is not provenance."""
+    excerpts: list[dict[str, Any]] = []
+    windows: list[dict[str, Any]] = []
+    seen: set[tuple[str, int]] = set()
+    budget = FLOW_SOURCE_CHARS
+
+    def add(path: str, excerpt: dict[str, Any] | None, label: str) -> None:
+        nonlocal budget
+        if excerpt is None or (path, excerpt["from_line"]) in seen or budget <= 0 or not excerpt["text"].strip():
+            return
+        seen.add((path, excerpt["from_line"]))
+        shown = excerpt["text"].replace("\n… (truncated)", "")
+        excerpts.append({"path": path, "for": label, **excerpt})
+        windows.append({"path": path, "from_line": excerpt["from_line"], "to_line": excerpt["from_line"] + shown.count("\n")})
+        budget -= len(excerpt["text"])
+
+    for trigger in ctx.interplay.get("triggers", []):
+        if trigger.get("page") == page_id and trigger.get("path") in ctx.text_by_path and trigger.get("view"):
+            add(trigger["path"], type_excerpt(ctx.text_by_path[trigger["path"]], trigger["view"], ctx.compiler, 60), f"trigger view {trigger['view']}")
+    order = {"caller": 0, "subscriber": 0, "hub": 0, "provider": 1, "owner": 2, "client": 3, "store": 4, "seam": 5}
+    nodes = sorted((ctx.by_key[k] for k in keys if k in ctx.by_key and ctx.by_key[k].get("path")), key=lambda n: (order.get(n["kind"], 9), n["history_key"]))
+    for node in nodes:
+        text = ctx.text_by_path.get(node["path"])
+        if text:
+            add(node["path"], type_excerpt(text, node["label"], ctx.compiler, FLOW_EXCERPT_LINES), node["history_key"])
+    return excerpts, windows
+
+
+def inside_windows(cites: Any, windows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The citations that fall inside an excerpt the agent was shown; the rest are not provenance."""
+    kept: list[dict[str, Any]] = []
+    for item in cites if isinstance(cites, list) else []:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not isinstance(item.get("line"), int):
+            continue
+        if any(w["path"] == item["path"] and w["from_line"] <= item["line"] <= w["to_line"] for w in windows):
+            kept.append({"path": item["path"], "line": item["line"]})
+    return kept
+
+
+def repair_flow(raw: dict[str, Any], compiler: Any) -> dict[str, Any]:
+    """Length caps are mechanical: an overrun is cut to the cap rather than dropped, and printed."""
+    out = dict(raw)
+    repairs: list[str] = []
+    for key, limit in (("title", 80), ("summary", compiler.SEMANTIC_SUMMARY_MAX), ("interaction", 80), ("outcome", 200)):
+        if isinstance(out.get(key), str) and len(out[key]) > limit:
+            out[key] = clip(out[key], limit)
+            repairs.append(f"{key} clipped")
+    steps = []
+    for step in out.get("steps") or []:
+        if isinstance(step, dict):
+            for key, limit in (("note", compiler.SEMANTIC_NOTE_MAX), ("detail", compiler.FLOW_DETAIL_MAX)):
+                if isinstance(step.get(key), str) and len(step[key]) > limit:
+                    step = {**step, key: clip(step[key], limit)}
+                    repairs.append(f"{key} clipped")
+        steps.append(step)
+    out["steps"] = steps
+    if repairs:
+        print(f"repaired flow {out.get('id')}: {', '.join(sorted(set(repairs)))}", file=sys.stderr, flush=True)
+    return out
+
+
 def journey_scope(ctx: Context, journey: str, page_id: str | None) -> tuple[set[str], list[dict[str, Any]]]:
     """The node keys and triggers a journey may use: the page's constructs, everything
     one edge away from them, the transport and gateway, the event stream, externals."""
@@ -878,7 +946,7 @@ def journey_scope(ctx: Context, journey: str, page_id: str | None) -> tuple[set[
     return scope, triggers
 
 
-def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list[dict[str, Any]], source_revision: str) -> tuple[str, dict[str, Any]]:
+def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list[dict[str, Any]], source_revision: str) -> tuple[str, dict[str, Any], list[dict[str, Any]]]:
     compiler = ctx.compiler
     key_of = {n["id"]: n["history_key"] for n in ctx.interplay["nodes"]}
     drawn = {n["history_key"]: n for n in ctx.interplay["nodes"] if n["kind"] != "operation"}
@@ -897,12 +965,14 @@ def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list
                                  "method": t["method"], "namespaces": t.get("namespaces"), "path": t["path"], "line": t["line"]})
     files_of = {k: drawn[k].get("path") for k in scope if k in drawn and drawn[k].get("path")}
     title, brief = JOURNEY_BRIEFS[journey]
+    excerpts, windows = flow_source(ctx, scope, page)
     packet = {
         "repository": ctx.model["repository"], "source_revision": source_revision,
         "journey": journey, "page": page, "page_label": page_label, "brief": brief,
         "nodes": nodes, "edges": [list(t) for t in triples],
         "trigger_edges": f"a trigger row implies the edge [\"page:{page}\", \"triggers\", surface_key]; a flow that starts from a user action or from launch should begin with it",
-        "triggers": trigger_rows[:120], "node_files": files_of, "existing_flows_for_this_journey": existing,
+        "triggers": trigger_rows[:120], "node_files": files_of, "source": excerpts,
+        "existing_flows_for_this_journey": [{k: f.get(k) for k in ("id", "title", "interaction", "summary", "steps", "outcome")} for f in existing],
     }
     text = json.dumps(packet, indent=1, sort_keys=True, ensure_ascii=False)
     prompt = f"""You describe one user journey of an application as system flows over its mechanically derived architecture graph.
@@ -918,9 +988,13 @@ Return one JSON object {{"flows": [...]}}, each flow shaped:
   "journey": "{journey}",
   "page": "{page}",
   "trigger": "a trigger id from `triggers`, or null",
-  "steps": [{{"from": "node key", "to": "node key", "relation": "edge relation", "note": "what this hop means for the user, at most {compiler.SEMANTIC_NOTE_MAX} characters"}}],
-  "outcome": "what the user sees at the end, at most 200 characters",
-  "evidence": [{{"path": "a file from node_files of a node in the steps", "line": 1}}]
+  "steps": [{{
+    "from": "node key", "to": "node key", "relation": "edge relation",
+    "note": "what this hop means for the user, at most {compiler.SEMANTIC_NOTE_MAX} characters",
+    "detail": "two to six short sentences written from the excerpts in `source` for this hop, at most {compiler.FLOW_DETAIL_MAX} characters: what the code checks first and what it refuses, the state it reads or rewrites and where, what it hands on. Put every type, method, property, key, path and literal in `backticks`; separate ideas with a blank line; quote at most four lines of code verbatim in a ``` block only when the exact line matters.",
+    "cites": [{{"path": "a path from source", "line": "a line inside that excerpt's range (from_line to from_line plus its line count) that this detail was written from"}}]
+  }}],
+  "outcome": "what the user sees at the end, at most 200 characters"
 }}
 
 Hard rules:
@@ -928,7 +1002,9 @@ Hard rules:
 - Steps are connected: a step's `from` must be a node an earlier step already reached (or the very first `from`); fan-out from an earlier node is allowed.
 - {compiler.FLOW_MIN_STEPS} to {compiler.FLOW_MAX_STEPS} steps. Start each flow from the trigger edge when a trigger fits.
 - Cover the interactions the triggers show; do not describe interactions the triggers and edges cannot support.
-- Evidence lines are best-effort line numbers in the named file (line 1 is acceptable when unknown).
+- Cites are provenance: every step with a detail cites at least one path and line inside an excerpt in `source` that the detail was written from. A citation outside the excerpts shown is discarded; a flow with no citation left anywhere is rejected.
+- Say only what the excerpts show. Where an excerpt is truncated or a hop has no excerpt, the detail says what is not shown rather than guessing.
+- The reader follows the steps in order; the details together are the story. Do not repeat a hop's facts in another hop's detail.
 - Output JSON only.
 
 Packet:
@@ -948,16 +1024,17 @@ Packet:
                 "trigger": {"type": ["string", "null"]},
                 "steps": {"type": "array", "minItems": compiler.FLOW_MIN_STEPS, "maxItems": compiler.FLOW_MAX_STEPS, "items": {"type": "object", "properties": {
                     "from": {"type": "string"}, "to": {"type": "string"}, "relation": {"type": "string"},
-                    "note": {"type": "string", "maxLength": compiler.SEMANTIC_NOTE_MAX}},
-                    "required": ["from", "to", "relation"]}},
+                    "note": {"type": "string", "maxLength": compiler.SEMANTIC_NOTE_MAX},
+                    "detail": {"type": "string", "maxLength": compiler.FLOW_DETAIL_MAX},
+                    "cites": {"type": "array", "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}}},
+                    "required": ["from", "to", "relation", "note", "detail", "cites"]}},
                 "outcome": {"type": "string", "maxLength": 200},
-                "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}},
             },
-            "required": ["id", "title", "interaction", "summary", "journey", "page", "steps", "outcome", "evidence"],
+            "required": ["id", "title", "interaction", "summary", "journey", "page", "steps", "outcome"],
         }}},
         "required": ["flows"],
     }
-    return prompt, json_schema
+    return prompt, json_schema, windows
 
 
 def all_journeys(ctx: Context) -> list[tuple[str, str | None]]:
@@ -980,13 +1057,16 @@ def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str 
 
     if dry_run:
         for journey, page_id in journeys:
-            prompt, _schema = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
-            print(f"--- {journey} {page_id or ''}: {len(prompt)} chars")
+            prompt, _schema, windows = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
+            print(f"--- {journey} {page_id or ''}: {len(prompt)} chars, {len(windows)} excerpt window(s)")
+            if len(journeys) == 1:
+                print(prompt)
         return 0, 0
 
     def work(item: tuple[str, str | None]) -> list[tuple[dict[str, Any] | None, str]]:
         journey, page_id = item
-        prompt, schema = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
+        prompt, schema, windows = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
+        page = page_id or ("launch" if journey == "launch" else "chat")
         try:
             response, model_name = request_json(prompt, schema)
         except AgentError as exc:
@@ -1002,6 +1082,24 @@ def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str 
             raw = dict(raw)
             raw["source_revision"] = source_revision
             raw["model"] = model_name
+            raw.pop("cited_hash", None)
+            raw.pop("evidence", None)
+            # A citation counts when it falls inside an excerpt that was shown and in a file this
+            # flow's own path may cite (the validator's rule, shared); the rest are not provenance.
+            steps = [st for st in raw.get("steps") or [] if isinstance(st, dict)]
+            allowed = compiler.flow_allowed_paths([(str(st.get("from", "")), str(st.get("to", ""))) for st in steps], page, ctx.interplay, ctx.files)
+            dropped = 0
+            for st in steps:
+                cites = [c for c in inside_windows(st.get("cites"), windows) if c["path"] in allowed]
+                dropped += len(st.get("cites") or []) - len(cites)
+                st["cites"] = cites
+            raw["steps"] = steps
+            if not any(st["cites"] for st in steps):
+                out.append((None, f"{raw.get('id')!r}: no citation inside the source shown for its own path"))
+                continue
+            if dropped:
+                print(f"flow {raw.get('id')}: dropped {dropped} citation(s) outside the source shown", file=sys.stderr, flush=True)
+            raw = repair_flow(raw, compiler)
             try:
                 flow = compiler.validate_flow(raw, ctx.interplay, ctx.files)
             except compiler.ArchitectureError as exc:

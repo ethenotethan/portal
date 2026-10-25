@@ -424,6 +424,10 @@ h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em;
 .flow-procedure strong { color: var(--ink); font-weight: 600; }
 .flow-procedure .step-note { display: block; color: var(--faint); font-size: 11px; }
 .flow-outcome { margin: 8px 0 0; color: var(--ink); font-size: 12.5px; }
+.step-detail { margin: 4px 0 8px; color: var(--muted); font-size: 12px; line-height: 1.55; max-width: 760px; }
+.step-detail p { margin: 0 0 6px; }
+.step-detail .step-quote { margin: 4px 0 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--code-ink, var(--ink)); font: 10.5px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.step-detail .step-cites { display: block; color: var(--faint); font: 10px var(--mono); overflow-wrap: anywhere; }
 .flow-meta { margin: 6px 0 0; color: var(--faint); font: 10px var(--mono); }
 .flow-trace { color: var(--accent); text-decoration: none; }
 .flow-trace:hover { text-decoration: underline; }

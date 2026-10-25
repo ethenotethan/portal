@@ -1925,6 +1925,29 @@
     applyInterplayState();
     renderFlows();
   }
+  // A step's detail: the prose for one hop, written from cited lines. Paragraphs are
+  // separated by a blank line; a ``` block is a verbatim quote and keeps its lines.
+  function stepDetail(step) {
+    const wrap = element("div", "step-detail");
+    const text = String(step.detail || "");
+    const parts = text.split(/```/);
+    parts.forEach((part, index) => {
+      if (index % 2 === 1) {
+        const pre = document.createElement("pre");
+        pre.className = "step-quote";
+        pre.textContent = part.replace(/^[a-z]*\n/, "").replace(/\n$/, "");
+        wrap.append(pre);
+        return;
+      }
+      part.split(/\n\s*\n/).map((para) => para.trim()).filter(Boolean).forEach((para) => wrap.append(element("p", "", para)));
+    });
+    if ((step.cites || []).length) {
+      const cites = element("span", "step-cites");
+      step.cites.forEach((site, index) => { if (index) cites.append(document.createTextNode(" · ")); cites.append(sourceLink(site)); });
+      wrap.append(cites);
+    }
+    return wrap;
+  }
   function renderFlowInspector(flow) {
     const inspector = document.getElementById("interplay-inspector");
     if (!inspector) return;
@@ -1937,13 +1960,14 @@
     close.addEventListener("click", clearFlow);
     container.append(close);
     container.style.setProperty("--component-color", INTERPLAY_ROLE_COLORS.interplay || INTERPLAY_ROLE_COLORS.hub);
-    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}`), element("h3", "", flow.title), element("p", "", flow.summary));
+    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}${flow.stale ? " · STALE" : ""}`), element("h3", "", flow.title), element("p", "", flow.summary));
     const nameOf = (key) => { const id = idByHistoryKey.get(key); const node = id ? interplayNodeById.get(id) : null; return node ? node.label : (key.startsWith("page:") ? `${PAGE_LABEL.get(key.slice(5)) || key.slice(5)} (page)` : key); };
     const steps = element("ol", "inspector-steps");
     flow.steps.forEach((step) => {
       const li = document.createElement("li");
       li.append(element("span", "step-path", `${nameOf(step.from)} → ${step.relation.replace(/-/g, " ")} → ${nameOf(step.to)}`));
       if (step.note) li.append(element("span", "step-note", step.note));
+      if (step.detail) li.append(stepDetail(step));
       steps.append(li);
     });
     const section = element("section", "inspector-section");
@@ -2067,6 +2091,7 @@
         head.append(element("h5", "", flow.title));
         if (flow.interaction) head.append(element("span", "flow-interaction", flow.interaction));
         if (flow.status !== "traceable") head.append(element("span", "invariant-status violated", "BROKEN"));
+        if (flow.stale) head.append(element("span", "stale-badge", "stale · cited lines changed"));
         head.append(element("span", "flow-steps-count", `${flow.steps.length} steps`));
         disclosure.append(head, element("p", "flow-summary", flow.summary));
         article.append(disclosure);
@@ -2096,6 +2121,7 @@
           if (step.relation === "triggers" && trigger) verb = `${trigger.api} · ${trigger.method}()${trigger.view ? ` in ${trigger.view}` : ""}`;
           li.append(element("strong", "", nameOf(step.from)), document.createTextNode(` ${verb} `), element("strong", "", nameOf(step.to)));
           if (step.note) li.append(element("span", "step-note", step.note));
+          if (step.detail) li.append(stepDetail(step));
           procedure.append(li);
         });
         body.append(procedure);
