@@ -656,26 +656,24 @@ internal struct ApprovalPayload: Equatable {
 }
 
 /// One question of a clarify request. `qid` is the gateway's key for
-/// `clarify.lock`; empty `choices` means free text.
+/// `clarify.lock`; empty `choices` means free text. The gateway's
+/// `multi_select` flag is not modelled: the banner answers with one value.
 internal struct ClarifyQuestion: Equatable {
     internal let qid: String
     internal let question: String
     internal let choices: [String]
-    internal let multiSelect: Bool
 
-    internal init(qid: String, question: String, choices: [String] = [], multiSelect: Bool = false) {
+    internal init(qid: String, question: String, choices: [String] = []) {
         self.qid = qid
         self.question = question
         self.choices = choices
-        self.multiSelect = multiSelect
     }
 
     internal static func from(_ p: [String: AnyCodable]) -> ClarifyQuestion {
         ClarifyQuestion(
             qid: p["qid"]?.stringValue ?? "",
             question: p["question"]?.stringValue ?? "",
-            choices: p["choices"]?.arrayValue?.compactMap { $0.stringValue } ?? [],
-            multiSelect: p["multi_select"]?.boolValue ?? false
+            choices: p["choices"]?.arrayValue?.compactMap { $0.stringValue } ?? []
         )
     }
 }

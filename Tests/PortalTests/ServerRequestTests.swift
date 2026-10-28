@@ -132,6 +132,9 @@ internal struct ServerRequestTests {
             with: JSONEncoder().encode(JSONRPCServerResponse.methodNotFound(id: "srq-2", method: "tour"))
         ) as? [String: Any]
         #expect(declined?["result"] == nil)
+        let frame = JSONRPCServerResponse.methodNotFound(id: "srq-2", method: "tour")
+        #expect(frame.jsonrpc == "2.0")
+        #expect(frame.error?.message.contains("tour") == true)
         #expect((declined?["error"] as? [String: Any])?["code"] as? Int == -32601)
         #expect(((declined?["error"] as? [String: Any])?["message"] as? String)?.contains("tour") == true)
     }

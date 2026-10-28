@@ -27,6 +27,13 @@ private final class PromptBackendSpy: AgentBackend {
         activeSessionID = runtimeID
         return (runtimeID, [])
     }
+    /// Open requests `session.resume` reports for a key, replayed by the view model.
+    internal var openRequestsBySession: [String: [ServerRequest]] = [:]
+
+    internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+        let resumed = try await resumeSession(key: key)
+        return ResumedSession(sessionID: resumed.sessionID, messages: resumed.messages, openRequests: openRequestsBySession[key] ?? [])
+    }
     internal func sessionHistory(sessionID: String) async throws -> [[String: AnyCodable]] { [] }
     internal func interrupt(sessionID: String) async throws {}
     internal func submitPrompt(sessionID: String, text: String) async throws {}
@@ -164,6 +171,25 @@ internal struct ServerRequestViewModelTests {
         vm.receiveGatewayEventForTesting(.requestCancelled(id: "srq-c", method: "clarify", reason: "interrupted"), sessionID: runtimeID)
         #expect(vm.approvalQueue.entries.map(\.command) == ["one"])
         #expect(vm.pendingClarify == nil)
+    }
+
+    @Test("a resume puts the questions the agent is still blocked on back on screen")
+    internal func resumeReplaysOpenRequests() async {
+        let backend = PromptBackendSpy()
+        let vm = ChatViewModel()
+        vm.setGatewayClient(backend)
+        let key = "replay-\(UUID().uuidString)"
+        backend.openRequestsBySession[key] = [
+            ServerRequest(id: "srq-r", method: "clarify", params: ["questions": .array([.dictionary(["qid": .string("q1"), "question": .string("Still here?")])])]),
+            ServerRequest(id: "srq-a", method: "approval", params: ["command": .string("deploy"), "request_id": .string("apr-1")]),
+            ServerRequest(id: "srq-x", method: "tour", params: [:]),
+        ]
+        let runtimeID = await liveSession(vm, backend, key: key)
+        #expect(vm.currentSessionID == runtimeID)
+        #expect(vm.pendingClarify?.requestID == "srq-r")
+        #expect(vm.pendingClarify?.question == "Still here?")
+        #expect(vm.approvalQueue.head?.approvalID == "apr-1")
+        #expect(vm.approvalQueue.count == 1)
     }
 
     @Test("an approval is answered by its own id, and the same request replayed is shown once")
