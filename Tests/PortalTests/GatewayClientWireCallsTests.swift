@@ -71,9 +71,10 @@ internal struct GatewayClientWireCallsTests {
 /// A backend that predates request ids and per-question locking: it implements
 /// only the original protocol surface, so the protocol's default extensions
 /// carry the new calls to it.
-private final class LegacyBackendSpy: SpyBackend {
+private final class LegacyBackendSpy: AgentBackend {
     internal let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()
     internal let connectionStatePublisher = Just(GatewayClient.ConnectionState.connected).eraseToAnyPublisher()
+    internal let sessionInfoPublisher = Just<SessionInfo?>(nil).eraseToAnyPublisher()
     internal var connectionState: GatewayClient.ConnectionState = .connected
     internal var reconnectedPublisher: AnyPublisher<Void, Never> { Empty().eraseToAnyPublisher() }
     internal let apiKey = ""
