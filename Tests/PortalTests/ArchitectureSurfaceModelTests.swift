@@ -23,7 +23,7 @@ private final class StubArchitectureReader: ArchitectureReading {
         throw GatewayError.invalidResponse("follow not stubbed")
     }
 
-    func architectureHistory(service: String, limit: Int?) async throws -> ArchitectureRevisionHistory {
+    func architectureHistory(service: String) async throws -> ArchitectureRevisionHistory {
         throw GatewayError.invalidResponse("history not stubbed")
     }
 

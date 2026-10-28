@@ -35,6 +35,7 @@ enum GatewayEvent {
         case .clarifyRequest: "clarify.request"
         case .sudoRequest: "sudo.request"
         case .secretRequest: "secret.request"
+        case .requestCancelled: "request.cancel"
         case .statusUpdate: "status.update"
         case .error: "error"
         case .unknown(let type): "unknown(\(type))"
@@ -147,6 +148,9 @@ enum GatewayEvent {
     case clarifyRequest(payload: ClarifyPayload)
     case sudoRequest
     case secretRequest(prompt: String, envVar: String)
+    /// The gateway withdrew an open server→client request (answered elsewhere,
+    /// timed out, or the turn was interrupted); any prompt shown for `id` closes.
+    case requestCancelled(id: String, method: String, reason: String)
 
     // Status
     case statusUpdate(kind: String, text: String)
@@ -318,6 +322,13 @@ enum GatewayEvent {
             return .secretRequest(
                 prompt: p["prompt"]?.stringValue ?? "",
                 envVar: p["env_var"]?.stringValue ?? ""
+            )
+
+        case "request.cancel":
+            return .requestCancelled(
+                id: p["id"]?.stringValue ?? "",
+                method: p["method"]?.stringValue ?? "",
+                reason: p["reason"]?.stringValue ?? ""
             )
 
         case "status.update":
@@ -589,6 +600,14 @@ internal struct ApprovalPayload: Equatable {
     /// one with `allow_permanent: false` omits `always`. Empty means the gateway
     /// sent none, and the client falls back to offering all four.
     internal let choices: [String]
+    /// The `srq-…` id of the server→client `approval` request this came in on;
+    /// nil for the legacy `approval.request` event. `request.cancel` with this id
+    /// withdraws the entry wherever it sits in the queue, and a resume replay of
+    /// the same id is not queued twice.
+    internal let requestID: String?
+    /// The approval queue entry's own id (`request_id` in the payload), which
+    /// `approval.respond` resolves exactly instead of positionally.
+    internal let approvalID: String?
 
     /// Spelled out rather than left to the memberwise init so the two fields the
     /// gateway may omit can default, and callers that only care about the
@@ -599,7 +618,9 @@ internal struct ApprovalPayload: Equatable {
         toolName: String? = nil,
         rawArgs: String? = nil,
         description: String? = nil,
-        choices: [String] = []
+        choices: [String] = [],
+        requestID: String? = nil,
+        approvalID: String? = nil
     ) {
         self.command = command
         self.sessionKey = sessionKey
@@ -607,36 +628,128 @@ internal struct ApprovalPayload: Equatable {
         self.rawArgs = rawArgs
         self.description = description
         self.choices = choices
+        self.requestID = requestID
+        self.approvalID = approvalID
     }
 
     /// Identity for queueing. Two blocked agent threads running the same command
     /// are genuinely distinct, so this is deliberately NOT used to deduplicate —
     /// see `ApprovalQueue.enqueue`.
     internal static func from(_ p: [String: AnyCodable]) -> ApprovalPayload {
+        from(p, requestID: nil)
+    }
+
+    /// A server→client `approval` request carries the session as `session_id`
+    /// (or the `gateway_session_id` hint) where the legacy event sent `session_key`.
+    internal static func from(_ p: [String: AnyCodable], requestID: String?) -> ApprovalPayload {
         ApprovalPayload(
             command: p["command"]?.stringValue ?? "",
-            sessionKey: p["session_key"]?.stringValue ?? "",
+            sessionKey: p["session_key"]?.stringValue ?? p["gateway_session_id"]?.stringValue ?? p["session_id"]?.stringValue ?? "",
             toolName: p["tool_name"]?.stringValue,
             rawArgs: p["raw_args"]?.stringValue,
             description: p["description"]?.stringValue,
-            choices: p["choices"]?.arrayValue?.compactMap { $0.stringValue } ?? []
+            choices: p["choices"]?.arrayValue?.compactMap { $0.stringValue } ?? [],
+            requestID: requestID,
+            approvalID: p["request_id"]?.stringValue
         )
     }
 }
 
-/// Payload for the blocking clarify.request prompt. `requestID` is the
-/// gateway's pending-prompt key — clarify.respond must echo it back or the
-/// agent thread waits out its full 300s timeout (the "infinite hang").
-struct ClarifyPayload {
+/// One question of a clarify request. `qid` is the gateway's key for
+/// `clarify.lock`; empty `choices` means free text.
+internal struct ClarifyQuestion: Equatable {
+    internal let qid: String
+    internal let question: String
+    internal let choices: [String]
+    internal let multiSelect: Bool
+
+    internal init(qid: String, question: String, choices: [String] = [], multiSelect: Bool = false) {
+        self.qid = qid
+        self.question = question
+        self.choices = choices
+        self.multiSelect = multiSelect
+    }
+
+    internal static func from(_ p: [String: AnyCodable]) -> ClarifyQuestion {
+        ClarifyQuestion(
+            qid: p["qid"]?.stringValue ?? "",
+            question: p["question"]?.stringValue ?? "",
+            choices: p["choices"]?.arrayValue?.compactMap { $0.stringValue } ?? [],
+            multiSelect: p["multi_select"]?.boolValue ?? false
+        )
+    }
+}
+
+/// A blocking clarify prompt. `requestID` is the gateway's key for the answer:
+/// the `srq-…` id of a server→client `clarify` request (answered one question
+/// at a time through `clarify.lock`), or the legacy `request_id` of a
+/// `clarify.request` event (answered through `clarify.respond`). Either way the
+/// key must be echoed back or the agent thread waits out its full timeout.
+/// `questions` are the still-open questions of a batch; `question`/`choices`
+/// mirror the first so single-question UI keeps working, and `advanced` moves
+/// on once that one is locked.
+internal struct ClarifyPayload: Equatable {
     let question: String
     internal let choices: [String]
     let requestID: String
+    internal let questions: [ClarifyQuestion]
+    internal let isServerRequest: Bool
+
+    internal init(
+        question: String,
+        choices: [String],
+        requestID: String,
+        questions: [ClarifyQuestion] = [],
+        isServerRequest: Bool = false
+    ) {
+        self.question = question
+        self.choices = choices
+        self.requestID = requestID
+        self.questions = questions
+        self.isServerRequest = isServerRequest
+    }
+
+    /// The `clarify.lock` key of the question on screen; nil for a legacy prompt.
+    internal var questionID: String? {
+        questions.first?.qid
+    }
 
     static func from(_ p: [String: AnyCodable]) -> ClarifyPayload {
         ClarifyPayload(
             question: p["question"]?.stringValue ?? "",
             choices: p["choices"]?.arrayValue?.compactMap { $0.stringValue } ?? [],
             requestID: p["request_id"]?.stringValue ?? ""
+        )
+    }
+
+    /// From a server→client `clarify` request. `answers` rides on a reconnect
+    /// replay and names the questions the gateway already holds locked.
+    internal static func from(serverRequest request: ServerRequest) -> ClarifyPayload {
+        let answered = Set((request.params["answers"]?.dictionaryValue ?? [:]).keys)
+        let questions = (request.params["questions"]?.arrayValue ?? [])
+            .compactMap { $0.dictionaryValue }
+            .map(ClarifyQuestion.from)
+            .filter { !answered.contains($0.qid) }
+        return ClarifyPayload(
+            question: questions.first?.question ?? "",
+            choices: questions.first?.choices ?? [],
+            requestID: request.id,
+            questions: questions,
+            isServerRequest: true
+        )
+    }
+
+    /// The prompt for the questions the gateway still reports open after a
+    /// lock; nil when the batch settled.
+    internal func advanced(remaining: [String]) -> ClarifyPayload? {
+        let open = questions.filter { remaining.contains($0.qid) }
+        guard let next = open.first else { return nil }
+        return ClarifyPayload(
+            question: next.question,
+            choices: next.choices,
+            requestID: requestID,
+            questions: open,
+            isServerRequest: true
         )
     }
 }

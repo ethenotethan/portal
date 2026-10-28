@@ -1707,6 +1707,14 @@ client.eventStream
                 snapshotCurrentSessionState()
             }
 
+            // Prompts the agent is still blocked on come back with the resume;
+            // put them on screen again (the state reset above cleared the old ones).
+            for request in result.openRequests {
+                if let event = request.event {
+                    handleEvent(event, eventSessionID: result.sessionID)
+                }
+            }
+
             // The resume bound the session's real runtime ID — ask what model it
             // is on now that model.options can be scoped to it.
             fillModelBadgeIfEmpty()
@@ -3185,6 +3193,7 @@ client.eventStream
         guard !approvalQueue.isEmpty else { return }
 
         var queue = approvalQueue
+        let answered = applyToAll ? nil : queue.head
         if applyToAll {
             queue.removeAll()
         } else {
@@ -3197,20 +3206,40 @@ client.eventStream
         // not retroactively released. So they stay queued and get asked, rather
         // than being optimistically cleared here.
         do {
-            try await client.respondApproval(sessionID: sid, choice: choice, all: applyToAll)
+            try await client.respondApproval(sessionID: sid, choice: choice, all: applyToAll, requestID: answered?.approvalID)
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    /// Answer a pending clarify question. An empty answer cancels the
-    /// prompt (the gateway treats "" as no answer and the agent proceeds).
+    /// Answer the clarify question on screen. An empty answer skips it. A
+    /// server→client request is answered one question at a time through
+    /// `clarify.lock`; the next open question of the batch takes its place
+    /// until the gateway reports none remaining. A legacy prompt goes through
+    /// `clarify.respond` as one answer.
     func respondClarify(answer: String) async {
-        guard let client = gatewayClient, let clarify = pendingClarify else { return }
+        guard let client = gatewayClient, let clarify = pendingClarify, let owner = sessionID else { return }
         pendingClarify = nil
         snapshotCurrentSessionState()
         do {
-            try await client.respondClarify(requestID: clarify.requestID, answer: answer)
+            if clarify.isServerRequest {
+                guard let questionID = clarify.questionID else { return }
+                let remaining = try await client.lockClarifyAnswer(
+                    requestID: clarify.requestID, questionID: questionID, answer: answer.isEmpty ? nil : answer
+                )
+                // The user may have switched sessions during the round trip: the
+                // next question belongs to the session that asked, not whatever is
+                // on screen now, and never displaces a prompt that arrived meanwhile.
+                if let next = clarify.advanced(remaining: remaining) {
+                    mutateSessionState(for: owner) { state in
+                        if state.pendingClarify == nil {
+                            state.pendingClarify = next
+                        }
+                    }
+                }
+            } else {
+                try await client.respondClarify(requestID: clarify.requestID, answer: answer)
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -4206,6 +4235,12 @@ client.eventStream
         case .clarifyRequest(payload: let payload):
             state.pendingClarify = payload
 
+        case .requestCancelled(let id, _, _):
+            if state.pendingClarify?.requestID == id {
+                state.pendingClarify = nil
+            }
+            state.approvalQueue.remove(requestID: id)
+
         case .error(let message):
             state.error = message
             state.isStreaming = false
@@ -4716,6 +4751,14 @@ client.eventStream
         case .secretRequest:
             // TODO: Present secret input dialog
             break
+
+        case .requestCancelled(let id, _, _):
+            if pendingClarify?.requestID == id {
+                pendingClarify = nil
+            }
+            var queue = approvalQueue
+            queue.remove(requestID: id)
+            setApprovalQueue(queue)
 
         case .voiceTranscript, .voiceStatus:
             break
