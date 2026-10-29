@@ -28,7 +28,6 @@ private final class PageIntentBackendSpy: AgentBackend, @unchecked Sendable {
     var connectionStatePublisher: AnyPublisher<GatewayClient.ConnectionState, Never> {
         Just(GatewayClient.ConnectionState.connected).eraseToAnyPublisher()
     }
-    var sessionInfoPublisher: AnyPublisher<SessionInfo?, Never> { Just(nil).eraseToAnyPublisher() }
     var connectionState: GatewayClient.ConnectionState = .connected
     let reconnected = PassthroughSubject<Void, Never>()
     var reconnectedPublisher: AnyPublisher<Void, Never> { reconnected.eraseToAnyPublisher() }

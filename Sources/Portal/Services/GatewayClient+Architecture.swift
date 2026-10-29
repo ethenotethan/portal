@@ -42,10 +42,8 @@ extension GatewayClient {
 
     /// Every stored revision of a service's model (`architecture.history`),
     /// with the commits behind them for a local checkout.
-    internal func architectureHistory(service: String, limit: Int?) async throws -> ArchitectureRevisionHistory {
-        var params: [String: AnyCodable] = ["service": .string(service)]
-        if let limit, limit > 0 { params["limit"] = .int(limit) }
-        let response = try await call("architecture.history", params: params, timeout: 60)
+    internal func architectureHistory(service: String) async throws -> ArchitectureRevisionHistory {
+        let response = try await call("architecture.history", params: ["service": .string(service)], timeout: 60)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }

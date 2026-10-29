@@ -28,17 +28,22 @@ internal struct ResumedSession {
     internal var inflight: InflightTurn?
     /// The gateway's session-level verdict on whether a turn is running.
     internal var running: ResumedTurnVerdict
+    /// Server→client requests still unanswered for this session (`open_requests`):
+    /// the prompts to put back on screen after a reconnect.
+    internal var openRequests: [ServerRequest]
 
     internal init(
         sessionID: String,
         messages: [[String: AnyCodable]],
         inflight: InflightTurn? = nil,
-        running: ResumedTurnVerdict = .unknown
+        running: ResumedTurnVerdict = .unknown,
+        openRequests: [ServerRequest] = []
     ) {
         self.sessionID = sessionID
         self.messages = messages
         self.inflight = inflight
         self.running = running
+        self.openRequests = openRequests
     }
 }
 
@@ -77,7 +82,6 @@ protocol AgentBackend: AnyObject {
     var eventStream: PassthroughSubject<(GatewayEvent, String?), Never> { get }
 
     var connectionStatePublisher: AnyPublisher<GatewayClient.ConnectionState, Never> { get }
-    var sessionInfoPublisher: AnyPublisher<SessionInfo?, Never> { get }
 
     /// Synchronous connection-state snapshot (guards in create/resume paths).
     var connectionState: GatewayClient.ConnectionState { get }
@@ -114,7 +118,12 @@ protocol AgentBackend: AnyObject {
     /// needs to implement it — test spies fall back to a normal turn.
     func submitPrompt(sessionID: String, text: String, chatMode: Bool) async throws
     func respondApproval(sessionID: String, choice: String, all: Bool) async throws
+    /// Answer one specific approval by its queue id; nil answers the oldest.
+    func respondApproval(sessionID: String, choice: String, all: Bool, requestID: String?) async throws
     func respondClarify(requestID: String, answer: String) async throws
+    /// Lock one answer of a server→client clarify request; nil = skipped.
+    /// Returns the question ids still open (empty once the batch settled).
+    func lockClarifyAnswer(requestID: String, questionID: String, answer: String?) async throws -> [String]
 
     // MARK: Configuration
 
@@ -173,6 +182,18 @@ extension AgentBackend {
         try await submitPrompt(sessionID: sessionID, text: text)
     }
 
+    /// Conformers without exact approval ids answer positionally.
+    internal func respondApproval(sessionID: String, choice: String, all: Bool, requestID: String?) async throws {
+        try await respondApproval(sessionID: sessionID, choice: choice, all: all)
+    }
+
+    /// Conformers without per-question locking answer the whole prompt with
+    /// the one value; an empty return means the prompt settled.
+    internal func lockClarifyAnswer(requestID: String, questionID: String, answer: String?) async throws -> [String] {
+        try await respondClarify(requestID: requestID, answer: answer ?? "")
+        return []
+    }
+
     /// Conformers without an inventory RPC report no catalog; the picker falls
     /// back to the static list.
     func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog? { nil }
@@ -208,9 +229,5 @@ extension GatewayClient: AgentBackend {
 
     var connectionStatePublisher: AnyPublisher<ConnectionState, Never> {
         $connectionState.eraseToAnyPublisher()
-    }
-
-    var sessionInfoPublisher: AnyPublisher<SessionInfo?, Never> {
-        $sessionInfo.eraseToAnyPublisher()
     }
 }

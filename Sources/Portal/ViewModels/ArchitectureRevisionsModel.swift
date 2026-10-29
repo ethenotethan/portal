@@ -76,7 +76,7 @@ internal final class ArchitectureRevisionsModel: ObservableObject {
         errorMessage = nil
         defer { if generation == historyGeneration { isLoadingHistory = false } }
         do {
-            let fetched = try await reader.architectureHistory(service: service, limit: nil)
+            let fetched = try await reader.architectureHistory(service: service)
             guard generation == historyGeneration else { return }
             history = fetched
             if selectedRevision == nil || fetched.entry(selectedRevision ?? "") == nil {
