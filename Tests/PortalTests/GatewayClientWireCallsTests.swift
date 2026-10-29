@@ -74,7 +74,6 @@ internal struct GatewayClientWireCallsTests {
 private final class LegacyBackendSpy: AgentBackend {
     internal let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()
     internal let connectionStatePublisher = Just(GatewayClient.ConnectionState.connected).eraseToAnyPublisher()
-    internal let sessionInfoPublisher = Just<SessionInfo?>(nil).eraseToAnyPublisher()
     internal var connectionState: GatewayClient.ConnectionState = .connected
     internal var reconnectedPublisher: AnyPublisher<Void, Never> { Empty().eraseToAnyPublisher() }
     internal let apiKey = ""

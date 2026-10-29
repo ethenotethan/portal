@@ -399,7 +399,6 @@ internal struct LiveSessionSwitchBackTests {
 internal final class LiveSwitchBackendSpy: AgentBackend {
     internal let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()
     internal let connectionStatePublisher = Just(GatewayClient.ConnectionState.connected).eraseToAnyPublisher()
-    internal let sessionInfoPublisher = Just<SessionInfo?>(nil).eraseToAnyPublisher()
     internal var connectionState: GatewayClient.ConnectionState = .connected
     internal let reconnected = PassthroughSubject<Void, Never>()
     internal var reconnectedPublisher: AnyPublisher<Void, Never> { reconnected.eraseToAnyPublisher() }

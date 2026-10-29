@@ -44,7 +44,7 @@
    "summary": "`SystemPromptSection` is a settings section that loads a `PromptBreakdown` via `client.promptBreakdown(sessionID:)`. Without a session ID it falls back to `firstActiveSessionID(client:)`. It shows token stat tiles with a utilization bar, expandable per-section cards, and an ephemeral prompt editor whose `Clear` and `Apply` buttons call `savePrompt()`."
   },
   {
-   "cited_hash": "ad46765ea79a39a8e886cce1a9e32db724c6b64707f8328c0a9c4cf1d21d9ab4",
+   "cited_hash": "f1d773ce58ca5bc19e371525673ec83929f9552e71bf0d2a1f9f5b9112a758c0",
    "evidence": [
     {
      "line": 38,
@@ -1278,7 +1278,7 @@
    "summary": "`activity` is a JSON-RPC method namespace with four methods, dispatched by `GatewayClient` to the Harness gateway and invoked by `ActivityInboxViewModel`. Calls are correlated to replies through `pendingRequests`."
   },
   {
-   "cited_hash": "ec86931bbac77e8279b5edbcd14e696d307eccea7fbd434347983cf62596c485",
+   "cited_hash": "f5e736fdccb5c1e21fccdd69a50f144a111a2696f6e078bc6c7660f2eceb695b",
    "evidence": [
     {
      "line": 1,
@@ -1350,7 +1350,7 @@
    "summary": "The `artifact` JSON-RPC namespace is a group of 12 methods that `GatewayClient` dispatches over the Harness WebSocket transport. Replies are correlated by id through `pendingRequests`, and the Harness gateway serves them. No source excerpt is in the packet, so method names and payloads are not visible."
   },
   {
-   "cited_hash": "ec86931bbac77e8279b5edbcd14e696d307eccea7fbd434347983cf62596c485",
+   "cited_hash": "f5e736fdccb5c1e21fccdd69a50f144a111a2696f6e078bc6c7660f2eceb695b",
    "evidence": [
     {
      "line": 1,
@@ -1425,7 +1425,7 @@
    "summary": "`commands` is a one-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway. `SkillStore`, `SkillCache` and `SkillsViewModel` invoke it, the same callers as `skills`, and its reply is correlated through `pendingRequests`."
   },
   {
-   "cited_hash": "710cd1126a595702e56ede50b74495dc4f7489e91ae2b00497c67a391277779a",
+   "cited_hash": "9be0a12bc48dffb0d5fa0553da23e0b8009be116978c5fa7a63ee331d2873f55",
    "evidence": [
     {
      "line": 1,
@@ -1601,7 +1601,7 @@
    "summary": "The `gateway` JSON-RPC namespace is a single method that `GatewayClient` dispatches and the `GatewayClient+Restart` extension implements. `GatewayRestartController` invokes it, with the reply correlated through `pendingRequests` and served by the Harness gateway."
   },
   {
-   "cited_hash": "ec86931bbac77e8279b5edbcd14e696d307eccea7fbd434347983cf62596c485",
+   "cited_hash": "f5e736fdccb5c1e21fccdd69a50f144a111a2696f6e078bc6c7660f2eceb695b",
    "evidence": [
     {
      "line": 1,
@@ -1649,7 +1649,7 @@
    "summary": "The `learning` JSON-RPC namespace is two gateway methods that `GatewayClient` dispatches and the `GatewayClient+Learning` extension implements. Replies are correlated through `pendingRequests` and served by the Harness gateway. The map records no in-app caller."
   },
   {
-   "cited_hash": "ec86931bbac77e8279b5edbcd14e696d307eccea7fbd434347983cf62596c485",
+   "cited_hash": "f5e736fdccb5c1e21fccdd69a50f144a111a2696f6e078bc6c7660f2eceb695b",
    "evidence": [
     {
      "line": 1,
@@ -1674,7 +1674,7 @@
    "summary": "`model` is a single-method JSON-RPC namespace dispatched by `GatewayClient` over the Harness WebSocket at `/v1/ws` and invoked by `ChatViewModel`. The call is tracked in `pendingRequests` until the Harness gateway answers."
   },
   {
-   "cited_hash": "ec86931bbac77e8279b5edbcd14e696d307eccea7fbd434347983cf62596c485",
+   "cited_hash": "f5e736fdccb5c1e21fccdd69a50f144a111a2696f6e078bc6c7660f2eceb695b",
    "evidence": [
     {
      "line": 1,
@@ -1945,7 +1945,7 @@
    "summary": "In-process Apple MLX runtime (`MLX`, `MLXLLM`, `MLXLMCommon`) used by `MLXLocalChatEngine`, `MLXReasoningSummarizer` and `SkillSummaryService`. `MLXLocalChatEngine` loads a `ModelContainer` through `LLMModelFactory.shared.loadContainer` with `HFHubDownloader` and `HFTokenizerLoaderWrapper`. It tracks the loaded `LocalChatModel` so that changing the model reloads the weights."
   },
   {
-   "cited_hash": "d147211f1002a140d9d65b90b0780dd2e8a7810f4ec4d74168cdbdce91598245",
+   "cited_hash": "f2561bbd0c1eab1a6a76d86dba87556a1922414b637a1d4afc08ee0ed9eb721c",
    "evidence": [
     {
      "line": 18,
@@ -2212,7 +2212,7 @@
    "summary": "`UserDefaults` holds Portal's small preferences, reached through `UserDefaults.standard` and `@AppStorage`. Views bind display choices such as `macTopChromeCollapsed`, `chatSkin`, `artifactViewMode` and `artifactCellMode`. Stores keep `portal.*` keys for skill caches, run history, activity items and `.fileMigrated` markers."
   },
   {
-   "cited_hash": "ad46765ea79a39a8e886cce1a9e32db724c6b64707f8328c0a9c4cf1d21d9ab4",
+   "cited_hash": "f1d773ce58ca5bc19e371525673ec83929f9552e71bf0d2a1f9f5b9112a758c0",
    "evidence": [
     {
      "line": 38,
@@ -3313,7 +3313,7 @@
    "summary": "`SettingsViewModel` is an `ObservableObject` holding Portal's connection and preference state. It publishes `gatewayURL`, `apiKey`, `savedGateways`, `activeGatewayID` and the celebration and MLX toggles. It writes the URL and key through `KeychainStore` and other values to `UserDefaults`. Its `init` reads Keychain outcomes and sets `hasUnreadableStoredHarness`."
   },
   {
-   "cited_hash": "ec84242e84ec25c760440fb28bbecca4d7ddd7d57faef080c9edcfaea3b35226",
+   "cited_hash": "0738c3e335fbc9a12766ceb38cd177cdf0432a28fa0dcb6c678c7bd1a2194e33",
    "evidence": [
     {
      "line": 17,

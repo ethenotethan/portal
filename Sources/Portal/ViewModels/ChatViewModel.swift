@@ -788,7 +788,7 @@ client.eventStream
 
         // session.info is applied via the eventStream path (handleEvent /
         // applySessionEvent), which routes by the event's session_id. Do NOT
-        // also subscribe to sessionInfoPublisher here: it carries no session
+        // also subscribe to the client's published sessionInfo here: it carries no session
         // ID, so a session.info from ANY session (peekSession observers,
         // subagents, cron, another device) would clobber the active chat's
         // model badge with that session's model — e.g. snapping back to the

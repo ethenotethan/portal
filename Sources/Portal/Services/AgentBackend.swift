@@ -82,7 +82,6 @@ protocol AgentBackend: AnyObject {
     var eventStream: PassthroughSubject<(GatewayEvent, String?), Never> { get }
 
     var connectionStatePublisher: AnyPublisher<GatewayClient.ConnectionState, Never> { get }
-    var sessionInfoPublisher: AnyPublisher<SessionInfo?, Never> { get }
 
     /// Synchronous connection-state snapshot (guards in create/resume paths).
     var connectionState: GatewayClient.ConnectionState { get }
@@ -230,9 +229,5 @@ extension GatewayClient: AgentBackend {
 
     var connectionStatePublisher: AnyPublisher<ConnectionState, Never> {
         $connectionState.eraseToAnyPublisher()
-    }
-
-    var sessionInfoPublisher: AnyPublisher<SessionInfo?, Never> {
-        $sessionInfo.eraseToAnyPublisher()
     }
 }
