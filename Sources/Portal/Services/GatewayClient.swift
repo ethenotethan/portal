@@ -700,20 +700,6 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return sessionConfig
     }
 
-    /// URLSessionWebSocketTask can strip Authorization during the upgrade on
-    /// macOS/iOS 26, so Portal also sends the API key as a query fallback.
-    nonisolated static func authenticatedWebSocketURL(_ url: URL, apiKey: String) -> URL {
-        guard !apiKey.isEmpty,
-              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        else { return url }
-        var items = components.queryItems ?? []
-        if !items.contains(where: { $0.name == "api_key" }) {
-            items.append(URLQueryItem(name: "api_key", value: apiKey))
-            components.queryItems = items
-        }
-        return components.url ?? url
-    }
-
     private func openWebSocket() {
         guard !isIntentionalDisconnect else {
             log.debug("openWebSocket skipped: client was disconnected")
@@ -2721,6 +2707,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 handleDisconnect(reason: "WebSocket closed (\(code.rawValue)) \(reasonStr)")
             }
         }
+    }
+
+    /// URLSessionWebSocketTask can strip Authorization during the upgrade on
+    /// macOS/iOS 26, so Portal also sends the API key as a query fallback.
+    nonisolated static func authenticatedWebSocketURL(_ url: URL, apiKey: String) -> URL {
+        guard !apiKey.isEmpty,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return url }
+        var items = components.queryItems ?? []
+        if !items.contains(where: { $0.name == "api_key" }) {
+            items.append(URLQueryItem(name: "api_key", value: apiKey))
+            components.queryItems = items
+        }
+        return components.url ?? url
     }
 }
 
