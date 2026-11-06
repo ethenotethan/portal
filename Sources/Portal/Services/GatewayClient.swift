@@ -729,8 +729,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             sessionConfig.httpCookieStorage?.setCookie(cookie)
         }
 
-        let wsURL = Self.authenticatedWebSocketURL(gatewayURL, apiKey: apiKey)
-        var request = URLRequest(url: wsURL)
+        var request = URLRequest(url: Self.authenticatedWebSocketURL(gatewayURL, apiKey: apiKey))
         if !apiKey.isEmpty {
             let authValue = "Bearer \(apiKey)"
             request.setValue(authValue, forHTTPHeaderField: "Authorization")
