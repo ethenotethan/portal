@@ -27,7 +27,6 @@ private final class FirstPromptBackendSpy: AgentBackend {
     internal var connectionStatePublisher: AnyPublisher<GatewayClient.ConnectionState, Never> {
         stateSubject.eraseToAnyPublisher()
     }
-    internal let sessionInfoPublisher = Just<SessionInfo?>(nil).eraseToAnyPublisher()
     internal var connectionState: GatewayClient.ConnectionState = .connected
     internal let reconnected = PassthroughSubject<Void, Never>()
     internal var reconnectedPublisher: AnyPublisher<Void, Never> { reconnected.eraseToAnyPublisher() }

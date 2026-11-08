@@ -72,7 +72,10 @@ vs. database-format `session_key` (e.g. `20260501_112429_d91274`, used to resume
 | Method | Params | Description |
 |--------|--------|-------------|
 | `prompt.submit` | `session_id`, `text` | Submit a user message; triggers a turn (async) |
-| `approval.respond` | `session_id`, `choice`, `all` (bool) | Respond to an approval request; `all` approves all pending |
+| `approval.respond` | `session_id`, `choice`, `all` (bool), `request_id?` | Respond to an approval request; `request_id` resolves that one, `all` every pending one, neither the oldest |
+| `client.capabilities` | `server_requests` (bool) | Sent once per socket after it opens: this connection answers server→client requests |
+| `clarify.lock` | `request_id`, `question_id`, `answer` (null = skipped) | Lock one answer of a server→client `clarify` request; returns `remaining` question ids |
+| `clarify.respond` | `request_id`, `answer` | Legacy answer to a `clarify.request` event (gateways predating server→client requests) |
 
 ### delegation.* / subagent.* / spawn_tree.*
 
@@ -89,8 +92,8 @@ vs. database-format `session_key` (e.g. `20260501_112429_d91274`, used to resume
 |--------|--------|-------------|
 | `skills.manage` (list) | `action:"list"` | Skills grouped by category |
 | `skills.manage` (inspect) | `action:"inspect"`, `query` | Skill metadata |
-| `skills.manage` (read) | `action:"read"`, `query` | Full `SKILL.md` content |
-| `skills.manage` (write) | `action:"write"`, `query`, `content` | Overwrite `SKILL.md` |
+| `skills.get` | `skill_id`, `file_path?` | Full `SKILL.md` content (or one file in the skill dir) with `read_only` |
+| `skills.update` | `skill_id`, `content` | Overwrite `SKILL.md`; returns the updated `skill` |
 | `skills.manage` (search) | `action:"search"`, `query` | Search skills; returns `results` |
 | `skills.manage` (install) | `action:"install"`, `query` | Install a skill |
 | `skills.manage` (uninstall) | `action:"uninstall"`, `query` | Uninstall; on code 4017, falls back to `slash.exec` |
@@ -148,7 +151,7 @@ tab per contract section (system map, extraction map, CI gates, inventory). Cont
 | `architecture.describe` | `service` (graph id `arch:<id>`), `revision?` | `{service, revision, source, stored_at, summary, check, contract, model}` — the current model, read now and snapshotted, or a stored revision; `contract` is `{name, version, major, minor, schema_digest}` of the hermes.architecture contract the gateway validated the model against (vendored in Portal at `architecture/contract/`). **4029** missing service, **4030** unknown, **4032** model missing/invalid, **4033** model does not conform to the contract (message lists the problems), **4404** no such revision |
 | `architecture.check` | `service` | Runs the manifest's `check` in the service root (local only) → `{service, check: {status: passed\|failed\|unavailable, exit_code?, output?, reason?, revision, checked_at, duration_s}}` |
 | `architecture.list` | — | Every manifest service with its `status` (the node annotation, which now also carries `conforming`, `contract` and the resolved `logs` sinks) — not called by Portal yet |
-| `architecture.history` | `service`, `limit?` | `{service, latest, revisions: [{revision, stored_at, source, summary, contract?, check?, commit?: {sha, author, date, subject}, commits_since_previous?: [...], deployed?, deployed_at?}], runtime?: {graph_id, provider, started_at?, pid?, revision?}}` — every stored revision with the git commit behind it and the commits since the previous stored one (local checkouts); `deployed` marks the revision the checkout is at now. Drives the Revisions tab |
+| `architecture.history` | `service` | `{service, latest, revisions: [{revision, stored_at, source, summary, contract?, check?, commit?: {sha, author, date, subject}, commits_since_previous?: [...], deployed?, deployed_at?}], runtime?: {graph_id, provider, started_at?, pid?, revision?}}` — every stored revision with the git commit behind it and the commits since the previous stored one (local checkouts); `deployed` marks the revision the checkout is at now. Drives the Revisions tab |
 | `architecture.diff` | `service`, `from?`, `to?` | `{service, from, to, nodes: {added, removed}, edges: {added, removed}, invariants: {added, removed, changed: [{id, from, to}]}, files: {added, removed, changed: [{path, lines_from, lines_to}]}, gates: {jobs_added, jobs_removed, ratchets_added, ratchets_removed}, summary: {from, to}, git?: {commits, stat: [{path, additions, deletions}], truncated}}` — a structural diff between two stored revisions by stable identity (`history_key`); `to` defaults to the latest, `from` to the one before. **4404** unknown revision |
 
 `cron.graph` service nodes declared by a manifest carry an `architecture`
@@ -330,12 +333,16 @@ streaming-turn events.
 | `background.complete` | `backgroundComplete(taskID, text)` | Background task finished |
 
 ### Blocking requests (session-scoped)
+
+Current gateways send blocking prompts as JSON-RPC **requests** (string `srq-…` id, `method` = `clarify` / `approval` / `sudo` / `secret` / Desktop bridges, `params.session_id`). `ServerRequest` decodes the frame and replays it as the matching event below; Portal answers with a bare response frame (`JSONRPCServerResponse`): `approval` through `approval.respond`, `clarify` one question at a time through `clarify.lock`, `sudo`/`secret` as skipped (`{"value": ""}`), anything else with error `-32601`. Unanswered requests come back in `session.resume`'s `open_requests`.
+
 | Wire type | Enum case | Description |
 |-----------|-----------|-------------|
-| `approval.request` | `approvalRequest(payload)` | `command`, `session_key`, optional `tool_name`/`raw_args` |
-| `clarify.request` | `clarifyRequest(question, choices)` | Agent needs clarification |
+| `approval.request` | `approvalRequest(payload)` | `command`, `session_key`, optional `tool_name`/`raw_args`, `request_id` (legacy event; the `approval` request maps here) |
+| `clarify.request` | `clarifyRequest(payload)` | Agent needs clarification; the `clarify` request maps here with its `questions` batch |
 | `sudo.request` | `sudoRequest` | Privilege escalation request |
 | `secret.request` | `secretRequest(prompt, envVar)` | Request for a secret/env var |
+| `request.cancel` | `requestCancelled(id, method, reason)` | The gateway withdrew an open request (answered elsewhere, timed out, interrupted); the prompt closes |
 
 ### Status / UI / voice / activity
 | Wire type | Enum case | Description |
