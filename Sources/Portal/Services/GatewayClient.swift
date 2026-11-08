@@ -729,7 +729,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             sessionConfig.httpCookieStorage?.setCookie(cookie)
         }
 
-        var request = URLRequest(url: gatewayURL)
+        var request = URLRequest(url: Self.authenticatedWebSocketURL(gatewayURL, apiKey: apiKey))
         if !apiKey.isEmpty {
             let authValue = "Bearer \(apiKey)"
             request.setValue(authValue, forHTTPHeaderField: "Authorization")
@@ -2790,6 +2790,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 handleDisconnect(reason: "WebSocket closed (\(code.rawValue)) \(reasonStr)")
             }
         }
+    }
+
+    /// URLSessionWebSocketTask can strip Authorization during the upgrade on
+    /// macOS/iOS 26, so Portal also sends the API key as a query fallback.
+    nonisolated static func authenticatedWebSocketURL(_ url: URL, apiKey: String) -> URL {
+        guard !apiKey.isEmpty,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return url }
+        var items = components.queryItems ?? []
+        if !items.contains(where: { $0.name == "api_key" }) {
+            items.append(URLQueryItem(name: "api_key", value: apiKey))
+            components.queryItems = items
+        }
+        return components.url ?? url
     }
 }
 
