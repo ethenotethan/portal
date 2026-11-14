@@ -2228,6 +2228,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+    /// File an artifact under a folder ("" = unfiled). The gateway answers
+    /// with the content-less summary; a gateway that predates the method
+    /// throws method-not-found and the caller keeps the old folder.
+    internal func artifactCategorize(id: String, category: String) async throws -> LivingArtifact? {
+        let response = try await call("artifact.categorize", params: [
+            "id": AnyCodable(id),
+            "category": AnyCodable(category),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return LivingArtifact.from(response.result?.dictionaryValue?["artifact"]?.dictionaryValue)
+    }
+
     /// Revision metadata (no content), newest first.
     func artifactRevisions(id: String) async throws -> [ArtifactRevision] {
         let response = try await call("artifact.revisions", params: ["id": AnyCodable(id)])

@@ -27,6 +27,9 @@ internal protocol ArtifactGateway: AnyObject, Sendable {
         id: String, kind: String, content: String, title: String?, replace: Bool
     ) async throws -> LivingArtifact?
     func artifactDelete(id: String) async throws
+    /// File an artifact under a folder ("" = unfiled). Metadata only: the
+    /// gateway appends no revision. Throws on a gateway without the method.
+    func artifactCategorize(id: String, category: String) async throws -> LivingArtifact?
 
     // artifact.action.* intent surface
     func artifactActionInvoke(

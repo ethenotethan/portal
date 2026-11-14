@@ -15,8 +15,17 @@ internal struct ArtifactListRow: View, Equatable {
         internal let writerLabel: String?
         internal let hasMaintainers: Bool
         internal let isSelected: Bool
+        /// The folder the artifact is filed under ("" = unfiled).
+        internal let category: String
+        /// Every folder the Move menu offers; empty when filing is unavailable.
+        internal let folders: [String]
+        /// Whether the gateway can file artifacts — hides the Move menu if not.
+        internal let canFile: Bool
 
-        internal init(artifact: LivingArtifact, isSelected: Bool) {
+        internal init(
+            artifact: LivingArtifact, isSelected: Bool,
+            folders: [String] = [], canFile: Bool = false
+        ) {
             id = artifact.id
             displayName = artifact.displayName
             icon = ArtifactKindGlyph.icon(for: artifact.kind)
@@ -25,6 +34,9 @@ internal struct ArtifactListRow: View, Equatable {
             writerLabel = WriterRef.parse(artifact.updatedBy)?.label(cronName: { (_: String) -> String? in nil })
             hasMaintainers = !artifact.maintainerRefs.isEmpty
             self.isSelected = isSelected
+            category = artifact.category
+            self.folders = folders
+            self.canFile = canFile
         }
     }
 
@@ -34,6 +46,8 @@ internal struct ArtifactListRow: View, Equatable {
     /// architecture extractor still sees the artifacts page dispatch the store
     /// (a closure hides that), while the row's identity stays its `inputs`.
     internal let store: ArtifactStore
+    /// Asks the host to prompt for a new folder's name for this row's artifact.
+    internal var onNewFolder: () -> Void = {}
 
     nonisolated internal static func == (lhs: ArtifactListRow, rhs: ArtifactListRow) -> Bool {
         lhs.inputs == rhs.inputs
@@ -84,6 +98,12 @@ internal struct ArtifactListRow: View, Equatable {
         )
         .contentShape(Rectangle())
         .contextMenu {
+            if inputs.canFile {
+                ArtifactFolderMenu(
+                    artifactID: inputs.id, category: inputs.category,
+                    folders: inputs.folders, store: store, onNewFolder: onNewFolder
+                )
+            }
             Button(role: .destructive) {
                 store.remove(id: inputs.id)
             } label: {

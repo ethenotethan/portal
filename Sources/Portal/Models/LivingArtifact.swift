@@ -28,6 +28,11 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     /// never round-tripped through the gateway).
     var rev: Int = 0
 
+    /// The folder this artifact is filed under; empty = unfiled. Gateway
+    /// metadata, not content: filing never appends a revision or moves `rev`,
+    /// so sync adopts it on its own (see `ArtifactStore.pull`).
+    internal var category: String = ""
+
     /// First-class action declarations on the artifact record — the source of
     /// truth for HTML artifacts (which can't embed trusted action declarations
     /// inside page code) and for any kind that wants actions expressed outside
@@ -44,13 +49,15 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
                   updatedAt: Date, updatedBy: String, rev: Int = 0,
                   gatewayID: UUID? = nil,
                   topLevelActions: [ArtifactAction] = [],
-                  queries: [ArtifactQuery] = []) {
+                  queries: [ArtifactQuery] = [],
+                  category: String = "") {
         self.id = id; self.kind = kind; self.title = title
         self.content = content; self.updatedAt = updatedAt
         self.updatedBy = updatedBy; self.rev = rev
         self.gatewayID = gatewayID
         self.topLevelActions = topLevelActions
         self.queries = queries
+        self.category = category
     }
 
     // Custom Codable to exclude topLevelActions (ArtifactAction is not Codable;
@@ -61,7 +68,7 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     internal var gatewayID: UUID?
 
     internal enum CodingKeys: String, CodingKey {
-        case id, kind, title, content, updatedAt, updatedBy, rev, gatewayID
+        case id, kind, title, content, updatedAt, updatedBy, rev, gatewayID, category
     }
 
     internal init(from decoder: Decoder) throws {
@@ -74,6 +81,7 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
         updatedBy = try c.decode(String.self, forKey: .updatedBy)
         rev = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 0
         gatewayID = try c.decodeIfPresent(UUID.self, forKey: .gatewayID)
+        category = try c.decodeIfPresent(String.self, forKey: .category) ?? ""
         topLevelActions = []
     }
 
@@ -87,6 +95,7 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
         try c.encode(updatedBy, forKey: .updatedBy)
         try c.encode(rev, forKey: .rev)
         try c.encodeIfPresent(gatewayID, forKey: .gatewayID)
+        if !category.isEmpty { try c.encode(category, forKey: .category) }
     }
 
     /// Human label for pickers: title if present, else the id.
@@ -127,6 +136,7 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
         lhs.id == rhs.id && lhs.kind == rhs.kind && lhs.title == rhs.title && lhs.content == rhs.content
             && lhs.updatedAt == rhs.updatedAt && lhs.updatedBy == rhs.updatedBy && lhs.rev == rhs.rev
             && lhs.gatewayID == rhs.gatewayID && lhs.topLevelActions == rhs.topLevelActions && lhs.queries == rhs.queries
+            && lhs.category == rhs.category
     }
 
     /// Decode from a gateway artifact.* result payload.
@@ -165,7 +175,8 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
             updatedBy: d["updated_by"]?.stringValue ?? "",
             rev: d["rev"]?.intValue ?? 0,
             topLevelActions: actions,
-            queries: ArtifactQuery.parse(d["queries"]?.foundationValue)
+            queries: ArtifactQuery.parse(d["queries"]?.foundationValue),
+            category: d["category"]?.stringValue ?? ""
         )
     }
 

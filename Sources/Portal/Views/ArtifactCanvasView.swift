@@ -21,6 +21,10 @@ internal struct ArtifactCanvasView: View {
     // List state
     @State private var selectedID: String?
     @State private var expandedArtifact: LivingArtifact?
+    /// The folder the list is showing; remembered across launches.
+    @AppStorage("artifactFolderSelection") private var folderSelection: ArtifactFolderSelection = .all
+    /// The artifact the new-folder prompt is naming a folder for.
+    @State private var newFolderArtifactID: String?
 
     // Shared
     @AppStorage("artifactViewMode") private var viewMode: ViewMode = .list
@@ -217,16 +221,32 @@ internal struct ArtifactCanvasView: View {
     // MARK: - List body
 
     private var listBody: some View {
-        HSplitView {
-            // Sidebar — compact artifact list
+        let folderIndex = ArtifactFolderIndex(artifacts: store.sortedArtifacts)
+        let activeFolder = folderIndex.resolve(folderSelection)
+        let canFile = capabilitiesStore.capabilities.supportsArtifactCategories
+        return HSplitView {
+            // Sidebar — folder tabs (once any folder exists) over the
+            // artifacts of the selected one.
             ScrollView {
                 let selected = selectedArtifact?.id
                 VStack(spacing: 3) {
-                    ForEach(store.sortedArtifacts) { artifact in
+                    if !folderIndex.isEmpty {
+                        ArtifactFolderStrip(
+                            index: folderIndex, selection: activeFolder,
+                            onSelect: { folderSelection = $0 }
+                        )
+                        .equatable()
+                        .padding(.bottom, 7)
+                    }
+                    ForEach(store.sortedArtifacts.filed(under: activeFolder)) { artifact in
                         ArtifactListRow(
-                            inputs: ArtifactListRow.Inputs(artifact: artifact, isSelected: artifact.id == selected),
+                            inputs: ArtifactListRow.Inputs(
+                                artifact: artifact, isSelected: artifact.id == selected,
+                                folders: folderIndex.names, canFile: canFile
+                            ),
                             onSelect: { selectedID = artifact.id },
-                            store: store
+                            store: store,
+                            onNewFolder: { newFolderArtifactID = artifact.id }
                         )
                         .equatable()
                     }
@@ -235,6 +255,7 @@ internal struct ArtifactCanvasView: View {
             }
             .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
             .background(Theme.surface.opacity(0.4))
+            .artifactNewFolderPrompt(artifactID: $newFolderArtifactID, store: store)
 
             // Detail — full renderer for selected artifact
             // Same Rendered/History detail surface the iOS pane uses, so
@@ -257,13 +278,21 @@ internal struct ArtifactCanvasView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            if selectedID == nil { selectedID = store.sortedArtifacts.first?.id }
+            if selectedID == nil { selectedID = selectedArtifact?.id }
         }
     }
 
+    /// The artifact the detail shows: the clicked one while it sits in the
+    /// folder being shown, else the newest artifact of that folder — so
+    /// switching folders never leaves a detail open for a row that is gone.
     private var selectedArtifact: LivingArtifact? {
-        selectedID.flatMap { store.artifacts[$0] }
-            ?? store.sortedArtifacts.first
+        let sorted = store.sortedArtifacts
+        let activeFolder = ArtifactFolderIndex(artifacts: sorted).resolve(folderSelection)
+        if let picked = selectedID.flatMap({ store.artifacts[$0] }),
+           ArtifactFolderIndex.contains(picked.category, in: activeFolder) {
+            return picked
+        }
+        return sorted.first { ArtifactFolderIndex.contains($0.category, in: activeFolder) }
     }
 
     // MARK: - Empty state

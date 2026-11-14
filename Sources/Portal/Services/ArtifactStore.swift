@@ -127,7 +127,8 @@ final class ArtifactStore: ObservableObject {
             content: merged,
             updatedAt: Date(),
             updatedBy: SessionMetaSyncService.deviceID,
-            gatewayID: artifacts[id]?.gatewayID ?? focusedGatewayID
+            gatewayID: artifacts[id]?.gatewayID ?? focusedGatewayID,
+            category: artifacts[id]?.category ?? ""
         )
         // Preserve a non-empty title over an incoming nil/empty one.
         if artifact.title.isEmpty, let existingTitle = artifacts[id]?.title {
@@ -745,7 +746,12 @@ final class ArtifactStore: ObservableObject {
             guard let fresh = try? await client.artifactGet(id: id) else { return }
             // Ignore events for our own just-pushed writes only if stale:
             // rev is monotonic, so an older rev never overwrites a newer one.
-            if let current = artifacts[id], current.rev >= fresh.rev, fresh.rev > 0 { return }
+            // Filing is the exception: it never moves rev, so the folder is
+            // adopted from an equal-rev record on its own.
+            if let current = artifacts[id], current.rev >= fresh.rev, fresh.rev > 0 {
+                if adoptRemoteCategory(of: fresh) { persistToDisk() }
+                return
+            }
             // Preserve the local gateway-ownership stamp.
             var stamped = fresh
             stamped.gatewayID = preservedGatewayID
@@ -798,6 +804,9 @@ final class ArtifactStore: ObservableObject {
                         restoredManifest = true
                     }
                     if restoredManifest { artifacts[summary.id] = current }
+                    // Filing never moves rev either, so a folder change made
+                    // elsewhere (an agent, another device) arrives only here.
+                    if adoptRemoteCategory(of: summary) { changed = true }
                 }
             }
             // Push local-only artifacts up (offline creations).
@@ -848,6 +857,52 @@ final class ArtifactStore: ObservableObject {
         } catch {
             log.info("artifact push failed: \(error.localizedDescription)")
         }
+    }
+}
+
+// MARK: - Folders
+
+extension ArtifactStore {
+    /// File an artifact under a folder ("" = unfiled). Applied locally at once
+    /// so the list regroups under the pointer, then sent to the gateway, whose
+    /// answer is adopted (it may respell the name to match an existing
+    /// folder). A refused or unsupported call puts the old folder back.
+    internal func setCategory(id: String, category: String) {
+        let name = ArtifactFolderIndex.normalize(category)
+        guard var artifact = artifacts[id], artifact.category != name else { return }
+        let previous = artifact.category
+        artifact.category = name
+        artifacts[id] = artifact
+        persistToDisk()
+        guard let client, syncAvailable != false else { return }
+        Task { [weak self] in
+            do {
+                let stored = try await client.artifactCategorize(id: id, category: name)
+                self?.adoptCategory(stored?.category ?? name, for: id, expecting: name)
+            } catch {
+                log.info("artifact categorize failed: \(error.localizedDescription)")
+                self?.adoptCategory(previous, for: id, expecting: name)
+            }
+        }
+    }
+
+    /// Settle a `setCategory` round-trip, unless the user has moved the
+    /// artifact again while it was in flight (the later move owns the field).
+    private func adoptCategory(_ category: String, for id: String, expecting sent: String) {
+        guard var artifact = artifacts[id], artifact.category == sent, category != sent else { return }
+        artifact.category = category
+        artifacts[id] = artifact
+        persistToDisk()
+    }
+
+    /// Take the folder from a gateway record at the revision already held.
+    /// Returns whether anything changed (the caller persists).
+    fileprivate func adoptRemoteCategory(of remote: LivingArtifact) -> Bool {
+        guard var current = artifacts[remote.id], current.rev == remote.rev,
+              current.category != remote.category else { return false }
+        current.category = remote.category
+        artifacts[remote.id] = current
+        return true
     }
 }
 

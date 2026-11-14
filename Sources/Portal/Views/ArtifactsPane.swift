@@ -16,10 +16,46 @@ struct ArtifactsPane: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @ObservedObject private var store = ArtifactStore.shared
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
     @State private var selectedID: String?
+    /// The folder the list is showing; shared with the macOS list surface.
+    @AppStorage("artifactFolderSelection") private var folderSelection: ArtifactFolderSelection = .all
+    /// The artifact the new-folder prompt is naming a folder for.
+    @State private var newFolderArtifactID: String?
 
-    private var visibleArtifacts: [LivingArtifact] { store.sortedArtifacts }
+    private var folderIndex: ArtifactFolderIndex { ArtifactFolderIndex(artifacts: store.sortedArtifacts) }
+
+    /// The artifacts of the folder being shown (everything when no folder is).
+    private var visibleArtifacts: [LivingArtifact] {
+        store.sortedArtifacts.filed(under: folderIndex.resolve(folderSelection))
+    }
+
+    /// Folder tabs, drawn once any artifact is filed.
+    @ViewBuilder
+    private var folderStrip: some View {
+        let index = folderIndex
+        if !index.isEmpty {
+            ArtifactFolderStrip(
+                index: index, selection: index.resolve(folderSelection),
+                onSelect: { folderSelection = $0 }
+            )
+            .equatable()
+            .padding(.bottom, 7)
+        }
+    }
+
+    @ViewBuilder
+    private func rowMenu(for artifact: LivingArtifact) -> some View {
+        if capabilitiesStore.capabilities.supportsArtifactCategories {
+            ArtifactFolderMenu(
+                artifactID: artifact.id, category: artifact.category,
+                folders: folderIndex.names, store: store,
+                onNewFolder: { newFolderArtifactID = artifact.id }
+            )
+        }
+        deleteButton(for: artifact)
+    }
 
     private var selected: LivingArtifact? {
         selectedID.flatMap { store.artifacts[$0] }.flatMap { a in
@@ -40,7 +76,7 @@ struct ArtifactsPane: View {
             VStack(spacing: 0) {
                 header
                 Divider().overlay(Theme.border)
-                if visibleArtifacts.isEmpty {
+                if store.sortedArtifacts.isEmpty {
                     emptyState
                 } else if Self.layoutMode(isCompactWidth: horizontalSizeClass == .compact) == .drillDown {
                     compactContent
@@ -55,19 +91,21 @@ struct ArtifactsPane: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         #endif
         .task { await store.pull() }
+        .artifactNewFolderPrompt(artifactID: $newFolderArtifactID, store: store)
     }
 
     private var compactContent: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 3) {
+                    folderStrip
                     ForEach(visibleArtifacts) { artifact in
                         NavigationLink(value: artifact.id) {
                             artifactRowLabel(artifact, isSelected: false)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            deleteButton(for: artifact)
+                            rowMenu(for: artifact)
                         }
                     }
                 }
@@ -111,7 +149,7 @@ struct ArtifactsPane: View {
             Text("Artifacts")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(Theme.primary)
-            Text("\(visibleArtifacts.count)")
+            Text("\(store.sortedArtifacts.count)")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(Theme.tertiary)
                 .padding(.horizontal, 6)
@@ -161,6 +199,7 @@ struct ArtifactsPane: View {
     private var artifactList: some View {
         ScrollView {
             VStack(spacing: 3) {
+                folderStrip
                 ForEach(visibleArtifacts) { artifact in
                     artifactRow(artifact)
                 }
@@ -176,7 +215,7 @@ struct ArtifactsPane: View {
             .contentShape(Rectangle())
             .onTapGesture { selectedID = artifact.id }
             .contextMenu {
-                deleteButton(for: artifact)
+                rowMenu(for: artifact)
             }
     }
 

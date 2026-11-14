@@ -70,6 +70,15 @@ struct GatewayCapabilities: Equatable, Sendable {
         })
     }
 
+    /// Whether the gateway can file artifacts into folders
+    /// (artifact.categorize). Gates the "Move to Folder" menu, so an older
+    /// gateway shows no control that would only fail.
+    internal var supportsArtifactCategories: Bool {
+        capabilityNames.contains(where: {
+            $0.contains("artifact.categorize") || $0.contains("artifact_categorize")
+        })
+    }
+
     /// Whether the gateway supports artifact.action.log (ledger query).
     /// Present in gateways shipping §2 of the intents V2 spec; older
     /// gateways return method-not-found so the call is skipped entirely.
