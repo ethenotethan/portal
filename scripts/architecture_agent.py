@@ -524,20 +524,47 @@ def docs_for(label: str, paths: list[str]) -> list[dict[str, str]]:
     return out
 
 
+SHORTEN_SCHEMA = {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}
+
+
+def shorten(text: str, limit: int) -> str | None:
+    """Ask the model to say the same thing in at most ``limit`` characters. None when no attempt fits
+    or no provider answers; the caller then falls back to a cut the compiler will refuse."""
+    for attempt in range(2):
+        prompt = (f"Rewrite the text below so it says the same thing in at most {limit} characters. Keep every name, path and"
+                  f" error code that appears, in the same `backticks`; drop qualifiers before facts; one complete sentence or"
+                  f" phrase, no ellipsis, no trailing fragment. Return one JSON object {{\"text\": \"...\"}}."
+                  f"{' The previous attempt was still too long; cut harder.' if attempt else ''}\n\n{text}")
+        try:
+            out, _model = request_json(prompt, SHORTEN_SCHEMA)
+        except (AgentError, OSError, ValueError) as error:
+            print(f"shorten: no answer ({error}); the field will be cut and the compiler will refuse it", file=sys.stderr, flush=True)
+            return None
+        candidate = str(out.get("text", "")).strip()
+        if candidate and len(candidate) <= limit and not candidate.endswith("…"):
+            return candidate
+    return None
+
+
 def clip(text: str, limit: int) -> str:
-    """Cut prose at the last sentence end before ``limit``; a hard cut with an ellipsis when there is none."""
+    """Fit prose under ``limit``: cut at the last sentence end when one sits past the midpoint, else ask the
+    model to shorten it. A hard cut with an ellipsis is the last resort; the compiler refuses a field ending
+    that way, so it surfaces in the next compile instead of shipping as half a sentence."""
     text = text.strip()
     if len(text) <= limit:
         return text
     cut = max(text.rfind(". ", 0, limit - 1), text.rfind(".", 0, limit - 1))
     if cut > limit // 2:
         return text[:cut + 1].strip()
+    shortened = shorten(text, limit)
+    if shortened is not None:
+        return shortened
     return text[:limit - 1].rstrip() + "…"
 
 
 def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compiler: Any, owner: str, line_counts: dict[str, int]) -> dict[str, Any]:
-    """Length caps are mechanical, so a response that overruns one is cut to it rather
-    than dropped, and a cited line past the end of a real file is pinned to its last
+    """Length caps are mechanical, so a response that overruns one is fitted to it (at a
+    sentence end, or by asking the model to shorten it) rather than dropped, and a cited line past the end of a real file is pinned to its last
     line; every repair is printed. Vocabulary and evidence-path errors are not repaired:
     the validator rejects those and the reason is printed."""
     out = dict(raw)
@@ -913,7 +940,7 @@ def repair_flow(raw: dict[str, Any], compiler: Any) -> dict[str, Any]:
     """Length caps are mechanical: an overrun is cut to the cap rather than dropped, and printed."""
     out = dict(raw)
     repairs: list[str] = []
-    for key, limit in (("title", 80), ("summary", compiler.SEMANTIC_SUMMARY_MAX), ("interaction", 80), ("outcome", 200)):
+    for key, limit in (("title", compiler.FLOW_TITLE_MAX), ("summary", compiler.SEMANTIC_SUMMARY_MAX), ("interaction", compiler.FLOW_INTERACTION_MAX), ("outcome", compiler.FLOW_OUTCOME_MAX)):
         if isinstance(out.get(key), str) and len(out[key]) > limit:
             out[key] = clip(out[key], limit)
             repairs.append(f"{key} clipped")
@@ -991,8 +1018,8 @@ A flow is a path over edges that exist in the graph, never a diagram beside it; 
 Return one JSON object {{"flows": [...]}}, each flow shaped:
 {{
   "id": "kebab-case-slug, unique, prefixed with the journey or page (e.g. cron-open-dashboard)",
-  "title": "at most 80 characters, from the user's point of view (\"Open the cron dashboard\", \"Toggle a job\")",
-  "interaction": "at most 80 characters: the user action or lifecycle moment that starts it (\"Refresh button\", \"page appears\", \"app starts\")",
+  "title": "at most {compiler.FLOW_TITLE_MAX} characters, from the user's point of view (\"Open the cron dashboard\", \"Toggle a job\")",
+  "interaction": "at most {compiler.FLOW_INTERACTION_MAX} characters: the user action or lifecycle moment that starts it (\"Refresh button\", \"page appears\", \"app starts\")",
   "summary": "what happens end to end, at most {compiler.SEMANTIC_SUMMARY_MAX} characters, present tense",
   "journey": "{journey}",
   "page": "{page}",
@@ -1003,7 +1030,7 @@ Return one JSON object {{"flows": [...]}}, each flow shaped:
     "detail": "two to six short sentences written from the excerpts in `source` for this hop, at most {compiler.FLOW_DETAIL_MAX} characters: what the code checks first and what it refuses, the state it reads or rewrites and where, what it hands on. Put every type, method, property, key, path and literal in `backticks`; separate ideas with a blank line; quote at most four lines of code verbatim in a ``` block only when the exact line matters.",
     "cites": [{{"path": "a path from source", "line": "a line inside that excerpt's range (from_line to from_line plus its line count) that this detail was written from"}}]
   }}],
-  "outcome": "what the user sees at the end, at most 200 characters"
+  "outcome": "what the user sees at the end, at most {compiler.FLOW_OUTCOME_MAX} characters"
 }}
 
 Hard rules:
@@ -1025,8 +1052,8 @@ Packet:
             "type": "object",
             "properties": {
                 "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,60}$"},
-                "title": {"type": "string", "maxLength": 80},
-                "interaction": {"type": "string", "maxLength": 80},
+                "title": {"type": "string", "maxLength": compiler.FLOW_TITLE_MAX},
+                "interaction": {"type": "string", "maxLength": compiler.FLOW_INTERACTION_MAX},
                 "summary": {"type": "string", "maxLength": compiler.SEMANTIC_SUMMARY_MAX},
                 "journey": {"type": "string", "enum": [journey]},
                 "page": {"type": "string", "enum": [page]},
@@ -1037,7 +1064,7 @@ Packet:
                     "detail": {"type": "string", "maxLength": compiler.FLOW_DETAIL_MAX},
                     "cites": {"type": "array", "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}}},
                     "required": ["from", "to", "relation", "note", "detail", "cites"]}},
-                "outcome": {"type": "string", "maxLength": 200},
+                "outcome": {"type": "string", "maxLength": compiler.FLOW_OUTCOME_MAX},
             },
             "required": ["id", "title", "interaction", "summary", "journey", "page", "steps", "outcome"],
         }}},

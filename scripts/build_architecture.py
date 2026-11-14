@@ -3913,6 +3913,14 @@ SEMANTIC_SUMMARY_MAX = 400
 # must name an outcome, not a mechanism, and say when it is inferred rather than documented.
 SEMANTIC_PURPOSE_MAX = 520
 SEMANTIC_NOTE_MAX = 120
+
+
+def require_whole(owner: str, field: str, text: str) -> None:
+    """A field the agent cut at its cap ends in an ellipsis; the reader then sees half a sentence. The
+    agent shortens an over-long field by asking the model, so a cut reaching the compiler is a defect
+    to fix, not a style to accept. Skipped in a lenient build: older trees carry cuts made before this rule."""
+    if not LENIENT and isinstance(text, str) and text.rstrip().endswith("…"):
+        raise ArchitectureError(f"{owner} {field} ends in a cut ('…'): the agent clipped it at the cap; rewrite it to fit instead")
 STORE_MEDIA = ("json_file", "plist_file", "sqlite", "user_defaults", "keychain", "in_memory", "mixed")
 # The mechanical persistence a medium must be compatible with.
 STORE_MEDIUM_OF_PERSISTENCE = {
@@ -4197,11 +4205,13 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
         raise ArchitectureError(f"{owner} needs a summary")
     if len(summary) > SEMANTIC_SUMMARY_MAX:
         raise ArchitectureError(f"{owner} summary exceeds {SEMANTIC_SUMMARY_MAX} characters")
+    require_whole(owner, "summary", summary)
     purpose = raw.get("purpose")
     if not isinstance(purpose, str) or not purpose.strip():
         raise ArchitectureError(f"{owner} needs a purpose: why the construction exists, not what it does")
     if len(purpose) > SEMANTIC_PURPOSE_MAX:
         raise ArchitectureError(f"{owner} purpose exceeds {SEMANTIC_PURPOSE_MAX} characters")
+    require_whole(owner, "purpose", purpose)
     schema = CONSTRUCT_SCHEMAS[expected_kind]
     body: dict[str, Any] = {}
     fields = raw.get("fields")
@@ -4229,6 +4239,7 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
     for question in open_questions:
         if len(question) > 200:
             raise ArchitectureError(f"{owner} has an open question over 200 characters")
+        require_whole(owner, "open question", question)
     current_hash = cited_hash(evidence, text_by_path)
     recorded_hash = raw.get("cited_hash")
     return {
@@ -4256,6 +4267,7 @@ def validate_construct_field(name: str, value: Any, spec: tuple[Any, ...], node:
     if kind == "str":
         if not isinstance(value, str) or len(value) > spec[1]:
             raise ArchitectureError(f"{owner}.{name} must be a string of at most {spec[1]} characters")
+        require_whole(owner, name, value)
         return value.strip()
     if kind == "list_str":
         if not isinstance(value, list) or not all(isinstance(item, str) and len(item) <= spec[1] for item in value):
@@ -4364,6 +4376,12 @@ FLOW_MIN_STEPS, FLOW_MAX_STEPS = 3, 12
 # agent was shown; its cites are the lines that prose came from. The lines around
 # every citation are hashed, so the flow goes stale (not broken) when they change.
 FLOW_DETAIL_MAX = 900
+# A flow's title, the action that starts it and what it ends in are read as one row before the flow is
+# opened: a sentence each, long enough not to be clipped mid-word. The validator, the agent's repair
+# and the prompt share these.
+FLOW_TITLE_MAX = 120
+FLOW_INTERACTION_MAX = 160
+FLOW_OUTCOME_MAX = 280
 # A flow belongs to one user journey: starting the app, doing a chat turn, or
 # entering and using one navigation page. The site orders and groups by this.
 FLOW_JOURNEYS = ("launch", "chat_turn", "page")
@@ -4388,11 +4406,13 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
         raise ArchitectureError(f"flow id {flow_id!r} must be a kebab-case slug")
     owner = f"flow {flow_id}"
     title = raw.get("title")
-    if not isinstance(title, str) or not title.strip() or len(title) > 80:
-        raise ArchitectureError(f"{owner} needs a title of at most 80 characters")
+    if not isinstance(title, str) or not title.strip() or len(title) > FLOW_TITLE_MAX:
+        raise ArchitectureError(f"{owner} needs a title of at most {FLOW_TITLE_MAX} characters")
+    require_whole(owner, "title", title)
     summary = raw.get("summary")
     if not isinstance(summary, str) or not summary.strip() or len(summary) > SEMANTIC_SUMMARY_MAX:
         raise ArchitectureError(f"{owner} needs a summary of at most {SEMANTIC_SUMMARY_MAX} characters")
+    require_whole(owner, "summary", summary)
     steps = raw.get("steps")
     if not isinstance(steps, list) or not (FLOW_MIN_STEPS <= len(steps) <= FLOW_MAX_STEPS):
         raise ArchitectureError(f"{owner} needs between {FLOW_MIN_STEPS} and {FLOW_MAX_STEPS} steps")
@@ -4409,9 +4429,11 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
         note = step.get("note", "")
         if not isinstance(note, str) or len(note) > SEMANTIC_NOTE_MAX:
             raise ArchitectureError(f"{owner} step {index} note must be a string of at most {SEMANTIC_NOTE_MAX} characters")
+        require_whole(f"{owner} step {index}", "note", note)
         detail = step.get("detail", "")
         if not isinstance(detail, str) or len(detail) > FLOW_DETAIL_MAX:
             raise ArchitectureError(f"{owner} step {index} detail must be a string of at most {FLOW_DETAIL_MAX} characters")
+        require_whole(f"{owner} step {index}", "detail", detail)
         cites = step.get("cites", [])
         if not isinstance(cites, list) or not all(isinstance(c, dict) for c in cites):
             raise ArchitectureError(f"{owner} step {index} cites must be a list of path and line objects")
@@ -4432,8 +4454,9 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
             if first_label != trigger["surface"] and first != f"page:{trigger.get('page')}":
                 raise ArchitectureError(f"{owner} starts at {first!r} but its trigger fires {trigger['surface']}")
     outcome = raw.get("outcome", "")
-    if not isinstance(outcome, str) or len(outcome) > 200:
-        raise ArchitectureError(f"{owner} outcome must be a string of at most 200 characters")
+    if not isinstance(outcome, str) or len(outcome) > FLOW_OUTCOME_MAX:
+        raise ArchitectureError(f"{owner} outcome must be a string of at most {FLOW_OUTCOME_MAX} characters")
+    require_whole(owner, "outcome", outcome)
     journey = raw.get("journey")
     if journey not in FLOW_JOURNEYS:
         raise ArchitectureError(f"{owner} journey must be one of {', '.join(FLOW_JOURNEYS)}")
@@ -4446,8 +4469,9 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
     if trigger_id is not None and trigger_id in triggers and triggers[trigger_id].get("page") != page_id:
         raise ArchitectureError(f"{owner} is on {page_id} but its trigger fires on {triggers[trigger_id].get('page')}")
     interaction = raw.get("interaction", "")
-    if not isinstance(interaction, str) or len(interaction) > 80:
-        raise ArchitectureError(f"{owner} interaction must be a string of at most 80 characters")
+    if not isinstance(interaction, str) or len(interaction) > FLOW_INTERACTION_MAX:
+        raise ArchitectureError(f"{owner} interaction must be a string of at most {FLOW_INTERACTION_MAX} characters")
+    require_whole(owner, "interaction", interaction)
     allowed = flow_allowed_paths([(step["from"], step["to"]) for step in normalized_steps], page_id, interplay, files)
     line_counts = {item["path"]: item["line_count"] for item in files}
     # Each step cites the lines its detail was written from; the flow's evidence is their union

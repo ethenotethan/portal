@@ -2615,7 +2615,7 @@
         }
       ],
       "fields": {
-        "cancellation": "`cancel(attachmentID:)` cancels the task and resumes throwing `CancellationError`; the later `NSURLErrorCancelled` is i…",
+        "cancellation": "`cancel(attachmentID:)` cancels the task and throws `CancellationError`; a later `NSURLErrorCancelled` is ignored.",
         "concurrency_model": "main_actor",
         "settles_by": "`didFinishDownloadingTo` resumes with `Data`; a read failure or `didCompleteWithError` resumes throwing"
       },
@@ -4292,7 +4292,7 @@
       "fields": {
         "failure_mode": "logs_and_continues",
         "keyed_by": "`sessionID`, one `<sessionID>.json` file per session",
-        "location": "Application Support `portal/sessions/<sessionID>.json`; under test `NSTemporaryDirectory()` `portal-tests-<pid>/session…",
+        "location": "Application Support `portal/sessions/<sessionID>.json`; in tests `NSTemporaryDirectory()` `portal-tests-<pid>/sessions`.",
         "medium": "json_file",
         "read_when": [
           "on_demand"

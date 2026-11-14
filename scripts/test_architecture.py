@@ -77,6 +77,24 @@ class ArchitectureCompilerTests(unittest.TestCase):
             json.dumps(second_site_data, sort_keys=True),
         )
 
+    def test_compilation_does_not_depend_on_the_hash_seed(self) -> None:
+        """Two compiles in one process share a hash seed, so iterating a set in the wrong place passes the
+        test above and still makes `--check` report the outputs stale at random. A second interpreter with
+        another seed must produce the same bytes."""
+        probe = (
+            "import hashlib, importlib.util, json, sys\n"
+            f"spec = importlib.util.spec_from_file_location('architecture_seed_probe', {str(MODULE_PATH)!r})\n"
+            "module = importlib.util.module_from_spec(spec); sys.modules[spec.name] = module; spec.loader.exec_module(module)\n"
+            "model, site = module.compile_architecture()\n"
+            "print(hashlib.sha256(json.dumps([model, site], sort_keys=True).encode('utf-8')).hexdigest())\n"
+        )
+        expected = hashlib.sha256(json.dumps([self.model, self.site_data], sort_keys=True).encode("utf-8")).hexdigest()
+        for seed in ("1", "2"):
+            run = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=False, cwd=ROOT,
+                                 env={**__import__("os").environ, "PYTHONHASHSEED": seed})
+            self.assertEqual(0, run.returncode, run.stderr[-400:])
+            self.assertEqual(expected, run.stdout.strip().splitlines()[-1], f"the compile differs under PYTHONHASHSEED={seed}")
+
     def test_backend_contract_keeps_key_seam(self) -> None:
         backend = next(item for item in self.model["components"] if item["id"] == "backend-contract")
         self.assertIn("AgentBackend", backend["declarations"])
@@ -1222,6 +1240,12 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertTrue(stale["stale"])
         self.assertTrue(architecture.validate_construct_record(good, interplay, files, externals, persisted=True)["stale"])
         self.assertFalse(architecture.validate_construct_record({**good, "cited_hash": record["cited_hash"]}, interplay, files, externals, persisted=True)["stale"])
+        # A field the agent cut at its cap is half a sentence to the reader; the compiler refuses it.
+        for cut, needle in (({**good, "summary": "Wraps the Keychain and the…"}, "summary ends in a cut"),
+                            ({**good, "fields": {**good["fields"], "location": "Keychain service `portal` and the…"}}, "location ends in a cut")):
+            with self.assertRaises(architecture.ArchitectureError) as caught:
+                architecture.validate_construct_record(cut, interplay, files, externals)
+            self.assertIn(needle, str(caught.exception))
         bad_cases = [
             ({**good, "kind": "external"}, "kind"),
             ({**good, "key": "store:nowhere:Ghost"}, "not a construct"),
@@ -1322,6 +1346,9 @@ class ArchitectureCompilerTests(unittest.TestCase):
         for raw, needle in [
             ({**good, "steps": [{**steps[0], "cites": [{"path": "Sources/Portal/Services/KeychainStore.swift", "line": 1}]}, *steps[1:]]}, "step 1 cites"),
             ({**good, "steps": [{**steps[0], "detail": "x" * 901}, *steps[1:]]}, "detail must be"),
+            ({**good, "title": "Send a prompt and wait for the…"}, "title ends in a cut"),
+            ({**good, "steps": [{**steps[0], "detail": "The view model keeps the…"}, *steps[1:]]}, "step 1 detail ends in a cut"),
+            ({**good, "title": "t" * (architecture.FLOW_TITLE_MAX + 1)}, f"at most {architecture.FLOW_TITLE_MAX} characters"),
             ({**good, "steps": [{**steps[0], "cites": "nope"}, *steps[1:]]}, "cites must be"),
         ]:
             with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
