@@ -51,7 +51,7 @@ internal final class ArchitectureLogsRevisionsStub: ArchitectureReading {
         return followStates.removeFirst()
     }
 
-    internal func architectureHistory(service: String, limit: Int?) async throws -> ArchitectureRevisionHistory {
+    internal func architectureHistory(service: String) async throws -> ArchitectureRevisionHistory {
         historyCalls += 1
         if let historyError { throw historyError }
         guard let history else { throw GatewayError.invalidResponse("no history") }

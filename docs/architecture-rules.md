@@ -77,6 +77,39 @@ Rules for the baseline:
 - `make check` runs the full local gate (build + tests + baselined lint +
   baseline-growth guard); if it's green, CI is green.
 
+## Generated outputs are compiled on main, not in pull requests
+
+`architecture/model/model.json`, `architecture/site/data.js` and the two hero
+counts in `site/index.html` (Swift files, lines) are **compiled outputs** of
+the tree — the compiler hashes every Swift file and inventories every
+declaration, so almost any change makes them move. When pull requests carried
+them, every merge to main rewrote all three and every other open PR conflicted
+a minute later; four PRs needed three rebases each in one afternoon for this
+reason alone.
+
+They are now produced on **main** by the `Pages` workflow after each merge:
+
+- `Pages / Validate model and site` compiles the model and syncs the hero
+  stats (`scripts/check_site_assets.py --sync`) from the tree it checks out.
+  On a push to main, if the outputs moved, it commits them back as
+  `github-actions[bot]` with `[skip ci]` (the bookkeeping commit runs no macOS
+  jobs). If the branch ruleset refuses the push — main requires pull requests,
+  and GitHub Actions is not a bypass actor — it opens or refreshes the
+  `automation/architecture-sync` PR instead; merging that is the whole job.
+  Adding GitHub Actions as a bypass actor on the ruleset makes it automatic.
+- `Pages / Deploy GitHub Pages` compiles again before assembling, so the
+  published site is current even before that commit lands.
+- On a **pull request** the same job runs the compiler against the PR's tree
+  (proving it still compiles and letting the checks read current data), and a
+  guard step **fails the PR if it commits any of the three outputs**. Restore
+  them from main and re-push:
+  `git checkout origin/main -- architecture/model/model.json architecture/site/data.js`.
+
+Locally, `make architecture` still regenerates everything so you can read the
+observatory and run the compiler's tests against your change — just don't
+commit the results. The Swift tests and the gateway that read `model.json`
+see main's committed copy, which is at most one merge behind.
+
 ## CI posture taxonomy (which check defends what)
 
 CI checks are organized so the PR checks list reads by **intent**, split into
@@ -107,7 +140,7 @@ floor that its baseline can't be *grown* to silence one is a ratchet
 | `Ratchet / Dead Code` | Ratchet | Unused declarations | `metrics-baseline.json` `deadcode` | Periphery + `check-metrics-ratchet.py --deadcode` |
 | `Ratchet / Layout` | Ratchet | Lazy stacks with no scroll viewport (the relayout-loop shape) | `metrics-baseline.json` `layout` | `collect-layout-smells.py` + `check-metrics-ratchet.py --layout` |
 | `Ratchet / Slow Tests` | Ratchet | Tests over 5 s in the serialized run | `metrics-baseline.json` `slowtests` | `collect-slow-tests.py` + `check-metrics-ratchet.py --slowtests` |
-| `Ratchet / Performance` | Ratchet | Algorithmic work, body evaluations, layout passes | `perf-baseline.json` | `check-perf-ratchet.py` |
+| `Ratchet / Performance` | Ratchet | Algorithmic work, body evaluations | `perf-baseline.json` | `check-perf-ratchet.py` |
 | `Ratchet / Quality` | Ratchet | Lint debt (baseline only shrinks) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
 | `Ratchet / Constraints` | Ratchet | The declarations behind every other gate may only tighten | `invariants.json`, `config.json`, `.swiftlint.yml`, `ArchitectureTests.swift`, specifications, gate scripts, `CODEOWNERS`, the gate workflows — as they exist on base | `check-constraint-growth.py` |
 | `Pages / Validate model and site` (contract pins) | Static | The vendored hermes.architecture contract matches its pin and the committed model conforms | `architecture/contract/pins.json` | `check-contract-pins.py` |
@@ -322,7 +355,8 @@ snapshot's `watchlist` for information only.
 
 Rules mirror the lint baseline: **regenerate only to record improvement**
 (`make metrics-baseline` — warning/skipped/dead-code/layout/slow-test counts
-must only drop and coverage may only rise),
+must only drop and coverage may only rise; commit the baseline, not the
+architecture outputs it regenerates),
 and `make metrics-ratchet` runs the whole check locally (clean build + tests →
 collect → ratchet vs `origin/main`). In CI these are the separate `Warnings`,
 `Coverage` and `Slow Tests` jobs fed by the shared `Measure` job, plus
@@ -392,8 +426,10 @@ operation **count**, not wall-clock time — chosen deliberately.
   - *Algorithmic op counts.* `PerfCounter` (Utilities) tallies the dominant
     loop of each hot pure path: `sankey.relax` and `sankey.pack` in
     `SankeyLayout.layout`, and `graph.forceSim` — the O(n²) pairwise repulsion —
-    in `NetworkGraphLayout`; and `artifact.maintainerParse`, one tick per parse
-    of an artifact's content for its maintainers. Counts are added *once per
+    in `NetworkGraphLayout`; `artifact.maintainerParse`, one tick per parse
+    of an artifact's content for its maintainers; `chat.stripMediaTags`, one
+    tick per MEDIA:-strip of a message's content; and `sessions.sidebarSort`,
+    one tick per tier sort of the session sidebar. Counts are added *once per
     loop* (the accumulated total), never once per iteration, so even the
     instrumented build pays no locked call inside a hot loop.
   - *Derived-value parses.* A `body` (or a row builder called from one) that
@@ -409,6 +445,16 @@ operation **count**, not wall-clock time — chosen deliberately.
     (`ArtifactStore.live`) publishes on its own object so it does not
     republish the list. The harness renders 40 artifacts 20 times and asserts
     40 parses.
+  - *Two more instances of the same class* (a 24-hour session): every message
+    bubble re-stripped its MEDIA: lines per render because the eager cache had
+    a completion path that never primed it (now `ChatMessage.derived`, a
+    parse-once cache the copies share; the harness reads 30 messages 20 times
+    and asserts 30 strips), and the session sidebar re-sorted 1,145 sessions
+    on every body evaluation because its closure inputs are never equal to
+    the parent (now `SessionListViewModel.sidebarSections()`, cached until
+    `sessions` changes, with the sidebar and each bubble (`MessageBubbleHost`
+    over `ChatMessageRenderKey`) `Equatable`; the harness reads 1,200 sessions
+    20 times and asserts 4 tier sorts).
   - *View-body evaluations* (`<scenario>.view.body.<View>`). The artifact
     views tick a counter at the top of `body` (`ModelCard`,
     `ModelEntityTable`, its rows, the Kanban board, column and card tile,
@@ -417,13 +463,13 @@ operation **count**, not wall-clock time — chosen deliberately.
     state change — a card moves a lane, a work item's title changes — and
     records what re-evaluated. "One edit re-renders every row" is a count, not
     a feeling.
-  - *Layout passes to settle* (`<scenario>.layoutPasses`). How many times the
-    hosting view laid out before going quiet after the mount and after the
-    update. Catches eager relayout churn (a frame-derived height that reflows
-    its parent, an alignment-guide descent). It does **not** reproduce the
-    lazy-stack prefetch loop: a headless hosting view never realises lazy
-    children, so that class is guarded statically by the `Layout` ratchet.
-- **Zero cost in production.** Every `PerfCounter` call is gated on the
+  - *Not recorded: hosting-view layout passes.* The harness settles each
+    mount by counting the hosting view's layout passes, but the count is not a
+    ratchet counter: the CI runner counted 2 where a local run counts 1 for
+    the same fixture, and a strict ceiling on a 1–3 value would flake (#655,
+    #657). A headless hosting view also never realises lazy children, so the
+    lazy-stack prefetch loop is guarded statically by the `Layout` ratchet,
+    not here.- **Zero cost in production.** Every `PerfCounter` call is gated on the
   `PERF_COUNTERS` compile flag. A normal build (`swift build`, `make build`,
   the shipped app) never defines it, so the calls compile to an
   `@inline(__always)` empty body the optimizer deletes — the instrumentation

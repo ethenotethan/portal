@@ -282,6 +282,7 @@ struct ChatView: View {
                 reasoningGraph: chatViewModel.reasoningGraph,
                 persona: displayPersona,
                 skinProvider: skinProvider,
+                skin: activeSkin,
                 client: gatewayClientWrapper.client,
                 isInputFocused: $isInputFocused,
                 inputFieldRef: $inputFieldRef
@@ -916,10 +917,16 @@ struct ChatView: View {
                                     let preparedMessage: ChatMessage = Self.prepareBubbleMessage(
                                         message, showTimestamp: showTimestamp
                                     )
-                                    skinProvider.messageBubble(
+                                    // Equatable host: on a streamed delta only the
+                                    // streaming bubble's body re-runs, not every
+                                    // settled one in the transcript.
+                                    MessageBubbleHost(
                                         message: preparedMessage,
-                                        persona: displayPersona
+                                        persona: displayPersona,
+                                        skin: activeSkin,
+                                        provider: skinProvider
                                     )
+                                    .equatable()
                                     .id(message.id)
                                 }
                             }

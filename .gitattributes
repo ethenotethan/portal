@@ -1,0 +1,5 @@
+# Compiled outputs of the tree, regenerated on main by the Pages workflow after
+# every merge (see .github/workflows/architecture-pages.yml). Never edited by
+# hand or committed in a pull request; marked generated so diffs collapse.
+architecture/model/model.json linguist-generated=true
+architecture/site/data.js linguist-generated=true

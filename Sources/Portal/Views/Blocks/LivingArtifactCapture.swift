@@ -14,13 +14,27 @@ internal struct LivingArtifactCapture: ViewModifier {
 
     @State private var capturedHash: Int?
 
+    private struct Identity {
+        let id: String
+        let title: String?
+    }
+
+    /// Full JSON parse per lookup — memoized, since `body` (and the badge)
+    /// read it on every evaluation of every captured fence.
+    private static let identityMemo = RenderMemo<Identity?>(limit: 64)
+
     /// Extracted (id, title) when the payload declares an id.
-    private var identity: (id: String, title: String?)? {
+    private var identity: Identity? {
+        let json = json
+        return Self.identityMemo.value(for: json) { Self.parseIdentity(json) }
+    }
+
+    private static func parseIdentity(_ json: String) -> Identity? {
         guard json.contains("\"id\""),
               let data = json.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let id = obj["id"] as? String, !id.isEmpty else { return nil }
-        return (id, obj["title"] as? String)
+        return Identity(id: id, title: obj["title"] as? String)
     }
 
     internal func body(content: Content) -> some View {

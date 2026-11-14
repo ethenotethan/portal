@@ -360,8 +360,11 @@ final class ChatViewModel: ObservableObject {
     @Published internal private(set) var isConversationActive: Bool = false
 
     /// Smoothed 0...1 microphone level while a conversation is capturing, so the
-    /// orb can expand and shrink with the user's voice. Zero when idle.
-    @Published internal private(set) var voiceLevel: Float = 0
+    /// orb can expand and shrink with the user's voice. Zero when idle. Kept on
+    /// its own observable object (see `AudioLevelMeter`): publishing ~10 Hz mic
+    /// samples from this view model re-rendered the whole transcript per sample.
+    internal let voiceMeter = AudioLevelMeter()
+    internal var voiceLevel: Float { voiceMeter.level }
 
     /// The open local side-discussion, if any: a spoken exchange about one
     /// assistant reply that runs entirely on this machine. Non-nil is what routes
@@ -622,6 +625,14 @@ final class ChatViewModel: ObservableObject {
     /// True when the active session hasn't been properly resumed on the gateway
     /// (e.g. after WebSocket reconnection). Prompt submission will auto-resume first.
     private var needsGatewayResume = false
+    /// When each session (display id) last produced a live-turn frame. Read by
+    /// the reconnect reconcile: a session whose frames are still arriving on the
+    /// new socket has a live turn no matter what a lagging `session.resume`
+    /// reply says about it, so its shell must not be force-settled.
+    private var lastLiveEventAt: [String: Date] = [:]
+    /// When the socket most recently went down. Frames stamped after this point
+    /// arrived on the replacement socket and prove the turn survived the gap.
+    private var reconnectObservedAt: Date?
     private var pendingVisibleEventFlush: Task<Void, Never>?
     private var pendingVisibleMessageDelta = ""
     private var pendingVisibleReasoningDelta = ""
@@ -777,7 +788,7 @@ client.eventStream
 
         // session.info is applied via the eventStream path (handleEvent /
         // applySessionEvent), which routes by the event's session_id. Do NOT
-        // also subscribe to sessionInfoPublisher here: it carries no session
+        // also subscribe to the client's published sessionInfo here: it carries no session
         // ID, so a session.info from ANY session (peekSession observers,
         // subagents, cron, another device) would clobber the active chat's
         // model badge with that session's model — e.g. snapping back to the
@@ -786,9 +797,11 @@ client.eventStream
         // Handle reconnection. Session creation is explicit from the Sessions UI;
         // reconnect should not implicitly create an invisible chat that races with
         // the New Session button and leaves the list empty on compact iOS.
-        client.onReconnected = { [weak self] in
-            self?.handleGatewayReconnected()
-        }
+        client.reconnectedPublisher
+            .sink { [weak self] in
+                self?.handleGatewayReconnected()
+            }
+            .store(in: &cancellables)
     }
 
     /// React to a gateway connection-state transition. Extracted from the
@@ -800,6 +813,7 @@ client.eventStream
         case .reconnecting:
             error = nil
             needsGatewayResume = true
+            reconnectObservedAt = Date()
             // Do not mark the active turn as stopped during a transient
             // reconnect. The gateway agent may still be running, and
             // clearing isStreaming makes later frames look stale.
@@ -838,30 +852,71 @@ client.eventStream
     /// creation is explicit from the Sessions UI; reconnect should not
     /// implicitly create an invisible chat that races with the New Session
     /// button and leaves the list empty on compact iOS. Extracted from the
-    /// `onReconnected` closure so it can be exercised directly.
+    /// `reconnectedPublisher` sink so it can be exercised directly.
     private func handleGatewayReconnected() {
-        // The gateway may auto-resume into a (possibly renamed) runtime id.
-        if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID {
-            sessionID = resumedID
-            createGeneration += 1
-            isSessionReady = true
-            error = nil
+        Task { await reconcileAfterReconnect() }
+    }
+
+    /// The whole post-reconnect reconciliation, awaitable.
+    ///
+    /// Every session with a live turn is reconciled, not just the visible one:
+    /// a background turn whose socket died mid-turn is wedged exactly like a
+    /// visible one (its live dot spins until relaunch), and two sessions
+    /// streaming at once is precisely when the user is switching between them.
+    /// Background sessions are reconciled against their CACHED state first; the
+    /// visible session goes last so the gateway's `activeSessionID` ends on it.
+    private func reconcileAfterReconnect() async {
+        if reconnectObservedAt == nil { reconnectObservedAt = Date() }
+        defer { reconnectObservedAt = nil }
+        // The gateway may auto-resume into a renamed runtime id — but only a
+        // rename of the SAME display session may be adopted. `activeSessionID`
+        // is whatever this client last resumed, and when the user switched
+        // sessions while the socket was down (that resume failed silently) it
+        // names the PREVIOUS session. Adopting it re-keyed the visible
+        // transcript under the other session: the next snapshot wrote B's
+        // messages into A's cache, B's own deltas were routed to the
+        // background as "not visible", and the two transcripts crossed — "I
+        // click between them but it only shows the content for one session".
+        if let resumedID = gatewayClient?.activeSessionID, let current = sessionID, current != resumedID {
+            let currentDisplay = displaySessionID(for: current)
+            if displaySessionID(for: resumedID) == currentDisplay {
+                log.debug("reconnect: adopting renamed runtime id \(resumedID) for visible session \(currentDisplay)")
+                sessionID = resumedID
+                createGeneration += 1
+                isSessionReady = true
+                error = nil
+            } else {
+                log.debug(
+                    "reconnect: gateway active session \(resumedID) is not the visible \(currentDisplay); keeping \(current)"
+                )
+            }
         }
-        // Reconcile the visible session's turn against the gateway. A socket
-        // that dropped mid-turn took the live event stream with it, so the
-        // turn's terminal `message.complete` was emitted into a dead socket
-        // and is never redelivered. `resumeSession` re-seeds the shell if the
-        // turn is genuinely still running and settles it — clearing the
-        // spinner, restoring usage/model metadata — if the gateway reports it
-        // finished. The old code only re-resumed when the gateway had NOT
-        // auto-resumed; a turn streaming at drop time on an auto-resumed
-        // session was left spinning forever, with `submitPrompt`'s
-        // `guard !isStreaming` then wedging the session for good.
         guard let sid = sessionID, isSessionReady else {
             needsGatewayResume = false
             return
         }
-        Task { await reconcileTurnAfterReconnect(displayID: displaySessionID(for: sid)) }
+        let visibleDisplayID = displaySessionID(for: sid)
+        let liveBackground = sessionStates
+            .filter { $0.value.isStreaming && $0.key != visibleDisplayID }
+            .map(\.key)
+            .sorted()
+        for displayID in liveBackground {
+            await reconcileBackgroundTurnAfterReconnect(displayID: displayID)
+        }
+        await reconcileTurnAfterReconnect(displayID: visibleDisplayID)
+    }
+
+    /// Whether a locally streaming turn has gone silent across the reconnect:
+    /// no live-turn frame for it has arrived since the socket dropped. Only such
+    /// a turn may be force-settled on the gateway's say-so — a session whose
+    /// deltas are landing on the new socket is alive whatever the resume reply
+    /// (which can lag, or describe a gateway process that no longer owns the
+    /// turn) claims, and settling it turns every later frame into a "late live
+    /// event after stream ended" drop.
+    private func turnLooksAbandonedSinceReconnect(displayID: String) -> Bool {
+        guard let last = lastLiveEventAt[displayID] else { return true }
+        guard let since = reconnectObservedAt else { return true }
+        return last < since
     }
 
     /// Re-resume the visible session after a reconnect so its turn is either
@@ -869,18 +924,57 @@ client.eventStream
     /// gap, its terminal frame lost with the dead socket). Split out of
     /// `handleGatewayReconnected` so the async reconcile is awaitable in tests.
     private func reconcileTurnAfterReconnect(displayID: String) async {
+        if reconnectObservedAt == nil { reconnectObservedAt = Date() }
         let generation = beginSwitchToSession(key: displayID)
         let resumed = await resumeSession(
             key: displayID,
             generation: generation,
             finalizeMissingInflight: true
         )
-        if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID {
+        // The user clicked into another session while this resume was in
+        // flight (the log's "ignoring stale resume … generation=66 current=69").
+        // That newer session owns the published state now; re-keying it here
+        // with the gateway's `activeSessionID` — which THIS reply just set to the
+        // old session's runtime id — was how B's transcript ended up filed as A.
+        guard generation == sessionSwitchGeneration else {
+            log.debug("reconnect: reconcile of \(displayID) superseded by a newer switch; leaving the visible session alone")
+            return
+        }
+        if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID,
+           displaySessionID(for: resumedID) == displayID {
             sessionID = resumedID
         }
         isSessionReady = true
         error = nil
         if resumed { needsGatewayResume = false }
+    }
+
+    /// Reconcile a BACKGROUND session's live turn after a reconnect, touching
+    /// only its cached state. Re-seeds the shell when the gateway still reports
+    /// the turn running; settles it when the gateway explicitly reports nothing
+    /// running AND no frame for it has arrived since the socket dropped.
+    private func reconcileBackgroundTurnAfterReconnect(displayID: String) async {
+        guard let client = gatewayClient, case .connected = client.connectionState else { return }
+        do {
+            let result = try await client.resumeSessionDetailed(key: displayID)
+            bindResumedRuntimeID(displayID: displayID, runtimeID: result.sessionID)
+            // It became visible meanwhile: its own resume owns it now.
+            guard displaySessionID(for: sessionID ?? "") != displayID else { return }
+            guard sessionStates[displayID]?.isStreaming == true else { return }
+            if let inflight = result.inflight, inflight.isStreaming {
+                log.debug("reconnect: background session \(displayID) still running on gateway; re-seeding its shell")
+                seedResumedLiveTurn(displayID: displayID, partial: inflight.assistantPartial)
+            } else if result.running == .stopped, turnLooksAbandonedSinceReconnect(displayID: displayID) {
+                log.info("reconnect: background session \(displayID) reports no turn and has gone silent; settling it")
+                finalizeStuckStreamingTurn(displayID: displayID, status: "interrupted")
+            } else {
+                log.debug(
+                    "reconnect: keeping background session \(displayID) live (running=\(String(describing: result.running)))"
+                )
+            }
+        } catch {
+            log.info("reconnect: background reconcile of \(displayID) failed: \(error.localizedDescription)")
+        }
     }
 
     /// The session ID currently active in this chat view.
@@ -899,6 +993,8 @@ client.eventStream
         sessionStates.removeAll()
         stableSessionByGatewayID.removeAll()
         gatewayIDByStableSession.removeAll()
+        lastLiveEventAt.removeAll()
+        reconnectObservedAt = nil
         sessionID = nil
         streamingMessageID = nil
         needsGatewayResume = false
@@ -984,6 +1080,12 @@ client.eventStream
         handleGatewayReconnected()
     }
 
+    /// Await the whole post-reconnect reconciliation (id adoption, every live
+    /// session's turn, the visible session's resume).
+    internal func reconcileAfterReconnectForTesting() async {
+        await reconcileAfterReconnect()
+    }
+
     /// Await the async post-reconnect turn reconcile directly.
     internal func reconcileTurnAfterReconnectForTesting(displayID: String) async {
         await reconcileTurnAfterReconnect(displayID: displayID)
@@ -1050,6 +1152,50 @@ client.eventStream
                 ChatHistoryStore.shared.saveMessages(messages, forSession: displayID)
             }
         }
+    }
+
+    /// Record the runtime id a `session.resume` reply bound to `displayID`, and
+    /// fold in any state that accrued under the BARE runtime id before the
+    /// mapping existed. Live frames carry the runtime id; if a turn's
+    /// `message.start` and first deltas arrived while the resume that binds
+    /// that id was still in flight (or before this client ever resumed the
+    /// session), they were filed under the runtime id — a shell and retained
+    /// text the display state knows nothing about. Left there, the display
+    /// state says "not streaming", every later delta is dropped as late, a
+    /// ghost live dot spins for the orphan key, and the transcript shows
+    /// nothing for the running turn.
+    ///
+    /// Distinct from `bindRuntimeSession`, which binds a fresh session's runtime
+    /// id to its later-resolved database id and treats the runtime state as
+    /// the richer copy. Here the display state may hold the resumed history
+    /// and only the live tail is carried across.
+    private func bindResumedRuntimeID(displayID: String, runtimeID: String) {
+        stableSessionByGatewayID[runtimeID] = displayID
+        gatewayIDByStableSession[displayID] = runtimeID
+        guard runtimeID != displayID else { return }
+        if let orphanBuffer = backgroundTurnBuffers.removeValue(forKey: runtimeID) {
+            retainBackgroundDelta(displayID: displayID, content: orphanBuffer.content.text, thoughts: orphanBuffer.thoughts.text)
+        }
+        if let last = lastLiveEventAt.removeValue(forKey: runtimeID) {
+            lastLiveEventAt[displayID] = max(last, lastLiveEventAt[displayID] ?? .distantPast)
+        }
+        guard let orphan = sessionStates.removeValue(forKey: runtimeID) else { return }
+        guard orphan.isStreaming else { return }
+        var state = sessionStates[displayID] ?? SessionRuntimeState()
+        log.info("adopting live turn filed under runtime id \(runtimeID) into session \(displayID)")
+        let tail = Self.liveTurnTail(of: orphan.messages, streamingID: orphan.streamingMessageID)
+        state.messages = Self.appendLiveTurnTail(tail, to: state.messages)
+        state.isStreaming = true
+        state.isSessionReady = true
+        state.streamingMessageID = orphan.streamingMessageID
+        state.activeToolCalls = orphan.activeToolCalls
+        state.avatarState = orphan.avatarState
+        state.isRemoteTurn = orphan.isRemoteTurn
+        state.pendingLoadedSkills = orphan.pendingLoadedSkills
+        state.approvalQueue = orphan.approvalQueue
+        state.pendingClarify = orphan.pendingClarify
+        sessionStates[displayID] = state
+        publishStreamingSessions()
     }
 
     private func snapshotCurrentSessionState() {
@@ -1405,13 +1551,27 @@ client.eventStream
 
         do {
             let result = try await client.resumeSessionDetailed(key: key)
+            // Bind the runtime id BEFORE the staleness check. A stale reply must
+            // not become the visible session, but the gateway did just tell us
+            // which runtime id this session streams under — dropping that left
+            // its live frames routed to an unmapped id after a reconnect renamed
+            // it, and the session looked frozen from then on.
+            bindResumedRuntimeID(displayID: key, runtimeID: result.sessionID)
             guard generation == sessionSwitchGeneration else {
                 log.info("ignoring stale resume for \(key) generation=\(generation) current=\(self.sessionSwitchGeneration)")
+                // Its cached state still benefits from what the reply says: a
+                // turn the gateway reports running gets its shell (a no-op if
+                // we watched it start). Never touch a session that is on
+                // screen — the resume that made it visible owns it.
+                if let inflight = result.inflight, inflight.isStreaming,
+                   displaySessionID(for: sessionID ?? "") != key {
+                    log.debug("stale resume for \(key): recorded runtime id \(result.sessionID) and seeded its running turn")
+                    seedResumedLiveTurn(displayID: key, partial: inflight.assistantPartial)
+                } else {
+                    log.debug("stale resume for \(key): recorded runtime id \(result.sessionID) only")
+                }
                 return false
             }
-
-            stableSessionByGatewayID[result.sessionID] = key
-            gatewayIDByStableSession[key] = result.sessionID
 
             // Parse + merge off the main thread — result.messages can be
             // hundreds of entries and the loop + object allocation is pure CPU
@@ -1455,11 +1615,17 @@ client.eventStream
                     let cachedHasContent = liveState.messages.contains(where: {
                         $0.role == .assistant && (!$0.isStreaming || !$0.content.isEmpty)
                     })
-                    if !cachedHasContent {
-                        let tail = Self.liveTurnTail(
-                            of: liveState.messages,
-                            streamingID: liveState.streamingMessageID
-                        )
+                    let tail = Self.liveTurnTail(
+                        of: liveState.messages,
+                        streamingID: liveState.streamingMessageID
+                    )
+                    // A cache holding NOTHING but the live turn (a shell adopted
+                    // from an unmapped runtime id, or a first prompt typed into a
+                    // fresh session) has no settled history to protect, so the
+                    // persisted history goes underneath it even when the shell
+                    // already has text.
+                    let cacheIsOnlyTheLiveTail = !tail.isEmpty && tail.count == liveState.messages.count
+                    if !cachedHasContent || cacheIsOnlyTheLiveTail {
                         liveState.messages = Self.appendLiveTurnTail(tail, to: parsedMessages)
                     }
                     liveState.isSessionReady = true
@@ -1499,6 +1665,17 @@ client.eventStream
             // opened session shows the row but nothing streaming in.
             if let inflight = result.inflight, inflight.isStreaming {
                 seedResumedLiveTurn(displayID: key, partial: inflight.assistantPartial)
+            } else if finalizeMissingInflight, sessionStates[key]?.isStreaming == true,
+                      !(result.running == .stopped && turnLooksAbandonedSinceReconnect(displayID: key)) {
+                // The gateway did not EXPLICITLY report the turn over, or frames
+                // for it have arrived since the socket dropped: the turn is alive
+                // and settling it would make every later frame a "late live
+                // event" drop (the 260-line signature of two sessions streaming
+                // across a reconnect). Leave the shell; the terminal frame will
+                // settle it, and `resumesLiveTurn` heals any residual desync.
+                log.info(
+                    "reconnect: keeping live turn for \(key) (running=\(String(describing: result.running)), frames since reconnect)"
+                )
             } else if finalizeMissingInflight, sessionStates[key]?.isStreaming == true {
                 // Resumed into a session local state still believes is
                 // streaming, but the gateway reports no in-flight turn: the turn
@@ -1511,6 +1688,7 @@ client.eventStream
                 // in-flight snapshot does not prove that a locally observed turn
                 // stopped; settling there destroys its live shell and drops all
                 // later deltas and the terminal frame.
+                log.info("reconnect: gateway reports no turn for \(key) and it has gone silent; settling its shell")
                 finalizeStuckStreamingTurn(displayID: key, status: "interrupted")
             }
 
@@ -1527,6 +1705,14 @@ client.eventStream
                 self.avatarState = .idle
                 self.error = nil
                 snapshotCurrentSessionState()
+            }
+
+            // Prompts the agent is still blocked on come back with the resume;
+            // put them on screen again (the state reset above cleared the old ones).
+            for request in result.openRequests {
+                if let event = request.event {
+                    handleEvent(event, eventSessionID: result.sessionID)
+                }
             }
 
             // The resume bound the session's real runtime ID — ask what model it
@@ -2328,7 +2514,7 @@ client.eventStream
             self?.updateVoiceLevel(level)
         }
         inputText = ""
-        voiceLevel = 0
+        voiceMeter.reset()
         isVoiceRecording = true
         if conversation {
             await localVoiceService.startConversation()
@@ -2364,8 +2550,7 @@ client.eventStream
     /// moving average tames the ~10 Hz buffer jitter so the orb pulses smoothly
     /// with the voice instead of strobing.
     private func updateVoiceLevel(_ raw: Float) {
-        let clamped = max(0, min(1, raw))
-        voiceLevel = voiceLevel * 0.7 + clamped * 0.3
+        voiceMeter.fold(raw)
     }
 
     /// Submit an on-device transcript as the user's prompt, mirroring the
@@ -2405,7 +2590,7 @@ client.eventStream
         isConversationActive = false
         isBargingIn = false
         isVoiceRecording = false
-        voiceLevel = 0
+        voiceMeter.reset()
         conversationSpeaker.stop()
         // A local discussion only exists as a spoken exchange, so closing the mic
         // closes it too rather than leaving it open with no way to talk. It stays
@@ -2862,9 +3047,6 @@ client.eventStream
             if messages[idx].content.isEmpty && status == "interrupted" {
                 messages[idx].content = "_Interrupted_"
             }
-            // Content is final here (streamed text, or the interrupted stub) —
-            // prime the cache so the settled bubble stops re-scanning per render.
-            messages[idx].primeStrippedContentCache()
         }
         activeToolCalls = [:]
         isStreaming = false
@@ -2914,7 +3096,6 @@ client.eventStream
             if state.messages[idx].status == nil {
                 state.messages[idx].status = status
             }
-            state.messages[idx].primeStrippedContentCache()
         }
         state.isStreaming = false
         state.isRemoteTurn = false
@@ -3012,6 +3193,7 @@ client.eventStream
         guard !approvalQueue.isEmpty else { return }
 
         var queue = approvalQueue
+        let answered = applyToAll ? nil : queue.head
         if applyToAll {
             queue.removeAll()
         } else {
@@ -3024,20 +3206,40 @@ client.eventStream
         // not retroactively released. So they stay queued and get asked, rather
         // than being optimistically cleared here.
         do {
-            try await client.respondApproval(sessionID: sid, choice: choice, all: applyToAll)
+            try await client.respondApproval(sessionID: sid, choice: choice, all: applyToAll, requestID: answered?.approvalID)
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    /// Answer a pending clarify question. An empty answer cancels the
-    /// prompt (the gateway treats "" as no answer and the agent proceeds).
+    /// Answer the clarify question on screen. An empty answer skips it. A
+    /// server→client request is answered one question at a time through
+    /// `clarify.lock`; the next open question of the batch takes its place
+    /// until the gateway reports none remaining. A legacy prompt goes through
+    /// `clarify.respond` as one answer.
     func respondClarify(answer: String) async {
-        guard let client = gatewayClient, let clarify = pendingClarify else { return }
+        guard let client = gatewayClient, let clarify = pendingClarify, let owner = sessionID else { return }
         pendingClarify = nil
         snapshotCurrentSessionState()
         do {
-            try await client.respondClarify(requestID: clarify.requestID, answer: answer)
+            if clarify.isServerRequest {
+                guard let questionID = clarify.questionID else { return }
+                let remaining = try await client.lockClarifyAnswer(
+                    requestID: clarify.requestID, questionID: questionID, answer: answer.isEmpty ? nil : answer
+                )
+                // The user may have switched sessions during the round trip: the
+                // next question belongs to the session that asked, not whatever is
+                // on screen now, and never displaces a prompt that arrived meanwhile.
+                if let next = clarify.advanced(remaining: remaining) {
+                    mutateSessionState(for: owner) { state in
+                        if state.pendingClarify == nil {
+                            state.pendingClarify = next
+                        }
+                    }
+                }
+            } else {
+                try await client.respondClarify(requestID: clarify.requestID, answer: answer)
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -3722,6 +3924,12 @@ client.eventStream
         // silently discarded every frame of a session this client had not
         // cached yet — another client's turn on a shared session, or one whose
         // state was cleared by a gateway switch.
+        if event.isLiveTurnEvent {
+            // Recorded before the drop guard: even a frame judged late proves
+            // the gateway still has this turn open, which is what the reconnect
+            // reconcile needs to know before it force-settles anything.
+            lastLiveEventAt[displayID] = Date()
+        }
         if event.isLiveTurnEvent && isKnownSession && !state.isStreaming && !event.resumesLiveTurn {
             let reason = "late live-turn event after stream ended"
             log.info("ChatViewModel ignored late live event after stream ended: \(event.debugName)")
@@ -3840,9 +4048,13 @@ client.eventStream
             SessionRunHistoryStore.shared.recordRunStart(sessionID: displayID)
 
         case .messageDelta(let text, _):
+            // Existence check only. The text reaches the transcript through the
+            // pending-delta buffers and the 500 ms flush; `state` is never
+            // written back for a delta (see the persist switch below), so
+            // appending here too only copy-on-wrote the whole messages array
+            // per token and then threw the copy away.
             if let msgID = state.streamingMessageID,
-               let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
-                state.messages[idx].content += text
+               state.messages.contains(where: { $0.id == msgID }) {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     recordPerfEvent("sessionMessageDelta", bytes: text.count)
                     claimDeltaBuffers(for: displayID)
@@ -3885,7 +4097,6 @@ client.eventStream
             state.messages[idx].usage = payload.usage
             state.messages[idx].status = payload.status
             state.messages[idx].attachments = attachments(from: payload.text)
-            state.messages[idx].primeStrippedContentCache()
             finishThinkingTrace(on: &state.messages[idx], finalReasoning: payload.reasoning)
             state.messages[idx].toolCalls = Array(state.activeToolCalls.values)
             // Reconcile the compaction counter BEFORE snapshotting so an
@@ -3998,12 +4209,10 @@ client.eventStream
             }
 
         case .reasoningDelta(let text):
-            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
+            // Same as `.messageDelta`: only the pending buffer carries the text.
+            // Rebuilding `existing + text` here copied the whole accumulated
+            // reasoning string per token into a discarded state.
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
-                if let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                    let existing = state.messages[idx].reasoning ?? ""
-                    state.messages[idx].reasoning = existing + text
-                }
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     claimDeltaBuffers(for: displayID)
                     pendingVisibleReasoningDelta += text
@@ -4013,7 +4222,6 @@ client.eventStream
             }
 
         case .thinkingDelta(let text):
-            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     appendPendingVisibleThinkingDelta(text, owner: displayID, separator: "\n")
@@ -4027,6 +4235,12 @@ client.eventStream
         case .clarifyRequest(payload: let payload):
             state.pendingClarify = payload
 
+        case .requestCancelled(let id, _, _):
+            if state.pendingClarify?.requestID == id {
+                state.pendingClarify = nil
+            }
+            state.approvalQueue.remove(requestID: id)
+
         case .error(let message):
             state.error = message
             state.isStreaming = false
@@ -4037,7 +4251,6 @@ client.eventStream
                let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
                 state.messages[idx].isStreaming = false
                 state.messages[idx].status = "error"
-                state.messages[idx].primeStrippedContentCache()
                 state.streamingMessageID = nil
             }
             state.activeToolCalls = [:]
@@ -4340,10 +4553,6 @@ client.eventStream
             messages[idx].isStreaming = false
             messages[idx].usage = payload.usage
             messages[idx].status = payload.status
-            // Prime the stripped-content cache now the content is final, so the
-            // bubble (read aloud + auto-scrolling) doesn't re-run stripMediaTags
-            // on every redraw. The session-routed path does the same at complete.
-            messages[idx].primeStrippedContentCache()
             finishThinkingTrace(on: &messages[idx], finalReasoning: payload.reasoning)
             // Merge any accumulated tool calls into the message
             messages[idx].toolCalls = Array(activeToolCalls.values)
@@ -4542,6 +4751,14 @@ client.eventStream
         case .secretRequest:
             // TODO: Present secret input dialog
             break
+
+        case .requestCancelled(let id, _, _):
+            if pendingClarify?.requestID == id {
+                pendingClarify = nil
+            }
+            var queue = approvalQueue
+            queue.remove(requestID: id)
+            setApprovalQueue(queue)
 
         case .voiceTranscript, .voiceStatus:
             break

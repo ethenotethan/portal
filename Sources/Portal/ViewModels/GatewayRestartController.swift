@@ -51,9 +51,15 @@ internal final class GatewayRestartController: ObservableObject {
 
         phase = .waitingForGateway
         guard await client.waitForGatewayReturn(timeout: returnTimeout) else {
+            // The wait bails early when the wrapper has replaced this client
+            // mid-restart; the replacement may well be connected already, so do
+            // not report that as the gateway failing to return.
             phase = .failed(
-                "the gateway did not come back within "
-                    + "\(Int(returnTimeout))s. It may still be starting."
+                client.isIntentionalDisconnect
+                    ? "the connection was replaced while waiting for the gateway; "
+                        + "check the status pill — the new connection may already be up."
+                    : "the gateway did not come back within "
+                        + "\(Int(returnTimeout))s. It may still be starting."
             )
             return
         }

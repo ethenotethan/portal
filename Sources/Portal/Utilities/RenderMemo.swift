@@ -6,17 +6,17 @@ import Foundation
 /// cached or it re-runs per frame — the wiki graph's choppiness (per-frame
 /// radii) and the artifact pane's lag (per-render 300-iteration force sims)
 /// were both this bug. FIFO eviction; thread-safe.
-final class RenderMemo<Value>: @unchecked Sendable {
+internal final class RenderMemo<Value>: @unchecked Sendable {
     private let lock = NSLock()
     private var store: [String: Value] = [:]
     private var order: [String] = []
     private let limit: Int
 
-    init(limit: Int = 24) {
+    internal init(limit: Int = 24) {
         self.limit = limit
     }
 
-    func value(for key: String, compute: () -> Value) -> Value {
+    internal func value(for key: String, compute: () -> Value) -> Value {
         lock.lock()
         if let cached = store[key] {
             lock.unlock()

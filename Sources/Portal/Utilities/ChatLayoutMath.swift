@@ -10,11 +10,11 @@ import CoreGraphics
 /// These helpers make convergence explicit: round the published value and
 /// gate adoption behind a tolerance so jitter below a visible delta is
 /// absorbed instead of re-entering layout.
-enum ChatLayoutMath {
+internal enum ChatLayoutMath {
     /// Whether a freshly measured input-field content height should replace
     /// the current one. Sub-point deltas are relayout noise of the same text,
     /// not a content change (a real line change is ~18pt).
-    static func shouldAdoptInputHeight(current: CGFloat?, proposed: CGFloat, tolerance: CGFloat = 0.5) -> Bool {
+    internal static func shouldAdoptInputHeight(current: CGFloat?, proposed: CGFloat, tolerance: CGFloat = 0.5) -> Bool {
         guard let current else { return true }
         return abs(current - proposed) > tolerance
     }
@@ -22,7 +22,7 @@ enum ChatLayoutMath {
     /// Input-field height clamped to [1 line, maxLines] and rounded to whole
     /// points, so identical content always yields the identical size back to
     /// SwiftUI regardless of sub-point drift in the reported measurement.
-    static func clampedInputHeight(
+    internal static func clampedInputHeight(
         reported: CGFloat?,
         lineHeight: CGFloat,
         maxLines: Int,
@@ -36,7 +36,7 @@ enum ChatLayoutMath {
 
     /// Whether a proposed width differs enough from the last recorded one to
     /// be worth storing. Sub-point proposal churn is re-entrant layout noise.
-    static func widthMeaningfullyChanged(current: CGFloat?, proposed: CGFloat, tolerance: CGFloat = 0.5) -> Bool {
+    internal static func widthMeaningfullyChanged(current: CGFloat?, proposed: CGFloat, tolerance: CGFloat = 0.5) -> Bool {
         guard let current else { return true }
         return abs(current - proposed) >= tolerance
     }

@@ -95,9 +95,13 @@ internal struct GraphsView: View {
     @EnvironmentObject private var personaManager: PersonaManager
 
     /// The "talk to this page" dock: one agent session per wiki and one for the
-    /// cron graph, primed with the page's state. Owned here so it survives the
-    /// wiki ↔ runtime switch and follows whichever surface is showing.
-    @StateObject private var intentDock = PageIntentDockModel()
+    /// cron graph, primed with the page's state. Owned by ContentView, not here:
+    /// this view is unmounted whenever Graphs is hidden, and a model owned here
+    /// was recreated on every open — a fresh Hermes session plus a priming LLM
+    /// turn per visit, never closed on the gateway, so the session list grew by
+    /// one each time. The model keeps its sessions while the app runs, which is
+    /// what the dock promises ("the session stays; reopening continues it").
+    @ObservedObject private var intentDock: PageIntentDockModel
     /// The chat skin the dock's transcript renders with — the same setting the
     /// chat page reads, so bubbles match.
     @AppStorage("chatSkin") private var dockSkin: ChatSkin = .tui
@@ -113,10 +117,12 @@ internal struct GraphsView: View {
     internal init(
         wikiViewModel: WikiGraphViewModel,
         cronGraphStore: CronGraphStore,
+        intentDock: PageIntentDockModel,
         overrideSource: (any WikiSource)? = nil
     ) {
         self.wikiViewModel = wikiViewModel
         self.overrideSource = overrideSource
+        _intentDock = ObservedObject(wrappedValue: intentDock)
         _cronGraphVM = StateObject(wrappedValue: CronGraphViewModel(graphStore: cronGraphStore))
     }
 
@@ -202,10 +208,10 @@ internal struct GraphsView: View {
         }
     }
 
-    private func openIntentDock() {
+    private func openIntentDock(mode: PageIntentMode) {
         intentDock.configure(backend: gatewayClientWrapper.client)
         let context = intentContext
-        Task { await intentDock.open(context: context) }
+        Task { await intentDock.open(context: context, mode: mode) }
     }
 
     private var framedContent: some View {
@@ -215,12 +221,19 @@ internal struct GraphsView: View {
             // The dock lives over the page: the graph stays interactive above it.
             .overlay(alignment: .bottom) {
                 if intentDock.isOpen {
-                    PageIntentDock(model: intentDock, persona: personaManager.activePersona, skinProvider: dockSkin.makeProvider())
+                    PageIntentDock(
+                        model: intentDock,
+                        persona: personaManager.activePersona,
+                        skinProvider: dockSkin.makeProvider(),
+                        skin: dockSkin
+                    )
                         .transition(.move(edge: .bottom))
                 } else {
                     HStack {
                         Spacer()
-                        PageIntentDockButton { withAnimation(.easeOut(duration: 0.22)) { openIntentDock() } }
+                        PageIntentDockButton { mode in
+                            withAnimation(.easeOut(duration: 0.22)) { openIntentDock(mode: mode) }
+                        }
                     }
                 }
             }
@@ -233,7 +246,15 @@ internal struct GraphsView: View {
             .onChange(of: surface) { _, _ in
                 guard intentDock.isOpen else { return }
                 let context = intentContext
-                Task { await intentDock.open(context: context) }
+                guard let mode = intentDock.activeMode else { return }
+                Task { await intentDock.open(context: context, mode: mode) }
+            }
+            // Prepare the page-scoped session alongside the graph itself. By the
+            // time the user chooses Chat or Voice, its prompt and priming turn
+            // are already loaded; local voice remains off until Voice is chosen.
+            .task(id: intentContext.digest) {
+                intentDock.configure(backend: gatewayClientWrapper.client)
+                await intentDock.preload(context: intentContext)
             }
             // Job rows feed the runtime graph's node inspector (cards, run
             // history, source files). Seed them when that graph is first shown

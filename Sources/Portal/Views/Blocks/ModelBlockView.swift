@@ -5,7 +5,12 @@ import SwiftUI
 /// bus. Click an apartment in the table → its pin highlights on the map and
 /// its relations light up in the graph. Views are projections (see
 /// ModelProjections) onto the existing block renderers.
-internal struct ModelBlockView: View {
+///
+/// Value-equatable on its inputs, and its card on the same, so a host that
+/// re-evaluates for reasons of its own (another artifact changed in the
+/// store, an environment closure was re-created) never re-renders the
+/// stacked views for an unchanged model: `.equatable()` stops the walk here.
+internal struct ModelBlockView: View, Equatable {
     internal let json: String
     internal let isStreaming: Bool
     /// Set by artifact hosts: enables declared per-entity actions and the
@@ -20,6 +25,7 @@ internal struct ModelBlockView: View {
     internal var body: some View {
         if let spec = Self.parseMemo.value(for: json, compute: { ModelSpec.parse(json) }) {
             ModelCard(spec: spec, sourceJSON: json, actionableArtifactID: actionableArtifactID)
+                .equatable()
         } else if isStreaming {
             EmptyView()
         } else {
@@ -40,12 +46,20 @@ internal struct ModelBlockView: View {
     }
 }
 
-private struct ModelCard: View {
+private struct ModelCard: View, Equatable {
     let spec: ModelSpec
     /// Original fence body — projection memo key (spec isn't Hashable and
     /// the JSON string already IS its identity).
     let sourceJSON: String
     var actionableArtifactID: String?
+
+    /// `spec` is a pure function of `sourceJSON`, so the JSON (plus the host
+    /// id) IS the card's identity; the selection/pane state is `@State` and
+    /// takes no part in equality. Without this the card re-rendered all of
+    /// its views every time the block above was re-evaluated.
+    nonisolated static func == (lhs: ModelCard, rhs: ModelCard) -> Bool {
+        lhs.sourceJSON == rhs.sourceJSON && lhs.actionableArtifactID == rhs.actionableArtifactID
+    }
 
     /// The selection bus: one selected entity ref shared by every view.
     @State private var selectedRef: ModelSpec.EntityRef?
@@ -423,6 +437,8 @@ private struct ModelEntityTable: View {
 
     @State private var sortField: String?
     @State private var sortAscending = true
+    /// The one row whose choice picker is open (hosted once, on the table).
+    @State private var choicePrompt: ArtifactChoicePrompt?
 
     private var displayColumns: [String] {
         if !columns.isEmpty { return columns }
@@ -493,6 +509,7 @@ private struct ModelEntityTable: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Theme.border.opacity(0.6), lineWidth: 0.5)
         )
+        .artifactChoicePicker($choicePrompt)
     }
 
     private func headerRow(widths: [CGFloat]) -> some View {
@@ -551,7 +568,8 @@ private struct ModelEntityTable: View {
                     actions: actions,
                     entryKey: "\(set.name)/\(keyValue)",
                     fieldValue: { item[$0] },
-                    artifactID: artifactID
+                    artifactID: artifactID,
+                    choicePrompt: $choicePrompt
                 )
                 .frame(width: ModelTableLayout.actionWidth, alignment: .trailing)
             }

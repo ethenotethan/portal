@@ -10,6 +10,8 @@ internal struct YouTubeVideoCard: View {
     /// oEmbed fetcher owned by the feed surface (one cache per feed).
     internal let contentService: YouTubeContentService
 
+    private static let collapsedPreviewHeight: CGFloat = 280
+
     @State private var embed: YouTubeEmbed?
     @State private var isPlaying = false
     @State private var browserLink: InAppBrowserLink?
@@ -140,6 +142,8 @@ internal struct YouTubeVideoCard: View {
                 }
                 .frame(maxWidth: .infinity)
                 .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                .frame(maxHeight: Self.collapsedPreviewHeight)
+                .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .contentShape(RoundedRectangle(cornerRadius: 12))
             }

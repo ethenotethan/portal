@@ -218,13 +218,13 @@ internal final class SessionHealthMonitor: @unchecked Sendable {
         if !findings.isEmpty {
             let allowed = locked { rateLimiter.allow(now: now()) }
             if allowed {
-                await writeBundle(trigger: "degraded state detected", findings: findings.map(\.description), reading: nil)
+                _ = await writeBundle(trigger: "degraded state detected", findings: findings.map(\.description), reading: nil)
             } else {
                 healthLog.warning("degraded state persists (\(findings.map(\.description).joined(separator: "; "))); bundle rate-limited")
             }
         }
         if launchCapture {
-            await writeBundle(trigger: "\(Self.captureOnLaunchArgument) launch argument", findings: [], reading: nil)
+            _ = await writeBundle(trigger: "\(Self.captureOnLaunchArgument) launch argument", findings: [], reading: nil)
         }
     }
 

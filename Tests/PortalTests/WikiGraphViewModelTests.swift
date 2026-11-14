@@ -5,7 +5,7 @@ import SwiftUI
 
 @Suite("Wiki Shared Selection Plane")
 @MainActor
-struct WikiGraphViewModelTests {
+internal struct WikiGraphViewModelTests {
 
     private func page(_ id: String, path: String, tagPath: [String] = []) -> WikiPage {
         WikiPage(
@@ -94,9 +94,9 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Selecting a node makes its page the shared current page")
-    func nodeSelectSetsPath() {
+    internal func nodeSelectSetsPath() {
         let vm = makeVM()
-        guard let idx = vm.simNodes.firstIndex(where: { $0.id == "beta" }) else {
+        guard let idx = vm.nodeIndexByID["beta"] else {
             Issue.record("beta node missing")
             return
         }
@@ -107,16 +107,16 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Navigating to a path selects the corresponding graph node")
-    func pathSelectSetsNode() {
+    internal func pathSelectSetsNode() {
         let vm = makeVM()
         vm.navigate(to: "entities/gamma.md")
         let idx = vm.selectedNodeIndex
         #expect(idx != nil)
-        if let idx { #expect(vm.simNodes[idx].id == "gamma") }
+        if let idx { #expect(vm.nodeMeta[idx].id == "gamma") }
     }
 
     @Test("Node select ↔ path select round-trip")
-    func selectionRoundTrip() {
+    internal func selectionRoundTrip() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         let nodeIdx = vm.selectedNodeIndex
@@ -128,7 +128,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Navigating to a path outside the graph clears node selection")
-    func unknownPathClearsNode() {
+    internal func unknownPathClearsNode() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         #expect(vm.selectedNodeIndex != nil)
@@ -138,7 +138,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("History push/pop across navigate, back, and forward")
-    func historyPushPop() {
+    internal func historyPushPop() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         vm.navigate(to: "concepts/beta.md")
@@ -164,7 +164,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Navigating to the current path is a no-op for history")
-    func navigateSamePathNoop() {
+    internal func navigateSamePathNoop() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         vm.navigate(to: "concepts/alpha.md")
@@ -172,17 +172,17 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Sim rebuild re-syncs node selection from the shared path")
-    func rebuildKeepsSelection() {
+    internal func rebuildKeepsSelection() {
         let vm = makeVM()
         vm.navigate(to: "concepts/beta.md")
         vm.setupSimulation()
         let idx = vm.selectedNodeIndex
         #expect(idx != nil)
-        if let idx { #expect(vm.simNodes[idx].id == "beta") }
+        if let idx { #expect(vm.nodeMeta[idx].id == "beta") }
     }
 
     @Test("Backlink index is built from the graph on assignment")
-    func backlinkIndexBuilt() {
+    internal func backlinkIndexBuilt() {
         let vm = makeVM()
         let betaBacklinks = vm.backlinks(for: vm.graph.pages.first { $0.id == "beta" })
         #expect(betaBacklinks.map(\.id).sorted() == ["alpha", "gamma"])
@@ -206,7 +206,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Clearing page selection resets path, history, and node")
-    func clearSelection() {
+    internal func clearSelection() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         vm.navigate(to: "concepts/beta.md")
@@ -219,7 +219,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Cached content stores and reports failures for the current page")
-    func contentCacheStoreAndFail() {
+    internal func contentCacheStoreAndFail() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         let content = WikiPageContent(frontmatter: ["title": "Alpha"], body: "hello", path: "concepts/alpha.md")
@@ -236,7 +236,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Switching wikis clears selection and history; reloading the same wiki keeps them")
-    func wikiSwitchClearsSelection() {
+    internal func wikiSwitchClearsSelection() {
         let vm = makeVM()
         vm.prepareForLoad(wiki: "research")
         vm.navigate(to: "concepts/alpha.md")
@@ -273,7 +273,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Reveal in file tree opens the sidebar with the page selected")
-    func revealInFileTree() {
+    internal func revealInFileTree() {
         let vm = makeVM()
         vm.revealInFileTree(path: "concepts/beta.md")
         #expect(vm.showFileTree)
@@ -281,7 +281,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Show in Graph closes the reader, drops to 2D, and selects the node")
-    func showInGraph() {
+    internal func showInGraph() {
         let vm = makeVM()
         vm.is3D = true
         vm.navigate(to: "concepts/beta.md")
@@ -292,9 +292,9 @@ struct WikiGraphViewModelTests {
         let idx = vm.selectedNodeIndex
         #expect(idx != nil)
         if let idx {
-            #expect(vm.simNodes[idx].id == "beta")
+            #expect(vm.nodeMeta[idx].id == "beta")
             // Centered: node's screen position lands on the canvas center.
-            let pos = vm.simNodes[idx].position
+            let pos = vm.simulation.positions[idx]
             let screenX = pos.x * vm.zoom + vm.panOffset.width
             let screenY = pos.y * vm.zoom + vm.panOffset.height
             #expect(abs(screenX - 400) < 0.001)
@@ -303,9 +303,9 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Activating a node selects its page and opens the reader")
-    func activateNodeOpensReader() {
+    internal func activateNodeOpensReader() {
         let vm = makeVM()
-        guard let idx = vm.simNodes.firstIndex(where: { $0.id == "alpha" }) else {
+        guard let idx = vm.nodeIndexByID["alpha"] else {
             Issue.record("alpha node missing")
             return
         }
@@ -317,7 +317,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Deactivating (empty-canvas tap) closes the reader but keeps history")
-    func deactivateClosesReader() {
+    internal func deactivateClosesReader() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         vm.navigate(to: "concepts/beta.md")
@@ -331,7 +331,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("3D rendering toggle reseeds the sim and keeps the page selection")
-    func renderingToggleKeepsSelection() {
+    internal func renderingToggleKeepsSelection() {
         let vm = makeVM()
         vm.navigate(to: "entities/gamma.md")
 
@@ -339,36 +339,36 @@ struct WikiGraphViewModelTests {
         #expect(vm.is3D)
         var idx = vm.selectedNodeIndex
         #expect(idx != nil)
-        if let idx { #expect(vm.simNodes[idx].id == "gamma") }
+        if let idx { #expect(vm.nodeMeta[idx].id == "gamma") }
 
         vm.setRendering3D(false)
         #expect(!vm.is3D)
         idx = vm.selectedNodeIndex
         #expect(idx != nil)
         if let idx {
-            #expect(vm.simNodes[idx].id == "gamma")
+            #expect(vm.nodeMeta[idx].id == "gamma")
             // Back in 2D the selected node is re-centered.
-            let pos = vm.simNodes[idx].position
+            let pos = vm.simulation.positions[idx]
             #expect(abs(pos.x * vm.zoom + vm.panOffset.width - 400) < 0.001)
         }
 
         // Same-value set is a no-op (no reseed churn).
-        let positions = vm.simNodes.map(\.position)
+        let positions = vm.simulation.positions
         vm.setRendering3D(false)
-        #expect(vm.simNodes.map(\.position) == positions)
+        #expect(vm.simulation.positions == positions)
     }
 
     @Test("Fit-to-view centers the graph's bounding box in the canvas")
-    func fitToViewCentersGraph() {
+    internal func fitToViewCentersGraph() throws {
         let vm = makeVM()
         // Place nodes at a known, off-center bounding box.
-        for i in vm.simNodes.indices {
-            vm.simNodes[i].position = CGPoint(x: 100 + CGFloat(i) * 200, y: 100)
+        for i in vm.simulation.positions.indices {
+            vm.simulation.setPosition(CGPoint(x: 100 + CGFloat(i) * 200, y: 100), at: i)
         }
         vm.fitToView()
         // The bounding-box center must map to the canvas center at the chosen zoom.
-        let minX = vm.simNodes.map(\.position.x).min()!
-        let maxX = vm.simNodes.map(\.position.x).max()!
+        let minX = try #require(vm.simulation.positions.map(\.x).min())
+        let maxX = try #require(vm.simulation.positions.map(\.x).max())
         let cx = (minX + maxX) / 2
         let screenX = cx * vm.zoom + vm.panOffset.width
         #expect(abs(screenX - vm.canvasSize.width / 2) < 0.001)
@@ -381,7 +381,7 @@ struct WikiGraphViewModelTests {
     /// and page read, so the reader fell back to the home gateway and every
     /// Centaur page 404'd. The VM must retain the source it loaded from.
     @Test("Override source outlives its creation scope for page reads")
-    func overrideSourceRetained() async {
+    internal func overrideSourceRetained() async {
         final class StubSource: WikiSource {
             var pageFetches = 0
             func fetchGraph() async throws -> WikiGraph {
@@ -423,10 +423,10 @@ struct WikiGraphViewModelTests {
         // Seed the cache under this client's identity + wiki selection.
         let seeded = WikiGraph(pages: [page("alpha", path: "concepts/alpha.md")], links: [])
         cache.store(seeded, identity: client.cacheIdentity, wiki: "main")
-        for _ in 0..<50 {
-            if await cache.load(identity: client.cacheIdentity, wiki: "main") != nil { break }
-            try? await Task.sleep(for: .milliseconds(20))
-        }
+        // Writes land on the cache's serial queue; flush() resolves once the seed
+        // is on disk, so the cold open below cannot race it (polling here flaked
+        // on a loaded CI runner and blanked both expectations).
+        await cache.flush()
 
         let vm = WikiGraphViewModel(graphCache: cache)
         vm.canvasSize = CGSize(width: 800, height: 600)
@@ -676,8 +676,8 @@ struct WikiGraphViewModelTests {
         )
     }
 
-    private func node(path: String, type: String) -> WikiGraphViewModel.SimNode {
-        WikiGraphViewModel.SimNode(id: path, position: .zero, type: type, label: path, path: path)
+    private func node(path: String, type: String) -> WikiSimNodeMeta {
+        WikiSimNodeMeta(id: path, type: type, label: path, path: path)
     }
 
     /// The grouping key is the page's folder: a path collapses to its directory,

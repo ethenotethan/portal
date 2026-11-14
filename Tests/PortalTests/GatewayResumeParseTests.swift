@@ -70,6 +70,22 @@ internal struct GatewayResumeParseTests {
         let resumed = try GatewayClient.parseResumeResponse(response)
         #expect(resumed.inflight == nil)
         #expect(resumed.messages.count == 2)
+        // No `running` key is no verdict — distinct from an explicit false.
+        #expect(resumed.running == .unknown)
+    }
+
+    @Test("the session-level running flag is surfaced verbatim")
+    internal func runningFlagIsSurfaced() throws {
+        let stopped = try GatewayClient.parseResumeResponse(decode("""
+        {"jsonrpc":"2.0","id":1,"result":{"session_id":"abc123","running":false,"inflight":null,"messages":[]}}
+        """))
+        #expect(stopped.running == .stopped)
+        #expect(stopped.inflight == nil)
+
+        let live = try GatewayClient.parseResumeResponse(decode("""
+        {"jsonrpc":"2.0","id":1,"result":{"session_id":"abc123","running":true,"messages":[]}}
+        """))
+        #expect(live.running == .running)
     }
 
     @Test("an RPC error surfaces as GatewayError.rpcError")
@@ -90,6 +106,45 @@ internal struct GatewayResumeParseTests {
         #expect(throws: GatewayError.self) {
             _ = try GatewayClient.parseResumeResponse(response)
         }
+    }
+}
+
+@Suite("JSON-RPC request encoding")
+internal struct JSONRPCRequestEncodingTests {
+    private func object(for request: JSONRPCRequest) throws -> [String: Any] {
+        let data = try JSONEncoder().encode(request)
+        return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
+    @Test("an outbound request preserves its envelope and heterogeneous params")
+    internal func encodesEnvelopeAndParams() throws {
+        let object = try object(for: JSONRPCRequest(
+            id: 42,
+            method: "session.send",
+            params: [
+                "session_id": AnyCodable("abc123"),
+                "stream": AnyCodable(true),
+                "metadata": .dictionary(["attempt": AnyCodable(3)]),
+            ]
+        ))
+
+        #expect(object["jsonrpc"] as? String == "2.0")
+        #expect(object["id"] as? Int == 42)
+        #expect(object["method"] as? String == "session.send")
+        let params = try #require(object["params"] as? [String: Any])
+        #expect(params["session_id"] as? String == "abc123")
+        #expect(params["stream"] as? Bool == true)
+        #expect((params["metadata"] as? [String: Any])?["attempt"] as? Int == 3)
+    }
+
+    @Test("a parameterless request omits params rather than sending null")
+    internal func omitsAbsentParams() throws {
+        let object = try object(for: JSONRPCRequest(id: 7, method: "system.ping"))
+
+        #expect(object["jsonrpc"] as? String == "2.0")
+        #expect(object["id"] as? Int == 7)
+        #expect(object["method"] as? String == "system.ping")
+        #expect(object["params"] == nil)
     }
 }
 

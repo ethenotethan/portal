@@ -132,7 +132,20 @@ jobs:
           xcrun llvm-cov export -instr-profile "$PROF" "$EXE" > cov-export.json
           python3 scripts/collect-coverage.py cov-export.json --root "$PWD" --json coverage.json
 
+      # The test step shows only the last five lines of a serialized run, so a
+      # failing test's name and expectation were invisible in the job log and the
+      # snapshot upload below never ran. Name the failures where a reader looks.
+      - name: Report failing tests
+        if: failure()
+        run: |
+          if [ -f test.log ]; then
+            echo "::group::Failing tests"
+            grep -E '✘|recorded an issue|Expectation failed|error:' test.log | grep -v 'Test run with' | head -80 || true
+            echo "::endgroup::"
+          fi
+
       - name: Publish metric snapshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: metric-snapshots
@@ -141,7 +154,7 @@ jobs:
             coverage.json
             build.log
             test.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
   # ── Warnings posture ──────────────────────────────────────────────────────

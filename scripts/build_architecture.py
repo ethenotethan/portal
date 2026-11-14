@@ -47,8 +47,8 @@ DECLARATION_RE = re.compile(
 IDENTIFIER_RE = re.compile(r"\b[A-Z][A-Za-z0-9_]{3,}\b")
 
 BEHAVIOR_RULES = {
-    "swift.task.structured": "Task initializer with closure",
-    "swift.task.detached": "Task.detached closure",
+    "swift.task.structured": "Task initializer with closure, with or without explicit generics",
+    "swift.task.detached": "Task.detached closure, with or without explicit generics",
     "swift.task.stored_handle": "Stored property whose declared type is Task",
     "swift.task.cancel": "cancel() invoked on a named stored Task handle",
     "swift.resource.websocket.stored": "Stored property declared as URLSessionWebSocketTask",
@@ -57,7 +57,7 @@ BEHAVIOR_RULES = {
     "swift.resource.combine_subject.stored": "Stored property initialized as a PassthroughSubject or CurrentValueSubject",
     "swift.resource.continuation.stored": "Stored property declared as an AsyncStream continuation",
     "swift.resource.lock.stored": "Stored property declared or initialized as NSLock or OSAllocatedUnfairLock",
-    "swift.resource.timer.stored": "Stored property declared as Timer",
+    "swift.resource.timer.stored": "Stored property declared as Timer or initialised from Timer.publish / Timer.scheduledTimer",
     "swift.resource.rpc_pool.stored": "Stored property declared as a dictionary of CheckedContinuation (an in-flight request pool)",
     "swift.resource.on_device_model.stored": "Stored property declared as an MLX ModelContainer (an on-device language model)",
     "swift.resource.speech_synth.instantiated": "AVSpeechSynthesizer instantiated in a source owner (an on-device speech engine)",
@@ -73,6 +73,9 @@ BEHAVIOR_RULES = {
     "swift.usage.configures": "A launch-constructed type passed as a parameter to a method of a type that holds the transport core: it supplies what the transport connects with",
     "swift.state.machine": "A stored property of a type on the map whose type is an enum with two or more cases and which is assigned a case somewhere in the type: the object's lifecycle state",
     "swift.state.transition": "An assignment of an enum case to a machine property, attributed to the enclosing function; the from-state is read from an enclosing switch or if-case on the same property when there is one",
+    "swift.usage.injected_method": "A surface calls a method on a dependency it holds (a field typed as a protocol or a class, an object it constructs, a `.shared` singleton); the call is followed through the implementers' bodies up to three hops to the stores and external systems it reaches, with the chain of members on the edge",
+    "swift.launch.starter": "A function of a type the App entry constructs (an App struct's @StateObject, a type or free function its body calls, or a class those construct) whose body starts a repeating Timer, or a while loop on a cancellation flag that awaits a sleep: a tick the process runs for its lifetime, with its interval and the calls of one round",
+    "swift.state.resident": "A stored collection (dictionary, array, set, cache) of a type the App entry constructs, written somewhere in that type's own body: state resident in memory for the process lifetime",
     "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
     "swift.lifecycle.acquire": "lock() invoked on a named stored lock",
     "swift.lifecycle.release": "unlock() invoked on a named stored lock",
@@ -419,8 +422,8 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
             r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Task\s*<"
         )),
-        ("task_detached", "swift.task.detached", re.compile(r"\bTask\s*\.\s*detached\s*(?:\([^)]*\)\s*)?\{")),
-        ("task", "swift.task.structured", re.compile(r"\bTask\s*(?:\([^)]*\)\s*)?\{")),
+        ("task_detached", "swift.task.detached", re.compile(r"\bTask\s*(?:<[^>\n]*>\s*)?\.\s*detached\s*(?:\([^)]*\)\s*)?\{")),
+        ("task", "swift.task.structured", re.compile(r"\bTask\s*(?:<[^>\n]*>\s*)?(?:\([^)]*\)\s*)?\{")),
         ("task_cancellation", "swift.task.cancel", re.compile(
             r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*\.\s*cancel\s*\("
         )),
@@ -451,7 +454,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
     ]
     for resource_kind, type_name, rule_id in stored_resource_specs:
         resource_re = re.compile(
-            rf"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
+            rf"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned|static|lazy|nonisolated)\s+)*"
             rf"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*{type_name}\s*(\?)?(?![A-Za-z0-9_])"
         )
         for match in resource_re.finditer(code):
@@ -480,7 +483,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "lock",
             "swift.resource.lock.stored",
             re.compile(
-                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|static|lazy|nonisolated)\s+)*"
                 r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*"
                 r"(?::\s*(?:NSLock|OSAllocatedUnfairLock)(?:\s*<[^\n>]+>)?\s*)?"
                 r"=\s*(?:NSLock|OSAllocatedUnfairLock)\s*(?:<[^\n>]+>)?\s*\("
@@ -490,8 +493,8 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "timer",
             "swift.resource.timer.stored",
             re.compile(
-                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
-                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Timer\s*(\?)?"
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|static|lazy|nonisolated)\s+)*"
+                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*Timer\s*(\?)?(?![A-Za-z0-9_])|(?::[^=\n]*)?=\s*Timer\s*\.\s*(?:publish|scheduledTimer)\s*\()"
             ),
         ),
         (
@@ -761,8 +764,48 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
 
     resources.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
     operations.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
+    unparsed = unparsed_shapes(code, text, path, task_sites, resources)
     return {"task_sites": task_sites,
-            "resources": resources, "operations": operations}
+            "resources": resources, "operations": operations, "unparsed": unparsed}
+
+
+# What the grammar is for, stated loosely enough to catch what it missed: any `Task`
+# creation however its generics or arguments are spelled, and any stored property
+# whose type or initialiser names a resource type a rule exists for. Each broad
+# match that no parsed site claims is an unparsed shape, and the `tasks-parsed` and
+# `resources-parsed` invariants fail the build naming its file and line, so a
+# spelling the rules do not know is a build error rather than a silent gap.
+# A `Task` spelling with a closure (any static member, generics or arguments), except a
+# `Task.isCancelled`-style read inside an `if`/`while`/`!`/`&&` condition, which creates nothing.
+TASK_SHAPE_RE = re.compile(r"(?m)(?<!!)(?<!\bif )(?<!&& )(?<!\|\| )\bTask\b(?:\s*<[^>\n]*>)?\s*(?:\.\s*[a-z]\w*)?\s*(?:\([^)]*\)\s*)?\{|^[ \t]*(?:\w+\s+)*(?:var|let)\s+[A-Za-z_]\w*\s*:\s*Task\s*<")
+RESOURCE_TYPE_NAMES = ("URLSessionWebSocketTask", "URLSession", "Timer", "NSLock", "OSAllocatedUnfairLock", "ModelContainer",
+                       "PassthroughSubject", "CurrentValueSubject")
+RESOURCE_SHAPE_RE = re.compile(
+    r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned|nonisolated|static|lazy)\s+)*(?:var|let)\s+[A-Za-z_]\w*\s*"
+    r"(?::[^={\n]*\b(?:" + "|".join(RESOURCE_TYPE_NAMES) + r")\b(?:[^={\n]*=|[^={\n]*$)|(?::[^={\n]*)?=\s*(?:" + "|".join(RESOURCE_TYPE_NAMES) + r")\b"
+    r"|:[^={\n]*\[[^\]\n]*:\s*CheckedContinuation\b)"
+)
+
+
+def unparsed_shapes(code: str, text: str, path: str, task_sites: list[dict[str, Any]], resources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every broad task or resource shape in a file that no parsed site claims, by line."""
+    task_lines = {item["evidence"]["line"] for item in task_sites}
+    resource_lines = {item["evidence"]["line"] for item in resources}
+    lines = text.splitlines()
+    out: list[dict[str, Any]] = []
+    for shape, pattern, claimed in (("task", TASK_SHAPE_RE, task_lines), ("resource", RESOURCE_SHAPE_RE, resource_lines)):
+        for match in pattern.finditer(code):
+            line = code.count("\n", 0, match.start()) + 1
+            if line in claimed:
+                continue
+            if shape == "resource":
+                # A resource type that is a function-local binding is not a stored resource.
+                owner_type, function = enclosing_context(code, match.start())
+                if owner_type is None or function is not None:
+                    continue
+            out.append({"shape": shape, "path": path, "line": line, "text": lines[line - 1].strip()[:160] if line <= len(lines) else ""})
+    out.sort(key=lambda item: (item["line"], item["shape"]))
+    return out
 
 
 def swift_string_literals(text: str) -> list[tuple[int, int, str]]:
@@ -1634,12 +1677,15 @@ def build_behavior_model(files: list[dict[str, Any]]) -> dict[str, Any]:
     collections: dict[str, list[dict[str, Any]]] = {
         "task_sites": [], "resources": [], "operations": []
     }
+    unparsed: list[dict[str, Any]] = []
     for source in files:
         extracted = extract_behavioral_source(
             source["path"], source["_text"], source["component"]
         )
         for name in collections:
             collections[name].extend(extracted[name])
+        unparsed.extend(extracted["unparsed"])
+    unparsed.sort(key=lambda item: (item["path"], item["line"], item["shape"]))
     for items in collections.values():
         items.sort(key=lambda item: (
             item["evidence"]["path"], item["evidence"]["line"], item["id"]
@@ -1696,7 +1742,13 @@ def build_behavior_model(files: list[dict[str, Any]]) -> dict[str, Any]:
         if pocket["resource_ids"] or pocket["task_handle_ids"]:
             pockets.append(pocket)
 
-    return {**collections, "pockets": pockets}
+    completeness = {
+        "task_sites": {"parsed": len(collections["task_sites"]), "unparsed": [item for item in unparsed if item["shape"] == "task"]},
+        "resources": {"parsed": len(collections["resources"]), "unparsed": [item for item in unparsed if item["shape"] == "resource"]},
+    }
+    for entry in completeness.values():
+        entry["seen"] = entry["parsed"] + len(entry["unparsed"])
+    return {**collections, "pockets": pockets, "completeness": completeness}
 
 
 def build_interplay_graph(
@@ -2574,7 +2626,16 @@ INVARIANT_KINDS = {
     "single_transport", "surfaces_hold_transport", "pool_guarded_by_lock", "pool_lifecycle_observed",
     "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
     "stores_mapped", "triggers_observed", "launch_zoned", "flows_traceable", "machines_complete",
+    "tasks_parsed", "resources_parsed",
 }
+# The rung of the pipeline an invariant pins. `extraction` invariants check the
+# mechanical model against its own rules (what the extractor recognises is on the
+# map, dispatched, zoned, populated); `enrichment` invariants check what the model
+# wrote against the map (a flow is still a path over drawn edges); `policy`
+# invariants check a construction the source is required to keep (the lock
+# discipline and lifecycle the critical-section picture assumes). The site groups
+# the list by this, so a reader knows which rung a violation is about.
+INVARIANT_LAYERS = ("extraction", "enrichment", "policy")
 
 
 def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str, Any],
@@ -2614,6 +2675,9 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
         seen_ids.add(entry["id"])
         if not isinstance(entry.get("why"), str) or not entry["why"].strip():
             raise ArchitectureError(f"interplay invariant {entry['id']} needs a why")
+        if entry.get("layer") not in INVARIANT_LAYERS:
+            raise ArchitectureError(f"interplay invariant {entry['id']} needs a layer, one of "
+                                    f"{', '.join(INVARIANT_LAYERS)}; got {entry.get('layer')!r}")
         kind = entry["kind"]
         problems: list[str] = []
         checked = 0
@@ -2771,6 +2835,15 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
             if len(flows) < int(entry.get("min", 0)):
                 problems.append(f"only {len(flows)} flow(s) declared, need ≥ {entry.get('min', 0)}")
 
+        elif kind in ("tasks_parsed", "resources_parsed"):
+            counter = behavior.get("completeness", {}).get("task_sites" if kind == "tasks_parsed" else "resources", {"seen": 0, "unparsed": []})
+            checked = int(counter.get("seen", 0))
+            allowed = set(entry.get("allow_unparsed", []))
+            for item in counter.get("unparsed", []):
+                site = f"{item['path']}:{item['line']}"
+                if site not in allowed:
+                    problems.append(f"{item['shape']} shape at {site} was seen but not parsed: {item.get('text', '')}")
+
         elif kind == "pages_populated":
             allow_empty = set(entry.get("allow_empty", []))
             owned: dict[str, int] = defaultdict(int)
@@ -2783,7 +2856,7 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
             if empty:
                 problems.append(f"pages that own no construct: {empty}")
 
-        results.append({"id": entry["id"], "kind": kind, "status": "violated" if problems else "holds",
+        results.append({"id": entry["id"], "kind": kind, "layer": entry["layer"], "status": "violated" if problems else "holds",
                         "checked": checked, "why": entry["why"]})
         for problem in problems:
             violations.append(f"{entry['id']}: {problem} (why: {entry['why']})")
@@ -3129,6 +3202,488 @@ def attach_launch_to_interplay(interplay: dict[str, Any], constructions: list[di
 
 
 # ---------------------------------------------------------------------------
+# Call index and the injected-method rule.
+#
+# The declaration census already names every type and function; the index keys
+# every member by `path#Type.member`, records the declared or constructed type of
+# every stored field, and which types conform to which protocols. A call in a
+# member body resolves only through what the index knows: `self.field.m(` through
+# the field's type (a protocol resolves to its conformers); `Type.m(`, `Type.shared.m(`
+# and `Type(...).m(` to that type; a bare `m(` to the same type; a receiver with no
+# known type only when exactly one store defines `m`. Nothing resolves by name alone.
+# ---------------------------------------------------------------------------
+TYPE_HEADER_RE = re.compile(r"\b(class|struct|actor|enum|protocol|extension)\s+([A-Z][A-Za-z0-9_]*)\s*(?:<[^{\n]*?>)?\s*(?::\s*([^{\n]*?))?\s*(?:where[^{\n]*)?\{")
+STORED_FIELD_RE = re.compile(
+    r"(?m)^[ \t]+(?:@[A-Za-z_][\w.]*(?:\([^)\n]*\))?\s+)*"
+    r"(?:(?:public|package|internal|private|fileprivate|private\(set\)|internal\(set\)|static|lazy|weak|unowned|nonisolated)\s+)*"
+    r"(?:var|let)\s+(?P<name>[a-z_]\w*)\s*(?::\s*\(?\s*(?:any\s+|some\s+)?(?P<type>[A-Z]\w*))?(?:[^=\n]*=\s*(?P<ctor>[A-Z]\w*)\s*(?:\(|\.\s*shared\b))?"
+)
+LOCAL_CONSTRUCTION_RE = re.compile(r"\b(?:let|var)\s+(?P<name>[a-z_]\w*)\s*(?::\s*(?P<type>[A-Z]\w*)[^=\n]*)?=\s*(?P<ctor>[A-Z]\w*)\s*(?:\(|\.\s*shared\b)")
+MEMBER_CALL_RE = re.compile(r"(?<![\w.])(?:self\s*[?!]?\s*\.\s*)?(?P<receiver>[a-z_]\w*)\s*[?!]?\s*\.\s*(?P<member>[a-z_]\w*)\s*\(")
+TYPE_CALL_RE = re.compile(r"(?<![\w.])(?P<type>[A-Z]\w*)\s*(?:\.\s*shared\s*|\([^()\n]*\)\s*)?\.\s*(?P<member>[a-z_]\w*)\s*\(")
+BARE_CALL_RE = re.compile(r"(?<![\w.])(?P<member>[a-z_]\w*)\s*\(")
+CALL_CHAIN_MAX_HOPS = 3
+INJECTED_SURFACE_KINDS = ("caller", "subscriber", "hub", "provider")
+
+
+def build_call_index(files: list[dict[str, Any]]) -> dict[str, Any]:
+    """Members, field types and conformers for every file: what a call can resolve through."""
+    members: dict[str, dict[str, Any]] = {}
+    members_by_type: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    field_types: dict[str, dict[str, str]] = defaultdict(dict)
+    conformers: dict[str, set[str]] = defaultdict(set)
+    protocols: set[str] = set()
+    types: set[str] = set()
+    for source in sorted(files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        for match in TYPE_HEADER_RE.finditer(code):
+            kind, name, inherited = match.group(1), match.group(2), match.group(3) or ""
+            if kind == "protocol":
+                protocols.add(name)
+            elif kind != "extension":
+                types.add(name)
+            for parent in re.findall(r"\b([A-Z]\w*)\b", inherited):
+                conformers[parent].add(name)
+        blocks = declaration_blocks(code)
+        for start, end, kind, name in blocks:
+            if kind != "func":
+                continue
+            owner, _ = enclosing_context(code, start)
+            if owner is None:
+                continue
+            member_id = f"{source['path']}#{owner}.{name}"
+            if member_id in members:
+                continue  # an overload: the first body stands for the name
+            members[member_id] = {"id": member_id, "type": owner, "member": name, "path": source["path"],
+                                  "line": code.count("\n", 0, start) + 1, "body": code[start:end]}
+            members_by_type[owner][name].append(member_id)
+        for match in STORED_FIELD_RE.finditer(code):
+            owner, function = enclosing_context(code, match.start())
+            if owner is None or function is not None:
+                continue
+            declared = match.group("type") or match.group("ctor")
+            if declared:
+                field_types[owner].setdefault(match.group("name"), declared)
+    return {"members": members, "members_by_type": members_by_type, "field_types": field_types,
+            "conformers": {k: sorted(v) for k, v in conformers.items()}, "protocols": protocols, "types": types}
+
+
+def callees_of(index: dict[str, Any], member_id: str, store_types: set[str]) -> list[str]:
+    """The member ids a member's body calls, resolved only through typed fields, constructed
+    objects, type names and the member's own type; an untyped receiver resolves only when
+    exactly one store defines the member."""
+    member = index["members"][member_id]
+    owner, body = member["type"], member["body"]
+    by_type = index["members_by_type"]
+    local_types = {m.group("name"): m.group("type") or m.group("ctor") for m in LOCAL_CONSTRUCTION_RE.finditer(body)}
+    out: list[str] = []
+
+    def add(type_name: str, name: str) -> None:
+        out.extend(by_type.get(type_name, {}).get(name, []))
+
+    for match in TYPE_CALL_RE.finditer(body):
+        if match.group("type") in index["types"]:
+            add(match.group("type"), match.group("member"))
+    for match in MEMBER_CALL_RE.finditer(body):
+        receiver, name = match.group("receiver"), match.group("member")
+        receiver_type = local_types.get(receiver) or index["field_types"].get(owner, {}).get(receiver)
+        if receiver_type is None:
+            candidates = [t for t in sorted(store_types) if name in by_type.get(t, {})]
+            if len(candidates) == 1:
+                add(candidates[0], name)
+            continue
+        if receiver_type in index["protocols"]:
+            for implementer in index["conformers"].get(receiver_type, []):
+                add(implementer, name)
+        else:
+            add(receiver_type, name)
+    for match in BARE_CALL_RE.finditer(body):
+        add(owner, match.group("member"))
+    seen: set[str] = set()
+    unique: list[str] = []
+    for item in out:
+        if item not in seen and item != member_id:
+            seen.add(item)
+            unique.append(item)
+    return unique
+
+
+def call_chains(index: dict[str, Any], start_type: str, store_types: set[str], max_hops: int = CALL_CHAIN_MAX_HOPS) -> dict[str, list[str]]:
+    """Every member reachable from a type's own members within ``max_hops`` calls, with the
+    shortest chain of `Type.member` labels that reaches it (breadth first, deterministic)."""
+    starts = sorted(mid for name in index["members_by_type"].get(start_type, {}) for mid in index["members_by_type"][start_type][name])
+    chains: dict[str, list[str]] = {}
+    frontier: list[tuple[str, list[str]]] = [(mid, [f"{start_type}.{index['members'][mid]['member']}"]) for mid in starts]
+    for mid, chain in frontier:
+        chains.setdefault(mid, chain)
+    for _hop in range(max_hops):
+        next_frontier: list[tuple[str, list[str]]] = []
+        for mid, chain in frontier:
+            for callee in callees_of(index, mid, store_types):
+                if callee in chains:
+                    continue
+                target = index["members"][callee]
+                chains[callee] = chain + [f"{target['type']}.{target['member']}"]
+                next_frontier.append((callee, chains[callee]))
+        frontier = next_frontier
+        if not frontier:
+            break
+    return chains
+
+
+def attach_injected_methods(interplay: dict[str, Any], files: list[dict[str, Any]], externals: dict[str, Any]) -> None:
+    """Follow every surface's calls through the dependencies it holds to the stores and
+    external systems they reach; the chain of members rides on the edge."""
+    nodes = interplay["nodes"]
+    edges = interplay["edges"]
+    index = build_call_index(files)
+    store_nodes = {node["label"]: node for node in nodes if node.get("store") or node["kind"] == "store"}
+    # A member reaches an external system when one of the system's signature hits sits inside
+    # the member's own body: the line, not the file, is the evidence.
+    external_hits: dict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+    drawn_ids = {node["id"] for node in nodes}
+    for system in externals.get("systems", []):
+        node_id = f"external:{system['id']}"
+        if node_id not in drawn_ids:
+            continue
+        link = {"id": node_id, "relation": BOUNDARY_RELATION_BY_CATEGORY.get(system["category"], "uses")}
+        for hit in system.get("usage", []):
+            for site in hit.get("evidence") or []:
+                external_hits[site["path"]].append((site["line"], link))
+    by_triple = {(edge["source"], edge["target"], edge["relation"]): edge for edge in edges}
+    added = 0
+    for surface in [n for n in nodes if n["kind"] in INJECTED_SURFACE_KINDS]:
+        chains = call_chains(index, surface["label"], set(store_nodes))
+        reached: dict[tuple[str, str], tuple[list[str], str]] = {}
+        for member_id, chain in sorted(chains.items(), key=lambda item: (len(item[1]), item[0])):
+            member = index["members"][member_id]
+            if member["type"] == surface["label"]:
+                continue
+            store = store_nodes.get(member["type"])
+            if store is not None and store["id"] != surface["id"]:
+                reached.setdefault((store["id"], "uses"), (chain, "usage"))
+            last_line = member["line"] + member["body"].count("\n")
+            for line, system in external_hits.get(member["path"], []):
+                if member["line"] <= line <= last_line:
+                    reached.setdefault((system["id"], system["relation"]), (chain, "boundary"))
+        for (target, relation), (chain, edge_class) in sorted(reached.items()):
+            edge = by_triple.get((surface["id"], target, relation))
+            if edge is None:
+                # An edge only the chain supports carries the rule; the site draws it on selection.
+                edge = {"source": surface["id"], "target": target, "class": edge_class, "relation": relation, "rule_id": "swift.usage.injected_method"}
+                edges.append(edge)
+                by_triple[(surface["id"], target, relation)] = edge
+                added += 1
+            edge.setdefault("chain", chain)
+    interplay["injected_methods"] = {"members_indexed": len(index["members"]), "edges_added": added}
+    edges.sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+
+
+# ---------------------------------------------------------------------------
+# Launch reach, starters and resident state: what the process runs and keeps.
+#
+# The App entry constructs a handful of objects and calls a handful of functions;
+# those, and the classes they construct, are the objects alive for the process
+# lifetime. A function of one of them that starts a repeating Timer or loops on a
+# cancellation flag around a sleep is a tick: the process does this on its own,
+# unprompted, every interval. A stored collection one of them writes is resident
+# state: what the process remembers between ticks and interactions. Both are
+# drawn beside their holder with the holder's `starts` and `keeps` edges; a tick
+# `touches` the state its round names.
+# ---------------------------------------------------------------------------
+STARTER_LOOP_RE = re.compile(r"\bwhile\s+(?P<condition>true|!\s*[A-Za-z_][\w.]*|[A-Za-z_][\w.]*)\s*\{")
+STARTER_SLEEP_RE = re.compile(r"\b(?:Task\s*\.\s*sleep|Thread\s*\.\s*sleep|sleep)\s*\(")
+STARTER_TIMER_RE = re.compile(
+    r"\bTimer\s*\.\s*scheduledTimer\s*\(\s*withTimeInterval\s*:\s*(?P<interval>[^,\n]+),[^)\n]*\brepeats\s*:\s*true"
+    r"|\bTimer\s*\.\s*publish\s*\(\s*every\s*:\s*(?P<every>[^,)\n]+)"
+)
+ROUND_CALL_RE = re.compile(r"(?<![\w.])(?:self\s*\??\s*\.\s*)?(?P<receiver>[a-z_][A-Za-z0-9_]*)(?:\s*\??\s*\.\s*(?P<member>[a-z_][A-Za-z0-9_]*))?\s*\(")
+ROUND_CALL_SKIP_RECEIVERS = {"log", "logger", "print", "sleep", "guard", "min", "max", "abs", "String", "Int", "Double", "UInt64", "Date", "Duration"}
+ROUND_CALL_SKIP_NAMES = {"sleep", "print", "debug", "info", "error", "warning", "notice", "fault", "trace"}
+RESIDENT_PROPERTY_RE = re.compile(
+    r"(?m)^[ \t]+(?P<attrs>(?:@[A-Za-z_][\w.]*(?:\([^)\n]*\))?\s+)*)"
+    r"(?:(?:public|package|internal|private|fileprivate|private\(set\)|internal\(set\)|static|lazy|nonisolated|nonisolated\(unsafe\)|weak)\s+)*"
+    r"var\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*"
+    r"(?::\s*(?P<type>\[[^\n=]+?\]\??|Set<[^\n=]+?>\??|NSCache<[^\n=]+?>\??|OrderedDictionary<[^\n=]+?>\??|OrderedSet<[^\n=]+?>\??)\s*)?"
+    r"(?:=\s*(?P<init>\[:\]|\[\]|\[[^\n]*\]|Set<[^\n>]*>\(\)|Set\(\)|NSCache<[^\n>]*>\(\)|\[[^\n]*\]\(\)))?"
+    r"(?P<tail>[^\n]*)$"
+)
+RESIDENT_VIEW_ATTRIBUTES = ("@State", "@Binding", "@AppStorage", "@SceneStorage", "@Environment", "@FocusState", "@GestureState", "@Namespace")
+RESIDENT_WRITE_METHODS = ("append", "insert", "remove", "removeValue", "removeAll", "removeFirst", "removeLast", "merge", "updateValue",
+                          "formUnion", "subtract", "popLast", "popFirst", "swapAt", "sort", "reverse", "setObject", "removeObject", "removeAllObjects")
+LAUNCH_HOLDER_KINDS = ("owner", "store", "provider", "caller", "subscriber", "hub")
+
+
+def call_argument(code: str, open_paren: int) -> str:
+    """The text between a call's parentheses, balanced, without a leading argument label."""
+    depth, cursor = 0, open_paren
+    while cursor < len(code):
+        if code[cursor] == "(":
+            depth += 1
+        elif code[cursor] == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        cursor += 1
+    argument = code[open_paren + 1:cursor].strip()
+    return re.sub(r"^[a-zA-Z_]\w*\s*:\s*", "", argument)
+
+
+def describe_interval(raw: str) -> str:
+    """The interval as the source states it, without the unit arithmetic:
+    `UInt64(Self.pingInterval * 1_000_000_000)` → `Self.pingInterval s`, `.seconds(4)` → `4 s`, `500_000_000` → `0.5 s`."""
+    text = raw.strip()
+    unit = re.fullmatch(r"\.(seconds|milliseconds|microseconds|nanoseconds|minutes)\((.+)\)", text)
+    if unit:
+        return f"{unit.group(2)} {dict(seconds='s', milliseconds='ms', microseconds='µs', nanoseconds='ns', minutes='min')[unit.group(1)]}"
+    scaled = re.fullmatch(r"UInt64\((.+?)\s*\*\s*1_000_000_000\)", text)
+    if scaled:
+        return f"{scaled.group(1)} s"
+    if re.fullmatch(r"[0-9_]+", text):
+        return f"{int(text.replace('_', '')) / 1e9:g} s"
+    return text
+
+
+def launch_reach(launch_files: list[dict[str, Any]], files: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """The types alive for the process lifetime, by name: what the App structs construct or call
+    (hop 0: @StateObject types, types constructed in the App body, free functions it calls) and the
+    classes and actors those bodies construct or reach through a `.shared` (hop 1)."""
+    kind_of_type: dict[str, str] = {}
+    file_of_type: dict[str, dict[str, Any]] = {}
+    free_functions: dict[str, tuple[dict[str, Any], int, int]] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        for start, end, kind, name in declaration_blocks(code):
+            if kind == "func":
+                enclosing_type, _ = enclosing_context(code, start)
+                if enclosing_type is None:
+                    free_functions.setdefault(name, (source, start, end))
+            elif kind != "extension":
+                kind_of_type.setdefault(name, kind)
+                file_of_type.setdefault(name, source)
+    reach: dict[str, dict[str, Any]] = {}
+
+    def constructed_in(body: str) -> set[str]:
+        return {m.group(1) for m in re.finditer(r"(?<![\w.])([A-Z][A-Za-z0-9_]*)\s*(?:\(|\.\s*shared\b)", body) if m.group(1) in kind_of_type}
+
+    def called_in(body: str) -> set[str]:
+        return {m.group(1) for m in re.finditer(r"(?<![\w.])([a-z_][A-Za-z0-9_]*)\s*\(", body) if m.group(1) in free_functions}
+
+    hop0_bodies: list[tuple[str, str]] = []  # (via, body)
+    for source in sorted(launch_files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        for match in APP_STRUCT_RE.finditer(code):
+            open_brace = code.index("{", match.start())
+            body = code[open_brace + 1:balanced_block_end(code, open_brace + 1) - 1]
+            app = match.group(1)
+            for name in sorted(constructed_in(body)):
+                reach.setdefault(name, {"hop": 0, "via": app})
+            for name in sorted(called_in(body)):
+                hop0_bodies.append((f"{app}.{name}()", free_functions[name][0]["_text"] and masked_code(free_functions[name][0])[free_functions[name][1]:free_functions[name][2]]))
+    for name, entry in list(reach.items()):
+        source = file_of_type.get(name)
+        if source is None:
+            continue
+        code = masked_code(source)
+        for start, end in type_block_ranges(code, name):
+            hop0_bodies.append((name, code[start:end]))
+    for via, body in hop0_bodies:
+        for name in sorted(constructed_in(body)):
+            if name not in reach and kind_of_type.get(name) in ("class", "actor"):
+                reach[name] = {"hop": 1, "via": via}
+    for name, entry in reach.items():
+        entry["kind"] = kind_of_type.get(name)
+        entry["path"] = file_of_type[name]["path"] if name in file_of_type else None
+    return reach
+
+
+def round_calls(body: str, body_offset: int, code: str, text: str, path: str) -> list[dict[str, Any]]:
+    """The calls of one round of a tick, in source order, each once: what the process does every interval."""
+    calls: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for match in ROUND_CALL_RE.finditer(body):
+        receiver, member = match.group("receiver"), match.group("member")
+        if member is None:
+            if receiver in ROUND_CALL_SKIP_NAMES or receiver in ("if", "while", "for", "switch", "return", "throw", "catch", "defer", "repeat"):
+                continue
+            label = receiver
+        else:
+            if receiver in ROUND_CALL_SKIP_RECEIVERS or member in ROUND_CALL_SKIP_NAMES:
+                continue
+            label = f"{receiver}.{member}"
+        if label in seen:
+            continue
+        seen.add(label)
+        calls.append({"call": label, "path": path, "line": code.count("\n", 0, body_offset + match.start()) + 1})
+        if len(calls) >= 12:
+            break
+    return calls
+
+
+def extract_ticks(reach: dict[str, dict[str, Any]], files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every function of a reached type that starts a repeating Timer or a cancellation-flag loop around a sleep."""
+    ticks: list[dict[str, Any]] = []
+    for source in sorted(files, key=lambda item: item["path"]):
+        if not any(name in reach for name in source["declarations"]) and not any(name in reach for name in source["identifiers"]):
+            continue
+        code = masked_code(source)
+        text = source["_text"]
+        for start, end, kind, function in declaration_blocks(code):
+            if kind != "func":
+                continue
+            owner, _ = enclosing_context(code, start)
+            if owner is None or owner not in reach:
+                continue
+            body = code[start:end]
+            found: dict[str, Any] | None = None
+            for match in STARTER_LOOP_RE.finditer(body):
+                loop_end = balanced_block_end(body, match.end())
+                loop_body = body[match.end():loop_end - 1]
+                sleep = STARTER_SLEEP_RE.search(loop_body)
+                if sleep is None:
+                    continue
+                found = {"form": "loop", "condition": match.group("condition").replace(" ", ""),
+                         "interval": describe_interval(call_argument(loop_body, sleep.end() - 1)),
+                         "offset": start + match.start(), "steps": round_calls(loop_body, start + match.end(), code, text, source["path"])}
+                break
+            if found is None:
+                match = STARTER_TIMER_RE.search(body)
+                if match is not None:
+                    closure = body.find("{", match.end())
+                    closure_body = body[closure + 1:balanced_block_end(body, closure + 1) - 1] if closure != -1 else ""
+                    found = {"form": "timer", "condition": None, "interval": describe_interval(match.group("interval") or match.group("every") or ""),
+                             "offset": start + match.start(), "steps": round_calls(closure_body, start + closure + 1, code, text, source["path"]) if closure != -1 else []}
+            if found is None:
+                continue
+            ticks.append({
+                "owner_type": owner, "function": function, "component": source["component"], "path": source["path"],
+                "line": code.count("\n", 0, found["offset"]) + 1, "form": found["form"], "condition": found["condition"],
+                "interval": found["interval"], "steps": found["steps"], "rule_id": "swift.launch.starter",
+            })
+    ticks.sort(key=lambda item: (item["path"], item["line"]))
+    return ticks
+
+
+def extract_resident_state(reach: dict[str, dict[str, Any]], files: list[dict[str, Any]],
+                           drawn_resources: set[tuple[str, str]]) -> list[dict[str, Any]]:
+    """Every stored collection of a reached type that the type's own body writes; a field already
+    drawn as a resource (a continuation pool) is not drawn twice."""
+    states: list[dict[str, Any]] = []
+    for source in sorted(files, key=lambda item: item["path"]):
+        if not any(name in reach for name in source["declarations"]):
+            continue
+        code = masked_code(source)
+        for match in RESIDENT_PROPERTY_RE.finditer(code):
+            if not (match.group("type") or match.group("init")):
+                continue
+            attrs, tail = match.group("attrs") or "", match.group("tail") or ""
+            if any(attr in attrs for attr in RESIDENT_VIEW_ATTRIBUTES):
+                continue
+            if "{" in tail and "didSet" not in tail and "willSet" not in tail:
+                continue  # a computed property
+            owner, function = enclosing_context(code, match.start())
+            if owner is None or owner not in reach or function is not None:
+                continue
+            name = match.group("name")
+            if (owner, name) in drawn_resources:
+                continue
+            write_re = re.compile(
+                rf"(?<![\w.])(?:self\s*\.\s*)?{re.escape(name)}\s*(?:\[[^\n\]]*\]\s*(?:=(?!=)|\+=|-=)"
+                rf"|\.\s*(?:{'|'.join(RESIDENT_WRITE_METHODS)})\s*\(|=(?!=)|\+=)"
+            )
+            writes: list[dict[str, Any]] = []
+            declaration_line = code.count("\n", 0, match.start()) + 1
+            for start, end in type_block_ranges(code, owner):
+                for write in write_re.finditer(code, start, end):
+                    line = code.count("\n", 0, write.start()) + 1
+                    if line == declaration_line:
+                        continue
+                    _, in_function = enclosing_context(code, write.start())
+                    raw = re.sub(r"^self\s*\.\s*", "", write.group(0).strip())
+                    method = re.search(r"\.\s*([A-Za-z_]\w*)\s*\($", raw)
+                    op = "subscript" if "[" in raw else (method.group(1) if method else "assign")
+                    writes.append({"op": op, "function": in_function, "path": source["path"], "line": line})
+            if not writes:
+                continue
+            states.append({
+                "owner_type": owner, "name": name, "component": source["component"], "path": source["path"], "line": declaration_line,
+                "declared_type": (match.group("type") or match.group("init") or "").strip(), "published": "@Published" in attrs,
+                "writes": writes[:40], "rule_id": "swift.state.resident",
+            })
+    states.sort(key=lambda item: (item["path"], item["line"]))
+    return states
+
+
+def attach_ticks_and_state(interplay: dict[str, Any], files: list[dict[str, Any]], launch_files: list[dict[str, Any]]) -> None:
+    """Draw the ticks and resident state of the launch reach beside their holders."""
+    reach = launch_reach(launch_files, files)
+    nodes = interplay["nodes"]
+    edges = interplay["edges"]
+    existing = {(edge["source"], edge["target"], edge["relation"]) for edge in edges}
+    drawn_resources = {(node["owner_type"], node["label"]) for node in nodes if node["kind"] == "resource" and node.get("owner_type")}
+    ticks = extract_ticks(reach, files)
+    states = extract_resident_state(reach, files, drawn_resources)
+    holder_of: dict[str, dict[str, Any] | None] = {}
+
+    def holder(owner_type: str) -> dict[str, Any] | None:
+        if owner_type not in holder_of:
+            holder_of[owner_type] = next((n for kind in LAUNCH_HOLDER_KINDS for n in nodes if n["kind"] == kind and n["label"] == owner_type), None)
+        return holder_of[owner_type]
+
+    def add_edge(source: str, target: str, edge_class: str, relation: str) -> None:
+        if (source, target, relation) not in existing:
+            existing.add((source, target, relation))
+            edges.append({"source": source, "target": target, "class": edge_class, "relation": relation})
+
+    state_nodes: list[dict[str, Any]] = []
+    for state in states:
+        held = holder(state["owner_type"])
+        node = {
+            "id": f"state:{state['component'] or 'unassigned'}:{state['owner_type']}.{state['name']}", "kind": "state",
+            "label": f"{state['owner_type']}.{state['name']}", "component": state["component"], "owner_type": state["owner_type"],
+            "path": state["path"], "line": state["line"], "page": held.get("page") if held else LAUNCH_PAGE_ID,
+            "declared_type": state["declared_type"], "published": state["published"], "writes": state["writes"], "rule_id": state["rule_id"],
+            "reach": reach[state["owner_type"]],
+        }
+        nodes.append(node)
+        state_nodes.append(node)
+        if held is not None:
+            add_edge(held["id"], node["id"], "structure", "keeps")
+    for tick in ticks:
+        held = holder(tick["owner_type"])
+        node = {
+            "id": f"tick:{tick['component'] or 'unassigned'}:{tick['owner_type']}.{tick['function']}", "kind": "tick",
+            "label": f"{tick['owner_type']}.{tick['function']}", "component": tick["component"], "owner_type": tick["owner_type"],
+            "path": tick["path"], "line": tick["line"], "page": held.get("page") if held else LAUNCH_PAGE_ID,
+            "form": tick["form"], "condition": tick["condition"], "interval": tick["interval"], "steps": tick["steps"], "rule_id": tick["rule_id"],
+            "reach": reach[tick["owner_type"]],
+        }
+        nodes.append(node)
+        if held is not None:
+            add_edge(held["id"], node["id"], "lifecycle", "starts")
+        # The round touches the state its calls name: the loop body itself, and the bodies of
+        # the same-type functions it calls, one level down.
+        source = next((item for item in files if item["path"] == tick["path"]), None)
+        if source is None:
+            continue
+        code = masked_code(source)
+        called = {step["call"].split(".")[-1] for step in tick["steps"]}
+        touched_text = ""
+        for start, end, kind, name in declaration_blocks(code):
+            owner, _ = enclosing_context(code, start)
+            if kind == "func" and owner == tick["owner_type"] and (name == tick["function"] or name in called):
+                touched_text += code[start:end]
+        for state_node in state_nodes:
+            if state_node["owner_type"] == tick["owner_type"] and re.search(rf"\b{re.escape(state_node['label'].split('.')[-1])}\b", touched_text):
+                add_edge(node["id"], state_node["id"], "lifecycle", "touches")
+    interplay["launch"]["reach"] = {name: reach[name] for name in sorted(reach)}
+    interplay["launch"]["ticks"] = len(ticks)
+    interplay["launch"]["resident_state"] = len(states)
+    edges.sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+    nodes.sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
+
+
+# ---------------------------------------------------------------------------
 # State machines: an object's lifecycle as the source declares it.
 #
 # A machine is a stored property typed as an enum with two or more cases that the
@@ -3347,6 +3902,10 @@ def attach_state_machines(interplay: dict[str, Any], files: list[dict[str, Any]]
 # reports what load_flows found.
 # ---------------------------------------------------------------------------
 SEMANTIC_SUMMARY_MAX = 400
+# The purpose says why the construction exists: the need it serves, for whom, what
+# it unlocks and what stops working without it. Longer than the summary because it
+# must name an outcome, not a mechanism, and say when it is inferred rather than documented.
+SEMANTIC_PURPOSE_MAX = 520
 SEMANTIC_NOTE_MAX = 120
 STORE_MEDIA = ("json_file", "plist_file", "sqlite", "user_defaults", "keychain", "in_memory", "mixed")
 # The mechanical persistence a medium must be compatible with.
@@ -3410,24 +3969,20 @@ CONSTRUCT_SCHEMAS: dict[str, dict[str, tuple[Any, ...]]] = {
         "error_mapping": ("str", 160),
     },
     "endpoint": {
-        "purpose": ("str", 200),
         "request_shape": ("str", 120),
         "response_shape": ("str", 120),
         "idempotent": ("bool",),
         "streams": ("bool",),
     },
     "page": {
-        "purpose": ("str", 200),
         "entry_triggers": ("triggers",),
         "owns_state_in": ("page_nodes",),
     },
     "surface": {
-        "purpose": ("str", 200),
         "state": ("list_str", 80),
         "reacts_to": ("list_str", 60),
     },
     "seam": {
-        "purpose": ("str", 200),
         "conformers": ("keys", {"conforms", "implements"}, "in"),
     },
 }
@@ -3520,6 +4075,36 @@ def cited_hash(paths: set[str], text_by_path: dict[str, str]) -> str:
     return digest.hexdigest()
 
 
+def cited_window_hash(sites: list[dict[str, Any]], text_by_path: dict[str, str]) -> str:
+    """The hash of the FLOW_CITE_RADIUS lines around every cited line: the provenance of
+    prose written from those lines, insensitive to edits elsewhere in the file."""
+    digest = hashlib.sha256()
+    for site in sorted(sites, key=lambda item: (item["path"], item["line"])):
+        lines = text_by_path.get(site["path"], "").splitlines()
+        lo, hi = max(1, site["line"] - FLOW_CITE_RADIUS), site["line"] + FLOW_CITE_RADIUS
+        digest.update(f"{site['path']}:{site['line']}".encode("utf-8"))
+        digest.update(b"\0")
+        digest.update("\n".join(lines[lo - 1:hi]).encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def flow_allowed_paths(steps: list[tuple[str, str]], page_id: str, interplay: dict[str, Any], files: list[dict[str, Any]]) -> set[str]:
+    """The files a flow may cite: those of the nodes its steps touch, the files of any page it
+    names, and the views holding the journey's triggers (where a flow starts)."""
+    by_key = {node["history_key"]: node for node in interplay["nodes"] if node["kind"] != "operation"}
+    allowed: set[str] = set()
+    for source, target in steps:
+        for key in (source, target):
+            node = by_key.get(key)
+            if node and node.get("path"):
+                allowed.add(node["path"])
+            if key.startswith("page:"):
+                allowed |= page_files(key.split(":", 1)[1], interplay, files)
+    allowed |= {t["path"] for t in interplay.get("triggers", []) if t.get("page") == page_id and t.get("path")}
+    return allowed
+
+
 def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]],
                               externals: dict[str, Any] | None = None) -> dict[str, Any]:
     """Validate one record against the model; returns the normalised record.
@@ -3559,6 +4144,11 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
         raise ArchitectureError(f"{owner} needs a summary")
     if len(summary) > SEMANTIC_SUMMARY_MAX:
         raise ArchitectureError(f"{owner} summary exceeds {SEMANTIC_SUMMARY_MAX} characters")
+    purpose = raw.get("purpose")
+    if not isinstance(purpose, str) or not purpose.strip():
+        raise ArchitectureError(f"{owner} needs a purpose: why the construction exists, not what it does")
+    if len(purpose) > SEMANTIC_PURPOSE_MAX:
+        raise ArchitectureError(f"{owner} purpose exceeds {SEMANTIC_PURPOSE_MAX} characters")
     schema = CONSTRUCT_SCHEMAS[expected_kind]
     body: dict[str, Any] = {}
     fields = raw.get("fields")
@@ -3590,7 +4180,7 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
     current_hash = cited_hash(cited, text_by_path)
     recorded_hash = raw.get("cited_hash")
     return {
-        "key": key, "kind": expected_kind, "summary": summary.strip(), "fields": body,
+        "key": key, "kind": expected_kind, "summary": summary.strip(), "purpose": purpose.strip(), "fields": body,
         "open_questions": open_questions, "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
         "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),
@@ -3718,6 +4308,11 @@ def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], exte
 
 FLOW_ID_RE = re.compile(r"^[a-z][a-z0-9-]{2,60}$")
 FLOW_MIN_STEPS, FLOW_MAX_STEPS = 3, 12
+# A step's detail is the prose for one hop, written from the source excerpts the
+# agent was shown; its cites are the lines that prose came from. The lines around
+# every citation are hashed, so the flow goes stale (not broken) when they change.
+FLOW_DETAIL_MAX = 900
+FLOW_CITE_RADIUS = 3
 # A flow belongs to one user journey: starting the app, doing a chat turn, or
 # entering and using one navigation page. The site orders and groups by this.
 FLOW_JOURNEYS = ("launch", "chat_turn", "page")
@@ -3763,12 +4358,18 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
         note = step.get("note", "")
         if not isinstance(note, str) or len(note) > SEMANTIC_NOTE_MAX:
             raise ArchitectureError(f"{owner} step {index} note must be a string of at most {SEMANTIC_NOTE_MAX} characters")
+        detail = step.get("detail", "")
+        if not isinstance(detail, str) or len(detail) > FLOW_DETAIL_MAX:
+            raise ArchitectureError(f"{owner} step {index} detail must be a string of at most {FLOW_DETAIL_MAX} characters")
+        cites = step.get("cites", [])
+        if not isinstance(cites, list) or not all(isinstance(c, dict) for c in cites):
+            raise ArchitectureError(f"{owner} step {index} cites must be a list of path and line objects")
         if index > 1 and source not in visited:
             raise ArchitectureError(f"{owner} step {index} starts at {source!r}, which no earlier step reached")
         if (source, target, relation) not in edges:
             problems.append(f"step {index}: no {relation} edge from {source} to {target} on the map")
         visited.update({source, target})
-        normalized_steps.append({"from": source, "to": target, "relation": relation, "note": note.strip()})
+        normalized_steps.append({"from": source, "to": target, "relation": relation, "note": note.strip(), "detail": detail.strip(), "cites": cites})
     trigger_id = raw.get("trigger")
     if trigger_id is not None:
         trigger = triggers.get(trigger_id)
@@ -3796,23 +4397,26 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
     interaction = raw.get("interaction", "")
     if not isinstance(interaction, str) or len(interaction) > 80:
         raise ArchitectureError(f"{owner} interaction must be a string of at most 80 characters")
-    allowed: set[str] = set()
-    for step in normalized_steps:
-        for key in (step["from"], step["to"]):
-            node = by_key.get(key)
-            if node and node.get("path"):
-                allowed.add(node["path"])
-            if key.startswith("page:"):
-                allowed |= page_files(key.split(":", 1)[1], interplay, files)
-    # The views that hold the journey's triggers are where a flow starts; they may be cited too.
-    allowed |= {t["path"] for t in triggers.values() if t.get("page") == page_id and t.get("path")}
+    allowed = flow_allowed_paths([(step["from"], step["to"]) for step in normalized_steps], page_id, interplay, files)
     line_counts = {item["path"]: item["line_count"] for item in files}
-    evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner)
+    # Each step cites the lines its detail was written from; the flow's evidence is their union
+    # plus any flow-level citation, and every one must be a line of a file this path may cite.
+    for index, step in enumerate(normalized_steps, start=1):
+        step["cites"] = validate_evidence_sites(step["cites"], allowed, line_counts, f"{owner} step {index}") if step["cites"] else []
+    raw_evidence = raw.get("evidence") if isinstance(raw.get("evidence"), list) else []
+    evidence = validate_evidence_sites(raw_evidence + [c for step in normalized_steps for c in step["cites"]], allowed, line_counts, owner)
+    # The same provenance a construct record carries, at line rather than file grain: the lines
+    # around every citation are hashed, and the flow is stale (not broken) once one changes.
+    text_by_path = {item["path"]: item["_text"] for item in files if "_text" in item}
+    current_hash = cited_window_hash(evidence, text_by_path)
+    recorded_hash = raw.get("cited_hash")
     return {
         "id": flow_id, "title": title.strip(), "summary": summary.strip(), "trigger": trigger_id,
         "journey": journey, "page": page_id, "interaction": interaction.strip(),
         "steps": normalized_steps, "outcome": outcome.strip(), "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
+        "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),
+        "stale": bool(recorded_hash is not None and recorded_hash != current_hash),
         "status": "broken" if problems else "traceable", "problems": problems, "authority": "synthesized",
     }
 
@@ -3842,6 +4446,7 @@ def load_flows(interplay: dict[str, Any], files: list[dict[str, Any]]) -> list[d
         flows.append(flow)
     page_order = {page["id"]: index for index, page in enumerate(interplay.get("pages", []))}
     flows.sort(key=lambda item: (FLOW_JOURNEYS.index(item["journey"]), page_order.get(item["page"], 99), item["id"]))
+    interplay["flow_counts"] = {"traceable": sum(1 for f in flows if f["status"] == "traceable"), "stale": sum(1 for f in flows if f["stale"])}
     by_key = {node["history_key"]: node for node in interplay["nodes"]}
     for flow in flows:
         for step in flow["steps"]:
@@ -4697,7 +5302,7 @@ def build_ci_model(config: dict[str, Any], interplay: dict[str, Any]) -> dict[st
     lint_rules = read_lint_rules(ROOT / str(architectural_config["lint_config"]))
     tests = read_architecture_tests(ROOT / str(architectural_config["tests"]))
     invariants = [
-        {"id": item["id"], "kind": item["kind"], "status": item["status"], "why": item.get("why", "")}
+        {"id": item["id"], "kind": item["kind"], "layer": item["layer"], "status": item["status"], "why": item.get("why", "")}
         for item in interplay.get("invariants", [])
     ]
 
@@ -4902,8 +5507,8 @@ def provenance_family(rule: str) -> str:
         return "store"
     if rule.startswith("swift.boundary.") or rule == "map.external":
         return "boundary"
-    if rule.startswith(("swift.task.", "swift.lifecycle.", "swift.resource.", "swift.state.")) or rule in (
-        "map.operation", "map.resource", "map.section", "map.machine"
+    if rule.startswith(("swift.task.", "swift.lifecycle.", "swift.resource.", "swift.state.", "swift.launch.")) or rule in (
+        "map.operation", "map.resource", "map.section", "map.machine", "map.tick", "map.state"
     ):
         return "behaviour"
     return "wiring"
@@ -5175,10 +5780,12 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     stores = build_stores_model(files)
     attach_stores_to_interplay(interplay, stores, files)
     attach_externals_to_interplay(interplay, externals, stores)
+    attach_injected_methods(interplay, files, externals)
     attach_triggers_to_interplay(interplay, files)
     page_of_type, pages, page_ties = assign_pages(files, config)
     attach_pages_to_interplay(interplay, page_of_type, pages, page_ties, config, files)
     attach_launch_to_interplay(interplay, extract_launch_constructions(launch_files), files, config)
+    attach_ticks_and_state(interplay, files, launch_files)
     attach_state_machines(interplay, files)
     assign_history_keys(interplay)
     # Records may cite the launch roots too: they are part of the analysed tree.

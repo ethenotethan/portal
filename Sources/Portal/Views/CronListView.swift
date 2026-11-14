@@ -104,6 +104,7 @@ struct CronListView: View {
             cronViewModel.setGatewayClient(gatewayClientWrapper.client)
             await cronViewModel.refreshJobs()
         }
+        .cronSurfaceVisible()
     }
 
     /// One job row, identical in flat and grouped modes so navigation, context

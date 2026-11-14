@@ -165,6 +165,26 @@ internal final class CronListViewModel {
         }
     }
 
+    /// One job's definition history, or the fact that this gateway has none to
+    /// give. An older harness answers the `revisions` action with "unknown cron
+    /// action" (4016); that is a different state from an empty history and the
+    /// card says so, rather than showing a job that was apparently never edited.
+    internal func loadRevisions(id: String, limit: Int = 50) async -> CronJobRevisionsResult {
+        guard let client = gatewayClient else { return .failed }
+        do {
+            return .loaded(try await client.cronJobRevisions(id: id, limit: limit))
+        } catch let error as GatewayError {
+            if case .rpcError(let rpc) = error, rpc.code == GatewayClient.unknownCronActionCode {
+                return .unsupported
+            }
+            log.error("Failed to fetch revisions for job \(id): \(error)")
+            return .failed
+        } catch {
+            log.error("Failed to fetch revisions for job \(id): \(error)")
+            return .failed
+        }
+    }
+
     func updatePrompt(id: String, newPrompt: String) async {
         guard let client = gatewayClient else { return }
         do {

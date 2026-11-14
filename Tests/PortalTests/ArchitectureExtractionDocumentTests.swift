@@ -89,6 +89,7 @@ internal struct ArchitectureExtractionDocumentTests {
         #expect(document.families["store"] == "Store rules")
         #expect(document.files.count == 4)
         let store = try #require(document.fileByPath["Sources/App/Models/ActivityStore.swift"])
+        #expect(store.id == store.path)
         #expect(store.component == "domain-models")
         #expect(store.fileName == "ActivityStore.swift")
         #expect(store.directory == "Sources/App/Models")

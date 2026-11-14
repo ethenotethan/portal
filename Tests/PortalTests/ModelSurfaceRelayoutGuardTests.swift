@@ -86,6 +86,49 @@ internal struct ModelSurfaceRelayoutGuardTests {
         )
     }
 
+    @Test("Kanban cards and action rows host no per-item Menu")
+    internal func perItemControlsAreNotMenus() throws {
+        // A SwiftUI `Menu` is an NSPopUpButton on macOS: a live AppKit view
+        // whose items and accessibility text are re-synced in updateNSView on
+        // every environment change reaching it. A two-board model artifact
+        // hosted ~100 of them in cards plus one per triage row, and a sample
+        // of the beachballing app spent 63% of main-thread time in that
+        // re-sync. Cards and rows carry a plain Button; the surface that owns
+        // them hosts ONE picker (`artifactChoicePicker`).
+        for path in ["Views/Blocks/KanbanBlockView.swift", "Views/Blocks/DatasetBlockView.swift"] {
+            let source = try Self.sourceWithoutComments(path)
+            #expect(
+                !source.contains("Menu {") && !source.contains(".menuStyle("),
+                """
+                \(path) must not build a SwiftUI Menu per card/row. Use a Button \
+                that sets an ArtifactChoicePrompt and let the board/table host \
+                the single picker via .artifactChoicePicker(_:).
+                """
+            )
+        }
+        let kanban = try Self.sourceWithoutComments("Views/Blocks/KanbanBlockView.swift")
+        #expect(kanban.contains(".artifactChoicePicker($movePrompt)"), "the board must host the one move picker")
+    }
+
+    @Test("The model renderer chain is equatable on its inputs")
+    internal func modelChainIsEquatable() throws {
+        // A host that re-evaluates for reasons of its own (another artifact
+        // changed, an environment closure was re-created) must stop at the
+        // block for an unchanged model rather than re-render 15 stacked views.
+        let renderer = try Self.sourceWithoutComments("Views/ArtifactKindRenderer.swift")
+        #expect(renderer.contains("ModelBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)\n                .equatable()"),
+                "ArtifactKindRenderer must apply .equatable() to the model block")
+        let block = try Self.sourceWithoutComments("Views/Blocks/ModelBlockView.swift")
+        #expect(block.contains("struct ModelBlockView: View, Equatable"))
+        #expect(block.contains("struct ModelCard: View, Equatable"))
+        #expect(block.contains("ModelCard(spec: spec, sourceJSON: json, actionableArtifactID: actionableArtifactID)\n                .equatable()"),
+                "ModelBlockView must apply .equatable() to its card")
+        let canvas = try Self.sourceWithoutComments("Views/ArtifactCanvasView.swift")
+        #expect(canvas.contains("ArtifactDetailView(artifact: artifact)\n                    .equatable()"),
+                "the canvas list detail must be equatable on the selected record")
+        #expect(!canvas.contains("sortedArtifacts.map(\\.id)"), "observe the store's cached sortedArtifactIDs, not a per-body map")
+    }
+
     @Test("Entity table rows index a once-sorted array")
     internal func entityTableSortsOncePerBody() throws {
         let source = try Self.sourceWithoutComments("Views/Blocks/ModelBlockView.swift")

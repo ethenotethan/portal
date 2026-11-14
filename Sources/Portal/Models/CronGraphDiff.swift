@@ -194,6 +194,8 @@ extension CronGraphChange.EdgeStatement {
             return "\(targetLabel) \(now) reads \(sourceLabel)"
         case "writes":
             return "\(sourceLabel) \(now) writes \(targetLabel)"
+        case "maintains":
+            return "\(sourceLabel) \(now) maintains \(targetLabel)"
         case "feeds":
             return "\(sourceLabel) \(now) feeds \(targetLabel)"
         default:

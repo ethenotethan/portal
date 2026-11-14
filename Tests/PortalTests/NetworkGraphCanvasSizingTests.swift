@@ -193,6 +193,30 @@ internal struct NetworkGraphCanvasSizingTests {
         #expect(!NetworkGraphVisualSemantics.appearance(for: spec.edges[3]).showsArrow)
     }
 
+    @Test("legend rows require complete semantics and collapse repeated roles")
+    internal func legendsDropIncompleteAndDuplicateRoles() throws {
+        let spec = try #require(NetworkGraphSpec.parse("""
+        {"nodes": [
+           {"id": "worker-1", "kind": "service", "type": "agent"},
+           {"id": "worker-2", "kind": "service", "type": "agent"},
+           {"id": "kind-only", "kind": "artifact"},
+           {"id": "type-only", "type": "file"}
+         ],
+         "edges": [
+           {"from": "worker-1", "to": "kind-only", "type": "writes", "class": "dataflow"},
+           {"from": "worker-2", "to": "type-only", "type": "writes", "class": "dataflow"},
+           {"from": "worker-1", "to": "worker-2", "class": "control"}
+         ]}
+        """))
+
+        #expect(spec.nodeLegend == [
+            NetworkGraphSpec.NodeLegendEntry(kind: "service", type: "agent"),
+        ])
+        #expect(spec.edgeLegend == [
+            NetworkGraphSpec.EdgeLegendEntry(type: "writes", edgeClass: "dataflow"),
+        ])
+    }
+
     @Test("legacy type-only edges retain their visual semantics")
     internal func typeOnlyEdgeSemantics() throws {
         let spec = try #require(NetworkGraphSpec.parse("""

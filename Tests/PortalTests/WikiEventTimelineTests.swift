@@ -78,10 +78,10 @@ private enum Fixtures {
 // MARK: - /wiki/timeline decoding
 
 @Suite("Wiki Event Timeline Decoding")
-struct WikiEventTimelineDecodingTests {
+internal struct WikiEventTimelineDecodingTests {
 
     @Test("decodes envelope: window, count, per-kind map, all events")
-    func decodesEnvelope() throws {
+    internal func decodesEnvelope() throws {
         let timeline = WikiTimelineDecoding.mapEventTimeline(try Fixtures.object(Fixtures.eventTimelineJSON))
         #expect(timeline.eventCount == 3)
         #expect(timeline.events.count == 3)
@@ -92,7 +92,7 @@ struct WikiEventTimelineDecodingTests {
     }
 
     @Test("plain event: kind, label, url, both timestamps, no directive fields")
-    func decodesPlainEvent() throws {
+    internal func decodesPlainEvent() throws {
         let timeline = WikiTimelineDecoding.mapEventTimeline(try Fixtures.object(Fixtures.eventTimelineJSON))
         let pr = try #require(timeline.events.first { $0.sourceKey == "github:pr:1234" })
         #expect(pr.kind == .githubPR)
@@ -108,7 +108,7 @@ struct WikiEventTimelineDecodingTests {
     }
 
     @Test("directive event carries actor, quote, target pages, revision ids")
-    func decodesDirectiveEnrichment() throws {
+    internal func decodesDirectiveEnrichment() throws {
         let timeline = WikiTimelineDecoding.mapEventTimeline(try Fixtures.object(Fixtures.eventTimelineJSON))
         let directive = try #require(timeline.events.first { $0.isDirective })
         #expect(directive.kind == .directive)
@@ -121,7 +121,7 @@ struct WikiEventTimelineDecodingTests {
     }
 
     @Test("estimated-time event: empty occurred_at → nil, falls back to ingest time")
-    func decodesEstimatedTimeEvent() throws {
+    internal func decodesEstimatedTimeEvent() throws {
         let timeline = WikiTimelineDecoding.mapEventTimeline(try Fixtures.object(Fixtures.eventTimelineJSON))
         let meeting = try #require(timeline.events.first { $0.sourceKey == "meeting:2026-07-01:standup" })
         #expect(meeting.occurredAt == nil)          // "" serializes null
@@ -130,7 +130,7 @@ struct WikiEventTimelineDecodingTests {
     }
 
     @Test("unknown kind falls back to .other but keeps the wire string")
-    func unknownKindFallsBack() throws {
+    internal func unknownKindFallsBack() throws {
         let timeline = WikiTimelineDecoding.mapEventTimeline(try Fixtures.object(Fixtures.eventTimelineJSON))
         let meeting = try #require(timeline.events.first { $0.kindRaw == "meeting_notes" })
         #expect(meeting.kind == .other)
@@ -138,7 +138,7 @@ struct WikiEventTimelineDecodingTests {
     }
 
     @Test("event without source_key is dropped; empty payload decodes empty")
-    func toleratesMalformedRows() {
+    internal func toleratesMalformedRows() {
         let timeline = WikiTimelineDecoding.mapEventTimeline([
             "events": [["kind": "slack"], ["source_key": "slack:thread:1", "kind": "slack"]],
         ])
@@ -206,10 +206,10 @@ internal struct WikiEventTimelineWindowCountingTests {
 
 @Suite("Wiki Events Page Navigation")
 @MainActor
-struct WikiEventsPageNavigationTests {
+internal struct WikiEventsPageNavigationTests {
 
     @Test("Opening a page from the events surface returns to the graph/reader")
-    func openPageLeavesEvents() {
+    internal func openPageLeavesEvents() {
         let vm = WikiGraphViewModel()
         vm.showEventsPage = true
 
@@ -223,7 +223,7 @@ struct WikiEventsPageNavigationTests {
     }
 
     @Test("Switching wikis clears the events surface with the rest of the selection")
-    func wikiSwitchClearsEventsPage() {
+    internal func wikiSwitchClearsEventsPage() {
         let vm = WikiGraphViewModel()
         vm.prepareForLoad(wiki: "a")
         vm.showEventsPage = true
@@ -238,7 +238,7 @@ struct WikiEventsPageNavigationTests {
 
 @Suite("Wiki Event Timeline Gating")
 @MainActor
-struct WikiEventTimelineGatingTests {
+internal struct WikiEventTimelineGatingTests {
 
     @Test("the harness gateway provides the event log")
     internal func gatewayConformsToEventLog() {

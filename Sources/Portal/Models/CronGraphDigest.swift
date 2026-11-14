@@ -59,7 +59,10 @@ extension CronGraphDigest {
     /// same commitment in Python (`cron/changesets.py`, `_node_row`) and the two
     /// must agree byte-for-byte, so the node row grows only as a coordinated
     /// change on both sides. Until then, declaring code is metadata on a
-    /// revision, not a revision.
+    /// revision, not a revision. A living artifact's `maintainers` list is
+    /// configuration too, but it enters the commitment the way the gateway
+    /// agreed it would — as the `maintains` edges drawn from it — rather than
+    /// as a node field, so the row stays byte-identical on both sides.
     ///
     /// `lastStatus` and `health` are deliberately **out**, along with anything
     /// else that moves on its own. The graph is re-fetched every 10 seconds for
@@ -103,9 +106,12 @@ extension CronGraphDigest {
     /// A revision snapshot has to satisfy `over(revision.graph) == revision.digest`
     /// forever, and a stored graph that still carried `lastStatus` / `health`
     /// would break that the moment those fields drift, leaving the log holding
-    /// content its own commitment disowns. Stripping at write time also keeps
-    /// liveness out of a diff between two revisions, where "latency 41ms → 43ms"
-    /// is noise dressed as a change.
+    /// content its own commitment disowns. A living artifact's `rev` /
+    /// `updatedAt` / `updatedBy` are the same kind of drift — the last write,
+    /// not the wiring — and are cleared here for the same reason; its identity
+    /// (`artifactID`, `artifactKind`) and declared `maintainers` are kept.
+    /// Stripping at write time also keeps liveness out of a diff between two
+    /// revisions, where "latency 41ms → 43ms" is noise dressed as a change.
     internal static func configuration(of graph: CronGraph) -> CronGraph {
         CronGraph(
             nodes: graph.nodes.map { node in
@@ -114,7 +120,10 @@ extension CronGraphDigest {
                     description: node.description, schedule: node.schedule,
                     enabled: node.enabled, usesLLM: node.usesLLM,
                     lastStatus: nil, deliver: node.deliver, health: nil,
-                    sourceFiles: node.sourceFiles
+                    sourceFiles: node.sourceFiles,
+                    artifactID: node.artifactID, artifactKind: node.artifactKind,
+                    rev: nil, updatedAt: nil, updatedBy: nil,
+                    maintainers: node.maintainers
                 )
             },
             edges: graph.edges

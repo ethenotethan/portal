@@ -1,35 +1,36 @@
 name: Pages
 
+# The architecture model (architecture/model/model.json), the observatory's
+# data (architecture/site/data.js) and the product site's hero stats are
+# COMPILED OUTPUTS of the tree. They are regenerated here, on main, after every
+# merge — never inside a pull request. Pull requests that carried them
+# conflicted with each other on every merge (each merge rewrote all three), so
+# the guard step below fails a PR that commits them. On main the `validate` job
+# compiles them, and if they moved, commits them back (`[skip ci]`, so the
+# bookkeeping commit runs no macOS jobs); `deploy` also compiles before
+# assembling, so the published site is current even before that commit lands.
+
 on:
   push:
     branches: [main]
-    paths:
-      - site/**
-      - architecture/**
-      - scripts/build_architecture.py
-      - scripts/build_architecture_history.py
-      - scripts/test_architecture.py
-      # The CI gates view is compiled from these; a change here without
-      # `make architecture` leaves the committed model stale.
-      - .github/workflows/**
-      - .swiftlint.yml
-      - Tests/PortalTests/ArchitectureTests.swift
-      - metrics-baseline.json
-      - perf-baseline.json
-      - .swiftlint-baseline
-      - .gitleaksignore
   pull_request:
     branches: [main]
     paths:
+      - Sources/**
+      - Tests/**
+      # Covered by Tests/** above; listed because the compiler's own test pins
+      # this path as a trigger (scripts/test_architecture.py).
+      - Tests/PortalTests/ArchitectureTests.swift
       - site/**
       - architecture/**
       - scripts/build_architecture.py
       - scripts/build_architecture_history.py
       - scripts/architecture_agent.py
       - scripts/test_architecture.py
+      - scripts/check_site_assets.py
+      - scripts/check-contract-pins.py
       - .github/workflows/**
       - .swiftlint.yml
-      - Tests/PortalTests/ArchitectureTests.swift
       - metrics-baseline.json
       - perf-baseline.json
       - .swiftlint-baseline
@@ -47,9 +48,45 @@ jobs:
   validate:
     name: Validate model and site
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # commit regenerated outputs back to main
+      pull-requests: write   # fallback: open the sync PR when the ruleset refuses a push
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      # A pull request must not carry the compiled outputs: they are produced on
+      # main after the merge, and a PR that commits them conflicts with every
+      # other PR the moment one merges. Restore them from main and re-push.
+      - name: Guard against committed generated outputs
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          git fetch -q origin "$BASE_REF"
+          BASE="origin/$BASE_REF"
+          CHANGED=$(git diff --name-only "$BASE...HEAD" -- architecture/model/model.json architecture/site/data.js)
+          if [ -n "$CHANGED" ]; then
+            echo "::error::This PR commits compiled architecture outputs, which are regenerated on main after merge:"
+            echo "$CHANGED" | sed 's/^/  /'
+            echo "Restore them and re-push:  git checkout $BASE -- architecture/model/model.json architecture/site/data.js && git commit -m 'drop generated outputs'"
+            exit 1
+          fi
+          if git diff "$BASE...HEAD" -- site/index.html | grep -qE '^[-+].*<strong data-count="[0-9]+">[0-9,]+</strong><span>(Swift files|lines)</span>'; then
+            echo "::error::This PR edits the hero file/line counts in site/index.html; they are synced on main from the compiled model (scripts/check_site_assets.py --sync). Restore those lines from $BASE."
+            exit 1
+          fi
+          echo "no generated outputs committed"
+
+      # Compile from THIS tree. On main this is the source of truth that gets
+      # committed back below; on a PR it proves the compiler still runs clean
+      # against the change and lets the checks below see current data.
+      - name: Compile architecture model and site data
+        run: |
+          python3 scripts/build_architecture.py
+          python3 scripts/check_site_assets.py --sync
+
+      # Compiling is deterministic: a second pass must find nothing to change.
       - name: Verify generated architecture is current
         run: python3 scripts/build_architecture.py --check
 
@@ -68,6 +105,42 @@ jobs:
       # under site/img/ would otherwise 404 silently on a live page.
       - name: Check product site asset references
         run: python3 scripts/check_site_assets.py
+
+      # On main: record the compiled outputs in git so the app, the gateway and
+      # the Swift tests that read model.json see the current model. `[skip ci]`
+      # keeps the bookkeeping commit from spending macOS minutes; the deploy
+      # below already publishes this exact tree. If the branch ruleset refuses
+      # the push (main requires pull requests and GitHub Actions is not a bypass
+      # actor), open or refresh a sync PR instead so nothing is lost.
+      - name: Commit regenerated outputs to main
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILES="architecture/model/model.json architecture/site/data.js site/index.html"
+          if git diff --quiet -- $FILES; then
+            echo "generated outputs already current on main"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add $FILES
+          git commit -q -m "architecture: regenerate for ${GITHUB_SHA::7} [skip ci]" \
+            -m "Compiled outputs of the tree at ${GITHUB_SHA}: architecture model, observatory data, site hero stats. Produced by the Pages workflow; never edited by hand or in a pull request."
+          if git push origin HEAD:main; then
+            echo "regenerated outputs committed to main"
+            exit 0
+          fi
+          echo "::warning::direct push to main was refused (branch ruleset); opening the architecture-sync PR instead. Add GitHub Actions as a bypass actor on the main ruleset to make this fully automatic."
+          git push -f origin HEAD:refs/heads/automation/architecture-sync
+          if gh pr view automation/architecture-sync --json number -q .number >/dev/null 2>&1; then
+            echo "sync PR refreshed"
+          else
+            gh pr create --base main --head automation/architecture-sync \
+              --title "architecture: regenerate for ${GITHUB_SHA::7}" \
+              --body "Compiled outputs for main at ${GITHUB_SHA}. Opened by the Pages workflow because the branch ruleset refused a direct push. Merge as-is; it is regenerated from main on every merge."
+          fi
 
       # Assemble the deployed tree: the product site at the Pages root, the
       # observatory nested under /architecture/. Both jobs build it the same
@@ -100,6 +173,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # the history walk reads every first-parent commit
+
+      # The checkout is the merge commit, whose committed outputs may predate
+      # the regeneration above; compile again so the published tree is current.
+      - name: Compile architecture model and site data
+        run: |
+          python3 scripts/build_architecture.py
+          python3 scripts/check_site_assets.py --sync
 
       # The System map at every commit (architecture/site/history.js, not in git).
       # Restored from the cache when a previous deploy built it with the same

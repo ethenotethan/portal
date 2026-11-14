@@ -323,10 +323,11 @@ enum NetworkGraphLayout {
         // Normalize into a padded box; scale down (never up) to fit width —
         // and the fit height too, when the host constrains it.
         let pad = 56.0
-        guard let minX = xs.min(), let maxX = xs.max(),
-              let minY = ys.min(), let maxY = ys.max() else {
-            return Result(placed: [], size: CGSize(width: width, height: fitHeight ?? 180), positions: [:])
-        }
+        // `n > 1` above guarantees both coordinate arrays are non-empty.
+        let minX = xs.reduce(.infinity, Swift.min)
+        let maxX = xs.reduce(-.infinity, Swift.max)
+        let minY = ys.reduce(.infinity, Swift.min)
+        let maxY = ys.reduce(-.infinity, Swift.max)
         let rawW = max(1, maxX - minX)
         let rawH = max(1, maxY - minY)
         var scale = min(1, (Double(width) - pad * 2) / rawW)

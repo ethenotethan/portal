@@ -40,6 +40,9 @@ internal struct CronJobsView: View {
     /// expand (`cron.manage` action "history"), keyed by job id. These carry
     /// true durations the passively-observed store records lack.
     @State private var ledgers: [String: [CronRunRecord]] = [:]
+    /// Definition histories fetched per expanded job (`cron.manage` action
+    /// "revisions"); absent while the request is in flight.
+    @State private var revisions: [String: CronJobRevisionsResult] = [:]
 
     internal init(
         vm: CronListViewModel,
@@ -128,7 +131,8 @@ internal struct CronJobsView: View {
             siblingJobs: vm.jobs,
             showsCategoryPath: !underCategory,
             dataflow: vm.dataflow(for: job.id),
-            onSelectEndpoint: onSelectEndpoint
+            onSelectEndpoint: onSelectEndpoint,
+            revisions: revisions[job.id]
         )
     }
 
@@ -162,5 +166,9 @@ internal struct CronJobsView: View {
             let runs = await vm.loadHistory(id: job.id)
             if !runs.isEmpty { ledgers[job.id] = runs }
         }
+        // Re-read the definition history on every open: an edit made from this
+        // very card is a new revision, and a cached page would hide it.
+        revisions[job.id] = nil
+        Task { revisions[job.id] = await vm.loadRevisions(id: job.id) }
     }
 }

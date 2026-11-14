@@ -23,10 +23,15 @@ internal final class ArchitectureSystemMapModel: ObservableObject {
     internal static let minimumZoom: CGFloat = 0.25
     internal static let maximumZoom: CGFloat = 4
 
+    /// Node, edge and structure counts for this document, computed once: the
+    /// document never changes for the life of the model.
+    internal let stats: GraphStats
+
     internal init(document: ArchitectureSystemMapDocument) {
         self.document = document
         tree = ArchitectureHullTree.build(from: document)
         layout = ArchitectureSystemMapLayout.layout(document: document, tree: tree, expanded: [])
+        stats = .systemMap(document, hullCount: tree.hulls.count)
     }
 
     internal var selectedNode: ArchitectureMapNode? {

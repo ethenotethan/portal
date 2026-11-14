@@ -30,6 +30,7 @@ internal struct WikiDockedReader: View {
     private static let gripHeight: CGFloat = 30
 
     internal var body: some View {
+        let _ = PerfCounter.tick("view.body.WikiDockedReader")
         HStack(spacing: 0) {
             // The divider is part of the panel (leading edge) so the hosting
             // layout only has to place ONE view. Hidden in fullscreen — there's

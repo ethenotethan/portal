@@ -151,12 +151,6 @@ final class ChatHistoryStore {
         return index.contains(sessionID)
     }
 
-    /// Extract the first user message content from local history for display as fallback title.
-    func firstUserMessage(forSession sessionID: String) -> String? {
-        guard let messages = loadMessages(forSession: sessionID) else { return nil }
-        return messages.first(where: { $0.role == .user })?.content
-    }
-
     /// Off-main variant for batch title population. Reads and decodes in a
     /// detached task so the main thread is never blocked.
     nonisolated internal func firstUserMessageBackground(forSession sessionID: String) async -> String? {

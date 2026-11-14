@@ -69,6 +69,7 @@ internal struct WikiEventsPageView: View {
     }
 
     internal var body: some View {
+        let _ = PerfCounter.tick("view.body.WikiEventsPageView")
         VStack(spacing: 0) {
             header
             Divider()

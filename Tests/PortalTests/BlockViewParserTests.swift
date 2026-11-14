@@ -3,10 +3,10 @@ import Foundation
 @testable import Portal
 
 @Suite("Diff Line Parser")
-struct DiffLineParserTests {
+internal struct DiffLineParserTests {
 
     @Test("Classifies unified diff lines; file markers beat +/- prefixes")
-    func classifiesLines() {
+    internal func classifiesLines() {
         let diff = """
         diff --git a/foo.swift b/foo.swift
         index 1234567..89abcde 100644
@@ -28,17 +28,17 @@ struct DiffLineParserTests {
     }
 
     @Test("Bare -/+ diffs without git headers still classify")
-    func bareDiff() {
+    internal func bareDiff() {
         let lines = DiffLine.parse("-old\n+new\n context")
         #expect(lines.map(\.kind) == [.deletion, .addition, .context])
     }
 }
 
 @Suite("File Tree Parser")
-struct FileTreeParserTests {
+internal struct FileTreeParserTests {
 
     @Test("Parses box-drawing trees with correct depths")
-    func boxDrawing() {
+    internal func boxDrawing() {
         let tree = """
         portal/
         ├── Sources/
@@ -56,7 +56,7 @@ struct FileTreeParserTests {
     }
 
     @Test("Directory inferred from deeper children even without trailing slash")
-    func inferredDirectory() {
+    internal func inferredDirectory() {
         let nodes = FileTreeNode.parse("""
         src
         ├── lib
@@ -69,7 +69,7 @@ struct FileTreeParserTests {
     }
 
     @Test("Plain-indent trees and trailing annotations parse")
-    func indentAndAnnotations() {
+    internal func indentAndAnnotations() {
         let nodes = FileTreeNode.parse("""
         project/
           src/
@@ -82,7 +82,7 @@ struct FileTreeParserTests {
     }
 
     @Test("ASCII connector variants parse")
-    func asciiConnectors() {
+    internal func asciiConnectors() {
         let nodes = FileTreeNode.parse("""
         root/
         |-- a.txt
@@ -94,10 +94,10 @@ struct FileTreeParserTests {
 }
 
 @Suite("Fence Language Routing")
-struct FenceLanguageRoutingTests {
+internal struct FenceLanguageRoutingTests {
 
     @Test("diff/patch and tree fences route to their views")
-    func routing() {
+    internal func routing() {
         #expect(MarkdownParser.isDiffLanguage("diff"))
         #expect(MarkdownParser.isDiffLanguage("patch"))
         #expect(MarkdownParser.isDiffLanguage(" Diff "))
@@ -108,10 +108,10 @@ struct FenceLanguageRoutingTests {
 }
 
 @Suite("Inline Math")
-struct InlineMathTests {
+internal struct InlineMathTests {
 
     @Test("Simple variables and expressions convert to Unicode")
-    func simpleSpans() {
+    internal func simpleSpans() {
         #expect(InlineMath.render("coefficient of $x$, square it") == "coefficient of 𝑥, square it")
         #expect(InlineMath.render("$b^2 - 4ac$") == "𝑏² − 4𝑎𝑐")
         #expect(InlineMath.render("$x_1$ and $x_2$") == "𝑥₁ and 𝑥₂")
@@ -120,7 +120,7 @@ struct InlineMathTests {
     }
 
     @Test("Currency and unconvertible TeX pass through untouched")
-    func passthrough() {
+    internal func passthrough() {
         #expect(InlineMath.render("costs $5 and $10 total") == "costs $5 and $10 total")
         #expect(InlineMath.render("$\\frac{a}{b}$") == "$\\frac{a}{b}$")
         #expect(InlineMath.render("no math here") == "no math here")
@@ -129,7 +129,7 @@ struct InlineMathTests {
     }
 
     @Test("Unclosed dollar and mixed content stay safe")
-    func edgeCases() {
+    internal func edgeCases() {
         // Unclosed $ passes through.
         #expect(InlineMath.render("price is $99") == "price is $99")
         // First span converts; what remains has one unpaired $ and stays raw.
@@ -270,12 +270,12 @@ struct NetworkGraphSpecTests {
     }
 
     @Test("Layout is deterministic and places all nodes within bounds")
-    func layoutDeterministic() {
-        let spec = NetworkGraphSpec.parse("""
+    internal func layoutDeterministic() throws {
+        let spec = try #require(NetworkGraphSpec.parse("""
         {"nodes": [{"id": "a"}, {"id": "b"}, {"id": "c"}, {"id": "d"}],
          "edges": [{"from": "a", "to": "b"}, {"from": "b", "to": "c"},
                    {"from": "c", "to": "d"}, {"from": "d", "to": "a"}]}
-        """)!
+        """))
         let first = NetworkGraphLayout.layout(spec, width: 600)
         let second = NetworkGraphLayout.layout(spec, width: 600)
         #expect(first.placed.count == 4)
@@ -288,7 +288,8 @@ struct NetworkGraphSpecTests {
         }
         // Connected square should not collapse to a point.
         let xs = first.placed.map(\.position.x)
-        #expect((xs.max()! - xs.min()!) > 50)
+        let bounds = try #require(xs.min().flatMap { minX in xs.max().map { (minX, $0) } })
+        #expect((bounds.1 - bounds.0) > 50)
     }
 
     @Test("Single-node layout centers the node in intrinsic and fitted canvases")
@@ -380,7 +381,7 @@ struct LivingArtifactTests {
 
     @Test("Store upsert merges by id and preserves titles")
     @MainActor
-    func storeUpsert() {
+    internal func storeUpsert() throws {
         // Isolated store, NOT `.shared`. This test used to drive the production
         // singleton, and `persistToDisk()` has no test-process guard (unlike
         // `schedulePush` and `remove`'s delete) — so every run wrote "Test Map"
@@ -403,8 +404,11 @@ struct LivingArtifactTests {
         let updated = store.upsert(id: testID, kind: "map", title: nil,
                      content: "{\"markers\": [{\"lat\": 3, \"lon\": 4, \"label\": \"b\"}]}")
         #expect(updated.title == "Test Map")
-        let obj = try! JSONSerialization.jsonObject(with: Data(updated.content.utf8)) as! [String: Any]
-        #expect((obj["markers"] as! [[String: Any]]).count == 2)  // merged, not replaced
+        let obj = try #require(
+            try JSONSerialization.jsonObject(with: Data(updated.content.utf8)) as? [String: Any]
+        )
+        let markers = try #require(obj["markers"] as? [[String: Any]])
+        #expect(markers.count == 2)  // merged, not replaced
     }
 
     @Test("MapSpec parses markers and groups")
@@ -424,10 +428,10 @@ struct LivingArtifactTests {
 }
 
 @Suite("Artifact Diff")
-struct ArtifactDiffTests {
+internal struct ArtifactDiffTests {
 
     @Test("Map diff summarizes added/removed/regrouped markers")
-    func mapDiff() {
+    internal func mapDiff() throws {
         let old = """
         {"markers": [
           {"lat": 1, "lon": 2, "label": "Ekkamai loft", "group": "shortlist", "note": "38k"},
@@ -440,40 +444,42 @@ struct ArtifactDiffTests {
           {"lat": 5, "lon": 6, "label": "Ari studio", "group": "shortlist"}
         ]}
         """
-        let lines = ArtifactDiff.describe(kind: "map", old: old, new: new)!
+        let lines = try #require(ArtifactDiff.describe(kind: "map", old: old, new: new))
         #expect(lines.contains("Added Ari studio"))
         #expect(lines.contains("Removed Old place"))
         #expect(lines.contains("Ekkamai loft: shortlist → rejected"))
     }
 
     @Test("Identical content yields no diff; non-map kinds get a size note")
-    func fallbacks() {
+    internal func fallbacks() throws {
         #expect(ArtifactDiff.describe(kind: "map", old: "{}", new: "{}") == nil)
-        let lines = ArtifactDiff.describe(kind: "chart", old: "{\"a\":1}", new: "{\"a\":1,\"b\":2}")!
+        let lines = try #require(
+            ArtifactDiff.describe(kind: "chart", old: "{\"a\":1}", new: "{\"a\":1,\"b\":2}")
+        )
         #expect(lines.count == 1)
         #expect(lines[0].contains("+6 chars"))
     }
 
     @Test("Note-only changes are called out without group noise")
-    func noteChange() {
+    internal func noteChange() throws {
         let old = "{\"markers\": [{\"lat\":1,\"lon\":2,\"label\":\"A\",\"group\":\"g\",\"note\":\"x\"}]}"
         let new = "{\"markers\": [{\"lat\":1,\"lon\":2,\"label\":\"A\",\"group\":\"g\",\"note\":\"y\"}]}"
-        let lines = ArtifactDiff.describe(kind: "map", old: old, new: new)!
+        let lines = try #require(ArtifactDiff.describe(kind: "map", old: old, new: new))
         #expect(lines == ["A: note updated"])
     }
 }
 
 @Suite("Dataset Kind")
-struct DatasetKindTests {
+internal struct DatasetKindTests {
 
     @Test("Spec parses rows, derives columns with key first, stringifies values")
-    func specParsing() {
-        let spec = DatasetSpec.parse("""
+    internal func specParsing() throws {
+        let spec = try #require(DatasetSpec.parse("""
         {"key": "login", "rows": [
           {"login": "greg", "commits": 44, "active": true},
           {"login": "amy", "name": "Amy"}
         ]}
-        """)!
+        """))
         #expect(spec.key == "login")
         #expect(spec.columns.first == "login")           // key leads derived columns
         #expect(spec.columns.contains("commits"))
@@ -482,23 +488,25 @@ struct DatasetKindTests {
     }
 
     @Test("App-side dataset merge mirrors the gateway: union by key, incoming wins")
-    func merge() {
+    internal func merge() throws {
         let old = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 41}, {\"login\": \"amy\", \"commits\": 7}]}"
         let new = "{\"rows\": [{\"login\": \"greg\", \"commits\": 44}, {\"login\": \"new\", \"commits\": 1}]}"
         let merged = ArtifactMerge.merge(kind: "dataset", existing: old, incoming: new)
-        let obj = try! JSONSerialization.jsonObject(with: Data(merged.utf8)) as! [String: Any]
-        let rows = (obj["rows"] as! [[String: Any]])
+        let obj = try #require(
+            try JSONSerialization.jsonObject(with: Data(merged.utf8)) as? [String: Any]
+        )
+        let rows = try #require(obj["rows"] as? [[String: Any]])
         #expect(rows.count == 3)
-        let greg = rows.first { ($0["login"] as? String) == "greg" }!
+        let greg = try #require(rows.first { ($0["login"] as? String) == "greg" })
         #expect((greg["commits"] as? Int) == 44)
         #expect(obj["key"] as? String == "login")
     }
 
     @Test("Dataset diff reports added/removed/changed rows by key")
-    func diff() {
+    internal func diff() throws {
         let old = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 41}, {\"login\": \"gone\", \"commits\": 2}]}"
         let new = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 44}, {\"login\": \"fresh\", \"commits\": 1}]}"
-        let lines = ArtifactDiff.describe(kind: "dataset", old: old, new: new)!
+        let lines = try #require(ArtifactDiff.describe(kind: "dataset", old: old, new: new))
         #expect(lines.contains("Added fresh"))
         #expect(lines.contains("Removed gone"))
         #expect(lines.contains("greg: commits changed"))
@@ -527,15 +535,17 @@ struct ArtifactActionTests {
     }
 
     @Test("setField updates the matching dataset row by key, case-insensitive")
-    func setFieldDataset() {
+    internal func setFieldDataset() throws {
         let content = """
         {"key": "name", "rows": [{"name": "Acme Conf", "status": "undecided"}, {"name": "Other", "status": "going"}]}
         """
-        let out = ArtifactActionEngine.setField(
+        let out = try #require(ArtifactActionEngine.setField(
             in: content, kind: "dataset", entryKey: " acme conf ", field: "status", value: "going"
-        )!
-        let obj = try! JSONSerialization.jsonObject(with: out.data(using: .utf8)!) as! [String: Any]
-        let rows = obj["rows"] as! [[String: Any]]
+        ))
+        let obj = try #require(
+            try JSONSerialization.jsonObject(with: Data(out.utf8)) as? [String: Any]
+        )
+        let rows = try #require(obj["rows"] as? [[String: Any]])
         #expect(rows[0]["status"] as? String == "going")
         #expect(rows[1]["status"] as? String == "going")   // untouched
         #expect(ArtifactActionEngine.setField(

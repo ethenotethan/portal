@@ -26,13 +26,10 @@ internal struct WikiGraphCacheTests {
             links: [WikiLink(source: "alpha", target: "beta", type: "wikilink")]
         )
         cache.store(graph, identity: "gw-a", wiki: "main")
-        // store() is fire-and-forget on a background task; poll until it lands.
-        var loaded: WikiGraph?
-        for _ in 0..<50 {
-            loaded = await cache.load(identity: "gw-a", wiki: "main")
-            if loaded != nil { break }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        // store() is fire-and-forget on the serial write queue; flush() resolves
+        // once it has landed, so there is nothing to poll for.
+        await cache.flush()
+        let loaded = await cache.load(identity: "gw-a", wiki: "main")
         #expect(loaded?.pages.count == 2)
         #expect(loaded?.links.count == 1)
         #expect(loaded?.pages.contains { $0.id == "alpha" } == true)
@@ -79,21 +76,17 @@ internal struct WikiGraphCacheTests {
     @Test("Stored graph is overwritten by a later store to the same key")
     internal func overwrite() async throws {
         let cache = WikiGraphCache(directory: scratchDir())
+        // Two stores back to back, no settling in between: the write queue is
+        // FIFO, so the later graph must be the one on disk however the scheduler
+        // interleaves them. (This test used to poll, and flaked on a loaded CI
+        // runner when the second detached write lost the race.)
         cache.store(WikiGraph(pages: [page("old")], links: []), identity: "gw", wiki: nil)
-        // Let the first write settle.
-        for _ in 0..<50 {
-            if await cache.load(identity: "gw", wiki: nil) != nil { break }
-            try await Task.sleep(for: .milliseconds(20))
-        }
         cache.store(WikiGraph(pages: [page("new1"), page("new2")], links: []), identity: "gw", wiki: nil)
-        var loaded: WikiGraph?
-        for _ in 0..<50 {
-            loaded = await cache.load(identity: "gw", wiki: nil)
-            if loaded?.pages.count == 2 { break }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        await cache.flush()
+        let loaded = await cache.load(identity: "gw", wiki: nil)
         #expect(loaded?.pages.count == 2)
         #expect(loaded?.pages.contains { $0.id == "new1" } == true)
+        #expect(loaded?.pages.contains { $0.id == "old" } == false)
     }
 
     @Test("A write that fails is silently swallowed (cache is a pure optimization)")
@@ -107,9 +100,7 @@ internal struct WikiGraphCacheTests {
         try Data("not a directory".utf8).write(to: dir)
 
         cache.store(graph, identity: "gw", wiki: nil)
-
-        // Wait for the background task to execute.
-        try await Task.sleep(for: .milliseconds(200))
+        await cache.flush()
 
         // The write never happened, so load should return nil.
         let loaded = await cache.load(identity: "gw", wiki: nil)

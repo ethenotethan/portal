@@ -118,3 +118,18 @@ struct ExpandedLinkStatus: Hashable, Codable {
     let title: String
     let url: String?
 }
+
+/// Immutable identity of a simulated wiki node: what the graph is, as opposed
+/// to where it is. `WikiGraphViewModel` publishes one array of these per graph
+/// load; positions live in `WikiSimulationStore` and change per frame — the
+/// split is what keeps a physics frame from re-rendering the whole surface,
+/// and keeps three strings per node off the hot path.
+internal struct WikiSimNodeMeta: Identifiable, Hashable, Sendable {
+    internal let id: String
+    internal let type: String
+    internal let label: String
+    /// The page's file path, e.g. "entities/chain/base.md". The graph colors
+    /// nodes by their folder branch (see `color(forNode:)`), which is derived
+    /// from this rather than `type` — real compendia keep `type` flat.
+    internal let path: String
+}

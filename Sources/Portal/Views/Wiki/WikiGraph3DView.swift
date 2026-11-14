@@ -11,7 +11,7 @@ internal struct WikiGraph3DView: View {
     @ObservedObject internal var viewModel: WikiGraphViewModel
 
     internal var body: some View {
-        _WikiGraph3DRepresentable(viewModel: viewModel)
+        _WikiGraph3DRepresentable(viewModel: viewModel, simulation: viewModel.simulation)
             .background(Theme.background)
     }
 }
@@ -21,6 +21,9 @@ internal struct WikiGraph3DView: View {
 #if os(macOS)
 private struct _WikiGraph3DRepresentable: NSViewRepresentable {
     @ObservedObject var viewModel: WikiGraphViewModel
+    /// Positions move per tick on the store; observing it here is what
+    /// re-syncs the scene each frame.
+    @ObservedObject var simulation: WikiSimulationStore
 
     func makeCoordinator() -> Coordinator { Coordinator(viewModel: viewModel) }
 
@@ -35,6 +38,7 @@ private struct _WikiGraph3DRepresentable: NSViewRepresentable {
 #else
 private struct _WikiGraph3DRepresentable: UIViewRepresentable {
     @ObservedObject var viewModel: WikiGraphViewModel
+    @ObservedObject var simulation: WikiSimulationStore
 
     func makeCoordinator() -> Coordinator { Coordinator(viewModel: viewModel) }
 
@@ -135,7 +139,7 @@ private final class Coordinator: NSObject {
     func sync(from vm: WikiGraphViewModel, in scnView: SCNView) {
         clampCamera(scnView)
 
-        let topologyKey = vm.simNodes.map { $0.id }.sorted().joined(separator: ",")
+        let topologyKey = vm.nodeMeta.map { $0.id }.sorted().joined(separator: ",")
         if topologyKey != lastTopologyKey || nodeMap.isEmpty {
             rebuildScene(from: vm, in: scnView)
             lastTopologyKey = topologyKey
@@ -156,12 +160,12 @@ private final class Coordinator: NSObject {
     @MainActor
     private func rebuildScene(from vm: WikiGraphViewModel, in scnView: SCNView) {
         guard let graphRoot = scnView.scene?.rootNode.childNode(withName: "graphRoot", recursively: false),
-              !vm.simNodes.isEmpty else { return }
+              !vm.nodeMeta.isEmpty else { return }
 
         graphRoot.childNodes.forEach { $0.removeFromParentNode() }
         nodeMap.removeAll()
         labelMap.removeAll()
-        indexByID = Dictionary(uniqueKeysWithValues: vm.simNodes.enumerated().map { ($1.id, $0) })
+        indexByID = vm.nodeIndexByID
         edgesNeedFinalRebuild = true
         hasFittedCamera = false
 
@@ -169,7 +173,9 @@ private final class Coordinator: NSObject {
         labelContainer?.name = "labels"
         graphRoot.addChildNode(labelContainer!)
 
-        for (idx, simNode) in vm.simNodes.enumerated() {
+        let positions3D = vm.simulation.positions3D
+        for (idx, simNode) in vm.nodeMeta.enumerated() {
+            let position3D = positions3D.indices.contains(idx) ? positions3D[idx] : .zero
             let r = CGFloat(4 + vm.nodeRadius(at: idx) * 0.8)
             let sphere = SCNSphere(radius: r)
             let nodeColor = vm.color(forNode: simNode)
@@ -180,7 +186,7 @@ private final class Coordinator: NSObject {
 
             let scnNode = SCNNode(geometry: sphere)
             scnNode.name = simNode.id
-            scnNode.position = SCNVector3(simNode.position3D)
+            scnNode.position = SCNVector3(position3D)
             graphRoot.addChildNode(scnNode)
             nodeMap[simNode.id] = scnNode
 
@@ -196,7 +202,7 @@ private final class Coordinator: NSObject {
 
             let labelNode = SCNNode(geometry: labelText)
             labelNode.name = "label:\(simNode.id)"
-            labelNode.position = SCNVector3(simNode.position3D.x, simNode.position3D.y + 7, simNode.position3D.z)
+            labelNode.position = SCNVector3(position3D.x, position3D.y + 7, position3D.z)
             // Scale label slightly with node importance.
             let degree = vm.degrees.indices.contains(idx) ? vm.degrees[idx] : 0
             let labelScale = 1.0 + min(Float(degree) * 0.06, 0.8)
@@ -228,11 +234,12 @@ private final class Coordinator: NSObject {
         guard !vm.simLinks.isEmpty else { return }
 
         let count = vm.simLinks.count
+        let positions3D = vm.simulation.positions3D
         var vertices = [SCNVector3](repeating: SCNVector3(0, 0, 0), count: count * 2)
         var indices = [Int32]()
-        for (i, (si, ti)) in vm.simLinks.enumerated() {
-            vertices[i * 2] = SCNVector3(vm.simNodes[si].position3D)
-            vertices[i * 2 + 1] = SCNVector3(vm.simNodes[ti].position3D)
+        for (i, (si, ti)) in vm.simLinks.enumerated() where positions3D.indices.contains(si) && positions3D.indices.contains(ti) {
+            vertices[i * 2] = SCNVector3(positions3D[si])
+            vertices[i * 2 + 1] = SCNVector3(positions3D[ti])
             indices.append(Int32(i * 2))
             indices.append(Int32(i * 2 + 1))
         }
@@ -265,24 +272,26 @@ private final class Coordinator: NSObject {
         let hasSelection = selectedIndex != nil
         let cameraPos: SIMD3<Float>? = scnView.pointOfView?.presentation.simdWorldPosition
 
-        for (idx, simNode) in vm.simNodes.enumerated() {
+        let positions3D = vm.simulation.positions3D
+        for (idx, simNode) in vm.nodeMeta.enumerated() where positions3D.indices.contains(idx) {
             guard let scnNode = nodeMap[simNode.id] else { continue }
-            scnNode.position = SCNVector3(simNode.position3D)
+            let position3D = positions3D[idx]
+            scnNode.position = SCNVector3(position3D)
 
             if let labelNode = labelMap[simNode.id] {
-                labelNode.position = SCNVector3(simNode.position3D.x, simNode.position3D.y + 7, simNode.position3D.z)
+                labelNode.position = SCNVector3(position3D.x, position3D.y + 7, position3D.z)
                 let isAnchorOrNeighbor = idx == selectedIndex || neighborIndices.contains(idx)
                 let degree = vm.degrees.indices.contains(idx) ? vm.degrees[idx] : 0
                 // No selection: only label well-connected nodes to reduce clutter.
                 let isImportant = hasSelection ? isAnchorOrNeighbor : degree >= 2
-                let isClose = cameraPos.map { simd_distance(simNode.position3D, $0) < labelCullDistance } ?? true
+                let isClose = cameraPos.map { simd_distance(position3D, $0) < labelCullDistance } ?? true
                 labelNode.isHidden = !(isAnchorOrNeighbor || (isImportant && isClose))
             }
         }
 
-        // 0.003 matches the tick guard in WikiGraphView so the final rebuild
-        // happens on the last real tick.
-        let simHot = vm.simAlpha > 0.003 || vm.simNodes.contains(where: { $0.isDragging })
+        // The store's rest threshold, so the final rebuild happens on the
+        // last real tick.
+        let simHot = vm.simulation.isHot
         if simHot {
             // Rebuild edge lines every sync while hot so they track moving spheres.
             if let root = edgeNode?.parent { rebuildEdgeGeometry(from: vm, graphRoot: root) }
@@ -297,13 +306,14 @@ private final class Coordinator: NSObject {
     /// Positions the camera so the whole graph fits in the 45-degree FOV with margin.
     @MainActor
     private func fitCamera(to vm: WikiGraphViewModel, in scnView: SCNView) {
-        guard !vm.simNodes.isEmpty,
+        let positions3D = vm.simulation.positions3D
+        guard !positions3D.isEmpty,
               let cameraNode = scnView.pointOfView ?? scnView.scene?.rootNode.childNodes.first(where: { $0.camera != nil }) else { return }
         var centroid = SIMD3<Float>.zero
-        for n in vm.simNodes { centroid += n.position3D }
-        centroid /= Float(vm.simNodes.count)
+        for position3D in positions3D { centroid += position3D }
+        centroid /= Float(positions3D.count)
         var radius: Float = 0
-        for n in vm.simNodes { radius = max(radius, simd_distance(n.position3D, centroid)) }
+        for position3D in positions3D { radius = max(radius, simd_distance(position3D, centroid)) }
         radius = max(radius, 100)
 
         let fov = Float((cameraNode.camera?.fieldOfView ?? 45) * .pi / 180)
@@ -324,10 +334,10 @@ private final class Coordinator: NSObject {
     @MainActor
     private func updateSelectionHighlight(from vm: WikiGraphViewModel) {
         let selectedIndex: Int? = {
-            guard let idx = vm.selectedNodeIndex, vm.simNodes.indices.contains(idx) else { return nil }
+            guard let idx = vm.selectedNodeIndex, vm.nodeMeta.indices.contains(idx) else { return nil }
             return idx
         }()
-        let selectedID = selectedIndex.map { vm.simNodes[$0].id }
+        let selectedID = selectedIndex.map { vm.nodeMeta[$0].id }
         let neighborIndices: Set<Int> = selectedIndex.map { vm.neighbors(of: $0) } ?? []
 
         let filtering = vm.isFiltering
@@ -362,7 +372,7 @@ private final class Coordinator: NSObject {
                 #endif
                 scnNode.removeAllActions()
             } else {
-                let nodeColor = idx.map { vm.color(forNode: vm.simNodes[$0]) } ?? vm.color(for: "")
+                let nodeColor = idx.map { vm.color(forNode: vm.nodeMeta[$0]) } ?? vm.color(for: "")
                 geom.firstMaterial?.diffuse.contents = PlatformColor(nodeColor).withAlphaComponent(filterDim)
                 scnNode.removeAllActions()
             }
@@ -404,7 +414,7 @@ private final class Coordinator: NSObject {
         ])
         for hit in hits {
             guard let name = hit.node.name, !name.hasPrefix("label:") else { continue }
-            guard let idx = indexByID[name], viewModel.simNodes.indices.contains(idx) else { continue }
+            guard let idx = indexByID[name], viewModel.nodeMeta.indices.contains(idx) else { continue }
             // Selection-driven reader: one click selects AND opens, matching
             // the 2D canvas's adaptive behavior.
             viewModel.activateNode(idx)

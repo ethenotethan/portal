@@ -13,7 +13,7 @@ internal enum PortalDeepLink: Equatable {
     /// X OAuth 2.0 (PKCE) callback: hermesnative://x-oauth?code=…&state=…
     case xOAuth(code: String, state: String)
 
-    init?(url: URL) {
+    internal init?(url: URL) {
         guard url.scheme == "hermesnative" else { return nil }
         switch url.host {
         case "new-session":
@@ -40,7 +40,7 @@ internal enum PortalDeepLink: Equatable {
     }
 
     /// Build the canonical URL for this deep link.
-    var url: URL? {
+    internal var url: URL? {
         switch self {
         case .newSession:
             return URL(string: "hermesnative://new-session")

@@ -63,6 +63,17 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()
 
+    /// Method names of responses that arrived after `call` had already timed
+    /// them out. A late answer is the gateway saying "too slow", so pollers
+    /// (`CronPoller`) back off on it the same as on a measured slow call.
+    internal let lateResponses = PassthroughSubject<String, Never>()
+
+    /// Methods of the most recent timed-out requests, by id, so a late response
+    /// can be attributed and logged by name (the pending tables forget a request
+    /// the moment it times out). Bounded; oldest ids are evicted first.
+    private var timedOutRequestMethods: [Int: String] = [:]
+    private static let timedOutRequestMemory = 64
+
     /// Callback for connection log messages (shown in UI).
     var onLog: ((String, Bool) -> Void)?
 
@@ -249,7 +260,24 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private var isReconnectScheduled = false
     private static let maxReconnectDelay: TimeInterval = 30
     static let maxReconnectAttempts: Int = 10
-    private var isIntentionalDisconnect = false
+    /// Set by `disconnect()`, cleared by `connect()`. Every path that can open a
+    /// socket checks it: a client the wrapper has already replaced must not dial
+    /// again from a probe, retry or restart wait that was in flight when it was
+    /// torn down — the orphan would come up with its own ping loop and receive
+    /// loop, parsing every broadcast for subscribers that no longer exist, pinned
+    /// by its URLSession with nobody left to disconnect it.
+    internal private(set) var isIntentionalDisconnect = false
+    /// The probe-then-dial task `connect()` spawns, kept so `disconnect()` can
+    /// cancel it before it reaches `openWebSocket()`.
+    private var connectTask: Task<Void, Never>?
+    /// Ceiling on the HTTP health probe `connect()` runs before dialing. Tests
+    /// shorten it so a probe against a server that never answers HTTP does not
+    /// hold the test for the production five seconds.
+    internal var healthProbeTimeout: TimeInterval = 5
+    /// Bumped each time `openWebSocket()` installs a transport, so a completion
+    /// handler captured against an earlier transport can tell it is stale without
+    /// holding that task or comparing object addresses that may be reused.
+    private var transportGeneration = 0
 
     /// True once a socket has actually opened since the reconnect budget was
     /// last granted. This is what makes `resetReconnectBudget` safe.
@@ -278,7 +306,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private(set) var activeSessionID: String?
 
     /// Callback for ChatViewModel to handle reconnection (resume vs create).
-    var onReconnected: (() async -> Void)?
+    private let reconnectedSubject = PassthroughSubject<Void, Never>()
+    internal var reconnectedPublisher: AnyPublisher<Void, Never> { reconnectedSubject.eraseToAnyPublisher() }
 
     // MARK: - Init
 
@@ -430,13 +459,15 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         refreshDebugSnapshot()
         recordDebugEvent(.state, name: "connect", detail: "opening")
 
-        Task {
+        connectTask?.cancel()
+        connectTask = Task {
             // Probe HTTP first for a useful status in the logs, but NEVER
             // let the probe veto the connection — a wrong-looking answer
             // here (proxy quirk, HEAD 405, unrelated server on the default
             // port) used to hard-fail with "HTTP status 404" while the
             // WebSocket itself would have connected fine.
             let httpStatus = await probeHTTPHealth()
+            guard !Task.isCancelled else { return }
             if httpStatus != 200 {
                 onLog?("⚠ HTTP health returned \(httpStatus) — trying WS anyway", true)
             }
@@ -510,6 +541,17 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         isReconnectScheduled = false
     }
 
+    /// Test seam: stand in for `call`'s timeout having fired for `id`, so the
+    /// late-response attribution can be exercised without a socket.
+    internal func rememberTimedOutForTesting(id: Int, method: String) {
+        rememberTimedOut(id: id, method: method)
+    }
+
+    /// Test seam: deliver a decoded response as if it had arrived on the socket.
+    internal func deliverResponseForTesting(id: Int, response: JSONRPCResponse) {
+        fulfillRequest(id: id, response: response)
+    }
+
     /// /health on the gateway's own scheme+host+PORT. Dropping the port sent
     /// the probe to whatever squats on :80/:443 (an unrelated local nginx
     /// answered 404 and connect() gave up before ever dialing the socket).
@@ -531,7 +573,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         guard let url = Self.healthProbeURL(for: gatewayURL) else { return -1 }
 
         var request = URLRequest(url: url)
-        request.timeoutInterval = 5
+        request.timeoutInterval = healthProbeTimeout
         // GET, not HEAD — the gateway's /health rejects HEAD with 405.
         request.httpMethod = "GET"
         if !apiKey.isEmpty {
@@ -561,7 +603,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
 
         var request = URLRequest(url: healthURL)
-        request.timeoutInterval = 5
+        request.timeoutInterval = healthProbeTimeout
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
@@ -659,6 +701,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     private func openWebSocket() {
+        guard !isIntentionalDisconnect else {
+            log.debug("openWebSocket skipped: client was disconnected")
+            return
+        }
         let url = gatewayURL, hasKey = !apiKey.isEmpty, hasCookie = cfAuthCookie != nil
         log.debug("Connecting to WS: \(url) auth=\(hasKey) cookie=\(hasCookie)")
         onLog?("Opening WebSocket to \(gatewayURL)…", false)
@@ -683,7 +729,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             sessionConfig.httpCookieStorage?.setCookie(cookie)
         }
 
-        var request = URLRequest(url: gatewayURL)
+        var request = URLRequest(url: Self.authenticatedWebSocketURL(gatewayURL, apiKey: apiKey))
         if !apiKey.isEmpty {
             let authValue = "Bearer \(apiKey)"
             request.setValue(authValue, forHTTPHeaderField: "Authorization")
@@ -701,6 +747,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         let task = newSession.webSocketTask(with: request)
         self.webSocketTask = task
+        transportGeneration += 1
         debugSnapshot.lastOpenAt = Date()
         refreshDebugSnapshot()
         task.resume()
@@ -712,6 +759,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     func disconnect() {
         isIntentionalDisconnect = true
+        connectTask?.cancel()
+        connectTask = nil
         reconnectTask?.cancel()
         reconnectTask = nil
         // The armed backoff timer above never fires once cancelled; clear the
@@ -807,9 +856,18 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func failAllPendingRequests(error: Error) {
         pendingRequestsLock.lock()
         let pending = pendingRequests
+        let methods = pendingRequestMethods
         pendingRequests.removeAll()
         pendingRequestMethods.removeAll()
         pendingRequestsLock.unlock()
+
+        if !pending.isEmpty {
+            // Name what the disconnect cost: on a slow gateway these are the
+            // calls that were queued behind a long poll when the socket dropped.
+            let names = pending.keys.sorted().map { "\(methods[$0] ?? "?")#\($0)" }.joined(separator: ", ")
+            log.notice("disconnect dropped \(pending.count) pending request(s): \(names)")
+            healthCounters.increment(HealthCounter.rpcDroppedByDisconnect, by: pending.count)
+        }
 
         for (id, cont) in pending {
             log.debug("failAllPendingRequests: failing id=\(id)")
@@ -838,12 +896,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func sendPing() async {
         guard let task = webSocketTask else { return }
         let start = Date()
+        let generation = transportGeneration
         task.sendPing { [weak self] error in
             if let error = error {
                 log.debug("Ping failed: \(error)")
                 Task { @MainActor in
-                    self?.lastPingRTT = nil
-                    self?.handleDisconnect(reason: "Ping failed: \(error.localizedDescription)")
+                    // A ping outstanding on the transport `openWebSocket()` just
+                    // replaced fails when that transport is cancelled. Treating
+                    // it as a drop tore down the healthy replacement: stopped
+                    // its ping loop, failed its pending RPCs, scheduled another
+                    // dial. Only the current transport's ping may do that.
+                    guard let self, self.transportGeneration == generation else { return }
+                    self.lastPingRTT = nil
+                    self.handleDisconnect(reason: "Ping failed: \(error.localizedDescription)")
                 }
             } else {
                 // Pong round-trip time — the toolbar status pill's health signal.
@@ -953,6 +1018,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                         return
                     }
                     guard let self, let pending = self.removePendingRequest(id: id) else { return }
+                    // The file sink must see this: the debug ring and the UI log
+                    // are transient, and a day of silent timeouts is exactly what
+                    // hid the slow-gateway diagnosis.
+                    log.warning("\(method) timed out after \(Int(timeout))s (id=\(id))")
+                    healthCounters.increment("\(HealthCounter.rpcTimeouts).\(method)")
+                    PerfCounter.tick("gateway.rpc.timeout.\(method)")
+                    self.rememberTimedOut(id: id, method: method)
                     self.recordDebugEvent(.error, name: method, detail: "timed out after \(timeout)s id=\(id)")
                     self.onLog?("✗ \(method) timed out after \(Int(timeout))s (id=\(id))", true)
                     pending.resume(throwing: GatewayError.timedOut(method: method, seconds: timeout))
@@ -1019,6 +1091,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// budget so a prior flaky stretch can't veto this user-triggered attempt.
     /// The teardown/dial itself is the same path auto-reconnect uses.
     internal func forceReconnectAndWait(timeout: Double) async {
+        guard !isIntentionalDisconnect else { return }
         reconnectAttempt = 0
         isReconnectScheduled = false
         hasConnectedSinceBudgetGrant = false
@@ -1469,51 +1542,30 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return SkillInfo.fromInspectDict(infoDict)
     }
 
-    /// Read the full SKILL.md content for a skill.
+    /// Read the full SKILL.md content for a locally installed skill through the
+    /// gateway's `skills.get` (`skills.manage` has no read action).
     func readSkillMarkdown(name: String) async throws -> String {
-        let response = try await call("skills.manage", params: [
-            "action": AnyCodable("read"),
-            "query": AnyCodable(name)
+        let response = try await call("skills.get", params: [
+            "skill_id": AnyCodable(name)
         ])
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
-        // Try multiple response formats:
-        // 1. {"content": "..."} - standard wrapper
-        // 2. {"skill_md_full": "..."} - inspect-style field
-        // 3. {"content": {"text": "..."}} - nested content
-        // 4. raw string - direct content
-        if let dict = response.result?.dictionaryValue {
-            if let content = dict["content"]?.stringValue, !content.isEmpty {
-                return content
-            }
-            if let full = dict["skill_md_full"]?.stringValue, !full.isEmpty {
-                return full
-            }
-            if let nested = dict["content"]?.dictionaryValue?["text"]?.stringValue, !nested.isEmpty {
-                return nested
-            }
-            if let result = dict["result"]?.stringValue, !result.isEmpty {
-                return result
-            }
-        }
-        if let raw = response.result?.stringValue, !raw.isEmpty {
-            return raw
-        }
-        return ""
+        return response.result?.dictionaryValue?["content"]?.stringValue ?? ""
     }
 
-    /// Write (overwrite) the full SKILL.md content for a skill.
+    /// Write (overwrite) the full SKILL.md content for a skill through the
+    /// gateway's `skills.update`; `skills.manage` is read-only (list / search /
+    /// inspect / install / browse) and rejects unknown params.
     func writeSkillMarkdown(name: String, content: String) async throws -> Bool {
-        let response = try await call("skills.manage", params: [
-            "action": AnyCodable("write"),
-            "query": AnyCodable(name),
+        let response = try await call("skills.update", params: [
+            "skill_id": AnyCodable(name),
             "content": AnyCodable(content)
         ])
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
-        return response.result?.dictionaryValue?["success"]?.boolValue ?? true
+        return response.result?.dictionaryValue?["skill"] != nil
     }
 
     func searchSkills(query: String) async throws -> [SkillSearchResult] {
@@ -1849,11 +1901,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     func respondApproval(sessionID: String, choice: String, all: Bool = false) async throws {
-        let response = try await call("approval.respond", params: [
+        try await respondApproval(sessionID: sessionID, choice: choice, all: all, requestID: nil)
+    }
+
+    /// `request_id` resolves that one queued approval; without it the gateway
+    /// resolves the oldest, which is only right when the head is what the user saw.
+    internal func respondApproval(sessionID: String, choice: String, all: Bool, requestID: String?) async throws {
+        var params: [String: AnyCodable] = [
             "session_id": AnyCodable(sessionID),
             "choice": AnyCodable(choice),
             "all": AnyCodable(all),
-        ])
+        ]
+        if let requestID { params["request_id"] = AnyCodable(requestID) }
+        let response = try await call("approval.respond", params: params)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
@@ -1870,6 +1930,21 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
+    }
+
+    /// Lock one answer of a server→client clarify request (`clarify.lock`);
+    /// nil answer = skipped. Returns the question ids still open — empty once
+    /// the batch settled and the agent resumed.
+    internal func lockClarifyAnswer(requestID: String, questionID: String, answer: String?) async throws -> [String] {
+        let response = try await call("clarify.lock", params: [
+            "request_id": AnyCodable(requestID),
+            "question_id": AnyCodable(questionID),
+            "answer": answer.map { AnyCodable($0) } ?? .null,
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue?["remaining"]?.arrayValue?.compactMap { $0.stringValue } ?? []
     }
 
     func closeSession(sessionID: String) async throws {
@@ -1939,15 +2014,25 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         // own. A retained FAILED turn carries `inflight` with `streaming: false`
         // and must NOT reopen a streaming shell, so gate on the turn's flag.
         var inflight: InflightTurn?
+        let running: ResumedTurnVerdict
+        switch result["running"]?.boolValue {
+        case .some(true): running = .running
+        case .some(false): running = .stopped
+        case .none: running = .unknown
+        }
         if let turn = result["inflight"]?.dictionaryValue {
             let streaming = turn["streaming"]?.boolValue ?? false
-            let running = result["running"]?.boolValue ?? false
             let partial = turn["assistant"]?.stringValue ?? ""
-            if streaming && running {
+            if streaming && running == .running {
                 inflight = InflightTurn(assistantPartial: partial, isStreaming: true)
             }
         }
-        return ResumedSession(sessionID: sessionID, messages: historyMessages, inflight: inflight)
+        let openRequests = result["open_requests"]?.arrayValue?
+            .compactMap { $0.dictionaryValue }
+            .compactMap(ServerRequest.from(openRequest:)) ?? []
+        return ResumedSession(
+            sessionID: sessionID, messages: historyMessages, inflight: inflight, running: running, openRequests: openRequests
+        )
     }
 
     /// Fetch conversation history for a session.
@@ -2365,6 +2450,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             }
         } catch {
             log.debug("receiveLoop error: \(error)")
+            // The loop of a transport that `openWebSocket()` replaced ends with
+            // an error as its task is cancelled. That is not a drop of the
+            // transport now in service, so it must not schedule a redial of it.
+            guard !Task.isCancelled, webSocketTask === self.webSocketTask else {
+                log.debug("receiveLoop ended for a replaced transport")
+                return
+            }
             switch connectionState {
             case .connecting, .connected, .reconnecting:
                 let nsError = error as NSError
@@ -2392,6 +2484,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         case response(id: Int, response: JSONRPCResponse)
         case responseDecodeFailed(id: Int, rawPrefix: String)
         case event(type: String, sessionID: String?, event: GatewayEvent)
+        case serverRequest(ServerRequest)
         case eventPayloadFailed(type: String, detail: String)
         case parseFailed
         case ignored
@@ -2412,6 +2505,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             }
             let raw = String(data: data, encoding: .utf8)?.prefix(300) ?? "nil"
             return .responseDecodeFailed(id: id, rawPrefix: String(raw))
+        }
+
+        // Server→client request: a string "srq-…" id plus a method the
+        // gateway is asking us to answer (clarify, approval, sudo, …).
+        if let request = ServerRequest.from(json: json) {
+            return .serverRequest(request)
         }
 
         // Event (method == "event")
@@ -2458,6 +2557,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             log.error("event payload parse failed for \(type): \(detail)")
             onLog?("⚠ \(detail) for \(type)", true)
 
+        case .serverRequest(let request):
+            deliverServerRequest(request)
+
         case .event(let type, let sessionID, let event):
             log.debug("handleMessage: event type=\(type)")
             healthCounters.increment(HealthCounter.gatewayEvents)
@@ -2485,6 +2587,72 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+    /// Route a server→client request to the app as the event it already renders.
+    /// Portal answers on the app's behalf where it has no input surface (sudo and
+    /// secret prompts are skipped) and declines methods it does not handle, so
+    /// the agent fails fast instead of waiting out the gateway's timeout.
+    internal func deliverServerRequest(_ request: ServerRequest) {
+        recordDebugEvent(.inbound, name: request.method, detail: "server request \(request.id)")
+        onLog?("← request: \(request.method) (\(request.id))", false)
+        guard let event = request.event else {
+            log.notice("declining server request \(request.method) (\(request.id)): no handler in Portal")
+            sendServerResponse(.methodNotFound(id: request.id, method: request.method))
+            return
+        }
+        eventStream.send((event, request.sessionID))
+        if request.isAnsweredAsSkipped {
+            sendServerResponse(.result(id: request.id, ["value": AnyCodable("")]))
+        }
+    }
+
+    /// Test seam: receives every answer frame instead of the socket.
+    internal var serverResponseRecorder: ((JSONRPCServerResponse) -> Void)?
+
+    private func sendServerResponse(_ frame: JSONRPCServerResponse) {
+        recordDebugEvent(.outbound, name: frame.error == nil ? "request.result" : "request.error", detail: "id=\(frame.id)")
+        if let serverResponseRecorder {
+            serverResponseRecorder(frame)
+            return
+        }
+        guard let webSocketTask else {
+            log.notice("dropping answer to server request \(frame.id): not connected")
+            return
+        }
+        Task { @MainActor in
+            do {
+                let data = try JSONEncoder().encode(frame)
+                guard let text = String(data: data, encoding: .utf8) else { return }
+                try await webSocketTask.send(.string(text))
+            } catch {
+                log.error("answer to server request \(frame.id) failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Tell the gateway this connection answers server→client requests. A v7+
+    /// gateway treats a client that never says so as a build predating them and
+    /// fails every clarify/approval prompt fast; an older gateway answers
+    /// method-not-found, which is fine.
+    internal func advertiseClientCapabilities() async {
+        do {
+            let response = try await call(
+                "client.capabilities",
+                params: ["server_requests": AnyCodable(true)],
+                timeout: GatewayClient.hotPathTimeout
+            )
+            if let error = response.error, error.code != JSONRPCError.methodNotFound.code {
+                log.notice("client.capabilities refused: \(error.message)")
+            }
+        } catch {
+            log.notice("client.capabilities failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Deliver one raw inbound frame as if it came off the socket (tests).
+    internal func deliverFrameForTesting(_ data: Data) {
+        applyParsedMessage(Self.parseMessage(data))
+    }
+
     private func fulfillRequest(id: Int, response: JSONRPCResponse) {
         pendingRequestsLock.lock()
         let continuation = pendingRequests.removeValue(forKey: id)
@@ -2495,7 +2663,21 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         pendingRequestsLock.unlock()
         recordDebugEvent(.inbound, name: method, detail: "response id=\(id)")
 
+        if !found, let lateMethod = timedOutRequestMethods.removeValue(forKey: id) {
+            log.notice("late response to \(lateMethod) (id=\(id)) arrived after its timeout")
+            healthCounters.increment(HealthCounter.rpcLateResponses)
+            lateResponses.send(lateMethod)
+        }
+
         continuation?.resume(returning: response)
+    }
+
+    private func rememberTimedOut(id: Int, method: String) {
+        timedOutRequestMethods[id] = method
+        while timedOutRequestMethods.count > Self.timedOutRequestMemory,
+              let oldest = timedOutRequestMethods.keys.min() {
+            timedOutRequestMethods.removeValue(forKey: oldest)
+        }
     }
 
     /// Thread-safe removal of a pending request continuation.
@@ -2580,7 +2762,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             // Start keepalive pings
             startPingTimer()
 
-            await onReconnected?()
+            Task { await self.advertiseClientCapabilities() }
+            reconnectedSubject.send()
         }
     }
 
@@ -2607,6 +2790,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 handleDisconnect(reason: "WebSocket closed (\(code.rawValue)) \(reasonStr)")
             }
         }
+    }
+
+    /// URLSessionWebSocketTask can strip Authorization during the upgrade on
+    /// macOS/iOS 26, so Portal also sends the API key as a query fallback.
+    nonisolated static func authenticatedWebSocketURL(_ url: URL, apiKey: String) -> URL {
+        guard !apiKey.isEmpty,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return url }
+        var items = components.queryItems ?? []
+        if !items.contains(where: { $0.name == "api_key" }) {
+            items.append(URLQueryItem(name: "api_key", value: apiKey))
+            components.queryItems = items
+        }
+        return components.url ?? url
     }
 }
 

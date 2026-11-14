@@ -10,7 +10,14 @@ private let log = PortalLogger(category: "SessionListViewModel")
 /// gateway in-memory IDs (short hex, from session.create) so RPCs work.
 @MainActor
 final class SessionListViewModel: ObservableObject {
-    @Published var sessions: [Session] = []
+    @Published internal var sessions: [Session] = [] {
+        didSet { sidebarSectionsCache = nil }
+    }
+    /// The sidebar tiers for the current `sessions`, or nil when they must be
+    /// recomputed. Every write to `sessions` (a refresh, a pin, an archive, a
+    /// run-state change, a title) goes through the property, so the `didSet`
+    /// above is the single invalidation point.
+    private var sidebarSectionsCache: SessionSidebarSections?
     @Published var activeSessionID: String?
     @Published var isLoading: Bool = false
     var isSuppressingSelectionHandler = false
@@ -722,8 +729,25 @@ final class SessionListViewModel: ObservableObject {
     }
 
     /// Shared sidebar sort: pinned first, then most recently active/started.
+    /// The sidebar's tiers, partitioned and sorted once per change to
+    /// `sessions` and served from the cache until the next change. The view
+    /// reads this from its body, which runs far more often than the list moves.
+    internal func sidebarSections() -> SessionSidebarSections {
+        if let sidebarSectionsCache { return sidebarSectionsCache }
+        let sections = SessionSidebarSections.partition(sessions, includes: { _ in true }, sort: sortedForSidebar)
+        sidebarSectionsCache = sections
+        return sections
+    }
+
+    /// Whether the tiers are cached for the current sessions — for tests that
+    /// pin the once-per-change guarantee.
+    internal var hasCachedSidebarSections: Bool { sidebarSectionsCache != nil }
+
     func sortedForSidebar(_ sessions: [Session]) -> [Session] {
-        sessions.sorted { lhs, rhs in
+        // The perf ratchet counts these: one sort per tier per change to the
+        // session list, never one per render (see the harness).
+        PerfCounter.tick("sessions.sidebarSort")
+        return sessions.sorted { lhs, rhs in
             if lhs.isPinned != rhs.isPinned { return lhs.isPinned && !rhs.isPinned }
             let lhsDate = lhs.lastActive ?? lhs.startedAt ?? .distantPast
             let rhsDate = rhs.lastActive ?? rhs.startedAt ?? .distantPast

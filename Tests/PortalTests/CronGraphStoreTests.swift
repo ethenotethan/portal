@@ -63,16 +63,4 @@ internal struct CronGraphStoreTests {
         #expect(viewModel.simNodes.map(\.id) == ["job"])
         #expect(!viewModel.isLoading)
     }
-
-    @Test("the app poller refreshes the graph store without a graph surface being open")
-    internal func pollerRefreshesGraphStore() async {
-        let revisions = CronGraphRevisionStore(testing: true)
-        let store = CronGraphStore(revisionStore: revisions)
-        let poller = CronPoller(graphStore: store)
-
-        await poller.pollGraph(from: StubSource(result: graph(status: "ok")))
-
-        #expect(store.graph.nodes.map(\.id) == ["job"])
-        #expect(revisions.revisions.count == 1)
-    }
 }

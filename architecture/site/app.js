@@ -273,7 +273,18 @@
     triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
     launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core.",
     flows_traceable: "Every declared system flow is a path over edges the map draws; a step whose edge disappeared, or fewer flows than declared, fails the build until the flow is updated.",
-    machines_complete: "Every state machine's states match what is declared and every state is entered by some transition; a new, renamed or orphaned state changes the construction and must be declared."
+    machines_complete: "Every state machine's states match what is declared and every state is entered by some transition; a new, renamed or orphaned state changes the construction and must be declared.",
+    tasks_parsed: "Every Task creation the source spells, however its generics or arguments are written, was read by the task rules; a shape they could not read fails the build with its file and line.",
+    resources_parsed: "Every stored property typed as a known resource (socket, session, timer, lock, continuation pool, model container, subject) was read by the resource rules; a shape they could not read fails the build with its file and line."
+  };
+
+  // The rung of the pipeline each invariant pins. The list is grouped by it, so a
+  // reader sees which checks are about the extractor, which about what the model
+  // wrote, and which about a discipline the source must keep.
+  const INVARIANT_LAYER_TEXT = {
+    extraction: ["Extraction", "The mechanical model agrees with its own rules: every construct the extractor recognises is on the map, dispatched, zoned and populated as the rules say."],
+    enrichment: ["Enrichment", "What the model wrote is still a path over edges the map draws; a hop whose edge disappeared fails the build until the record is rewritten."],
+    policy: ["Policy", "A construction the source is required to keep: the lock discipline and lifecycle the critical-section picture assumes."],
   };
 
   const INTERPLAY_SHARED_GROUP = "Shared core";
@@ -287,7 +298,15 @@
   // lock and socket; engines no single page owns) are in-memory constructions,
   // not shared code. They get their own hull inside the application boundary.
   const INTERPLAY_MEMORY_GROUP = "In-memory constructions";
-  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, artifact: 1, operation: 2 };
+  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, artifact: 1, tick: 1, state: 1, operation: 2 };
+  // Holder tables live up here with the other tables: assignInterplayGroups() runs during
+  // init and must read them outside the temporal dead zone.
+  // A holder of ticks or resident state (a view model, store or service the App
+  // constructs) is drawn collapsed like the transport core: its rows open beneath
+  // it on a press, so the map stays readable while the state is one click away.
+  const HOLDER_MEMBER_KINDS = new Set(["tick", "state"]);
+  const HOLDER_KINDS = ["owner", "store", "provider", "caller", "subscriber", "hub"];
+  const holdersWithMembers = new Set(interplay.nodes.filter((n) => HOLDER_MEMBER_KINDS.has(n.kind) && n.owner_type).map((n) => `${n.component}|${n.owner_type}`));
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
   const componentById = new Map(model.components.map((component) => [component.id, component]));
@@ -303,6 +322,7 @@
   let selectedInterplayId = null;
   let selectedFlowId = null; // a traced system flow: its steps light up like a selection's path
   const openFlows = new Set(); // flows the reader has expanded; survives the re-render tracing causes
+  const openJourneys = new Set(); // journey groups the reader has opened; a closed group holds no cards
   const flows = interplay.flows || [];
   const flowById = new Map(flows.map((flow) => [flow.id, flow]));
   // Journey tables live up here because renderFlows() runs during init.
@@ -382,9 +402,12 @@
   function isTransportContainer(node) {
     return node.kind === "owner" && ((node.roles || []).includes("transport") || (node.roles || []).includes("pool"));
   }
+  function isExpandableHolder(node) {
+    return isTransportContainer(node) || (HOLDER_KINDS.includes(node.kind) && holdersWithMembers.has(`${node.component}|${node.label}`));
+  }
   function ownerMemberIds(owner) {
     return new Set(drawNodes
-      .filter((node) => ["resource", "section", "operation", "machine"].includes(node.kind) &&
+      .filter((node) => ["resource", "section", "operation", "machine", "tick", "state"].includes(node.kind) &&
         node.owner_type === owner.label && node.component === owner.component && node.sub_kind !== "event_bus")
       .map((node) => node.id));
   }
@@ -418,7 +441,7 @@
     const barOfMember = new Map();
     drawNodes.filter((node) => node.kind !== "transport" && isInterplayBar(node)).forEach((bar) => containerMemberIds(bar).forEach((id) => barOfMember.set(id, bar.id)));
     const ownerOfMember = new Map();
-    drawNodes.filter(isTransportContainer).forEach((owner) => ownerMemberIds(owner).forEach((id) => ownerOfMember.set(id, owner.id)));
+    drawNodes.filter(isExpandableHolder).forEach((owner) => ownerMemberIds(owner).forEach((id) => ownerOfMember.set(id, owner.id)));
     const chains = new Map();
     const counts = new Map();
     const groupsPresent = new Set();
@@ -478,6 +501,15 @@
     if (box.label === INTERPLAY_SHARED_GROUP) return "SHARED CORE";
     if (box.label === INTERPLAY_MEMORY_GROUP) return "IN-MEMORY";
     return "PAGE";
+  }
+  // An edge only a call chain supports (a surface reaching a store or an external system
+  // through the members it calls) is drawn when one of its ends is selected: the chain
+  // is the inspector's story, not a line the whole map should carry.
+  function isChainOnlyEdge(edge) {
+    return edge.rule_id === "swift.usage.injected_method";
+  }
+  function chainEdgeHidden(edge) {
+    return isChainOnlyEdge(edge) && selectedInterplayId !== edge.source && selectedInterplayId !== edge.target;
   }
   function isPushEdge(edge) {
     return ["notifies", "provides", "publish", "declares", "replays-into"].includes(edge.relation);
@@ -590,8 +622,14 @@
     nodes.forEach((node) => {
       if (node.kind === "owner") ownerGroup.set(`${node.component}|${node.label}`, group.get(node.id));
     });
+    // Ticks and resident state follow the holder that starts or keeps them; a holder
+    // with no box of its own (a class the root view constructs) leaves them in the
+    // zone of the page that constructed them: the launch zone.
+    const holderGroup = new Map();
+    nodes.forEach((node) => { if (HOLDER_KINDS.includes(node.kind) && group.has(node.id)) holderGroup.set(`${node.component}|${node.label}`, group.get(node.id)); });
     nodes.forEach((node) => {
       if (group.has(node.id)) return;
+      if (HOLDER_MEMBER_KINDS.has(node.kind)) { group.set(node.id, holderGroup.get(`${node.component}|${node.owner_type}`) || pageZone(node)); return; }
       group.set(node.id, ownerGroup.get(`${node.component}|${node.owner_type}`) || INTERPLAY_SHARED_GROUP);
     });
     return group;
@@ -643,7 +681,7 @@
       bars.forEach((bar) => containerMemberIds(bar).forEach((id) => { if (inList.has(id)) containedBy.set(id, bar.id); }));
       // Expanded owners: their resources and sections are drawn in an inner hull
       // directly beneath the owner box, wherever the owner sits.
-      const expanded = list.filter((node) => isTransportContainer(node) && expandedOwners.has(node.id));
+      const expanded = list.filter((node) => isExpandableHolder(node) && expandedOwners.has(node.id));
       expanded.forEach((owner) => ownerMemberIds(owner).forEach((id) => { if (inList.has(id)) containedBy.set(id, owner.id); }));
       const rest = list.filter((node) => !barIds.has(node.id) && !containedBy.has(node.id));
       const INSET = 16;
@@ -677,7 +715,7 @@
       function expandOwners(items, startX, startY, columns) {
         let cursor = startY;
         let right = startX;
-        items.filter((node) => expandedOwners.has(node.id) && isTransportContainer(node)).forEach((owner) => {
+        items.filter((node) => expandedOwners.has(node.id) && isExpandableHolder(node)).forEach((owner) => {
           const members = list
             .filter((node) => containedBy.get(node.id) === owner.id)
             .sort((a, b) => kindRank(a) - kindRank(b) || (a.label || "").localeCompare(b.label || ""));
@@ -1112,6 +1150,7 @@
       if (isContainmentEdge(edge, targetNode)) return; // drawn as containment
       if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return;
       if (["implements", "invokes", "extends"].includes(edge.relation)) return;
+      if (chainEdgeHidden(edge)) return;
       const repSource = repOf.get(edge.source) || edge.source;
       const repTarget = repOf.get(edge.target) || edge.target;
       if (repSource === repTarget) return; // internal to one collapsed hull
@@ -1155,6 +1194,7 @@
       if (isContainmentEdge(edge, targetNode)) return; // drawn as containment
       if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return; // containment
       if (["implements", "invokes", "extends"].includes(edge.relation)) return; // data for the inspector; the drawn flow is surface → client file → core → namespace
+      if (chainEdgeHidden(edge)) return;
       const edgeClass = isPushEdge(edge) ? "push" : edge.class;
       const path = svgElement("path", {
         d: interplayLinkPath(source, target),
@@ -1181,7 +1221,9 @@
         ? `notifies · ${subscriptionLabel(targetNode)}`
         : edge.relation === "calls" && sourceNode && targetNode
           ? `calls · ${triggerProvenance(sourceNode, targetNode)}`
-          : edge.relation;
+          : edge.chain
+            ? `${edge.relation} · through ${edge.chain.join(" → ")}`
+            : edge.relation;
       path.append(title);
       edgeGroup.append(path);
     });
@@ -1219,6 +1261,7 @@
       else if (node.kind === "machine") rect.setAttribute("class", "machine");
       else if (isBusSpine(node)) rect.setAttribute("class", "bus");
       if (node.overlay_prose) rect.setAttribute("data-explained", "true");
+      if (isExpandableHolder(node) && !isTransportContainer(node)) rect.setAttribute("data-holder", expandedOwners.has(node.id) ? "expanded" : "collapsed");
       group.append(rect);
       if (!isInterplayBar(node)) {
         group.append(svgElement("line", { x1: 0, x2: 0, y1: 6, y2: position.height - 6, class: "node-rule" }));
@@ -1230,6 +1273,12 @@
       // name is in the aria label and the inspector.
       title.textContent = node.kind === "artifact" && node.label.length > 30 ? `${node.label.slice(0, 29)}…` : node.label;
       group.append(kicker, title);
+      if (!node.hist && node.semantic && node.semantic.purpose) {
+        // Why it exists, on hover: the same sentence the inspector leads with.
+        const tip = svgElement("title", {});
+        tip.textContent = `${node.label} — ${node.semantic.purpose}`;
+        group.append(tip);
+      }
       if (node.kind !== "operation" && !isInterplayBar(node)) {
         const meta = svgElement("text", { x: 11, y: 41, class: "node-meta" });
         meta.textContent = interplayNodeMeta(node);
@@ -1255,8 +1304,8 @@
           }
           selectInterplayNode(node.id);
         }, { keyboard: false });
-      } else if (isTransportContainer(node)) {
-        // Collapsed by default; a press expands the owner's resources and sections.
+      } else if (isExpandableHolder(node)) {
+        // Collapsed by default; a press expands the owner's resources, sections, ticks and state.
         wirePress(group, () => {
           if (expandedOwners.has(node.id)) expandedOwners.delete(node.id); else expandedOwners.add(node.id);
           selectedInterplayId = node.id;
@@ -1532,6 +1581,8 @@
   }
 
   function interplayKicker(node) {
+    if (node.kind === "tick") return `TICK · EVERY ${node.interval || "?"}`;
+    if (node.kind === "state") return node.published ? "RESIDENT STATE · PUBLISHED" : "RESIDENT STATE";
     if (node.kind === "hub") return "HUB";
     if (node.kind === "seam") return "SEAM";
     if (node.kind === "endpoint") return node.protocol === "jsonrpc" ? "JSON-RPC" : "REST";
@@ -1694,7 +1745,9 @@
       const guarded = (node.steps || []).filter((step) => step.guarded).length;
       return `${(node.lock_labels || []).join(", ")} · ${(node.steps || []).length} steps · ${guarded} under lock`;
     }
-    if (isTransportContainer(node)) {
+    if (node.kind === "tick") return `${(node.steps || []).length} call${(node.steps || []).length === 1 ? "" : "s"} per round · ${node.form}`;
+    if (node.kind === "state") return `${(node.writes || []).length} write${(node.writes || []).length === 1 ? "" : "s"} · ${node.declared_type || "collection"}`;
+    if (isExpandableHolder(node)) {
       const owned = ownerMemberIds(node).size;
       const holders = interplay.edges.filter((edge) => edge.target === node.id && edge.relation === "holds").length;
       const held = holders ? ` · held by ${holders} surface${holders === 1 ? "" : "s"}` : "";
@@ -1777,7 +1830,7 @@
     concurrency_model: "Concurrency", reconnect_policy: "Reconnect", backpressure: "Backpressure", shared_by: "Shared by",
     settles_by: "Settles by", cancellation: "Cancellation", runtime: "Runtime", model_ids: "Models", memory_floor_gb: "Memory floor (GB)",
     loaded_when: "Loaded", unloaded_when: "Unloaded", supplies: "Supplies", configures: "Configures", loads: "Loads",
-    wraps: "Wraps", error_mapping: "Errors", purpose: "Purpose", request_shape: "Request", response_shape: "Response",
+    wraps: "Wraps", error_mapping: "Errors", request_shape: "Request", response_shape: "Response",
     idempotent: "Idempotent", streams: "Streams", entry_triggers: "Entry triggers", owns_state_in: "Owns state in",
     state: "State", reacts_to: "Reacts to", conformers: "Conformers"
   };
@@ -1788,23 +1841,80 @@
     if (typeof value === "string") return value.includes(":") && idByHistoryKey.has(value) ? nameOf(value) : value.replace(/_/g, " ");
     return String(value);
   }
+  // ---- Code-shaped tokens in prose -------------------------------------------
+  // Identifiers in model-written text render as inline code whether or not the
+  // writer backticked them: repository paths, Swift attributes, ENV_VARS, dotted
+  // and called names, camelCase and snake_case words, file names, plus the names
+  // the map itself knows (every drawn construction with a capital in its label).
+  // A lexical shape, nothing about what the words mean.
+  const CODE_TOKEN_RE = new RegExp([
+    String.raw`(?<![\w/])(?:Sources|App|docs|architecture|scripts|Tests|\.github)/[\w./\[\]()+-]*[\w)\]]`,  // repository paths
+    String.raw`@[A-Z][A-Za-z]+\b`,                                                                       // @Published, @StateObject, @MainActor
+    String.raw`\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b`,                                                       // ENV_VARS
+    String.raw`\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w+)+(?:\([^()\n]*\))?`,                                     // dotted names: KeychainStore.shared.saveGateways(…), session.list
+    String.raw`\b[A-Za-z_]\w*\([^()\n]*\)`,                                                              // calls(): load(), saveGateways(gateways)
+    String.raw`\b[a-z][a-z0-9]*(?:[A-Z][a-z0-9]+)+\b`,                                                    // camelCase
+    String.raw`\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b`,                                                        // snake_case
+    String.raw`\b[\w-]+\.(?:swift|json|md|yml|yaml|plist|sh|py)\b`,                                      // file names
+  ].join("|"), "g");
+  const KNOWN_IDENTIFIERS = new Set([
+    ...interplay.nodes.map((node) => node.label),
+    ...interplayPages.flatMap((page) => page.roots || []),
+    ...Object.keys((interplay.launch || {}).reach || {}),
+  ].filter((name) => typeof name === "string" && name.length >= 4 && /[A-Z]/.test(name) && !name.includes(" ")));
+  const WORD_RE = /\b[A-Za-z_][\w]*\b/g;
+  function codeTokens(text) {
+    const parts = [];
+    let last = 0;
+    const matches = [...text.matchAll(CODE_TOKEN_RE), ...[...text.matchAll(WORD_RE)].filter((m) => KNOWN_IDENTIFIERS.has(m[0]))].sort((a, b) => a.index - b.index);
+    for (const m of matches) {
+      const token = m[0];
+      if (m.index < last) continue; // inside a token already set
+      if (/^(?:e\.g|i\.e|etc|vs)\.?$/i.test(token)) continue;
+      if (m.index > last) parts.push(document.createTextNode(text.slice(last, m.index)));
+      parts.push(element("code", "auto", token));
+      last = m.index + token.length;
+    }
+    if (last < text.length) parts.push(document.createTextNode(text.slice(last)));
+    return parts;
+  }
+  // Backticked spans are code as written; the rest is tokenised.
+  function inlineCode(text) {
+    const span = element("span", "inline-code");
+    String(text).split(/(`[^`\n]+`)/).forEach((segment) => {
+      if (!segment) return;
+      if (segment.length > 2 && segment.startsWith("`") && segment.endsWith("`")) span.append(element("code", "", segment.slice(1, -1)));
+      else span.append(...codeTokens(segment));
+    });
+    return span;
+  }
+  function prose(text, className = "") {
+    const paragraph = element("p", className);
+    paragraph.append(inlineCode(text));
+    return paragraph;
+  }
+
   function describedSection(semantic) {
     const section = element("section", "inspector-section described");
     const head = element("h4", "", "Described");
     if (semantic.stale) head.append(element("span", "stale-badge", `stale · files changed since ${String(semantic.source_revision).slice(0, 9)}`));
-    section.append(head, element("p", "", semantic.summary));
+    // Why it exists comes first: the summary says what the construction does, the
+    // purpose says why anyone wanted it, and a reader meeting a box cold needs the why.
+    section.append(head, prose(semantic.purpose, "described-purpose"), prose(semantic.summary));
     const fields = Object.entries(semantic.fields || {});
     if (fields.length) {
       const table = element("dl", "described-table");
       fields.forEach(([name, value]) => {
         table.append(element("dt", "", SEMANTIC_FIELD_LABELS[name] || name.replace(/_/g, " ")));
-        table.append(element("dd", "", semanticValue(value)));
+        const cell = element("dd");
+        cell.append(inlineCode(semanticValue(value)));
+        table.append(cell);
       });
       section.append(table);
     }
     if ((semantic.open_questions || []).length) {
       const questions = element("ul", "evidence-list");
-      semantic.open_questions.forEach((question) => questions.append(element("li", "", `? ${question}`)));
+      semantic.open_questions.forEach((question) => { const li = element("li"); li.append(document.createTextNode("? "), inlineCode(question)); questions.append(li); });
       section.append(element("p", "described-meta", "Open questions"), questions);
     }
     const evidence = element("ul", "evidence-list");
@@ -1914,6 +2024,29 @@
     applyInterplayState();
     renderFlows();
   }
+  // A step's detail: the prose for one hop, written from cited lines. Paragraphs are
+  // separated by a blank line; a ``` block is a verbatim quote and keeps its lines.
+  function stepDetail(step) {
+    const wrap = element("div", "step-detail");
+    const text = String(step.detail || "");
+    const parts = text.split(/```/);
+    parts.forEach((part, index) => {
+      if (index % 2 === 1) {
+        const pre = document.createElement("pre");
+        pre.className = "step-quote";
+        pre.textContent = part.replace(/^[a-z]*\n/, "").replace(/\n$/, "");
+        wrap.append(pre);
+        return;
+      }
+      part.split(/\n\s*\n/).map((para) => para.trim()).filter(Boolean).forEach((para) => wrap.append(prose(para)));
+    });
+    if ((step.cites || []).length) {
+      const cites = element("span", "step-cites");
+      step.cites.forEach((site, index) => { if (index) cites.append(document.createTextNode(" · ")); cites.append(sourceLink(site)); });
+      wrap.append(cites);
+    }
+    return wrap;
+  }
   function renderFlowInspector(flow) {
     const inspector = document.getElementById("interplay-inspector");
     if (!inspector) return;
@@ -1926,13 +2059,14 @@
     close.addEventListener("click", clearFlow);
     container.append(close);
     container.style.setProperty("--component-color", INTERPLAY_ROLE_COLORS.interplay || INTERPLAY_ROLE_COLORS.hub);
-    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}`), element("h3", "", flow.title), element("p", "", flow.summary));
+    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}${flow.stale ? " · STALE" : ""}`), element("h3", "", flow.title), element("p", "", flow.summary));
     const nameOf = (key) => { const id = idByHistoryKey.get(key); const node = id ? interplayNodeById.get(id) : null; return node ? node.label : (key.startsWith("page:") ? `${PAGE_LABEL.get(key.slice(5)) || key.slice(5)} (page)` : key); };
     const steps = element("ol", "inspector-steps");
     flow.steps.forEach((step) => {
       const li = document.createElement("li");
       li.append(element("span", "step-path", `${nameOf(step.from)} → ${step.relation.replace(/-/g, " ")} → ${nameOf(step.to)}`));
-      if (step.note) li.append(element("span", "step-note", step.note));
+      if (step.note) { const note = element("span", "step-note"); note.append(inlineCode(step.note)); li.append(note); }
+      if (step.detail) li.append(stepDetail(step));
       steps.append(li);
     });
     const section = element("section", "inspector-section");
@@ -2036,16 +2170,19 @@
     const sections = [];
     let pageIndex = 0;
     groups.forEach((list, groupKey) => {
-      const section = element("section", "journey");
+      // A group's cards are built when it opens and released when it closes: the panel
+      // holds every flow with its steps' prose and a diagram each, and a page that keeps
+      // all of that in the DOM for the whole session pays for it on every style pass.
+      const section = element("details", "journey");
       let title;
       if (groupKey.startsWith("page:")) {
         pageIndex += 1;
-        title = `${JOURNEY_TITLES.page}${pageIndex === 1 ? "" : ""} · ${PAGE_LABEL.get(groupKey.slice(5)) || groupKey.slice(5)}`;
+        title = `${JOURNEY_TITLES.page} · ${PAGE_LABEL.get(groupKey.slice(5)) || groupKey.slice(5)}`;
       } else {
         title = JOURNEY_TITLES[groupKey] || groupKey;
       }
-      section.append(element("h4", "journey-title", title));
-      list.forEach((flow) => {
+      section.append(element("summary", "journey-title", `${title} · ${list.length} flow${list.length === 1 ? "" : "s"}`));
+      const buildCards = () => list.forEach((flow) => {
         // Collapsed by default: the header and one-line summary are the disclosure;
         // the diagram and the numbered procedure render on first expansion.
         const article = element("details", `flow${flow.id === selectedFlowId ? " tracing" : ""}`);
@@ -2056,8 +2193,9 @@
         head.append(element("h5", "", flow.title));
         if (flow.interaction) head.append(element("span", "flow-interaction", flow.interaction));
         if (flow.status !== "traceable") head.append(element("span", "invariant-status violated", "BROKEN"));
+        if (flow.stale) head.append(element("span", "stale-badge", "stale · cited lines changed"));
         head.append(element("span", "flow-steps-count", `${flow.steps.length} steps`));
-        disclosure.append(head, element("p", "flow-summary", flow.summary));
+        disclosure.append(head, prose(flow.summary, "flow-summary"));
         article.append(disclosure);
         const body = element("div", "flow-body");
         article.append(body);
@@ -2084,11 +2222,12 @@
           let verb = step.relation.replace(/-/g, " ");
           if (step.relation === "triggers" && trigger) verb = `${trigger.api} · ${trigger.method}()${trigger.view ? ` in ${trigger.view}` : ""}`;
           li.append(element("strong", "", nameOf(step.from)), document.createTextNode(` ${verb} `), element("strong", "", nameOf(step.to)));
-          if (step.note) li.append(element("span", "step-note", step.note));
+          if (step.note) { const note = element("span", "step-note"); note.append(inlineCode(step.note)); li.append(note); }
+          if (step.detail) li.append(stepDetail(step));
           procedure.append(li);
         });
         body.append(procedure);
-        if (flow.outcome) body.append(element("p", "flow-outcome", `Outcome: ${flow.outcome}`));
+        if (flow.outcome) body.append(prose(`Outcome: ${flow.outcome}`, "flow-outcome"));
         const meta = element("p", "flow-meta");
         meta.append(document.createTextNode(`${flow.steps.length} steps · written by ${flow.model} at ${String(flow.source_revision).slice(0, 9)} · `));
         const trace = document.createElement("a");
@@ -2099,6 +2238,18 @@
         meta.append(trace);
         body.append(meta);
         section.append(article);
+      });
+      const wanted = openJourneys.has(groupKey) || list.some((flow) => flow.id === selectedFlowId || openFlows.has(flow.id));
+      section.open = wanted;
+      if (wanted) buildCards();
+      section.addEventListener("toggle", () => {
+        if (section.open) {
+          openJourneys.add(groupKey);
+          if (!section.querySelector(".flow")) { buildCards(); renderMermaidDiagrams(); }
+        } else {
+          openJourneys.delete(groupKey);
+          section.querySelectorAll(".flow").forEach((card) => card.remove());
+        }
       });
       sections.push(section);
     });
@@ -2115,7 +2266,7 @@
     if (!list || !lede) return;
     const holding = invariants.filter((item) => item.status === "holds").length;
     lede.textContent = `${holding} of ${invariants.length} declared constructions hold on this build. Each is declared in architecture/interplay/invariants.json with a reason and checked by scripts/build_architecture.py; a violation fails the build rather than redrawing the map.`;
-    list.replaceChildren(...invariants.map((item) => {
+    const invariantItem = (item) => {
       const li = element("li", "invariant");
       const head = element("div", "invariant-head");
       head.append(
@@ -2125,6 +2276,19 @@
       );
       li.append(head, element("p", "", INVARIANT_KIND_TEXT[item.kind] || item.kind), element("p", "invariant-why", item.why));
       return li;
+    };
+    const layers = Object.keys(INVARIANT_LAYER_TEXT)
+      .map((layer) => [layer, invariants.filter((item) => item.layer === layer)])
+      .filter(([, items]) => items.length);
+    list.replaceChildren(...layers.map(([layer, items]) => {
+      const [title, rung] = INVARIANT_LAYER_TEXT[layer];
+      const group = element("section", "invariant-layer");
+      const holding = items.filter((item) => item.status === "holds").length;
+      group.append(element("h4", "", `${title} · ${holding} of ${items.length} hold`), element("p", "invariant-layer-rung", rung));
+      const ol = element("ol", "invariants-list");
+      ol.append(...items.map(invariantItem));
+      group.append(ol);
+      return group;
     }));
   }
 
@@ -2421,7 +2585,7 @@
     const heading = element("h3", "", node.label);
     container.append(badge, heading);
 
-    const summary = element("p", "", interplayInspectorSummary(node));
+    const summary = prose(interplayInspectorSummary(node));
     container.append(summary);
 
     const metrics = interplayInspectorMetrics(node);
@@ -2670,12 +2834,41 @@
           const row = element("div", "relationship");
           const direction = edge.source === node.id ? "→" : "←";
           row.append(element("strong", "", `${edge.relation} ${direction} ${other ? other.label : otherId}`));
-          row.append(element("span", "", `${edge.class} edge`));
+          row.append(element("span", "", `${edge.class} edge${isChainOnlyEdge(edge) ? " · by call chain" : ""}`));
+          if (edge.chain) row.append(element("span", "relation-chain", `through ${edge.chain.join(" → ")}`));
           relSection.append(row);
         });
       container.append(relSection);
     }
 
+    if (node.kind === "tick") {
+      const round = element("section", "inspector-section");
+      round.append(element("h4", "", `One round · every ${node.interval || "?"}`));
+      const list = element("ol", "inspector-steps");
+      (node.steps || []).forEach((step) => {
+        const li = document.createElement("li");
+        li.append(element("span", "step-path", `${step.call}()`), document.createTextNode(" "), sourceLink(step));
+        list.append(li);
+      });
+      const back = document.createElement("li");
+      back.className = "step-return";
+      back.textContent = node.form === "timer" ? `↺ the timer fires again after ${node.interval}` : `↺ sleeps ${node.interval}, checks ${node.condition || "the flag"}, repeats`;
+      list.append(back);
+      round.append(list);
+      container.append(round);
+    }
+    if (node.kind === "state") {
+      const writes = element("section", "inspector-section");
+      writes.append(element("h4", "", `Writes (${(node.writes || []).length})`));
+      const list = element("ul", "evidence-list");
+      (node.writes || []).forEach((write) => {
+        const li = document.createElement("li");
+        li.append(document.createTextNode(`${write.op}${write.function ? ` in ${write.function}()` : ""} · `), sourceLink(write));
+        list.append(li);
+      });
+      writes.append(list);
+      container.append(writes);
+    }
     if (node.path) {
       const evidenceSection = element("section", "inspector-section");
       evidenceSection.append(element("h4", "", "Source"));
@@ -2692,6 +2885,11 @@
 
   // Compact headline numbers for the inspector metrics grid, per node kind.
   function interplayInspectorMetrics(node) {
+    if (node.kind === "tick") return [[(node.steps || []).length, "Calls per round"], [node.interval || "?", "Interval"], [node.form, "Form"]];
+    if (node.kind === "state") {
+      const touched = interplay.edges.filter((edge) => edge.target === node.id && edge.relation === "touches").length;
+      return [[(node.writes || []).length, "Writes"], [touched, "Ticks touching"], [node.declared_type || "—", "Type"]];
+    }
     if (node.kind === "artifact") {
       return [[(node.stores || []).length, "Stores"], [(node.evidence || []).length, "Sites"], [String(node.sub_kind || "").replace(/_/g, " "), "Kind"]];
     }
@@ -2732,6 +2930,15 @@
   }
 
   function interplayInspectorSummary(node) {
+    if (node.kind === "tick") {
+      const round = (node.steps || []).map((step) => `${step.call}()`).join(" → ") || "nothing the grammar recognises as a call";
+      const how = node.form === "timer" ? `a repeating Timer every ${node.interval}` : `a loop on ${node.condition || "a flag"} that sleeps ${node.interval} between rounds`;
+      return `${node.owner_type}.${node.label.split(".").pop()}() starts ${how}; the process does this unprompted for as long as it runs. One round: ${round}. ${node.owner_type} is alive from launch (${node.reach && node.reach.hop === 0 ? "constructed by the App entry" : `constructed by ${(node.reach || {}).via || "the launch reach"}`}).`;
+    }
+    if (node.kind === "state") {
+      const functions = Array.from(new Set((node.writes || []).map((w) => w.function).filter(Boolean)));
+      return `${node.label}: a ${node.declared_type || "collection"} ${node.owner_type} keeps in memory for the process lifetime and writes in ${functions.length ? functions.map((f) => `${f}()`).join(", ") : "its body"}. ${node.published ? "Published: views re-render when it changes." : "Not published: internal bookkeeping."}`;
+    }
     if (node.kind === "artifact") {
       const system = interplayNodeById.get(`external:${node.system_id}`);
       const kind = String(node.sub_kind || "artifact").replace(/_/g, " ");
@@ -3380,7 +3587,7 @@
       invariantsList.append(checkItem([
         element("span", `invariant-status ${item.status}`, item.status === "holds" ? "HOLDS" : "VIOLATED"),
         element("code", "", item.id),
-        element("span", "invariant-meta", item.kind.replace(/_/g, " "))
+        element("span", "invariant-meta", `${item.layer} · ${item.kind.replace(/_/g, " ")}`)
       ], item.why ? element("p", "", item.why) : null, []));
     });
     invariantsSection.append(invariantsList);
@@ -4144,11 +4351,22 @@
     passTable.append(passHead, passBody);
     passes.append(passTable);
 
+    const completeness = (model.behavior || {}).completeness || {};
+    const unparsedItems = Object.values(completeness).flatMap((entry) => entry.unparsed || []);
+    const seen = Object.values(completeness).reduce((sum, entry) => sum + (entry.seen || 0), 0);
+    const unparsedGroup = behaviorGroup("Unparsed shapes", `${seen} task and resource shapes were seen by the broad patterns; ${unparsedItems.length} of them were not read by any rule. Each is a line the grammar does not know yet; the tasks-parsed and resources-parsed invariants fail the build on one unless it is allowed by name.`);
+    if (unparsedItems.length) {
+      const list = element("ul", "evidence-list");
+      unparsedItems.forEach((item) => { const li = document.createElement("li"); li.append(element("span", "chip", item.shape), document.createTextNode(` ${item.text} · `), sourceLink(item)); list.append(li); });
+      unparsedGroup.append(list);
+    } else {
+      unparsedGroup.append(element("p", "group-note", "Every shape seen was parsed."));
+    }
     const untouched = behaviorGroup("Untouched files", `${summary.untouched_files || 0} of ${summary.files || 0} analysed files were read by every pass and cited by none. They are assigned to a component and counted in the inventory; the map and the invariants say nothing about what is inside them.`);
     const list = element("div", "");
     list.id = "extraction-untouched";
     untouched.append(list);
-    container.replaceChildren(constructs, passes, untouched);
+    container.replaceChildren(constructs, passes, unparsedGroup, untouched);
     renderUntouchedFiles(list);
   }
 

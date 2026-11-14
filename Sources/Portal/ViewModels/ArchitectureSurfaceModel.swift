@@ -9,7 +9,7 @@ internal protocol ArchitectureReading: AnyObject {
     func architectureCheck(service: String) async throws -> ArchitectureCheckResult
     func serviceLogs(service: String, sink: String?, lines: Int, cursor: String?) async throws -> ArchitectureLogTail
     func serviceLogsFollow(service: String, sink: String?, enabled: Bool) async throws -> ArchitectureLogFollowState
-    func architectureHistory(service: String, limit: Int?) async throws -> ArchitectureRevisionHistory
+    func architectureHistory(service: String) async throws -> ArchitectureRevisionHistory
     func architectureDiff(service: String, from: String?, to: String?) async throws -> ArchitectureRevisionDiff
     /// Global gateway events, for surfaces that follow `service.log`.
     var architectureEvents: AnyPublisher<GatewayEvent, Never> { get }
@@ -118,8 +118,25 @@ internal final class ArchitectureSurfaceModel: ObservableObject {
     /// than the transport's description.
     internal static func friendly(_ error: Error) -> String {
         if case GatewayError.rpcError(let rpc) = error {
+            if let method = unknownMethod(in: rpc) {
+                return "The gateway does not know `\(method)` yet. It is running a Harness build that predates "
+                    + "this surface; redeploy the gateway from Harness main to enable it."
+            }
             return rpc.message
         }
         return error.localizedDescription
+    }
+
+    /// The method name an "unknown method" error is about, if that is what the
+    /// error is. JSON-RPC reserves -32601 for it; Harness also spells it out as
+    /// `unknown method: <name>`. Nil for every other error.
+    internal static func unknownMethod(in rpc: JSONRPCError) -> String? {
+        let message = rpc.message.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowered = message.lowercased()
+        if let range = lowered.range(of: "unknown method:") {
+            let name = message[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            return name.isEmpty ? "this method" : name
+        }
+        return rpc.code == -32601 ? "this method" : nil
     }
 }

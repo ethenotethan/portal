@@ -149,6 +149,46 @@ internal struct CronGraphDigestTests {
         }
     }
 
+    @Test("a living artifact's last write is observation; its maintainers reach the commitment as edges")
+    internal func livingArtifactFieldsSplitBetweenObservationAndConfiguration() {
+        // The gateway hashes the same node row in Python (`_node_row`), and that
+        // row carries none of the living fields — so a revision can only move
+        // through what both sides hash: the `maintains` edges. `rev`/`updatedAt`/
+        // `updatedBy` are the last write, which would mint a revision per poll.
+        let bare = graph([
+            node(id: "abc123", label: "indexing/solana sweep"),
+            node(id: "artifact:bkk", kind: "artifact", type: "artifact", label: "Bangkok",
+                 schedule: nil, lastStatus: nil),
+        ])
+        let living = graph([
+            node(id: "abc123", label: "indexing/solana sweep"),
+            CronGraphNode(id: "artifact:bkk", kind: "artifact", type: "artifact", label: "Bangkok",
+                          description: "", schedule: nil, enabled: true, usesLLM: false,
+                          lastStatus: nil, deliver: nil, artifactID: "bkk", artifactKind: "map",
+                          rev: 41, updatedAt: "2026-09-28T09:30:00Z", updatedBy: "cron:abc123",
+                          maintainers: ["cron:abc123"]),
+        ])
+        #expect(CronGraphDigest.over(living) == CronGraphDigest.over(bare))
+        #expect(CronGraphDigest.layoutForm(living) == CronGraphDigest.layoutForm(bare))
+
+        let maintained = graph(living.nodes, [
+            CronGraphEdge(source: "abc123", target: "artifact:bkk", type: "maintains"),
+        ])
+        #expect(CronGraphDigest.over(maintained) != CronGraphDigest.over(living))
+        #expect(CronGraphDigest.layoutForm(maintained) != CronGraphDigest.layoutForm(living))
+
+        // The stored configuration keeps identity and the declaration, drops the write.
+        let stored = CronGraphDigest.configuration(of: maintained)
+        let storedArtifact = stored.nodes[1]
+        #expect(storedArtifact.artifactID == "bkk")
+        #expect(storedArtifact.artifactKind == "map")
+        #expect(storedArtifact.maintainers == ["cron:abc123"])
+        #expect(storedArtifact.rev == nil)
+        #expect(storedArtifact.updatedAt == nil)
+        #expect(storedArtifact.updatedBy == nil)
+        #expect(CronGraphDigest.over(stored) == CronGraphDigest.over(maintained))
+    }
+
     @Test("a cleared schedule is not the same as no schedule")
     internal func nilAndEmptyAreDistinct() {
         // `?? ""` would collapse these and hide the edit between them.

@@ -4,15 +4,15 @@ import Foundation
 
 @Suite("Activity Inbox ViewModel", .serialized)
 @MainActor
-struct ActivityInboxViewModelTests {
+internal struct ActivityInboxViewModelTests {
 
-    init() {
+    internal init() {
         NotificationService.isTestEnvironment = true
         ActivityStore.shared.clearAll()
     }
 
     @Test("items are loaded from store on init")
-    func loadsFromStoreOnInit() {
+    internal func loadsFromStoreOnInit() {
         let testItem = ActivityItem(
             id: "test-init-item",
             createdAt: Date(timeIntervalSince1970: 10),
@@ -34,7 +34,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("handle approval request creates unread item")
-    func handleApprovalRequest() {
+    internal func handleApprovalRequest() {
         let vm = ActivityInboxViewModel()
         vm.handle(.approvalRequest(payload: ApprovalPayload(
             command: "rm -rf /",
@@ -48,7 +48,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("handle error event creates error-severity item")
-    func handleErrorEvent() {
+    internal func handleErrorEvent() {
         let vm = ActivityInboxViewModel()
         vm.handle(.error(message: "something went wrong"), eventSessionID: nil)
 
@@ -56,7 +56,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("handle sudo request creates warning item")
-    func handleSudoRequest() {
+    internal func handleSudoRequest() {
         let vm = ActivityInboxViewModel()
         vm.handle(.sudoRequest, eventSessionID: "s1")
 
@@ -64,7 +64,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("handle secret request creates warning item")
-    func handleSecretRequest() {
+    internal func handleSecretRequest() {
         let vm = ActivityInboxViewModel()
         vm.handle(.secretRequest(prompt: "Enter API key", envVar: "MY_KEY"), eventSessionID: "s2")
 
@@ -72,7 +72,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("handle clarify request creates info item")
-    func handleClarifyRequest() {
+    internal func handleClarifyRequest() {
         let vm = ActivityInboxViewModel()
         vm.handle(.clarifyRequest(payload: ClarifyPayload(question: "Which file?", choices: ["a", "b"], requestID: "req1")), eventSessionID: "s1")
 
@@ -80,7 +80,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("handle background complete creates info item")
-    func handleBackgroundComplete() {
+    internal func handleBackgroundComplete() {
         let vm = ActivityInboxViewModel()
         vm.handle(.backgroundComplete(taskID: "task1", text: "Task finished"), eventSessionID: nil)
 
@@ -88,7 +88,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("handle subagent complete creates info item")
-    func handleSubagentComplete() {
+    internal func handleSubagentComplete() {
         let vm = ActivityInboxViewModel()
         vm.handle(.subagentComplete(payload: SubagentCompletePayload(
             goal: "Refactor module",
@@ -134,7 +134,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("markAllRead marks all items as read")
-    func markAllRead() {
+    internal func markAllRead() {
         let vm = ActivityInboxViewModel()
         vm.handle(.approvalRequest(payload: ApprovalPayload(
             command: "ls", sessionKey: "s1", toolName: nil, rawArgs: nil
@@ -176,7 +176,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("clearAll removes all items from VM")
-    func clearAll() {
+    internal func clearAll() {
         let vm = ActivityInboxViewModel()
         vm.handle(.error(message: "err"), eventSessionID: nil)
         vm.clearAll()
@@ -185,7 +185,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("activity.created event upserts item")
-    func handleActivityCreated() {
+    internal func handleActivityCreated() {
         let vm = ActivityInboxViewModel()
         let item = ActivityItem(
             id: "act-created-test",
@@ -206,7 +206,7 @@ struct ActivityInboxViewModelTests {
     }
 
     @Test("activity.updated event upserts item")
-    func handleActivityUpdated() {
+    internal func handleActivityUpdated() {
         let vm = ActivityInboxViewModel()
         let item = ActivityItem(
             id: "act-updated-test",

@@ -41,13 +41,19 @@ internal struct ApprovalQueue: Equatable {
 
     /// Append a newly-arrived request.
     ///
-    /// Deliberately **no deduplication**. An agent can legitimately run the same
-    /// command twice, so two identical payloads are usually two real blocked
-    /// threads; collapsing them by content would answer one and leave the other
+    /// Deliberately **no deduplication by content**. An agent can legitimately
+    /// run the same command twice, so two identical payloads are usually two real
+    /// blocked threads; collapsing them would answer one and leave the other
     /// hanging until it timed out. A duplicate delivery is the lesser harm: the
     /// user answers twice, and the second resolve is a no-op the gateway reports
-    /// as `resolved: 0`.
+    /// as `resolved: 0`. A request *id* is exact, though: the same `srq-…` request
+    /// arriving twice (live frame plus a `session.resume` replay) is one blocked
+    /// thread, and showing it twice would let a second click answer a different
+    /// approval positionally.
     internal mutating func enqueue(_ payload: ApprovalPayload) {
+        if let id = payload.requestID, entries.contains(where: { $0.requestID == id }) {
+            return
+        }
         entries.append(payload)
     }
 
@@ -62,5 +68,10 @@ internal struct ApprovalQueue: Equatable {
     /// Drop everything, matching a response sent with `all: true`.
     internal mutating func removeAll() {
         entries.removeAll()
+    }
+
+    /// Drop the entry the gateway withdrew (`request.cancel`), wherever it sits.
+    internal mutating func remove(requestID: String) {
+        entries.removeAll { $0.requestID == requestID }
     }
 }

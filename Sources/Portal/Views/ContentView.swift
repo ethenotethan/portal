@@ -22,6 +22,10 @@ internal struct ContentView: View {
     // the user first opens the wiki panel. By the time the panel is visible
     // the graph is already there (or close to it) — no "Loading…" wait.
     @StateObject private var wikiViewModel = WikiGraphViewModel()
+    /// The Graphs page-intent dock. Owned at app level so its per-page agent
+    /// sessions persist across opening and closing the Graphs section instead
+    /// of being minted anew (session + priming turn) on every visit.
+    @StateObject private var intentDock = PageIntentDockModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject internal var xAuth: XAuthService
     @ObservedObject private var cronRunStore = CronRunHistoryStore.shared
@@ -160,11 +164,13 @@ internal struct ContentView: View {
             if connected {
                 Task { await sessionList.refreshSessions() }
                 Task { await capabilitiesStore.refresh(using: gatewayClientWrapper.client) }
-                // Warm the wiki graph now, at connect, so the surface is already
-                // populated the first time it's opened instead of scanning on
-                // .onAppear and showing a blank "Loading…" until the round-trip
-                // returns. Guarded on an empty graph so a live graph is never
-                // re-fetched, and it's a no-op when nothing opens the wiki.
+                // Warm both halves of the wiki surface now, at connect: the
+                // graph data and the named-wiki registry that feeds its picker.
+                // Keeping their freshness guards independent prevents a warm
+                // default graph from leaving the dropdown stuck on "default".
+                if wikiViewModel.availableWikis.isEmpty {
+                    Task { await wikiViewModel.discoverWikis(client: gatewayClientWrapper.client) }
+                }
                 if wikiViewModel.graph.pages.isEmpty {
                     Task { await wikiViewModel.load(client: gatewayClientWrapper.client) }
                 }
@@ -284,6 +290,7 @@ internal struct ContentView: View {
         activityInbox.clearAll()
 
         Task {
+            await intentDock.resetForGatewaySwitch()
             // force: the URL/key changed, so the existing signature check must
             // be bypassed to actually recreate the transport.
             await gatewayClientWrapper.connectWithRetry(using: settings)
@@ -315,7 +322,7 @@ internal struct ContentView: View {
             }
             .tag(1)
 
-            GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore)
+            GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore, intentDock: intentDock)
                 .environmentObject(gatewayClientWrapper)
                 .tabItem {
                     Label("Graphs", systemImage: "network")
@@ -381,6 +388,7 @@ internal struct ContentView: View {
                 showCronSheet = true
             }
         )
+        .equatable()
         .environmentObject(sessionList)
     }
 
@@ -1033,6 +1041,7 @@ internal struct ContentView: View {
                             showCronDashboard = true
                         }
                     )
+                    .equatable()
                     .environmentObject(sessionList)
                     .frame(width: macSidebarWidth)
                     // Creation feedback docks under the sidebar that owns the
@@ -1182,7 +1191,7 @@ internal struct ContentView: View {
             }
 
             if showGraphs {
-                GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore)
+                GraphsView(wikiViewModel: wikiViewModel, cronGraphStore: cronGraphStore, intentDock: intentDock)
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
