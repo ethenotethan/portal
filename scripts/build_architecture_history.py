@@ -51,6 +51,7 @@ CURATED = (
     "architecture/semantic/flows.json",
     "architecture/interplay/overlay.json",
     "architecture/interplay/invariants.json",
+    "architecture/glossary.json",
 )
 OUTPUT = ROOT / "architecture/site/history.js"
 OUTPUT_PREFIX = "window.PORTAL_ARCHITECTURE_HISTORY="

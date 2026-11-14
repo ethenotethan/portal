@@ -268,6 +268,130 @@ class ConstraintGrowthTests(unittest.TestCase):
             self.assertTrue(any(needle in p for p in problems), f"{needle!r} not in {problems}")
         self.assertEqual(5, len(problems))
 
+    def test_a_gate_that_can_no_longer_fail_is_a_loosening(self) -> None:
+        """A step that keeps matching the gate pattern but cannot fail the job is a loosening however it is done."""
+        step = "      - name: Run SwiftLint\n        run: swiftlint lint --strict --baseline .swiftlint-baseline\n"
+        cases = {
+            "the step carries a condition (if: github.event_name == 'push')": step.replace("        run:", "        if: github.event_name == 'push'\n        run:"),
+            "the step carries continue-on-error: true": step.replace("        run:", "        continue-on-error: true\n        run:"),
+            "the command is neutralised": step.replace(".swiftlint-baseline\n", ".swiftlint-baseline || true\n"),
+            "the command is neutralised (echo": step.replace("run: swiftlint", "run: echo swiftlint"),
+        }
+        for needle, replacement in cases.items():
+            with self.subTest(needle=needle):
+                self.write(".github/workflows/tests.yml", TESTS_YML.replace(step, replacement))
+                problems = self.problems()
+                self.assertEqual(1, len(problems), problems)
+                self.assertIn("job swift-lint gate step can no longer fail the job", problems[0])
+                self.assertIn(needle, problems[0])
+        self.write(".github/workflows/tests.yml", TESTS_YML.replace("    name: SwiftLint\n", "    name: SwiftLint\n    continue-on-error: true\n"))
+        problems = self.problems()
+        self.assertTrue(any("job swift-lint gained continue-on-error: true" in p for p in problems), problems)
+        self.assertTrue(any("the job gained continue-on-error: true" in p for p in problems), problems)
+        # A multi-line command that prints a banner and then runs the gate still gates.
+        banner = step.replace("run: swiftlint lint --strict --baseline .swiftlint-baseline\n", "run: |\n          echo \"linting\"\n          swiftlint lint --strict --baseline .swiftlint-baseline\n")
+        self.write(".github/workflows/tests.yml", TESTS_YML.replace(step, banner))
+        self.assertEqual([], self.problems())
+
+    def test_a_path_filter_on_the_trigger_is_a_loosening(self) -> None:
+        trigger = "  pull_request:\n    branches: [main]\n"
+        self.write(".github/workflows/ratchet.yml", RATCHET_YML.replace(trigger, trigger + "    paths-ignore:\n      - docs/**\n"))
+        self.assertEqual(["ratchet.yml: pull_request gained paths-ignore: docs/**"], [p[p.index("ratchet.yml"):] for p in self.problems()])
+        self.write(".github/workflows/ratchet.yml", RATCHET_YML.replace(trigger, trigger + "    paths:\n      - Sources/**\n"))
+        self.assertEqual(1, len(self.problems()))
+        self.assertIn("pull_request gained a paths filter: Sources/**", self.problems()[0])
+        # A filter that was already there may widen, not narrow.
+        self.git("add", "-A"); self.git("commit", "-q", "-m", "filtered")
+        self.write(".github/workflows/ratchet.yml", RATCHET_YML.replace(trigger, trigger + "    paths:\n      - Sources/**\n      - Tests/**\n"))
+        self.assertEqual([], guard.evaluate(self.root, "HEAD"))
+        self.write(".github/workflows/ratchet.yml", RATCHET_YML.replace(trigger, trigger + "    paths:\n      - Tests/**\n"))
+        self.assertIn("pull_request narrowed paths: Sources/**", guard.evaluate(self.root, "HEAD")[0])
+
+    def test_an_invariant_may_not_check_less(self) -> None:
+        def base(doc):
+            doc["invariants"].append({"id": "pool-configured", "kind": "pool_lifecycle_observed", "configures": ["A", "B"], "max_unguarded": 2, "why": "w"})
+        self.edit_json(guard.INVARIANTS, base)
+        self.git("add", "-A"); self.git("commit", "-q", "-m", "configured")
+
+        def loosen(doc):
+            doc["invariants"][-1]["configures"] = ["A"]
+            doc["invariants"][-1]["max_unguarded"] = 5
+        self.edit_json(guard.INVARIANTS, loosen)
+        problems = guard.evaluate(self.root, "HEAD")
+        self.assertEqual(2, len(problems), problems)
+        self.assertTrue(any("invariant 'pool-configured' narrowed configures: B" in p for p in problems), problems)
+        self.assertTrue(any("invariant 'pool-configured' raised max_unguarded 2 → 5" in p for p in problems), problems)
+
+    def test_a_release_family_goes_with_its_file_and_a_launch_root_stays(self) -> None:
+        def base(doc):
+            doc["launch"] = {"roots": ["App", "Widget"]}
+            doc["ci"]["workflows"]["testflight"] = {"family": "release"}
+            doc["ci"]["workflows"]["build"] = {"family": "build"}
+        self.edit_json(guard.CONFIG, base)
+        self.write(".github/workflows/testflight.yml", "name: TestFlight\non:\n  push:\n    tags: ['v*']\njobs: {}\n")
+        self.write(".github/workflows/build.yml", "name: Build\non:\n  pull_request:\njobs: {}\n")
+        self.git("add", "-A"); self.git("commit", "-q", "-m", "families")
+
+        def retire(doc):
+            del doc["ci"]["workflows"]["testflight"]
+            del doc["ci"]["workflows"]["build"]
+            doc["launch"]["roots"] = ["App"]
+        self.edit_json(guard.CONFIG, retire)
+        (self.root / ".github/workflows/testflight.yml").unlink()
+        (self.root / ".github/workflows/build.yml").unlink()
+        problems = guard.evaluate(self.root, "HEAD")
+        self.assertEqual(2, len(problems), problems)
+        self.assertTrue(any("workflow famil(ies) removed: build" in p for p in problems), "a gating family stays guarded even when its file goes")
+        self.assertTrue(any("launch root(s) removed: Widget" in p for p in problems), problems)
+        # The release family is still guarded while its workflow file exists.
+        self.write(".github/workflows/testflight.yml", "name: TestFlight\n")
+        self.assertTrue(any("workflow famil(ies) removed: build, testflight" in p for p in guard.evaluate(self.root, "HEAD")))
+
+    def test_the_gate_s_own_tests_and_compiler_cannot_go(self) -> None:
+        self.write("scripts/test_architecture.py", "class T:\n    def test_one(self):\n        pass\n    def test_two(self):\n        pass\n")
+        self.write("scripts/build_architecture.py", "# compiler\n")
+        self.git("add", "-A"); self.git("commit", "-q", "-m", "suite")
+        self.write("scripts/test_architecture.py", "class T:\n    def test_one(self):\n        pass\n")
+        (self.root / "scripts/build_architecture.py").unlink()
+        problems = guard.evaluate(self.root, "HEAD")
+        self.assertEqual(2, len(problems), problems)
+        self.assertTrue(any("scripts/test_architecture.py: tests dropped 2 → 1" in p for p in problems), problems)
+        self.assertTrue(any("scripts/build_architecture.py: deleted" in p for p in problems), problems)
+        # Deleting a suite outright is the same loosening as emptying it, for the Swift suite as well.
+        (self.root / "scripts/test_architecture.py").unlink()
+        (self.root / guard.ARCH_TESTS).unlink()
+        problems = guard.evaluate(self.root, "HEAD")
+        self.assertTrue(any("scripts/test_architecture.py: tests dropped 2 → 0" in p for p in problems), problems)
+        self.assertTrue(any("architecture tests dropped 2 → 0" in p for p in problems), problems)
+
+    def test_the_glossary_may_only_grow_or_tighten(self) -> None:
+        glossary = {"schema_version": "1.0.0", "terms": [
+            {"term": "Keychain", "kind": "proper-noun", "definition": "d", "avoid": ["Key Chain"], "evidence": [{"path": "README.md", "line": 1}]},
+            {"term": "gateway", "kind": "concept", "definition": "d", "avoid": [], "distinguish_from": {"backend": "rule"}, "evidence": [{"path": "README.md", "line": 1}]},
+            {"term": "backend", "kind": "concept", "definition": "d", "evidence": [{"path": "README.md", "line": 1}]},
+        ]}
+        self.assertEqual([], self.problems(), "a tree that gains a glossary has tightened")
+        self.write(guard.GLOSSARY, json.dumps(glossary, indent=2))
+        self.assertEqual([], self.problems())
+        self.git("add", "-A"); self.git("commit", "-q", "-m", "glossary")
+
+        def loosen(doc):
+            doc["terms"][0]["kind"] = "concept"
+            doc["terms"][0]["avoid"] = []
+            doc["terms"][1]["distinguish_from"] = {}
+            doc["terms"].pop()
+        self.edit_json(guard.GLOSSARY, loosen)
+        problems = guard.evaluate(self.root, "HEAD")
+        for needle in ("term 'Keychain' is no longer a proper noun", "term 'Keychain' dropped 1 avoid word(s): Key Chain",
+                       "term 'gateway' dropped the distinction from backend", "term 'backend' was removed"):
+            self.assertTrue(any(needle in p for p in problems), f"{needle!r} not in {problems}")
+        self.assertEqual(4, len(problems))
+        # Growing it passes; deleting it does not.
+        self.write(guard.GLOSSARY, json.dumps({**glossary, "terms": glossary["terms"] + [{"term": "turn", "kind": "concept", "definition": "d", "avoid": ["round"], "evidence": []}]}, indent=2))
+        self.assertEqual([], guard.evaluate(self.root, "HEAD"))
+        (self.root / guard.GLOSSARY).unlink()
+        self.assertEqual([f"{guard.GLOSSARY}: the glossary was removed"], guard.evaluate(self.root, "HEAD"))
+
     def test_guard_predating_a_file_skips_it(self) -> None:
         # A base without CODEOWNERS or the specifications dir: nothing to compare, nothing flagged.
         self.git("rm", "-q", guard.CODEOWNERS)

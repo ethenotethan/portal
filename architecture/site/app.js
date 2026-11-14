@@ -269,6 +269,7 @@
     operations_resolve_scope: "Every extracted operation resolves to an enclosing function, so critical sections lose no steps.",
     endpoints_dispatched_by_transport: "Every namespace box is dispatched by a transport core.",
     pages_populated: "Every declared navigation page owns at least one construct.",
+    glossary_observed: "Every term in architecture/glossary.json is used by at least one construct record or flow, so the list cannot hold words nobody says. Records and flows that depart from the glossary are rejected before this is judged.",
     stores_mapped: "Every store the extractor recognises appears on the map, so the map cannot disagree with the extractor about what holds state.",
     triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
     launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core.",
@@ -341,6 +342,7 @@
   setEdgesColoured(edgesColoured());
   renderInvariants();
   renderFlows();
+  renderGlossary();
   renderTimeline();
   renderInventory();
   renderExtraction();
@@ -1839,6 +1841,8 @@
     if (Array.isArray(value)) return value.map((item) => (typeof item === "string" && item.includes(":") ? nameOf(item) : String(item).replace(/_/g, " "))).join(", ") || "—";
     if (typeof value === "boolean") return value ? "yes" : "no";
     if (typeof value === "string") return value.includes(":") && idByHistoryKey.has(value) ? nameOf(value) : value.replace(/_/g, " ");
+    // A map of notes (a CI job's scripts and what each checks): one clause per key, the key as code.
+    if (value && typeof value === "object") return Object.entries(value).map(([key, note]) => `\`${key}\`: ${note}`).join("; ") || "—";
     return String(value);
   }
   // ---- Code-shaped tokens in prose -------------------------------------------
@@ -1897,7 +1901,7 @@
   function describedSection(semantic) {
     const section = element("section", "inspector-section described");
     const head = element("h4", "", "Described");
-    if (semantic.stale) head.append(element("span", "stale-badge", `stale · files changed since ${String(semantic.source_revision).slice(0, 9)}`));
+    if (semantic.stale) head.append(element("span", "stale-badge", `stale · cited lines changed since ${String(semantic.source_revision).slice(0, 9)}`));
     // Why it exists comes first: the summary says what the construction does, the
     // purpose says why anyone wanted it, and a reader meeting a box cold needs the why.
     section.append(head, prose(semantic.purpose, "described-purpose"), prose(semantic.summary));
@@ -2059,7 +2063,7 @@
     close.addEventListener("click", clearFlow);
     container.append(close);
     container.style.setProperty("--component-color", INTERPLAY_ROLE_COLORS.interplay || INTERPLAY_ROLE_COLORS.hub);
-    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}${flow.stale ? " · STALE" : ""}`), element("h3", "", flow.title), element("p", "", flow.summary));
+    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}${flow.stale ? " · STALE" : ""}`), element("h3", "", flow.title), prose(flow.summary, ""));
     const nameOf = (key) => { const id = idByHistoryKey.get(key); const node = id ? interplayNodeById.get(id) : null; return node ? node.label : (key.startsWith("page:") ? `${PAGE_LABEL.get(key.slice(5)) || key.slice(5)} (page)` : key); };
     const steps = element("ol", "inspector-steps");
     flow.steps.forEach((step) => {
@@ -2076,7 +2080,7 @@
       const trigger = triggers.find((t) => t.id === flow.trigger);
       if (trigger) container.append(element("p", "described-meta", `Starts from ${trigger.api} in ${trigger.view || "?"} · ${trigger.method}() · ${PAGE_LABEL.get(trigger.page) || trigger.page}`));
     }
-    if (flow.outcome) container.append(element("p", "", flow.outcome));
+    if (flow.outcome) container.append(prose(flow.outcome, ""));
     if ((flow.problems || []).length) {
       const problems = element("ul", "evidence-list");
       flow.problems.forEach((problem) => problems.append(element("li", "", problem)));
@@ -2191,7 +2195,7 @@
         const disclosure = element("summary", "flow-disclosure");
         const head = element("div", "flow-head");
         head.append(element("h5", "", flow.title));
-        if (flow.interaction) head.append(element("span", "flow-interaction", flow.interaction));
+        if (flow.interaction) { const interaction = element("span", "flow-interaction"); interaction.append(inlineCode(flow.interaction)); head.append(interaction); }
         if (flow.status !== "traceable") head.append(element("span", "invariant-status violated", "BROKEN"));
         if (flow.stale) head.append(element("span", "stale-badge", "stale · cited lines changed"));
         head.append(element("span", "flow-steps-count", `${flow.steps.length} steps`));
@@ -2289,6 +2293,31 @@
       ol.append(...items.map(invariantItem));
       group.append(ol);
       return group;
+    }));
+  }
+
+  // The glossary: each term with its kind, definition, the words that may not stand in for it, the
+  // terms it is told apart from, how many records and flows use it, and the line that grounds it.
+  function renderGlossary() {
+    const section = document.getElementById("glossary");
+    const list = document.getElementById("glossary-list");
+    const lede = document.getElementById("glossary-lede");
+    const glossary = (interplay && interplay.glossary) || { terms: [] };
+    if (!section || !list || !lede || !glossary.terms.length) return;
+    section.hidden = false;
+    lede.textContent = `${glossary.count} terms, declared in architecture/glossary.json and checked against ${glossary.described} construct records and ${glossary.flows} flows on this build. A record or flow that uses an avoided word, or spells a proper noun with the wrong case, is rejected; text in backticks is code and is exempt.`;
+    const KIND_LABEL = { "proper-noun": "proper noun", role: "role", concept: "concept" };
+    list.replaceChildren(...glossary.terms.flatMap((term) => {
+      const name = element("dt", "glossary-term");
+      name.append(element("strong", "", term.term), element("span", "invariant-meta", `${KIND_LABEL[term.kind] || term.kind} · used by ${term.uses}`));
+      const body = element("dd", "glossary-body");
+      body.append(prose(term.definition, "glossary-definition"));
+      if ((term.avoid || []).length) body.append(element("p", "glossary-note", `Not: ${term.avoid.join(", ")}`));
+      Object.entries(term.distinguish_from || {}).forEach(([other, rule]) => body.append(element("p", "glossary-note", `Not the same as ${other}: ${rule}`)));
+      const sites = element("p", "glossary-note");
+      (term.evidence || []).forEach((site) => sites.append(sourceLink(site), document.createTextNode(" ")));
+      body.append(sites);
+      return [name, body];
     }));
   }
 
@@ -3361,6 +3390,8 @@
         job.role === "gate" ? "runs on pull requests and gates the merge" : job.role === "post-merge" ? "runs after a merge (or tag); never on a pull request" : job.role === "manual" ? "runs only when dispatched" : "disabled: its condition is `false`"
       ].filter(Boolean).join(" · ")));
       if (job.condition) sections.push(element("p", "derivation", `if: ${job.condition}`));
+      // What a green run proves and what it blocks, written by the agent and held to this job's own facts.
+      if (job.semantic) sections.push(describedSection(job.semantic));
       const metrics = element("div", "inspector-metrics");
       [[job.step_count, "steps"], [job.needs.length, "needs"], [job.artifacts_out.length + job.artifacts_in.length, "artifacts"]].forEach(([value, label]) => {
         const metric = element("div", "inspector-metric");

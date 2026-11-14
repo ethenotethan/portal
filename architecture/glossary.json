@@ -1,0 +1,381 @@
+{
+  "schema_version": "1.0.0",
+  "description": "The words Portal's people use, held to the model-written layer: construct records and flows may not use an `avoid` word or miscase a proper noun, and every term must be used by at least one of them. Definitions follow docs/GLOSSARY.md and README.md; each term cites a line that uses it.",
+  "terms": [
+    {
+      "term": "Portal",
+      "kind": "proper-noun",
+      "definition": "The native macOS and iOS app for one person running a team of AI agents on hardware they own; this repository.",
+      "evidence": [
+        {
+          "path": "README.md",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "term": "Hermes",
+      "kind": "proper-noun",
+      "definition": "The agent platform Portal talks to. The Hermes gateway Portal requires is the `ethenotethan/harness` fork of `NousResearch/hermes-agent`.",
+      "evidence": [
+        {
+          "path": "README.md",
+          "line": 7
+        }
+      ]
+    },
+    {
+      "term": "Hermes Standard",
+      "kind": "proper-noun",
+      "definition": "An upstream or default Hermes install managed over plain HTTP; it can be administered from Portal but cannot create or stream Portal chat sessions.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 33
+        }
+      ],
+      "distinguish_from": {
+        "Hermes": "Hermes is the platform and its gateway; Hermes Standard is a stock install reached over HTTP that cannot serve chat."
+      }
+    },
+    {
+      "term": "Centaur",
+      "kind": "proper-noun",
+      "definition": "A second agent platform, spoken to over REST and SSE, that can sit behind the same chat UI as the Hermes gateway.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "term": "Keychain",
+      "kind": "proper-noun",
+      "definition": "The system credential store where Portal keeps gateway secrets out of plain files.",
+      "evidence": [
+        {
+          "path": "docs/macos-installer.md",
+          "line": 11
+        }
+      ],
+      "avoid": [
+        "Key Chain"
+      ]
+    },
+    {
+      "term": "WebSocket",
+      "kind": "proper-noun",
+      "definition": "The connection the Hermes gateway is reached over; Portal shares one per gateway.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 19
+        }
+      ],
+      "avoid": [
+        "Web Socket"
+      ]
+    },
+    {
+      "term": "JSON-RPC",
+      "kind": "proper-noun",
+      "definition": "The request, response and event protocol Portal speaks to the Hermes gateway over its WebSocket.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 19
+        }
+      ],
+      "avoid": [
+        "JSON RPC",
+        "JSONRPC"
+      ]
+    },
+    {
+      "term": "TestFlight",
+      "kind": "proper-noun",
+      "definition": "Apple's beta distribution service, where signed iOS builds of Portal are uploaded after a merge or tag.",
+      "evidence": [
+        {
+          "path": ".github/workflows/testflight.yml",
+          "line": 1
+        }
+      ],
+      "avoid": [
+        "Test Flight"
+      ]
+    },
+    {
+      "term": "macOS",
+      "kind": "proper-noun",
+      "definition": "Apple's desktop operating system; one of the two platforms Portal ships on.",
+      "evidence": [
+        {
+          "path": "README.md",
+          "line": 5
+        }
+      ],
+      "avoid": [
+        "Mac OS",
+        "OSX",
+        "OS X"
+      ]
+    },
+    {
+      "term": "iOS",
+      "kind": "proper-noun",
+      "definition": "Apple's phone operating system; one of the two platforms Portal ships on.",
+      "evidence": [
+        {
+          "path": "README.md",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "term": "SwiftUI",
+      "kind": "proper-noun",
+      "definition": "Apple's declarative UI framework; every Portal view is a SwiftUI view.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 244
+        }
+      ],
+      "avoid": [
+        "Swift UI"
+      ]
+    },
+    {
+      "term": "SwiftLint",
+      "kind": "proper-noun",
+      "definition": "The Swift linter whose custom rules carry Portal's architectural checks, run under `--strict` against a frozen baseline.",
+      "evidence": [
+        {
+          "path": "docs/architecture-rules.md",
+          "line": 7
+        }
+      ],
+      "avoid": [
+        "Swift Lint"
+      ]
+    },
+    {
+      "term": "GitHub",
+      "kind": "proper-noun",
+      "definition": "Where the repository lives and where its workflows run as GitHub Actions.",
+      "evidence": [
+        {
+          "path": "README.md",
+          "line": 103
+        }
+      ]
+    },
+    {
+      "term": "UserDefaults",
+      "kind": "proper-noun",
+      "definition": "The system preferences store Portal uses for small non-secret settings.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 328
+        }
+      ],
+      "avoid": [
+        "User Defaults"
+      ]
+    },
+    {
+      "term": "gateway",
+      "kind": "concept",
+      "definition": "The Hermes backend specifically: a WebSocket JSON-RPC server Portal connects to, one per person.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 22
+        }
+      ],
+      "distinguish_from": {
+        "backend": "A backend is any agent platform behind the chat UI; the gateway is the Hermes one."
+      }
+    },
+    {
+      "term": "backend",
+      "kind": "concept",
+      "definition": "The agent platform behind the chat UI: the Hermes gateway, or Centaur over REST and SSE.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 16
+        }
+      ],
+      "avoid": [
+        "back end",
+        "back-end"
+      ],
+      "distinguish_from": {
+        "gateway": "The gateway is the Hermes backend; say backend only when the statement holds for every platform."
+      }
+    },
+    {
+      "term": "session",
+      "kind": "concept",
+      "definition": "One Hermes agent session: a conversation with its own history, model and skills, listed by the gateway.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 54
+        }
+      ],
+      "distinguish_from": {
+        "turn": "A session holds many turns."
+      }
+    },
+    {
+      "term": "turn",
+      "kind": "concept",
+      "definition": "One user prompt plus the assistant's full response to it.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 73
+        }
+      ],
+      "distinguish_from": {
+        "session": "A turn is one exchange inside a session."
+      }
+    },
+    {
+      "term": "gateway event",
+      "kind": "concept",
+      "definition": "A typed event the gateway emits on the stream; the event type of the whole chat pipeline.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 104
+        }
+      ]
+    },
+    {
+      "term": "living artifact",
+      "kind": "concept",
+      "definition": "A named, persistent artifact the agent maintains across turns and sessions: any fenced block carrying an `id` upserts into the store.",
+      "evidence": [
+        {
+          "path": "README.md",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "term": "thought graph",
+      "kind": "concept",
+      "definition": "The live graph of tool invocations in one conversation turn, drawn as lanes over time.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 163
+        }
+      ]
+    },
+    {
+      "term": "spawn tree",
+      "kind": "concept",
+      "definition": "The tree of a root prompt and the subagents it delegated to, recursively.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 181
+        }
+      ]
+    },
+    {
+      "term": "subagent",
+      "kind": "concept",
+      "definition": "An agent another agent delegated work to; a child in the spawn tree.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 170
+        }
+      ],
+      "avoid": [
+        "sub-agent",
+        "sub agent"
+      ]
+    },
+    {
+      "term": "skill",
+      "kind": "concept",
+      "definition": "A named capability the gateway can enable per session.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 265
+        }
+      ]
+    },
+    {
+      "term": "cron job",
+      "kind": "concept",
+      "definition": "A scheduled job the gateway runs, listed and managed through `cron.manage`.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 280
+        }
+      ],
+      "avoid": [
+        "cronjob"
+      ]
+    },
+    {
+      "term": "wiki",
+      "kind": "concept",
+      "definition": "The knowledge base of pages and links the agents maintain and Portal browses.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 250
+        }
+      ]
+    },
+    {
+      "term": "changeset",
+      "kind": "concept",
+      "definition": "One recorded edit to the wiki.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 253
+        }
+      ],
+      "avoid": [
+        "change set"
+      ]
+    },
+    {
+      "term": "activity inbox",
+      "kind": "concept",
+      "definition": "Where tool approvals, clarifications and notifications wait for the person running Portal.",
+      "evidence": [
+        {
+          "path": "README.md",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "term": "curriculum",
+      "kind": "concept",
+      "definition": "A structured course of ordered modules whose steps are written lessons or quizzes, with per-step progress.",
+      "evidence": [
+        {
+          "path": "docs/GLOSSARY.md",
+          "line": 296
+        }
+      ]
+    }
+  ]
+}

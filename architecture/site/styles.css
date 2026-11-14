@@ -391,6 +391,11 @@ h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.2; letter-spacing: -.01em;
 .invariants { margin: 28px 0 0; padding: 20px 0 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.5; }
 .invariants h3 { margin: 0 0 6px; font-size: 16px; letter-spacing: -.02em; color: var(--ink); }
 .invariants-lede { margin: 0 0 14px; max-width: 900px; color: var(--faint); }
+.glossary-list { margin: 0; max-width: 980px; }
+.glossary-term { display: flex; align-items: baseline; gap: 10px; margin: 12px 0 2px; color: var(--ink); }
+.glossary-body { margin: 0 0 4px; }
+.glossary-body p { margin: 0 0 3px; }
+.glossary-note { color: var(--faint); font-size: 12px; }
 .invariants-list { margin: 0; padding-left: 28px; list-style: decimal; max-width: 980px; }
 .invariant-layer { margin: 0 0 18px; max-width: 980px; }
 .invariant-layer h4 { margin: 0 0 4px; font-size: 14px; letter-spacing: -.01em; color: var(--ink); }

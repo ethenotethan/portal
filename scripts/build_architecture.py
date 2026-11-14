@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import fnmatch
+import functools
 import hashlib
 import json
 import re
@@ -24,6 +25,7 @@ INTERPLAY_OVERLAY_PATH = ROOT / "architecture/interplay/overlay.json"
 INTERPLAY_INVARIANTS_PATH = ROOT / "architecture/interplay/invariants.json"
 CONSTRUCTS_PATH = ROOT / "architecture/semantic/constructs.json"
 FLOWS_PATH = ROOT / "architecture/semantic/flows.json"
+GLOSSARY_PATH = ROOT / "architecture/glossary.json"
 
 # Snapshot mode (`--snapshot`, used by scripts/build_architecture_history.py):
 # today's extractor runs over an older checkout with today's curated files, so
@@ -375,15 +377,20 @@ def header_open_brace(code: str, index: int) -> int | None:
 DECLARATION_HEADER_RE = re.compile(r"\b(class|struct|enum|actor|extension|func)\s+([A-Za-z_][A-Za-z0-9_]*)")
 
 
-def declaration_blocks(code: str) -> list[tuple[int, int, str, str]]:
-    """Every declaration with a body: (start, end, kind, name), bracket-aware headers."""
+@functools.lru_cache(maxsize=None)
+def declaration_blocks(code: str) -> tuple[tuple[int, int, str, str], ...]:
+    """Every declaration with a body: (start, end, kind, name), bracket-aware headers.
+
+    Remembered per text: the enclosing-context lookups ask for the same file's blocks once per
+    match, tens of thousands of times a compile, and the answer depends on the text alone.
+    """
     blocks: list[tuple[int, int, str, str]] = []
     for match in DECLARATION_HEADER_RE.finditer(code):
         open_brace = header_open_brace(code, match.end())
         if open_brace is None:
             continue
         blocks.append((match.start(), balanced_block_end(code, open_brace + 1), match.group(1), match.group(2)))
-    return blocks
+    return tuple(blocks)
 
 
 def enclosing_context(code: str, offset: int) -> tuple[str | None, str | None]:
@@ -2626,7 +2633,7 @@ INVARIANT_KINDS = {
     "single_transport", "surfaces_hold_transport", "pool_guarded_by_lock", "pool_lifecycle_observed",
     "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
     "stores_mapped", "triggers_observed", "launch_zoned", "flows_traceable", "machines_complete",
-    "tasks_parsed", "resources_parsed",
+    "tasks_parsed", "resources_parsed", "glossary_observed",
 }
 # The rung of the pipeline an invariant pins. `extraction` invariants check the
 # mechanical model against its own rules (what the extractor recognises is on the
@@ -2843,6 +2850,19 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
                 site = f"{item['path']}:{item['line']}"
                 if site not in allowed:
                     problems.append(f"{item['shape']} shape at {site} was seen but not parsed: {item.get('text', '')}")
+
+        elif kind == "glossary_observed":
+            glossary = interplay.get("glossary") or {}
+            checked = len(glossary.get("terms", []))
+            allow_unused = set(entry.get("allow_unused", []))
+            # A tree with no enrichment at all (a history snapshot may carry none) has nothing to observe the
+            # words in, and a partial build cannot judge the vocabulary either: records set aside because the
+            # CI plane is absent still carry words, so only a build that loaded every record may fail a term.
+            partial = LENIENT or bool((interplay.get("constructs") or {}).get("set_aside"))
+            if not partial and (glossary.get("described", 0) or glossary.get("flows", 0)):
+                for term in glossary.get("terms", []):
+                    if term["uses"] == 0 and term["term"] not in allow_unused:
+                        problems.append(f"{term['term']!r} is used by no construct record or flow")
 
         elif kind == "pages_populated":
             allow_empty = set(entry.get("allow_empty", []))
@@ -3907,6 +3927,14 @@ SEMANTIC_SUMMARY_MAX = 400
 # must name an outcome, not a mechanism, and say when it is inferred rather than documented.
 SEMANTIC_PURPOSE_MAX = 520
 SEMANTIC_NOTE_MAX = 120
+
+
+def require_whole(owner: str, field: str, text: str) -> None:
+    """A field the agent cut at its cap ends in an ellipsis; the reader then sees half a sentence. The
+    agent shortens an over-long field by asking the model, so a cut reaching the compiler is a defect
+    to fix, not a style to accept. Skipped in a lenient build: older trees carry cuts made before this rule."""
+    if not LENIENT and isinstance(text, str) and text.rstrip().endswith("…"):
+        raise ArchitectureError(f"{owner} {field} ends in a cut ('…'): the agent clipped it at the cap; rewrite it to fit instead")
 STORE_MEDIA = ("json_file", "plist_file", "sqlite", "user_defaults", "keychain", "in_memory", "mixed")
 # The mechanical persistence a medium must be compatible with.
 STORE_MEDIUM_OF_PERSISTENCE = {
@@ -3921,6 +3949,15 @@ STORE_MEDIUM_OF_PERSISTENCE = {
 # "out": edge.source is the node, "any") | ("types",) declared Swift type names
 # | ("endpoints",) endpoint labels on the map | ("triggers",) trigger ids | ("pages",) page ids.
 CONSTRUCT_SCHEMAS: dict[str, dict[str, tuple[Any, ...]]] = {
+    "gate": {  # a CI job: what a green run proves, what turns it red, and what it stands between
+        "proves": ("list_str", 120),
+        "fails_when": ("list_str", 120),
+        "blocks": ("enum", ["merge", "release", "nothing"]),
+        "depends_on": ("job_needs",),
+        "consumes": ("job_artifacts", "artifacts_in"),
+        "produces": ("job_artifacts", "artifacts_out"),
+        "scripts": ("job_scripts", SEMANTIC_NOTE_MAX),
+    },
     "store": {
         "medium": ("enum", STORE_MEDIA),
         "location": ("str", 120),
@@ -4048,10 +4085,291 @@ def page_files(page_id: str, interplay: dict[str, Any], files: list[dict[str, An
     return paths
 
 
-def validate_evidence_sites(raw: Any, allowed: set[str], line_counts: dict[str, int], owner: str) -> list[dict[str, Any]]:
+# ── Glossary: the product's own nouns, enforced on the enrichment layer ──────
+#
+# architecture/glossary.json is curated like config.json: one entry per term the
+# product's people use (a proper noun, a role or a concept), its one-line
+# definition, the synonyms and misspellings that must not stand in for it, the
+# terms it is confused with, and a line of source or docs that grounds it.
+# Construct records and flows are checked against it: a record that uses an
+# `avoid` word, or spells a proper noun with the wrong case, is rejected like one
+# that names a store no edge reaches. Identifiers in backticks are code, not
+# prose, and are never checked. The `glossary-observed` invariant fails the build
+# when a term is used by no record or flow, so the list cannot hold words nobody says.
+
+GLOSSARY_KINDS = frozenset({"proper-noun", "role", "concept"})
+GLOSSARY_DEFINITION_MAX = 240
+GLOSSARY_TERM_MAX = 60
+_BACKTICK_SPAN_RE = re.compile(r"`[^`\n]*`")
+
+
+def _glossary_word_re(phrase: str, *, plural: bool, ignore_case: bool) -> re.Pattern[str]:
+    """A whole-phrase match: not inside a longer word, and not a piece of a domain, path, command or
+    identifier (`portal.app`, `hermes-agent`, `Portal/`): those are names, not prose. A full stop ends
+    a sentence unless a word follows it at once. Optionally with an English plural."""
+    body = re.escape(phrase) + (r"(?:e?s)?" if plural else "")
+    return re.compile(rf"(?<![\w\-./@:_]){body}(?![\w\-/@:_])(?!\.\w)", re.IGNORECASE if ignore_case else 0)
+
+
+def load_glossary() -> dict[str, Any]:
+    """Read and validate architecture/glossary.json; a repository without one has an empty glossary."""
+    if not GLOSSARY_PATH.is_file():
+        return {"terms": []}
+    raw = load_json(GLOSSARY_PATH)
+    if raw.get("schema_version") != "1.0.0" or not isinstance(raw.get("terms"), list):
+        raise ArchitectureError("architecture/glossary.json has an unsupported schema")
+    terms: list[dict[str, Any]] = []
+    seen: dict[str, str] = {}
+    for entry in raw["terms"]:
+        if not isinstance(entry, dict) or not isinstance(entry.get("term"), str) or not entry["term"].strip():
+            raise ArchitectureError("every glossary entry needs a term")
+        term = entry["term"].strip()
+        owner = f"glossary term {term!r}"
+        if len(term) > GLOSSARY_TERM_MAX or "`" in term:
+            raise ArchitectureError(f"{owner} must be plain text of at most {GLOSSARY_TERM_MAX} characters")
+        if term.lower() in seen:
+            raise ArchitectureError(f"{owner} is declared twice (also as {seen[term.lower()]!r})")
+        seen[term.lower()] = term
+        kind = entry.get("kind")
+        if kind not in GLOSSARY_KINDS:
+            raise ArchitectureError(f"{owner} kind must be one of {', '.join(sorted(GLOSSARY_KINDS))}, not {kind!r}")
+        definition = entry.get("definition")
+        if not isinstance(definition, str) or not definition.strip() or len(definition) > GLOSSARY_DEFINITION_MAX:
+            raise ArchitectureError(f"{owner} needs a definition of at most {GLOSSARY_DEFINITION_MAX} characters")
+        avoid = entry.get("avoid", [])
+        if not isinstance(avoid, list) or not all(isinstance(a, str) and a.strip() for a in avoid):
+            raise ArchitectureError(f"{owner} avoid must be a list of non-empty strings")
+        avoid = sorted({a.strip() for a in avoid}, key=lambda a: (a.lower(), a))  # a total order: two spellings of one word must not swap between builds
+        if any(a.lower() == term.lower() for a in avoid):
+            raise ArchitectureError(f"{owner} lists itself under avoid")
+        distinguish = entry.get("distinguish_from", {})
+        if not isinstance(distinguish, dict) or not all(isinstance(k, str) and isinstance(v, str) and v.strip() for k, v in distinguish.items()):
+            raise ArchitectureError(f"{owner} distinguish_from must map another term to a one-line rule")
+        evidence = entry.get("evidence")
+        if not isinstance(evidence, list) or not evidence:
+            raise ArchitectureError(f"{owner} needs at least one evidence site (a path and line in the repository)")
+        sites: list[dict[str, Any]] = []
+        for site in evidence:
+            if not isinstance(site, dict) or not isinstance(site.get("path"), str):
+                raise ArchitectureError(f"{owner} evidence entries must be objects with a path")
+            path = site["path"]
+            line = site.get("line", 1)
+            if path.startswith("/") or ".." in path.split("/") or not isinstance(line, int) or isinstance(line, bool) or line < 1:
+                raise ArchitectureError(f"{owner} cites {path}:{line}, which is not a repository path and line")
+            # Evidence is checked against the tree in a strict build, and bound to content like every other
+            # citation: the cited line is the nearest line of that file that uses the term, so an edit above
+            # it moves the citation instead of failing the build. A file that is gone, or one that no longer
+            # says the word anywhere, fails until the glossary follows the rename. The history walk compiles
+            # a scratch tree holding only the source roots, where docs are absent by construction; the check
+            # is not a fact about the map at that commit, so it is skipped there.
+            if not LENIENT:
+                if not (ROOT / path).is_file():
+                    raise ArchitectureError(f"{owner} cites {path}, which is not a file in the repository")
+                lines = (ROOT / path).read_text(encoding="utf-8", errors="replace").splitlines()
+                using = [index + 1 for index, content in enumerate(lines) if term.lower() in content.lower()]
+                if not using:
+                    raise ArchitectureError(f"{owner} cites {path}, but no line of that file uses the term")
+                resolved = min(using, key=lambda n: (abs(n - line), n))
+                sites.append({"path": path, "line": resolved, **({"moved_from": line} if resolved != line else {})})
+            else:
+                sites.append({"path": path, "line": line})
+        terms.append({"term": term, "kind": kind, "definition": definition.strip(), "avoid": avoid,
+                      "distinguish_from": dict(sorted(distinguish.items())), "evidence": sites})
+    by_lower = {t["term"].lower(): t["term"] for t in terms}
+    for t in terms:
+        for alias in t["avoid"]:
+            if alias.lower() in by_lower:
+                raise ArchitectureError(f"glossary term {t['term']!r} lists {alias!r} under avoid, but that is itself a term")
+        for other in t["distinguish_from"]:
+            if other.lower() not in by_lower or other.lower() == t["term"].lower():
+                raise ArchitectureError(f"glossary term {t['term']!r} distinguishes itself from {other!r}, which is not another term")
+    terms.sort(key=lambda t: t["term"].lower())
+    return {"terms": terms}
+
+
+def _glossary_prose(text: str) -> str:
+    """The text with every backticked span blanked: identifiers are code, not vocabulary."""
+    return _BACKTICK_SPAN_RE.sub(lambda m: " " * len(m.group(0)), text)
+
+
+def _mask(text: str, pattern: re.Pattern[str]) -> str:
+    return pattern.sub(lambda m: " " * len(m.group(0)), text)
+
+
+def glossary_violations(text: str, terms: list[dict[str, Any]]) -> list[str]:
+    """Every way ``text`` departs from the glossary: an `avoid` word standing in for a term, or a
+    proper noun spelled with the wrong case. Backticked spans are exempt; the canonical spelling of
+    every term is blanked first so an alias that is part of a term never fires inside it."""
+    if not terms or not text:
+        return []
+    prose = _glossary_prose(text)
+    ordered = sorted(terms, key=lambda t: -len(t["term"]))
+    for t in ordered:
+        prose = _mask(prose, _glossary_word_re(t["term"], plural=t["kind"] != "proper-noun", ignore_case=False))
+    problems: list[str] = []
+    for t in ordered:
+        if t["kind"] == "proper-noun":
+            for m in _glossary_word_re(t["term"], plural=False, ignore_case=True).finditer(prose):
+                problems.append(f"spells {m.group(0)!r}; the glossary term is {t['term']!r}")
+            prose = _mask(prose, _glossary_word_re(t["term"], plural=False, ignore_case=True))
+    for t in ordered:
+        for alias in sorted(t["avoid"], key=lambda a: -len(a)):
+            pattern = _glossary_word_re(alias, plural=t["kind"] != "proper-noun", ignore_case=True)
+            for m in pattern.finditer(prose):
+                problems.append(f"uses {m.group(0)!r}; the glossary term is {t['term']!r}")
+            prose = _mask(prose, pattern)
+    return sorted(set(problems))
+
+
+def glossary_check(owner: str, texts: list[str], interplay: dict[str, Any]) -> None:
+    terms = (interplay.get("glossary") or {}).get("terms") or []
+    if not terms:
+        return
+    problems = sorted({p for text in texts for p in glossary_violations(text, terms)})
+    if problems:
+        shown = problems[:6]
+        more = f" (+{len(problems) - len(shown)} more)" if len(problems) > len(shown) else ""
+        raise ArchitectureError(f"{owner} departs from the glossary: " + "; ".join(shown) + more)
+
+
+def glossary_repair(text: str, terms: list[dict[str, Any]]) -> tuple[str, list[str]]:
+    """The mechanical half of honouring the glossary: `avoid` words replaced by their term, proper
+    nouns re-cased. Backticked spans are left alone. Returns the text and what changed, for the log."""
+    if not terms or not text:
+        return text, []
+    repairs: list[str] = []
+    spans = [(m.start(), m.end()) for m in _BACKTICK_SPAN_RE.finditer(text)]
+
+    def in_code(start: int, end: int) -> bool:
+        return any(a <= start and end <= b for a, b in spans)
+
+    def apply(pattern: re.Pattern[str], replacement: Any, label: str, skip: Any = None) -> None:
+        nonlocal text, spans
+        out, last = [], 0
+        for m in pattern.finditer(text):
+            if in_code(m.start(), m.end()) or (skip is not None and skip(m)):
+                continue
+            out.append(text[last:m.start()])
+            new = replacement(m) if callable(replacement) else replacement
+            out.append(new)
+            repairs.append(f"{m.group(0)!r} → {new!r}" if label == "alias" else f"{m.group(0)!r} re-cased")
+            last = m.end()
+        out.append(text[last:])
+        text = "".join(out)
+        spans = [(m.start(), m.end()) for m in _BACKTICK_SPAN_RE.finditer(text)]
+
+    ordered = sorted(terms, key=lambda t: -len(t["term"]))
+    # The canonical spelling of a longer term is protected while a shorter one is re-cased or an alias
+    # swapped, exactly as the check masks it: "Hermes Standard" is not a miscased "Hermes" plus a word.
+    def protected(m: re.Match[str]) -> bool:
+        return any(c.start() <= m.start() and m.end() <= c.end()
+                   for t in ordered for c in _glossary_word_re(t["term"], plural=t["kind"] != "proper-noun", ignore_case=False).finditer(text)
+                   if (c.start(), c.end()) != (m.start(), m.end()))
+
+    for t in ordered:
+        if t["kind"] == "proper-noun":
+            loose = _glossary_word_re(t["term"], plural=False, ignore_case=True)
+            apply(loose, t["term"], "case", skip=lambda m, term=t["term"]: m.group(0) == term or protected(m))
+    for t in ordered:
+        for alias in sorted(t["avoid"], key=lambda a: -len(a)):
+            plural = t["kind"] != "proper-noun"
+            pattern = _glossary_word_re(alias, plural=plural, ignore_case=True)
+
+            def replacement(m: re.Match[str], term: str = t["term"], alias_: str = alias, kind: str = t["kind"]) -> str:
+                word = term
+                if plural and len(m.group(0)) > len(alias_) and not word.endswith("s"):
+                    word += "s" if not word.endswith(("s", "x", "ch", "sh")) else "es"
+                if kind != "proper-noun" and m.group(0)[:1].isupper() and not term[:1].isupper():
+                    word = word[:1].upper() + word[1:]
+                return word
+            apply(pattern, replacement, "alias", skip=protected)
+    return text, repairs
+
+
+PROSE_FIELD_KINDS = ("str", "list_str", "job_scripts")  # free text; every other field kind is structure (keys, type names, enum values)
+
+
+def record_prose(record: dict[str, Any]) -> list[str]:
+    """Every piece of prose a construct record carries: what the glossary is checked against. A field
+    that holds construct keys, Swift type names or enum values is structure, not vocabulary: a store
+    whose medium is `keychain` or whose record type is `CronJob` has not misspelled anything."""
+    texts = [str(record.get("summary", "")), str(record.get("purpose", "")), *[q for q in record.get("open_questions", []) if isinstance(q, str)]]
+    schema = CONSTRUCT_SCHEMAS.get(str(record.get("kind")), {})
+    for name, value in (record.get("fields") or {}).items():
+        if schema.get(name, ("",))[0] not in PROSE_FIELD_KINDS:
+            continue
+        if isinstance(value, str):
+            texts.append(value)
+        elif isinstance(value, list):
+            texts.extend(v for v in value if isinstance(v, str))
+        elif isinstance(value, dict):
+            texts.extend(v for v in value.values() if isinstance(v, str))
+    return texts
+
+
+def flow_prose(flow: dict[str, Any]) -> list[str]:
+    texts = [str(flow.get(key, "")) for key in ("title", "summary", "interaction", "outcome")]
+    for step in flow.get("steps", []):
+        if isinstance(step, dict):
+            texts.extend([str(step.get("note", "")), str(step.get("detail", ""))])
+    return texts
+
+
+def fold_glossary(interplay: dict[str, Any], records: list[dict[str, Any]], flows: list[dict[str, Any]]) -> None:
+    """Which records and flows use each term, folded onto `interplay.glossary` for the site and the invariant."""
+    terms = (interplay.get("glossary") or {}).get("terms") or []
+    if not terms:
+        interplay["glossary"] = {"terms": [], "count": 0, "described": 0, "flows": 0}
+        return
+    corpus: list[tuple[str, str]] = [(record["key"], _glossary_prose("\n".join(record_prose(record)))) for record in records]
+    corpus += [(f"flow:{flow['id']}", _glossary_prose("\n".join(flow_prose(flow)))) for flow in flows]
+    folded = []
+    for t in terms:
+        pattern = _glossary_word_re(t["term"], plural=t["kind"] != "proper-noun", ignore_case=t["kind"] != "proper-noun")
+        used_by = sorted(key for key, text in corpus if pattern.search(text))
+        folded.append({**t, "used_by": used_by, "uses": len(used_by)})
+    interplay["glossary"] = {"terms": folded, "count": len(folded), "described": len(records), "flows": len(flows)}
+
+
+CITED_TEXT_MAX = 160  # how much of a cited line a citation keeps; enough to find the line again when it moves
+CITATION_RADIUS = 3  # lines after a cited line that count as what the sentence was written from
+
+
+def resolve_site(path: str, line: int, text: str | None, lines: list[str] | None) -> dict[str, Any]:
+    """A citation bound to content, not position. A site records the trimmed text of the line it cites; when the
+    line number no longer holds that text, the nearest line that does is the citation now (`moved_from` keeps the
+    old number). Only when the text is gone from the file is the site `lost`, which makes its record stale. A site
+    without text (written before text was kept) is bound to its line number and acquires the text it finds there;
+    on a blank line it follows the next line that has text, since a blank line has nothing to be found again by."""
+    site: dict[str, Any] = {"path": path, "line": line}
+    if lines is None:
+        if text:
+            site["text"] = text
+        return site
+    at = lines[line - 1].strip()[:CITED_TEXT_MAX] if 1 <= line <= len(lines) else None
+    if not text:
+        if at:
+            site["text"] = at
+        elif at is not None:
+            following = next((index + 1 for index in range(line, len(lines)) if lines[index].strip()), None)
+            if following is not None:
+                return {"path": path, "line": following, "text": lines[following - 1].strip()[:CITED_TEXT_MAX], "moved_from": line}
+        return site
+    if at == text:
+        site["text"] = text
+        return site
+    candidates = [index + 1 for index, content in enumerate(lines) if content.strip()[:CITED_TEXT_MAX] == text]
+    if candidates:
+        moved = min(candidates, key=lambda n: (abs(n - line), n))
+        return {"path": path, "line": moved, "text": text, "moved_from": line}
+    return {"path": path, "line": min(max(line, 1), max(len(lines), 1)), "text": text, "lost": True}
+
+
+def validate_evidence_sites(raw: Any, allowed: set[str], line_counts: dict[str, int], owner: str,
+                            text_by_path: dict[str, str] | None = None) -> list[dict[str, Any]]:
     if not isinstance(raw, list) or not raw:
         raise ArchitectureError(f"{owner} needs at least one evidence site")
-    sites: list[dict[str, Any]] = []
+    sites: dict[tuple[str, int], dict[str, Any]] = {}
     for item in raw:
         if not isinstance(item, dict) or not isinstance(item.get("path"), str):
             raise ArchitectureError(f"{owner} evidence entries must be objects with a path")
@@ -4059,34 +4377,46 @@ def validate_evidence_sites(raw: Any, allowed: set[str], line_counts: dict[str, 
         if path not in allowed:
             raise ArchitectureError(f"{owner} cites {path}, outside its bounded file set")
         line = item.get("line", 1)
-        if not isinstance(line, int) or line < 1 or (path in line_counts and line > line_counts[path]):
+        if not isinstance(line, int) or isinstance(line, bool) or line < 1:
             raise ArchitectureError(f"{owner} cites {path}:{line}, which is not a line of that file")
-        sites.append({"path": path, "line": line})
-    return sorted({(site["path"], site["line"]): site for site in sites}.values(), key=lambda s: (s["path"], s["line"]))
+        text = item.get("text")
+        text = text.strip()[:CITED_TEXT_MAX] if isinstance(text, str) and text.strip() else None
+        lines = text_by_path[path].splitlines() if text_by_path is not None and path in text_by_path else None
+        # A citation with no text is bound to its number and must be a line of the file. One that carries text and
+        # points past the end of a file that shrank is lost, not rejected: the record survives as stale.
+        if text is None and path in line_counts and line > line_counts[path]:
+            raise ArchitectureError(f"{owner} cites {path}:{line}, which is not a line of that file")
+        site = resolve_site(path, line, text, lines)
+        key = (path, site["line"])
+        if key not in sites or site.get("lost"):
+            sites[key] = site
+    return [sites[key] for key in sorted(sites)]
 
 
-def cited_hash(paths: set[str], text_by_path: dict[str, str]) -> str:
-    digest = hashlib.sha256()
-    for path in sorted(paths):
-        digest.update(path.encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(text_by_path.get(path, "").encode("utf-8"))
-        digest.update(b"\0")
-    return digest.hexdigest()
-
-
-def cited_window_hash(sites: list[dict[str, Any]], text_by_path: dict[str, str]) -> str:
-    """The hash of the FLOW_CITE_RADIUS lines around every cited line: the provenance of
-    prose written from those lines, insensitive to edits elsewhere in the file."""
+def cited_hash(sites: list[dict[str, Any]], text_by_path: dict[str, str]) -> str:
+    """The provenance of a record or flow: a digest of the cited line and the lines that follow it, at the line the
+    citation resolves to now, with whitespace trimmed. An edit elsewhere in a cited file leaves it fresh, and so
+    does an insertion above the citation (the site follows its text); an edit to the lines a sentence was written
+    from makes it stale. A citation of a file's first line stands for the file and hashes that line alone, so an
+    import added beneath it does not stale every record that cites the file."""
     digest = hashlib.sha256()
     for site in sorted(sites, key=lambda item: (item["path"], item["line"])):
         lines = text_by_path.get(site["path"], "").splitlines()
-        lo, hi = max(1, site["line"] - FLOW_CITE_RADIUS), site["line"] + FLOW_CITE_RADIUS
-        digest.update(f"{site['path']}:{site['line']}".encode("utf-8"))
+        head = site["line"] == 1 or site.get("moved_from") == 1  # the file's first line stands for the file, wherever that line is now
+        lo, hi = site["line"] - 1, (site["line"] if head else site["line"] + CITATION_RADIUS)
+        digest.update(site["path"].encode("utf-8"))
         digest.update(b"\0")
-        digest.update("\n".join(lines[lo - 1:hi]).encode("utf-8"))
+        digest.update("\n".join(line.strip() for line in lines[lo:hi]).encode("utf-8"))
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def provenance_stale(recorded_hash: Any, current_hash: str, evidence: list[dict[str, Any]], persisted: bool) -> bool:
+    """A record the agent just wrote takes the current hash as its provenance. A persisted record without one
+    cannot prove it describes these lines, so it is stale until regenerated: a record cannot shed its staleness
+    by losing its hash. A citation whose text left the file is stale too."""
+    return bool((recorded_hash is not None and recorded_hash != current_hash) or (persisted and recorded_hash is None)
+                or any(site.get("lost") for site in evidence))
 
 
 def flow_allowed_paths(steps: list[tuple[str, str]], page_id: str, interplay: dict[str, Any], files: list[dict[str, Any]]) -> set[str]:
@@ -4106,7 +4436,7 @@ def flow_allowed_paths(steps: list[tuple[str, str]], page_id: str, interplay: di
 
 
 def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]],
-                              externals: dict[str, Any] | None = None) -> dict[str, Any]:
+                              externals: dict[str, Any] | None = None, persisted: bool = False) -> dict[str, Any]:
     """Validate one record against the model; returns the normalised record.
 
     Raises ArchitectureError naming the field, so the agent can report exactly why
@@ -4122,7 +4452,22 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
     if not isinstance(key, str) or not key:
         raise ArchitectureError("construct record needs a key")
     owner = f"construct {key}"
-    if key.startswith("page:"):
+    # A gate record cites its workflow and the scripts the job runs; their texts join the index so
+    # those citations are bounded and hash-bound like any other.
+    ci_index = interplay.get("ci_jobs")
+    if ci_index:
+        for path, text in ci_index["texts"].items():
+            text_by_path.setdefault(path, text)
+            line_counts.setdefault(path, len(text.splitlines()))
+    if key.startswith("gate:"):
+        if not ci_index:
+            raise ArchitectureError(f"{owner} describes a CI job, but this build compiles no CI plane")
+        node = ci_index["jobs"].get(key.split(":", 1)[1])
+        if node is None:
+            raise ArchitectureError(f"{owner} names a CI job no workflow under .github/workflows defines")
+        expected_kind = "gate"
+        allowed = gate_files(node)
+    elif key.startswith("page:"):
         page_id = key.split(":", 1)[1]
         if page_id not in page_labels:
             raise ArchitectureError(f"{owner} names a page that is not on the map")
@@ -4144,11 +4489,13 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
         raise ArchitectureError(f"{owner} needs a summary")
     if len(summary) > SEMANTIC_SUMMARY_MAX:
         raise ArchitectureError(f"{owner} summary exceeds {SEMANTIC_SUMMARY_MAX} characters")
+    require_whole(owner, "summary", summary)
     purpose = raw.get("purpose")
     if not isinstance(purpose, str) or not purpose.strip():
         raise ArchitectureError(f"{owner} needs a purpose: why the construction exists, not what it does")
     if len(purpose) > SEMANTIC_PURPOSE_MAX:
         raise ArchitectureError(f"{owner} purpose exceeds {SEMANTIC_PURPOSE_MAX} characters")
+    require_whole(owner, "purpose", purpose)
     schema = CONSTRUCT_SCHEMAS[expected_kind]
     body: dict[str, Any] = {}
     fields = raw.get("fields")
@@ -4161,6 +4508,10 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
         if spec is None:
             raise ArchitectureError(f"{owner} has a field {name!r} that the {expected_kind} schema does not define")
         body[name] = validate_construct_field(name, value, spec, node, interplay, by_key, declared_types, page_labels, owner)
+    if expected_kind == "gate" and "blocks" in body and body["blocks"] != GATE_ROLE_BLOCKS.get(str(node["role"]), "nothing"):
+        # What a job stands between is a fact of the workflow (its events and condition), not an opinion:
+        # a record may not promote a post-merge job to a merge gate or demote a gate.
+        raise ArchitectureError(f"{owner}.blocks says {body['blocks']!r}, but the job's role is {node['role']!r}, which blocks {GATE_ROLE_BLOCKS.get(str(node['role']), 'nothing')!r}")
     # Cross-field mechanics the model may refine but not contradict.
     if expected_kind == "store" and node is not None:
         persistence = (node.get("store") or {}).get("persistence") or ["unobserved"]
@@ -4171,20 +4522,21 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
                 raise ArchitectureError(f"{owner} claims medium {medium!r} but the source shows {', '.join(persistence)}")
         if "keychain" in persistence and body.get("sensitive") is False:
             raise ArchitectureError(f"{owner} is keychain-backed; sensitive cannot be false")
-    evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner)
+    evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner, text_by_path)
     open_questions = normalized_strings(raw.get("open_questions", []))
     for question in open_questions:
         if len(question) > 200:
             raise ArchitectureError(f"{owner} has an open question over 200 characters")
-    cited = {site["path"] for site in evidence}
-    current_hash = cited_hash(cited, text_by_path)
+        require_whole(owner, "open question", question)
+    glossary_check(owner, record_prose({"kind": expected_kind, "summary": summary, "purpose": purpose, "open_questions": open_questions, "fields": body}), interplay)
+    current_hash = cited_hash(evidence, text_by_path)
     recorded_hash = raw.get("cited_hash")
     return {
         "key": key, "kind": expected_kind, "summary": summary.strip(), "purpose": purpose.strip(), "fields": body,
         "open_questions": open_questions, "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
         "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),
-        "stale": bool(recorded_hash is not None and recorded_hash != current_hash),
+        "stale": provenance_stale(recorded_hash, current_hash, evidence, persisted),
         "authority": "synthesized",
     }
 
@@ -4204,6 +4556,7 @@ def validate_construct_field(name: str, value: Any, spec: tuple[Any, ...], node:
     if kind == "str":
         if not isinstance(value, str) or len(value) > spec[1]:
             raise ArchitectureError(f"{owner}.{name} must be a string of at most {spec[1]} characters")
+        require_whole(owner, name, value)
         return value.strip()
     if kind == "list_str":
         if not isinstance(value, list) or not all(isinstance(item, str) and len(item) <= spec[1] for item in value):
@@ -4217,6 +4570,27 @@ def validate_construct_field(name: str, value: Any, spec: tuple[Any, ...], node:
         if not isinstance(value, int) or isinstance(value, bool) or value < 0:
             raise ArchitectureError(f"{owner}.{name} must be a non-negative integer")
         return value
+    if kind in ("job_needs", "job_artifacts"):
+        if node is None or "needs" not in node:
+            raise ArchitectureError(f"{owner}.{name} cannot be validated without the job")
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be a list of strings")
+        declared = set(node["needs"]) if kind == "job_needs" else set(node[spec[1]])
+        what = "the jobs it needs" if kind == "job_needs" else f"its {spec[1].replace('_', ' ')}"
+        for item in value:
+            if item not in declared:
+                raise ArchitectureError(f"{owner}.{name} names {item!r}, which is not among {what} in the workflow")
+        return sorted(set(value))
+    if kind == "job_scripts":
+        if node is None or "scripts" not in node:
+            raise ArchitectureError(f"{owner}.{name} cannot be validated without the job")
+        if not isinstance(value, dict) or not all(isinstance(k, str) and isinstance(v, str) and len(v) <= spec[1] for k, v in value.items()):
+            raise ArchitectureError(f"{owner}.{name} must map script paths to strings of at most {spec[1]} characters")
+        for script, note in value.items():
+            if script not in node["scripts"]:
+                raise ArchitectureError(f"{owner}.{name} notes {script!r}, which the job does not run")
+            require_whole(owner, f"{name}[{script}]", note)
+        return {k: v.strip() for k, v in sorted(value.items()) if v.strip()}
     if kind == "types":
         if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
             raise ArchitectureError(f"{owner}.{name} must be a list of type names")
@@ -4270,21 +4644,54 @@ def validate_construct_field(name: str, value: Any, spec: tuple[Any, ...], node:
     raise ArchitectureError(f"unknown field spec {kind!r}")
 
 
+GATE_ROLE_BLOCKS = {"gate": "merge", "post-merge": "release", "manual": "nothing", "disabled": "nothing"}
+
+
+def ci_record_index() -> dict[str, Any] | None:
+    """The CI jobs a `gate:` record may describe, with the text of the workflow files and the check
+    scripts they run, so a record's citations can be bounded and hash-bound like any other. None in
+    a lenient build: the history walk compiles no CI plane, so gate records are set aside there."""
+    if LENIENT:
+        return None
+    jobs: dict[str, dict[str, Any]] = {}
+    texts: dict[str, str] = {}
+    for workflow in read_workflows():
+        path = str(workflow["path"])
+        if path not in texts and (ROOT / path).is_file():
+            texts[path] = (ROOT / path).read_text(encoding="utf-8")
+        for job in workflow["_jobs"]:
+            jobs[job["id"]] = job
+            for script in job["scripts"]:
+                if script not in texts and (ROOT / script).is_file():
+                    texts[script] = (ROOT / script).read_text(encoding="utf-8", errors="replace")
+    return {"jobs": jobs, "texts": texts}
+
+
+def gate_files(job: dict[str, Any]) -> set[str]:
+    """What a gate record may cite: the workflow that declares the job and the scripts it runs."""
+    return {str(job["evidence"]["path"])} | set(job["scripts"])
+
+
 def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], externals: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Read, validate and fold the construct records onto their nodes as `semantic`."""
     if not CONSTRUCTS_PATH.is_file():
-        interplay["constructs"] = {"described": 0, "stale": 0}
+        interplay["constructs"] = {"described": 0, "stale": 0, "set_aside": 0}
+        interplay["gate_records"] = {}
         return []
     raw = load_json(CONSTRUCTS_PATH)
     if raw.get("schema_version") != "1.0.0" or not isinstance(raw.get("records"), list):
         raise ArchitectureError("architecture/semantic/constructs.json has an unsupported schema")
     records: list[dict[str, Any]] = []
     seen: set[str] = set()
+    set_aside = 0
     for entry in raw["records"]:
         if not isinstance(entry, dict):
             raise ArchitectureError("construct records must be objects")
+        if interplay.get("ci_jobs") is None and str(entry.get("key", "")).startswith("gate:"):
+            set_aside += 1  # a lenient build compiles no CI plane: nothing to validate the record against
+            continue
         try:
-            record = validate_construct_record(entry, interplay, files, externals)
+            record = validate_construct_record(entry, interplay, files, externals, persisted=True)
         except ArchitectureError as exc:
             gate("constructs_invalid", str(exc))
             continue
@@ -4302,7 +4709,9 @@ def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], exte
         record = next((r for r in records if r["key"] == f"page:{page['id']}"), None)
         if record is not None:
             page["semantic"] = {k: v for k, v in record.items() if k != "key"}
-    interplay["constructs"] = {"described": len(records), "stale": sum(1 for r in records if r["stale"])}
+    # Gate records are folded onto the CI model's jobs when that model is built (it reads the same workflows).
+    interplay["gate_records"] = {r["key"].split(":", 1)[1]: {k: v for k, v in r.items() if k != "key"} for r in records if r["key"].startswith("gate:")}
+    interplay["constructs"] = {"described": len(records), "stale": sum(1 for r in records if r["stale"]), "set_aside": set_aside}
     return records
 
 
@@ -4312,13 +4721,18 @@ FLOW_MIN_STEPS, FLOW_MAX_STEPS = 3, 12
 # agent was shown; its cites are the lines that prose came from. The lines around
 # every citation are hashed, so the flow goes stale (not broken) when they change.
 FLOW_DETAIL_MAX = 900
-FLOW_CITE_RADIUS = 3
+# A flow's title, the action that starts it and what it ends in are read as one row before the flow is
+# opened: a sentence each, long enough not to be clipped mid-word. The validator, the agent's repair
+# and the prompt share these.
+FLOW_TITLE_MAX = 120
+FLOW_INTERACTION_MAX = 160
+FLOW_OUTCOME_MAX = 280
 # A flow belongs to one user journey: starting the app, doing a chat turn, or
 # entering and using one navigation page. The site orders and groups by this.
 FLOW_JOURNEYS = ("launch", "chat_turn", "page")
 
 
-def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]]) -> dict[str, Any]:
+def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]], persisted: bool = False) -> dict[str, Any]:
     """Validate one flow: a path over edges the map draws. Returns the flow with
     ``status`` traceable and no problems, or raises for schema errors. A step over
     an edge that no longer exists is not a schema error: it is recorded as a problem
@@ -4337,11 +4751,13 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
         raise ArchitectureError(f"flow id {flow_id!r} must be a kebab-case slug")
     owner = f"flow {flow_id}"
     title = raw.get("title")
-    if not isinstance(title, str) or not title.strip() or len(title) > 80:
-        raise ArchitectureError(f"{owner} needs a title of at most 80 characters")
+    if not isinstance(title, str) or not title.strip() or len(title) > FLOW_TITLE_MAX:
+        raise ArchitectureError(f"{owner} needs a title of at most {FLOW_TITLE_MAX} characters")
+    require_whole(owner, "title", title)
     summary = raw.get("summary")
     if not isinstance(summary, str) or not summary.strip() or len(summary) > SEMANTIC_SUMMARY_MAX:
         raise ArchitectureError(f"{owner} needs a summary of at most {SEMANTIC_SUMMARY_MAX} characters")
+    require_whole(owner, "summary", summary)
     steps = raw.get("steps")
     if not isinstance(steps, list) or not (FLOW_MIN_STEPS <= len(steps) <= FLOW_MAX_STEPS):
         raise ArchitectureError(f"{owner} needs between {FLOW_MIN_STEPS} and {FLOW_MAX_STEPS} steps")
@@ -4358,9 +4774,11 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
         note = step.get("note", "")
         if not isinstance(note, str) or len(note) > SEMANTIC_NOTE_MAX:
             raise ArchitectureError(f"{owner} step {index} note must be a string of at most {SEMANTIC_NOTE_MAX} characters")
+        require_whole(f"{owner} step {index}", "note", note)
         detail = step.get("detail", "")
         if not isinstance(detail, str) or len(detail) > FLOW_DETAIL_MAX:
             raise ArchitectureError(f"{owner} step {index} detail must be a string of at most {FLOW_DETAIL_MAX} characters")
+        require_whole(f"{owner} step {index}", "detail", detail)
         cites = step.get("cites", [])
         if not isinstance(cites, list) or not all(isinstance(c, dict) for c in cites):
             raise ArchitectureError(f"{owner} step {index} cites must be a list of path and line objects")
@@ -4381,8 +4799,9 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
             if first_label != trigger["surface"] and first != f"page:{trigger.get('page')}":
                 raise ArchitectureError(f"{owner} starts at {first!r} but its trigger fires {trigger['surface']}")
     outcome = raw.get("outcome", "")
-    if not isinstance(outcome, str) or len(outcome) > 200:
-        raise ArchitectureError(f"{owner} outcome must be a string of at most 200 characters")
+    if not isinstance(outcome, str) or len(outcome) > FLOW_OUTCOME_MAX:
+        raise ArchitectureError(f"{owner} outcome must be a string of at most {FLOW_OUTCOME_MAX} characters")
+    require_whole(owner, "outcome", outcome)
     journey = raw.get("journey")
     if journey not in FLOW_JOURNEYS:
         raise ArchitectureError(f"{owner} journey must be one of {', '.join(FLOW_JOURNEYS)}")
@@ -4395,20 +4814,23 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
     if trigger_id is not None and trigger_id in triggers and triggers[trigger_id].get("page") != page_id:
         raise ArchitectureError(f"{owner} is on {page_id} but its trigger fires on {triggers[trigger_id].get('page')}")
     interaction = raw.get("interaction", "")
-    if not isinstance(interaction, str) or len(interaction) > 80:
-        raise ArchitectureError(f"{owner} interaction must be a string of at most 80 characters")
+    if not isinstance(interaction, str) or len(interaction) > FLOW_INTERACTION_MAX:
+        raise ArchitectureError(f"{owner} interaction must be a string of at most {FLOW_INTERACTION_MAX} characters")
+    require_whole(owner, "interaction", interaction)
+    glossary_check(owner, flow_prose({"title": title, "summary": summary, "interaction": interaction, "outcome": outcome, "steps": normalized_steps}), interplay)
     allowed = flow_allowed_paths([(step["from"], step["to"]) for step in normalized_steps], page_id, interplay, files)
     line_counts = {item["path"]: item["line_count"] for item in files}
     # Each step cites the lines its detail was written from; the flow's evidence is their union
     # plus any flow-level citation, and every one must be a line of a file this path may cite.
-    for index, step in enumerate(normalized_steps, start=1):
-        step["cites"] = validate_evidence_sites(step["cites"], allowed, line_counts, f"{owner} step {index}") if step["cites"] else []
-    raw_evidence = raw.get("evidence") if isinstance(raw.get("evidence"), list) else []
-    evidence = validate_evidence_sites(raw_evidence + [c for step in normalized_steps for c in step["cites"]], allowed, line_counts, owner)
-    # The same provenance a construct record carries, at line rather than file grain: the lines
-    # around every citation are hashed, and the flow is stale (not broken) once one changes.
+    # A citation is bound to the text of its line: a line that moved is found again, a line that is gone is lost.
     text_by_path = {item["path"]: item["_text"] for item in files if "_text" in item}
-    current_hash = cited_window_hash(evidence, text_by_path)
+    for index, step in enumerate(normalized_steps, start=1):
+        step["cites"] = validate_evidence_sites(step["cites"], allowed, line_counts, f"{owner} step {index}", text_by_path) if step["cites"] else []
+    raw_evidence = raw.get("evidence") if isinstance(raw.get("evidence"), list) else []
+    evidence = validate_evidence_sites(raw_evidence + [c for step in normalized_steps for c in step["cites"]], allowed, line_counts, owner, text_by_path)
+    # The same provenance a construct record carries: the lines at each (relocated) citation are hashed, and
+    # the flow is stale (not broken) once any of them changes under it or a cited line leaves the file.
+    current_hash = cited_hash(evidence, text_by_path)
     recorded_hash = raw.get("cited_hash")
     return {
         "id": flow_id, "title": title.strip(), "summary": summary.strip(), "trigger": trigger_id,
@@ -4416,7 +4838,7 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
         "steps": normalized_steps, "outcome": outcome.strip(), "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
         "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),
-        "stale": bool(recorded_hash is not None and recorded_hash != current_hash),
+        "stale": provenance_stale(recorded_hash, current_hash, evidence, persisted),
         "status": "broken" if problems else "traceable", "problems": problems, "authority": "synthesized",
     }
 
@@ -4435,7 +4857,7 @@ def load_flows(interplay: dict[str, Any], files: list[dict[str, Any]]) -> list[d
         if not isinstance(entry, dict):
             raise ArchitectureError("flows must be objects")
         try:
-            flow = validate_flow(entry, interplay, files)
+            flow = validate_flow(entry, interplay, files, persisted=True)
         except ArchitectureError as exc:
             gate("flows_invalid", str(exc))
             continue
@@ -4894,12 +5316,53 @@ def _tool_pins(env: Any, run: Any) -> list[dict[str, str]]:
     return pins
 
 
+# Atoms a pull-request run can never satisfy. A job whose `if` requires one of them, in every
+# alternative of its top-level `||`, never runs on a pull request: a tag-only release, a push-only
+# publisher, a dispatch-only rollout. The shapes are the ones GitHub's expression grammar offers.
+_PR_EXCLUDING_ATOMS = (
+    "github.event_name!='pull_request'", 'github.event_name!="pull_request"',
+    "github.event_name=='push'", 'github.event_name=="push"',
+    "github.event_name=='workflow_dispatch'", 'github.event_name=="workflow_dispatch"',
+    "github.event_name=='schedule'", 'github.event_name=="schedule"',
+    "github.ref_type=='tag'", 'github.ref_type=="tag"',
+    "startswith(github.ref,'refs/tags/", 'startswith(github.ref,"refs/tags/',
+    "github.ref=='refs/heads/", 'github.ref=="refs/heads/',
+)
+
+
+def _top_level_alternatives(compact: str) -> list[str]:
+    """The operands of the outermost `||`, parentheses respected; the whole string when there is none."""
+    parts: list[str] = []
+    depth = 0
+    start = 0
+    index = 0
+    while index < len(compact) - 1:
+        char = compact[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif depth == 0 and compact[index:index + 2] == "||":
+            parts.append(compact[start:index])
+            start = index + 2
+            index += 1
+        index += 1
+    parts.append(compact[start:])
+    return [part.strip("()") for part in parts if part.strip("()")]
+
+
 def _job_condition_excludes_pull_requests(condition: str | None) -> bool:
-    """`if: github.event_name != 'pull_request'` (the deploy shape) keeps a job off PRs."""
+    """Whether a job's `if:` keeps it off pull requests: `github.event_name != 'pull_request'` (the
+    deploy shape), a tag ref, a push, dispatch or schedule event, or a branch ref. Every alternative
+    of the top-level `||` must exclude pull requests on its own: `tag || dispatch` does, `tag ||
+    always()` does not, and a condition that merely mentions pull_request beside some other `!=` does not."""
     if not condition:
         return False
-    compact = condition.replace(" ", "")
-    return "pull_request" in compact and "!=" in compact
+    compact = condition.replace(" ", "").replace("\n", "")
+    if compact.startswith("${{") and compact.endswith("}}"):
+        compact = compact[3:-2]
+    lowered = compact.lower()
+    return all(any(atom.lower() in alternative for atom in _PR_EXCLUDING_ATOMS) for alternative in _top_level_alternatives(lowered))
 
 
 def _normalize_triggers(raw: Any, workflow: str) -> list[dict[str, Any]]:
@@ -5217,6 +5680,9 @@ def build_ci_model(config: dict[str, Any], interplay: dict[str, Any]) -> dict[st
         workflow["question"] = str(entry.get("question") or CI_FAMILIES[entry["family"]])
         for job in workflow.pop("_jobs"):
             job["family"] = entry["family"]
+            record = (interplay.get("gate_records") or {}).get(job["id"])
+            if record is not None:
+                job["semantic"] = record  # what a green run proves and what it blocks, held to this job's own facts
             jobs.append(job)
     present = {workflow["id"] for workflow in workflows}
     if workflows:
@@ -5789,10 +6255,17 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     attach_state_machines(interplay, files)
     assign_history_keys(interplay)
     # Records may cite the launch roots too: they are part of the analysed tree.
-    load_constructs(interplay, files + launch_files, externals)
-    load_flows(interplay, files + launch_files)
+    interplay["ci_jobs"] = ci_record_index()  # the CI jobs a gate record may describe, with their texts
+    interplay["glossary"] = load_glossary()  # read before the records: their prose is checked against it
+    records = load_constructs(interplay, files + launch_files, externals)
+    flows = load_flows(interplay, files + launch_files)
+    fold_glossary(interplay, records, flows)
     interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
     ci = build_ci_model(config, interplay)
+    # Working data for the record validators, not part of the document: the CI model carries the
+    # gate records on its jobs, and the texts live in the files they were read from.
+    interplay.pop("ci_jobs", None)
+    interplay.pop("gate_records", None)
     extraction = build_extraction_map(
         files + launch_files, {"behavior": behavior, "interplay": interplay, "stores": stores, "externals": externals}
     )

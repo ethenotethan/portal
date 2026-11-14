@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import copy
 import json
 import re
 import subprocess
@@ -26,9 +27,20 @@ sys.modules[HISTORY_SPEC.name] = history  # dataclasses resolve deferred annotat
 HISTORY_SPEC.loader.exec_module(history)
 
 
+_COMPILED: dict = {}
+
+
+def compiled() -> tuple[dict, dict]:
+    """One compile shared by every test: the compiler is pure, so the result is the same.
+    Each test gets its own copy, so a test that edits the model cannot reach the next one."""
+    if "model" not in _COMPILED:
+        _COMPILED["model"], _COMPILED["site_data"] = architecture.compile_architecture()
+    return copy.deepcopy(_COMPILED["model"]), copy.deepcopy(_COMPILED["site_data"])
+
+
 class ArchitectureCompilerTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.model, self.site_data = architecture.compile_architecture()
+        self.model, self.site_data = compiled()
 
     def test_every_swift_file_is_assigned(self) -> None:
         self.assertEqual([], self.model["inventory"]["unassigned_files"])
@@ -64,6 +76,24 @@ class ArchitectureCompilerTests(unittest.TestCase):
             json.dumps(self.site_data, sort_keys=True),
             json.dumps(second_site_data, sort_keys=True),
         )
+
+    def test_compilation_does_not_depend_on_the_hash_seed(self) -> None:
+        """Two compiles in one process share a hash seed, so iterating a set in the wrong place passes the
+        test above and still makes `--check` report the outputs stale at random. A second interpreter with
+        another seed must produce the same bytes."""
+        probe = (
+            "import hashlib, importlib.util, json, sys\n"
+            f"spec = importlib.util.spec_from_file_location('architecture_seed_probe', {str(MODULE_PATH)!r})\n"
+            "module = importlib.util.module_from_spec(spec); sys.modules[spec.name] = module; spec.loader.exec_module(module)\n"
+            "model, site = module.compile_architecture()\n"
+            "print(hashlib.sha256(json.dumps([model, site], sort_keys=True).encode('utf-8')).hexdigest())\n"
+        )
+        expected = hashlib.sha256(json.dumps([self.model, self.site_data], sort_keys=True).encode("utf-8")).hexdigest()
+        for seed in ("1", "2"):
+            run = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=False, cwd=ROOT,
+                                 env={**__import__("os").environ, "PYTHONHASHSEED": seed})
+            self.assertEqual(0, run.returncode, run.stderr[-400:])
+            self.assertEqual(expected, run.stdout.strip().splitlines()[-1], f"the compile differs under PYTHONHASHSEED={seed}")
 
     def test_backend_contract_keeps_key_seam(self) -> None:
         backend = next(item for item in self.model["components"] if item["id"] == "backend-contract")
@@ -1115,6 +1145,193 @@ class ArchitectureCompilerTests(unittest.TestCase):
         launch, _launch_digest = architecture.read_launch_sources(config)
         return files + launch
 
+    def test_a_flows_pass_never_empties_a_journey_by_accident(self) -> None:
+        """A journey whose pass yields no valid flow keeps the flows it had; only --replace-flows removes them.
+        The agent compiles the map itself, leniently, so a flow a merge broke cannot block its own refresh."""
+        spec = importlib.util.spec_from_file_location("architecture_agent", ROOT / "scripts/architecture_agent.py")
+        agent = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = agent
+        spec.loader.exec_module(agent)
+        existing = [
+            {"id": "a", "journey": "launch", "page": "launch"},
+            {"id": "b", "journey": "page", "page": "cron"},
+            {"id": "c", "journey": "chat_turn", "page": "chat"},
+        ]
+        journeys = [("launch", None), ("page", "cron"), ("page", "wiki")]
+        new_cron = {"id": "b2", "journey": "page", "page": "cron"}
+        replacements, kept = agent.merge_journey_results(existing, journeys, [[], [new_cron], []])
+        self.assertEqual([new_cron], replacements)
+        self.assertEqual([("launch", None)], kept, "launch had flows and got nothing valid, so it keeps them; wiki had none to keep")
+        self.assertEqual(("chat_turn", "chat"), agent.journey_key("chat_turn", None))
+        source = (ROOT / "scripts/architecture_agent.py").read_text(encoding="utf-8")
+        self.assertIn("compiler.LENIENT = True", source)
+        self.assertNotIn("MODEL_PATH.read_text", source, "the agent reads the map it compiles, not the file a failed strict build never wrote")
+
+    def test_a_job_condition_a_pull_request_cannot_satisfy_makes_it_a_release(self) -> None:
+        excludes = architecture._job_condition_excludes_pull_requests
+        self.assertFalse(excludes(None))
+        self.assertFalse(excludes("needs.measure.outputs.skip != 'true'"), "a condition on another job's output still runs on pull requests")
+        self.assertFalse(excludes("github.event_name == 'pull_request' && needs.measure.outputs.skip != 'true'"),
+                         "naming pull_request beside an unrelated != does not take a job off pull requests")
+        self.assertTrue(excludes("github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"))
+        self.assertTrue(excludes("github.ref_type == 'tag' && startsWith(github.ref_name, 'v')"), "a tag-only release never runs on a pull request")
+        self.assertTrue(excludes("(github.ref_type == 'tag' && (startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'beta-v'))) || github.event_name == 'workflow_dispatch'"),
+                        "every alternative of the top-level || excludes pull requests")
+        self.assertTrue(excludes("${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"))
+        self.assertFalse(excludes("github.ref_type == 'tag' || always()"), "an alternative a pull request can satisfy keeps the job a gate")
+        self.assertFalse(excludes("github.event_name == 'pull_request'"))
+        roles = {job["id"]: job["role"] for job in self.model["ci"]["jobs"]}
+        self.assertEqual("post-merge", roles["architecture-pages/deploy"])
+        self.assertEqual("post-merge", roles["testflight/testflight"])
+        self.assertEqual("gate", roles["architecture-pages/validate"])
+
+    def test_gate_records_are_held_to_their_workflow(self) -> None:
+        """A CI job's record is pinned to the job's own facts: what it blocks follows from its role, what it
+        waits for from its `needs`, what it consumes and produces from its artifacts, and the scripts it
+        notes from the scripts it runs. It may cite only its workflow and those scripts."""
+        interplay = self.model["interplay"]
+        interplay["ci_jobs"] = architecture.ci_record_index()
+        files = self._files()
+        externals = self.model["externals"]
+        job = interplay["ci_jobs"]["jobs"]["ratchet/constraints"]
+        workflow = job["evidence"]["path"]
+        script = job["scripts"][0]
+        good = {
+            "key": "gate:ratchet/constraints", "kind": "gate", "summary": "Runs the constraint guard against the base branch.",
+            "purpose": "Keeps a pull request from loosening the declarations that decide what CI accepts.",
+            "fields": {"proves": ["No guarded declaration is looser than base"], "fails_when": ["An invariant was removed"], "blocks": "merge",
+                       "depends_on": [], "scripts": {script: "Compares each guarded declaration with the base branch."}},
+            "evidence": [{"path": workflow, "line": job["evidence"]["line"]}, {"path": script, "line": 1}],
+        }
+        record = architecture.validate_construct_record(good, interplay, files, externals)
+        self.assertEqual("gate", record["kind"])
+        self.assertTrue(all(site.get("text") for site in record["evidence"]), "workflow and script citations carry their text")
+        post_merge = next(j for j in interplay["ci_jobs"]["jobs"].values() if j["role"] == "post-merge")
+        for raw, needle in [
+            ({**good, "fields": {**good["fields"], "blocks": "release"}}, "blocks says 'release'"),
+            ({**good, "key": f"gate:{post_merge['id']}", "evidence": [{"path": post_merge["evidence"]["path"], "line": post_merge["evidence"]["line"]}],
+              "fields": {"blocks": "merge"}}, "which blocks 'release'"),
+            ({**good, "fields": {**good["fields"], "depends_on": ["tests/swift-test"]}}, "not among the jobs it needs"),
+            ({**good, "fields": {**good["fields"], "produces": ["coverage-report"]}}, "not among its artifacts out"),
+            ({**good, "fields": {**good["fields"], "scripts": {"scripts/check-perf-ratchet.py": "x"}}}, "which the job does not run"),
+            ({**good, "evidence": [{"path": ".github/workflows/tests.yml", "line": 1}]}, "outside its bounded file set"),
+            ({**good, "key": "gate:ratchet/nowhere"}, "names a CI job no workflow"),
+        ]:
+            with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
+                architecture.validate_construct_record(raw, interplay, files, externals)
+            self.assertIn(needle, str(caught.exception))
+        # A lenient build compiles no CI plane: a gate record cannot be judged there, so it is set aside, not failed.
+        with self.assertRaises(architecture.ArchitectureError) as caught:
+            architecture.validate_construct_record(good, {**interplay, "ci_jobs": None}, files, externals)
+        self.assertIn("compiles no CI plane", str(caught.exception))
+        # Every job carries a record, none stale, and the validators' working index is not published.
+        jobs = self.model["ci"]["jobs"]
+        self.assertEqual([], sorted(j["id"] for j in jobs if not j.get("semantic")))
+        self.assertEqual([], sorted(j["id"] for j in jobs if j["semantic"]["stale"]))
+        for job_ in jobs:
+            self.assertEqual(architecture.GATE_ROLE_BLOCKS[job_["role"]], job_["semantic"]["fields"].get("blocks", architecture.GATE_ROLE_BLOCKS[job_["role"]]))
+        published, _site = compiled()
+        self.assertNotIn("ci_jobs", published["interplay"])
+        self.assertNotIn("gate_records", published["interplay"])
+        self.assertEqual(0, published["interplay"]["constructs"]["set_aside"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        self.assertIn("if (job.semantic) sections.push(describedSection(job.semantic));", app)
+
+    def test_the_glossary_is_enforced_on_records_and_flows(self) -> None:
+        """A record or flow that uses an `avoid` word, or spells a proper noun with the wrong case, is rejected;
+        backticked code and structural fields are exempt; the mechanical repair fixes both; every term is observed."""
+        terms = [
+            {"term": "Hermes Standard", "kind": "proper-noun", "definition": "d", "avoid": [], "distinguish_from": {}},
+            {"term": "Hermes", "kind": "proper-noun", "definition": "d", "avoid": [], "distinguish_from": {}},
+            {"term": "Keychain", "kind": "proper-noun", "definition": "d", "avoid": ["Key Chain"], "distinguish_from": {}},
+            {"term": "subagent", "kind": "concept", "definition": "d", "avoid": ["sub-agent"], "distinguish_from": {}},
+        ]
+        violations = architecture.glossary_violations
+        self.assertEqual([], violations("Hermes Standard manages a stock Hermes install; secrets live in the Keychain.", terms))
+        self.assertEqual(["spells 'keychain'; the glossary term is 'Keychain'"], violations("Secrets live in the keychain.", terms))
+        self.assertEqual(["uses 'Sub-agents'; the glossary term is 'subagent'"], violations("Sub-agents are drawn as children.", terms))
+        self.assertEqual([], violations("Reads `keychain` and the `hermes-agent` checkout at hermes-agent/run.py.", terms), "code, paths and compounds are names, not prose")
+        repaired, log = architecture.glossary_repair("The key chain holds what hermes standard needs; sub-agents read `keychain`.", terms)
+        self.assertEqual("The Keychain holds what Hermes Standard needs; subagents read `keychain`.", repaired)
+        self.assertEqual(3, len(log))
+        self.assertEqual([], violations(repaired, terms))
+        # Through the validators, with the repository's own glossary.
+        interplay = self.model["interplay"]
+        files = self._files()
+        externals = self.model["externals"]
+        self.assertGreaterEqual(interplay["glossary"]["count"], 20)
+        self.assertEqual([], [t["term"] for t in interplay["glossary"]["terms"] if t["uses"] == 0], "every term is used by a record or flow")
+        keychain = next(n for n in interplay["nodes"] if n["label"] == "KeychainStore")
+        good = {
+            "key": keychain["history_key"], "kind": "store", "summary": "Wraps the Keychain.", "purpose": "Keeps gateway credentials out of plain files.",
+            "fields": {"medium": "keychain", "sensitive": True}, "evidence": [{"path": keychain["path"], "line": 10}],
+        }
+        architecture.validate_construct_record(good, interplay, files, externals)  # `medium: keychain` is an enum value, not prose
+        for raw, needle in (({**good, "summary": "Wraps the key chain."}, "uses 'key chain'; the glossary term is 'Keychain'"),
+                            ({**good, "purpose": "Keeps Gateway credentials for the json-rpc client out of plain files."}, "spells 'json-rpc'; the glossary term is 'JSON-RPC'")):
+            with self.assertRaises(architecture.ArchitectureError) as caught:
+                architecture.validate_construct_record(raw, interplay, files, externals)
+            self.assertIn("departs from the glossary", str(caught.exception))
+            self.assertIn(needle, str(caught.exception))
+        observed = next(i for i in interplay["invariants"] if i["id"] == "glossary-observed")
+        self.assertEqual(("holds", "enrichment", interplay["glossary"]["count"]), (observed["status"], observed["layer"], observed["checked"]))
+        # An evidence line that moved is found again; a term its file no longer says fails the build.
+        self.assertTrue(all((ROOT / site["path"]).read_text(encoding="utf-8", errors="replace").splitlines()[site["line"] - 1].lower().count(term["term"].lower())
+                            for term in interplay["glossary"]["terms"] for site in term["evidence"]))
+
+    def test_citations_are_bound_to_content_not_position(self) -> None:
+        """A citation keeps the text of its line. A line that moved is found again and the record stays fresh; a line
+        whose text is gone is lost and the record is stale; a site written without text is bound to its line and
+        acquires the text it finds there; a citation past the end of a shrunken file is lost, not rejected."""
+        text = "a\nlet x = 1\nb\n\nlet y = 2\n"
+        lines = text.splitlines()
+        self.assertEqual({"path": "p", "line": 2, "text": "let x = 1"}, architecture.resolve_site("p", 2, None, lines), "a site without text acquires the text at its line")
+        self.assertEqual({"path": "p", "line": 2, "text": "let x = 1"}, architecture.resolve_site("p", 2, "let x = 1", lines))
+        self.assertEqual({"path": "p", "line": 2, "text": "let x = 1", "moved_from": 1}, architecture.resolve_site("p", 1, "let x = 1", lines), "the line moved; the citation follows its text")
+        self.assertEqual(5, architecture.resolve_site("p", 3, "let y = 2", lines)["line"])
+        self.assertEqual({"path": "p", "line": 5, "text": "let y = 2", "moved_from": 4}, architecture.resolve_site("p", 4, None, lines), "a blank citation follows the next line with text")
+        lost = architecture.resolve_site("p", 2, "let z = 3", lines)
+        self.assertTrue(lost["lost"])
+        self.assertEqual(2, lost["line"])
+        self.assertEqual(5, architecture.resolve_site("p", 40, "gone", lines)["line"], "a lost site past the end clamps to the file")
+        self.assertEqual(4, architecture.resolve_site("p", 3, "dup", ["dup", "x", "x", "dup"])["line"], "duplicates resolve to the nearest line")
+        # Through the validators: lines inserted above a citation leave a record fresh; removing the cited text makes it stale.
+        interplay = self.model["interplay"]
+        files = self._files()
+        externals = self.model["externals"]
+        store = next(n for n in interplay["nodes"] if n["kind"] == "store" and (n.get("semantic") or {}).get("evidence"))
+        record = {**store["semantic"], "key": store["history_key"]}
+        fresh = architecture.validate_construct_record(record, interplay, files, externals, persisted=True)
+        self.assertFalse(fresh["stale"])
+        self.assertTrue(all(site.get("text") for site in fresh["evidence"]), "validated sites carry their text")
+        site = next(s for s in fresh["evidence"] if s["line"] > 1)
+        bound = {**record, "evidence": fresh["evidence"], "cited_hash": fresh["cited_hash"]}
+
+        def with_text(change) -> list[dict]:
+            out = []
+            for item in files:
+                if item["path"] == site["path"]:
+                    text = change(item["_text"])
+                    item = {**item, "_text": text, "line_count": len(text.splitlines())}
+                out.append(item)
+            return out
+        after = architecture.validate_construct_record(bound, interplay, with_text(lambda t: "// an inserted line\n// and another\n" + t), externals, persisted=True)
+        self.assertFalse(after["stale"], "two lines inserted above the citations do not make the record stale")
+        self.assertEqual(site["line"] + 2, next(s for s in after["evidence"] if s["path"] == site["path"] and s["text"] == site["text"])["line"])
+        gone = architecture.validate_construct_record(bound, interplay, with_text(lambda t: "\n".join(l for l in t.splitlines() if l.strip()[:160] != site["text"]) + "\n"), externals, persisted=True)
+        self.assertTrue(gone["stale"], "the cited text left the file")
+        self.assertTrue(any(s.get("lost") for s in gone["evidence"]))
+        shrunk = architecture.validate_construct_record(bound, interplay, with_text(lambda t: "\n".join(t.splitlines()[:1]) + "\n"), externals, persisted=True)
+        self.assertTrue(shrunk["stale"], "a citation past the end of a file that shrank is lost, so the record is stale, not rejected")
+        # Every persisted citation carries its text, and nothing committed is stale at this revision.
+        for name, key in (("constructs.json", "records"), ("flows.json", "flows")):
+            document = json.loads((ROOT / "architecture/semantic" / name).read_text(encoding="utf-8"))
+            for entry in document[key]:
+                for cited in entry["evidence"] + [c for step in entry.get("steps", []) for c in step.get("cites", [])]:
+                    self.assertTrue(cited.get("text"), f"{name}: {entry.get('key') or entry.get('id')} cites {cited['path']}:{cited['line']} without its text")
+        self.assertEqual(0, interplay["constructs"]["stale"])
+        self.assertEqual(0, interplay["flow_counts"]["stale"])
+
     def test_construct_records_are_validated_against_the_map(self) -> None:
         interplay = self.model["interplay"]
         files = self._files()
@@ -1129,9 +1346,18 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertEqual("store", record["kind"])
         self.assertFalse(record["stale"])
         self.assertEqual(["SavedGateway"], record["fields"]["record_type"])
-        # A recorded hash that no longer matches the cited files marks the record stale.
+        # A recorded hash that no longer matches the cited lines marks the record stale, and so does a
+        # persisted record with no hash at all: it cannot prove which lines it was written from.
         stale = architecture.validate_construct_record({**good, "cited_hash": "0" * 64}, interplay, files, externals)
         self.assertTrue(stale["stale"])
+        self.assertTrue(architecture.validate_construct_record(good, interplay, files, externals, persisted=True)["stale"])
+        self.assertFalse(architecture.validate_construct_record({**good, "cited_hash": record["cited_hash"]}, interplay, files, externals, persisted=True)["stale"])
+        # A field the agent cut at its cap is half a sentence to the reader; the compiler refuses it.
+        for cut, needle in (({**good, "summary": "Wraps the Keychain and the…"}, "summary ends in a cut"),
+                            ({**good, "fields": {**good["fields"], "location": "Keychain service `portal` and the…"}}, "location ends in a cut")):
+            with self.assertRaises(architecture.ArchitectureError) as caught:
+                architecture.validate_construct_record(cut, interplay, files, externals)
+            self.assertIn(needle, str(caught.exception))
         bad_cases = [
             ({**good, "kind": "external"}, "kind"),
             ({**good, "key": "store:nowhere:Ghost"}, "not a construct"),
@@ -1224,22 +1450,27 @@ class ArchitectureCompilerTests(unittest.TestCase):
         flow = architecture.validate_flow(good, interplay, files)
         self.assertEqual("traceable", flow["status"])
         self.assertFalse(flow["stale"])
-        self.assertEqual([{"path": vm, "line": 40}], flow["steps"][0]["cites"])
+        self.assertEqual([(vm, 40)], [(c["path"], c["line"]) for c in flow["steps"][0]["cites"]])
+        self.assertTrue(all(c.get("text") for step in flow["steps"] for c in step["cites"]), "validated citations carry the text of their line")
         self.assertEqual("", flow["steps"][2]["detail"])
         self.assertEqual([(vm, 40), (vm, 41)], [(e["path"], e["line"]) for e in flow["evidence"]])
         # A step may only cite files on its own path; a detail has a cap.
         for raw, needle in [
             ({**good, "steps": [{**steps[0], "cites": [{"path": "Sources/Portal/Services/KeychainStore.swift", "line": 1}]}, *steps[1:]]}, "step 1 cites"),
             ({**good, "steps": [{**steps[0], "detail": "x" * 901}, *steps[1:]]}, "detail must be"),
+            ({**good, "title": "Send a prompt and wait for the…"}, "title ends in a cut"),
+            ({**good, "steps": [{**steps[0], "detail": "The view model keeps the…"}, *steps[1:]]}, "step 1 detail ends in a cut"),
+            ({**good, "title": "t" * (architecture.FLOW_TITLE_MAX + 1)}, f"at most {architecture.FLOW_TITLE_MAX} characters"),
             ({**good, "steps": [{**steps[0], "cites": "nope"}, *steps[1:]]}, "cites must be"),
         ]:
             with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
                 architecture.validate_flow(raw, interplay, files)
             self.assertIn(needle, str(caught.exception))
-        # The hash covers the lines around each citation: an edit there makes the flow stale,
-        # an edit elsewhere in the same file does not.
+        # The hash covers each cited line and the lines after it: an edit there makes the flow stale,
+        # an edit elsewhere in the same file does not. A persisted flow that lost its hash is stale.
         recorded = {**good, "cited_hash": flow["cited_hash"]}
-        self.assertFalse(architecture.validate_flow(recorded, interplay, files)["stale"])
+        self.assertFalse(architecture.validate_flow(recorded, interplay, files, persisted=True)["stale"])
+        self.assertTrue(architecture.validate_flow(good, interplay, files, persisted=True)["stale"], "a persisted flow cannot shed its staleness by losing its hash")
 
         def edited(line_number: int) -> list[dict]:
             out = []
@@ -1260,7 +1491,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
     def test_described_constructs_fold_onto_nodes_and_the_site_renders_them(self) -> None:
         interplay = self.model["interplay"]
         described = [n for n in interplay["nodes"] if n.get("semantic")]
-        self.assertEqual(interplay["constructs"]["described"], len(described) + sum(1 for p in interplay["pages"] if p.get("semantic")))
+        gates = sum(1 for job in self.model["ci"]["jobs"] if job.get("semantic"))
+        self.assertEqual(interplay["constructs"]["described"], len(described) + sum(1 for p in interplay["pages"] if p.get("semantic")) + gates)
         for node in described:
             self.assertEqual(architecture.construct_kind(node), node["semantic"]["kind"])
             self.assertTrue(node["semantic"]["evidence"])

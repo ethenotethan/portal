@@ -51,6 +51,9 @@ jobs:
           python3 scripts/architecture_agent.py "${args[@]}"
           # Described constructs: only those whose cited files changed (or that have no record).
           python3 scripts/architecture_agent.py --constructs --stale-only --jobs 2
+          # System flows: only the journeys with a stale, broken or dropped flow; a journey whose
+          # pass returns nothing valid keeps the flows it had.
+          python3 scripts/architecture_agent.py --flows --stale-only --jobs 2
           echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - name: Rebuild site with validated semantic records
@@ -76,6 +79,7 @@ jobs:
             architecture/model/model.json
             architecture/semantic/components.json
             architecture/semantic/constructs.json
+            architecture/semantic/flows.json
             architecture/site/data.js
           commit-message: "docs: refresh architecture portal"
           title: "docs: refresh architecture portal"
@@ -87,6 +91,7 @@ jobs:
             - Deterministic component, declaration, and relationship discovery was regenerated from source.
             - Semantic component summaries were updated only when the architecture model secret was available.
             - Described constructs (architecture/semantic/constructs.json) were re-described only where their cited source changed; every record was validated against the map.
+            - System flows (architecture/semantic/flows.json) were rewritten only for journeys with a stale, broken or dropped flow.
             - Specifications and architectural rules were not modified by the agent.
             - All generated claims remain subject to ordinary pull-request review.
             - Normal scheduled maintenance is owned by the bounded Hermes documentation worker; this workflow is a manual fallback.

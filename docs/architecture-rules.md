@@ -189,14 +189,24 @@ baseline. Two defences, one mechanical and one human:
 - **Mechanical.** The numeric ratchets already read their baselines from the
   *base branch* via `git show`, so a lowered `metrics-baseline.json` in the PR
   changes nothing. `Ratchet / Constraints` extends that to everything
-  declarative: it diffs `invariants.json`, `config.json`, `.swiftlint.yml`, the
-  `ArchitectureTests`, the specifications, the `check-*`/`collect-*` scripts,
-  `CODEOWNERS` and the three gate workflows against base and rejects any
-  loosening — a removed or relaxed invariant, a grown `allow_*` list, a removed
-  or demoted rule, a grown `excluded`, fewer architecture tests, a deleted
-  specification or script, a removed job, a job that gained an `if:`, a lost
-  gate step, a workflow that stopped listening to `pull_request`. Tightening
-  always passes. A deliberate loosening is still possible: state why in the PR
+  declarative: it diffs `invariants.json`, `config.json`, `glossary.json`,
+  `.swiftlint.yml`, the `ArchitectureTests`, the compiler's own Python suites,
+  the specifications, the `check-*`/`collect-*` scripts, the compiler and the
+  agent, `CODEOWNERS` and the three gate workflows against base and rejects any
+  loosening — a removed or relaxed invariant, a grown `allow_*` list, a raised
+  `max_*`, a narrowed set that names what an invariant checks, a removed
+  glossary term or avoid word, a removed or demoted rule, a grown `excluded`,
+  fewer architecture or compiler tests, a deleted specification or script, a
+  removed job, a job that gained an `if:` or `continue-on-error`, a lost gate
+  step, a gate step that still names its gate but can no longer fail the job
+  (a step `if:`, `continue-on-error`, or the command neutralised by `echo`,
+  `|| true`, `|| :` or `; exit 0`), a workflow that stopped listening to
+  `pull_request` or gained a `paths`/`paths-ignore` filter on it. It also
+  compiles base and head and rejects a PR that leaves a construct record, a
+  CI job record or a flow stale or broken that was not so on base: the words
+  are refreshed in the same change
+  (`scripts/architecture_agent.py --constructs --stale-only`, then
+  `--flows --stale-only`). Tightening always passes. A deliberate loosening is still possible: state why in the PR
   and add the `constraints-loosened` label; the guard then reports the loosening
   and passes, so it is explicit in the log rather than silent in a diff.
 - **Human.** `.github/CODEOWNERS` names an owner for every one of those paths.

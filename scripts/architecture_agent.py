@@ -41,7 +41,6 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-MODEL_PATH = ROOT / "architecture/model/model.json"
 SEMANTIC_PATH = ROOT / "architecture/semantic/components.json"
 CONSTRUCTS_PATH = ROOT / "architecture/semantic/constructs.json"
 FLOWS_PATH = ROOT / "architecture/semantic/flows.json"
@@ -362,7 +361,17 @@ class Context:
 
     def __init__(self, compiler: Any) -> None:
         self.compiler = compiler
-        self.model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+        # Compiled here, leniently, rather than read from architecture/model/model.json: when a merge breaks
+        # a flow or strands a record, the strict compile fails before writing that file, and an agent
+        # reading the previous model would see nothing stale to refresh. The lenient compile drops what
+        # it cannot validate, so those constructs come back as "no record" and are rewritten.
+        was_lenient = compiler.LENIENT
+        compiler.LENIENT = True
+        try:
+            compiler.FIDELITY.clear()
+            self.model, _site = compiler.compile_architecture()
+        finally:
+            compiler.LENIENT = was_lenient
         config = compiler.load_json(compiler.CONFIG_PATH)
         files, _digest = compiler.read_sources(config)
         launch_files, _launch_digest = compiler.read_launch_sources(config)
@@ -374,6 +383,16 @@ class Context:
         self.by_key = {node["history_key"]: node for node in self.interplay["nodes"] if node["kind"] != "operation"}
         self.line_counts = {item["path"]: item["line_count"] for item in self.files}
         self.component_by_id = {c["id"]: c for c in self.model.get("components", [])}
+        # The product's own nouns (architecture/glossary.json): handed to the model with every packet and
+        # applied mechanically to what it returns, so a record is not rejected for a word a rule can fix.
+        self.glossary: list[dict[str, Any]] = list((self.interplay.get("glossary") or {}).get("terms") or [])
+        # The CI jobs a `gate:` record describes, with the workflow and script texts. The lenient compile
+        # builds no CI plane and sets gate records aside, so the strict index is rebuilt here for the
+        # validators and the packets.
+        self.interplay["ci_jobs"] = compiler.ci_record_index()
+        for path, text in ((self.interplay.get("ci_jobs") or {}).get("texts") or {}).items():
+            self.text_by_path.setdefault(path, text)
+            self.line_counts.setdefault(path, len(text.splitlines()))
 
     def component_facts(self, component_id: str | None) -> dict[str, Any] | None:
         """The declared description and the summarised component a construction belongs to:
@@ -425,6 +444,12 @@ def describe_schema(schema: dict[str, tuple[Any, ...]]) -> dict[str, str]:
             out[name] = "list of page ids from the packet"
         elif kind == "page_nodes":
             out[name] = "list of construct keys that belong to this page (from `members`)"
+        elif kind == "job_needs":
+            out[name] = "list of job ids this job waits for (only ids from `mechanical.needs`)"
+        elif kind == "job_artifacts":
+            out[name] = f"list of artifact names (only names from `mechanical.{spec[1]}`)"
+        elif kind == "job_scripts":
+            out[name] = f"object: each key a script path the job runs (from `mechanical.scripts`), its value what that script checks, at most {spec[1]} characters"
     return out
 
 
@@ -515,24 +540,122 @@ def docs_for(label: str, paths: list[str]) -> list[dict[str, str]]:
     return out
 
 
+def glossary_packet(terms: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The glossary as the model sees it: term, kind, definition, the words not to use, the confusions to avoid."""
+    out = []
+    for t in terms:
+        entry: dict[str, Any] = {"term": t["term"], "kind": t["kind"], "definition": t["definition"]}
+        if t.get("avoid"):
+            entry["avoid"] = t["avoid"]
+        if t.get("distinguish_from"):
+            entry["distinguish_from"] = t["distinguish_from"]
+        out.append(entry)
+    return out
+
+
+GLOSSARY_RULE = ("- Vocabulary: the packet's `glossary` names the product's own nouns and concepts. Use those exact terms "
+                 "(proper nouns with their exact spelling and case), never a word listed under `avoid`, and keep the distinctions "
+                 "it draws. Identifiers in backticks are code and are exempt. A record that departs from the glossary is rejected.")
+
+
+def glossary_repair_texts(raw: dict[str, Any], terms: list[dict[str, Any]], compiler: Any, paths: list[tuple[str, ...]]) -> list[str]:
+    """Apply the compiler's mechanical glossary repairs to every prose field named by ``paths`` (a path of
+    keys; a list or dict at the end is repaired element by element). Mutates ``raw``; returns the log."""
+    if not terms:
+        return []
+    repairs: list[str] = []
+
+    def fix(text: Any) -> Any:
+        if not isinstance(text, str):
+            return text
+        new, done = compiler.glossary_repair(text, terms)
+        repairs.extend(done)
+        return new
+
+    for path in paths:
+        holder: Any = raw
+        for key in path[:-1]:
+            holder = holder.get(key) if isinstance(holder, dict) else None
+            if holder is None:
+                break
+        if not isinstance(holder, dict) or path[-1] not in holder:
+            continue
+        value = holder[path[-1]]
+        if isinstance(value, str):
+            holder[path[-1]] = fix(value)
+        elif isinstance(value, list):
+            holder[path[-1]] = [fix(v) for v in value]
+        elif isinstance(value, dict):
+            holder[path[-1]] = {k: fix(v) for k, v in value.items()}
+    return repairs
+
+
+def glossary_repair_record(raw: dict[str, Any], terms: list[dict[str, Any]], compiler: Any) -> list[str]:
+    paths: list[tuple[str, ...]] = [("summary",), ("purpose",), ("open_questions",)]
+    fields = raw.get("fields") if isinstance(raw.get("fields"), dict) else {}
+    # Only prose fields: a list of construct keys, type names or enum values is structure, not vocabulary.
+    schema = compiler.CONSTRUCT_SCHEMAS.get(str(raw.get("kind")), {})
+    paths.extend(("fields", name) for name in fields if schema.get(name, ("",))[0] in compiler.PROSE_FIELD_KINDS)
+    return glossary_repair_texts(raw, terms, compiler, paths)
+
+
+def glossary_repair_flow(raw: dict[str, Any], terms: list[dict[str, Any]], compiler: Any) -> list[str]:
+    repairs = glossary_repair_texts(raw, terms, compiler, [("title",), ("summary",), ("interaction",), ("outcome",)])
+    for step in raw.get("steps") or []:
+        if isinstance(step, dict):
+            repairs.extend(glossary_repair_texts(step, terms, compiler, [("note",), ("detail",)]))
+    return repairs
+
+
+SHORTEN_SCHEMA = {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}
+
+
+def shorten(text: str, limit: int) -> str | None:
+    """Ask the model to say the same thing in at most ``limit`` characters. None when no attempt fits
+    or no provider answers; the caller then falls back to a cut the compiler will refuse."""
+    for attempt in range(2):
+        prompt = (f"Rewrite the text below so it says the same thing in at most {limit} characters. Keep every name, path and"
+                  f" error code that appears, in the same `backticks`; drop qualifiers before facts; one complete sentence or"
+                  f" phrase, no ellipsis, no trailing fragment. Return one JSON object {{\"text\": \"...\"}}."
+                  f"{' The previous attempt was still too long; cut harder.' if attempt else ''}\n\n{text}")
+        try:
+            out, _model = request_json(prompt, SHORTEN_SCHEMA)
+        except (AgentError, OSError, ValueError) as error:
+            print(f"shorten: no answer ({error}); the field will be cut and the compiler will refuse it", file=sys.stderr, flush=True)
+            return None
+        candidate = str(out.get("text", "")).strip()
+        if candidate and len(candidate) <= limit and not candidate.endswith("…"):
+            return candidate
+    return None
+
+
 def clip(text: str, limit: int) -> str:
-    """Cut prose at the last sentence end before ``limit``; a hard cut with an ellipsis when there is none."""
+    """Fit prose under ``limit``: cut at the last sentence end when one sits past the midpoint, else ask the
+    model to shorten it. A hard cut with an ellipsis is the last resort; the compiler refuses a field ending
+    that way, so it surfaces in the next compile instead of shipping as half a sentence."""
     text = text.strip()
     if len(text) <= limit:
         return text
     cut = max(text.rfind(". ", 0, limit - 1), text.rfind(".", 0, limit - 1))
     if cut > limit // 2:
         return text[:cut + 1].strip()
+    shortened = shorten(text, limit)
+    if shortened is not None:
+        return shortened
     return text[:limit - 1].rstrip() + "…"
 
 
-def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compiler: Any, owner: str, line_counts: dict[str, int]) -> dict[str, Any]:
-    """Length caps are mechanical, so a response that overruns one is cut to it rather
-    than dropped, and a cited line past the end of a real file is pinned to its last
+def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compiler: Any, owner: str, line_counts: dict[str, int],
+                  glossary: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Length caps are mechanical, so a response that overruns one is fitted to it (at a
+    sentence end, or by asking the model to shorten it) rather than dropped, and a cited line past the end of a real file is pinned to its last
     line; every repair is printed. Vocabulary and evidence-path errors are not repaired:
     the validator rejects those and the reason is printed."""
     out = dict(raw)
     repairs: list[str] = []
+    # The glossary's mechanical half first, so a term longer than the word it replaced is fitted by the caps below.
+    for change in glossary_repair_record(out, glossary or [], compiler):
+        repairs.append(f"glossary {change}")
     for key, limit in (("summary", compiler.SEMANTIC_SUMMARY_MAX), ("purpose", compiler.SEMANTIC_PURPOSE_MAX)):
         if isinstance(out.get(key), str) and len(out[key]) > limit:
             out[key] = clip(out[key], limit)
@@ -549,6 +672,11 @@ def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compi
             if len(kept) != len(value):
                 repairs.append(f"{name}: dropped {len(value) - len(kept)} over-long item(s)")
             value = kept
+        if spec and spec[0] == "job_scripts" and isinstance(value, dict):
+            fitted = {k: (clip(v, spec[1]) if isinstance(v, str) else v) for k, v in value.items()}
+            if fitted != value:
+                repairs.append(f"{name}: script note(s) fitted to the cap")
+            value = fitted
         if spec and spec[0] == "types" and isinstance(value, list):
             # A nested type written with its outer type (`ArtifactStore.QuerySlot`) is declared by its own name.
             unqualified = [item.rsplit(".", 1)[-1] if isinstance(item, str) else item for item in value]
@@ -578,11 +706,56 @@ def construct_targets(ctx: Context) -> list[dict[str, Any]]:
             targets.append({"key": node["history_key"], "kind": kind, "node": node})
     for page in ctx.interplay.get("pages", []):
         targets.append({"key": f"page:{page['id']}", "kind": "page", "page": page})
+    for job_id, job in sorted(((ctx.interplay.get("ci_jobs") or {}).get("jobs") or {}).items()):
+        targets.append({"key": f"gate:{job_id}", "kind": "gate", "job": job})
     return targets
+
+
+GATE_EXCERPT_LINES = 120  # a job's own block in its workflow
+GATE_SCRIPT_LINES = 40  # the head of each script it runs: the docstring that says what the script checks
+
+
+def gate_facts(target: dict[str, Any], ctx: Context) -> dict[str, Any]:
+    """A CI job's packet: its mechanical facts, its own block of the workflow from the comment above
+    the job key to the next job (the workflow's comments are where this repository says what a job
+    is for), and the head of each script it runs."""
+    compiler = ctx.compiler
+    job = target["job"]
+    jobs = (ctx.interplay.get("ci_jobs") or {}).get("jobs") or {}
+    workflow_path = str(job["evidence"]["path"])
+    text = ctx.text_by_path.get(workflow_path, "")
+    lines = text.splitlines()
+    start = job["evidence"]["line"]
+    while start > 1 and (lines[start - 2].strip() == "" or lines[start - 2].lstrip().startswith("#")):
+        start -= 1
+    later = sorted(j["evidence"]["line"] for j in jobs.values() if j["evidence"]["path"] == workflow_path and j["evidence"]["line"] > job["evidence"]["line"])
+    end = later[0] if later else len(lines) + 1
+    excerpts = []
+    if text:
+        block = lines[start - 1:end - 1]
+        excerpts.append({"path": workflow_path, "from_line": start,
+                         "text": "\n".join(block[:GATE_EXCERPT_LINES]) + ("\n… (truncated)" if len(block) > GATE_EXCERPT_LINES else "")})
+    for script in job["scripts"][:6]:
+        script_lines = ctx.text_by_path.get(script, "").splitlines()
+        if script_lines:
+            excerpts.append({"path": script, "from_line": 1,
+                             "text": "\n".join(script_lines[:GATE_SCRIPT_LINES]) + ("\n… (truncated)" if len(script_lines) > GATE_SCRIPT_LINES else "")})
+    return {
+        "key": target["key"], "kind": "gate", "label": job["name"],
+        "mechanical": {"workflow": job["workflow"], "role": job["role"], "blocks": compiler.GATE_ROLE_BLOCKS.get(str(job["role"]), "nothing"),
+                       "condition": job.get("condition"), "runs_on": job.get("runs_on"), "needs": job["needs"],
+                       "artifacts_in": job["artifacts_in"], "artifacts_out": job["artifacts_out"], "scripts": job["scripts"],
+                       "pins": job.get("pins"), "steps": job["steps"],
+                       "needed_by": sorted(j["id"] for j in jobs.values() if job["id"] in j["needs"])},
+        "docs": docs_for(job["name"], [workflow_path, *job["scripts"][:3]]),
+        "bounded_files": sorted(compiler.gate_files(job)), "excerpts": excerpts, "prefilled": {},
+    }
 
 
 def construct_facts(target: dict[str, Any], ctx: Context) -> dict[str, Any]:
     compiler = ctx.compiler
+    if target["kind"] == "gate":
+        return gate_facts(target, ctx)
     if target["kind"] == "page":
         page = target["page"]
         members = [n for n in ctx.interplay["nodes"] if n.get("page") == page["id"]]
@@ -687,6 +860,8 @@ def fields_json_schema(schema: dict[str, tuple[Any, ...]]) -> dict[str, Any]:
             properties[name] = {"type": "boolean"}
         elif kind == "int":
             properties[name] = {"type": "integer", "minimum": 0}
+        elif kind == "job_scripts":
+            properties[name] = {"type": "object", "additionalProperties": {"type": "string", "maxLength": spec[1]}}
         else:
             properties[name] = {"type": "array", "items": {"type": "string"}}
     return {"type": "object", "properties": properties, "additionalProperties": False}
@@ -702,7 +877,7 @@ def construct_prompt(batch: list[dict[str, Any]], kind: str, ctx: Context, exist
         if record:
             facts["existing_record"] = {k: record[k] for k in ("summary", "purpose", "fields", "open_questions") if record.get(k) is not None}
         records.append(facts)
-    packet = {"repository": ctx.model["repository"], "source_revision": source_revision, "kind": kind, "records": records}
+    packet = {"repository": ctx.model["repository"], "source_revision": source_revision, "kind": kind, "glossary": glossary_packet(ctx.glossary), "records": records}
     text = json.dumps(packet, indent=1, sort_keys=True, ensure_ascii=False)
     while len(text) > PACKET_CHARS and any(r["excerpts"] for r in records):
         longest = max((x for r in records for x in r["excerpts"]), key=lambda x: len(x["text"]))
@@ -718,8 +893,8 @@ Return one JSON object {{"records": [...]}} with exactly one record per input re
 {{
   "key": "the input key, unchanged",
   "kind": "{kind}",
-  "summary": "one paragraph, present tense, what this construction is and does in the current source",
-  "purpose": "one paragraph, at most {compiler.SEMANTIC_PURPOSE_MAX} characters: why this exists in the product — the need it serves, for whom (the person running Portal, an operator of the gateway, the team), what it unlocks, and what stops working without it. Written from the `docs` paragraphs when they name it; from the code alone otherwise, with a clause saying the purpose is inferred.",
+  "summary": "one paragraph, present tense, what this construction is and does in the current source{" — for a CI job: what a green run establishes, step by step, from the workflow and the scripts it runs" if kind == "gate" else ""}",
+  "purpose": "one paragraph, at most {compiler.SEMANTIC_PURPOSE_MAX} characters: {"for a CI job: what merging or releasing without this job would let through, and who would pay for it; not what the job does — " if kind == "gate" else ""}why this exists in the product — the need it serves, for whom (the person running Portal, an operator of the gateway, the team), what it unlocks, and what stops working without it. Written from the `docs` paragraphs when they name it; from the code alone otherwise, with a clause saying the purpose is inferred.",
   "fields": {{ ...only fields from the schema below; omit a field rather than guess... }},
   "open_questions": ["what the excerpts do not settle"],
   "evidence": [{{"path": "a path from bounded_files", "line": 1}}]
@@ -733,6 +908,8 @@ Rules:
 - Where a field wants construct keys, use only keys that appear in this record's `edges` (or `members` for a page). Never invent a key.
 - `record_type` must be Swift type names that appear in the excerpts.
 - Every evidence path must be in this record's bounded_files, with a line number inside the excerpt ranges you saw (from_line plus the offset).
+- For a CI job: `blocks` must equal `mechanical.blocks`; `depends_on`, `consumes`, `produces` and the keys of `scripts` may only name what `mechanical` lists. `proves` and `fails_when` are short separate statements, one fact each.
+{GLOSSARY_RULE}
 - Prefer an open question over an unsupported claim. Do not describe desired design.
 - The summary says what it does; the purpose says why anyone wanted it. They must not repeat each other. A purpose that lists dependencies ("talks to the gateway and the Keychain") is rejected in review; name the outcome those dependencies buy. `component` is the declared module the construction sits in and `docs` are the repository's own paragraphs naming it: ground the purpose there.
 - Set every identifier, type, method, file, route, namespace and key you mention in backticks, in the summary, the purpose and every string field.
@@ -807,7 +984,7 @@ def run_constructs(ctx: Context, targets: list[dict[str, Any]], source_revision:
             raw["source_revision"] = source_revision
             raw["model"] = model_name
             raw.pop("cited_hash", None)
-            raw = repair_record(raw, compiler.CONSTRUCT_SCHEMAS[kind], compiler, target["key"], ctx.line_counts)
+            raw = repair_record(raw, compiler.CONSTRUCT_SCHEMAS[kind], compiler, target["key"], ctx.line_counts, ctx.glossary)
             try:
                 record = compiler.validate_construct_record(raw, ctx.interplay, ctx.files, ctx.externals)
             except compiler.ArchitectureError as exc:
@@ -900,11 +1077,14 @@ def inside_windows(cites: Any, windows: list[dict[str, Any]]) -> list[dict[str, 
     return kept
 
 
-def repair_flow(raw: dict[str, Any], compiler: Any) -> dict[str, Any]:
-    """Length caps are mechanical: an overrun is cut to the cap rather than dropped, and printed."""
+def repair_flow(raw: dict[str, Any], compiler: Any, glossary: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Length caps and the glossary's mechanical half: an overrun is fitted to the cap and an `avoid`
+    word or a miscased proper noun is corrected rather than the flow dropped, and each repair is printed."""
     out = dict(raw)
     repairs: list[str] = []
-    for key, limit in (("title", 80), ("summary", compiler.SEMANTIC_SUMMARY_MAX), ("interaction", 80), ("outcome", 200)):
+    for change in glossary_repair_flow(out, glossary or [], compiler):
+        repairs.append(f"glossary {change}")
+    for key, limit in (("title", compiler.FLOW_TITLE_MAX), ("summary", compiler.SEMANTIC_SUMMARY_MAX), ("interaction", compiler.FLOW_INTERACTION_MAX), ("outcome", compiler.FLOW_OUTCOME_MAX)):
         if isinstance(out.get(key), str) and len(out[key]) > limit:
             out[key] = clip(out[key], limit)
             repairs.append(f"{key} clipped")
@@ -968,7 +1148,7 @@ def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list
     excerpts, windows = flow_source(ctx, scope, page)
     packet = {
         "repository": ctx.model["repository"], "source_revision": source_revision,
-        "journey": journey, "page": page, "page_label": page_label, "brief": brief,
+        "journey": journey, "page": page, "page_label": page_label, "brief": brief, "glossary": glossary_packet(ctx.glossary),
         "nodes": nodes, "edges": [list(t) for t in triples],
         "trigger_edges": f"a trigger row implies the edge [\"page:{page}\", \"triggers\", surface_key]; a flow that starts from a user action or from launch should begin with it",
         "triggers": trigger_rows[:120], "node_files": files_of, "source": excerpts,
@@ -982,8 +1162,8 @@ A flow is a path over edges that exist in the graph, never a diagram beside it; 
 Return one JSON object {{"flows": [...]}}, each flow shaped:
 {{
   "id": "kebab-case-slug, unique, prefixed with the journey or page (e.g. cron-open-dashboard)",
-  "title": "at most 80 characters, from the user's point of view (\"Open the cron dashboard\", \"Toggle a job\")",
-  "interaction": "at most 80 characters: the user action or lifecycle moment that starts it (\"Refresh button\", \"page appears\", \"app starts\")",
+  "title": "at most {compiler.FLOW_TITLE_MAX} characters, from the user's point of view (\"Open the cron dashboard\", \"Toggle a job\")",
+  "interaction": "at most {compiler.FLOW_INTERACTION_MAX} characters: the user action or lifecycle moment that starts it (\"Refresh button\", \"page appears\", \"app starts\")",
   "summary": "what happens end to end, at most {compiler.SEMANTIC_SUMMARY_MAX} characters, present tense",
   "journey": "{journey}",
   "page": "{page}",
@@ -994,7 +1174,7 @@ Return one JSON object {{"flows": [...]}}, each flow shaped:
     "detail": "two to six short sentences written from the excerpts in `source` for this hop, at most {compiler.FLOW_DETAIL_MAX} characters: what the code checks first and what it refuses, the state it reads or rewrites and where, what it hands on. Put every type, method, property, key, path and literal in `backticks`; separate ideas with a blank line; quote at most four lines of code verbatim in a ``` block only when the exact line matters.",
     "cites": [{{"path": "a path from source", "line": "a line inside that excerpt's range (from_line to from_line plus its line count) that this detail was written from"}}]
   }}],
-  "outcome": "what the user sees at the end, at most 200 characters"
+  "outcome": "what the user sees at the end, at most {compiler.FLOW_OUTCOME_MAX} characters"
 }}
 
 Hard rules:
@@ -1003,6 +1183,7 @@ Hard rules:
 - {compiler.FLOW_MIN_STEPS} to {compiler.FLOW_MAX_STEPS} steps. Start each flow from the trigger edge when a trigger fits.
 - Cover the interactions the triggers show; do not describe interactions the triggers and edges cannot support.
 - Cites are provenance: every step with a detail cites at least one path and line inside an excerpt in `source` that the detail was written from. A citation outside the excerpts shown is discarded; a flow with no citation left anywhere is rejected.
+{GLOSSARY_RULE.replace("A record", "A flow")}
 - Say only what the excerpts show. Where an excerpt is truncated or a hop has no excerpt, the detail says what is not shown rather than guessing.
 - The reader follows the steps in order; the details together are the story. Do not repeat a hop's facts in another hop's detail.
 - Output JSON only.
@@ -1016,8 +1197,8 @@ Packet:
             "type": "object",
             "properties": {
                 "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,60}$"},
-                "title": {"type": "string", "maxLength": 80},
-                "interaction": {"type": "string", "maxLength": 80},
+                "title": {"type": "string", "maxLength": compiler.FLOW_TITLE_MAX},
+                "interaction": {"type": "string", "maxLength": compiler.FLOW_INTERACTION_MAX},
                 "summary": {"type": "string", "maxLength": compiler.SEMANTIC_SUMMARY_MAX},
                 "journey": {"type": "string", "enum": [journey]},
                 "page": {"type": "string", "enum": [page]},
@@ -1028,7 +1209,7 @@ Packet:
                     "detail": {"type": "string", "maxLength": compiler.FLOW_DETAIL_MAX},
                     "cites": {"type": "array", "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}}},
                     "required": ["from", "to", "relation", "note", "detail", "cites"]}},
-                "outcome": {"type": "string", "maxLength": 200},
+                "outcome": {"type": "string", "maxLength": compiler.FLOW_OUTCOME_MAX},
             },
             "required": ["id", "title", "interaction", "summary", "journey", "page", "steps", "outcome"],
         }}},
@@ -1099,7 +1280,7 @@ def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str 
                 continue
             if dropped:
                 print(f"flow {raw.get('id')}: dropped {dropped} citation(s) outside the source shown", file=sys.stderr, flush=True)
-            raw = repair_flow(raw, compiler)
+            raw = repair_flow(raw, compiler, ctx.glossary)
             try:
                 flow = compiler.validate_flow(raw, ctx.interplay, ctx.files)
             except compiler.ArchitectureError as exc:
@@ -1111,23 +1292,144 @@ def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str 
             out.append(({k: v for k, v in flow.items() if k not in ("status", "problems", "authority")}, "ok"))
         return out
 
-    kept: dict[str, dict[str, Any]] = {}
-    if not replace:
-        kept = {f["id"]: f for f in existing if (f.get("journey"), f.get("page")) not in selected and f.get("journey")}
     rejected = 0
-    accepted = 0
+    results_by_journey: list[list[dict[str, Any]]] = []
     with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
         for results in pool.map(work, journeys):
+            valid: list[dict[str, Any]] = []
             for flow, reason in results:
                 if flow is None:
                     rejected += 1
                     print(f"rejected flow {reason}", file=sys.stderr, flush=True)
                 else:
-                    kept[flow["id"]] = flow
-                    accepted += 1
+                    valid.append(flow)
                     print(f"traced flow {flow['id']} ({flow['journey']} {flow['page']}, {len(flow['steps'])} steps)", flush=True)
+            results_by_journey.append(valid)
+    replacements, kept_journeys = merge_journey_results(existing, journeys, results_by_journey)
+    for journey, page_id in kept_journeys:
+        print(f"flows: {journey}{':' + page_id if page_id else ''} produced no valid replacement; its existing flows are kept", file=sys.stderr, flush=True)
+    kept_keys = {journey_key(j, p) for j, p in kept_journeys}
+    kept: dict[str, dict[str, Any]] = {}
+    for flow in existing:
+        key = (flow.get("journey"), flow.get("page"))
+        if not flow.get("journey"):
+            continue
+        # --replace-flows discards every flow; otherwise a flow stays when its journey was not asked
+        # for, or was asked for and produced nothing valid.
+        if key in kept_keys or (not replace and key not in selected):
+            kept[flow["id"]] = flow
+    for flow in replacements:
+        kept[flow["id"]] = flow
+    accepted = len(replacements)
     FLOWS_PATH.write_text(json.dumps({"schema_version": "1.0.0", "flows": [kept[k] for k in sorted(kept)]}, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
     return accepted, rejected
+
+
+def journey_key(journey: str, page_id: str | None) -> tuple[str, str]:
+    """A journey as flows record it: launch and a chat turn carry their own page ids."""
+    return (journey, page_id or ("launch" if journey == "launch" else "chat"))
+
+
+def merge_journey_results(existing: list[dict[str, Any]], journeys: list[tuple[str, str | None]],
+                          results: list[list[dict[str, Any]]]) -> tuple[list[dict[str, Any]], list[tuple[str, str | None]]]:
+    """What a flows pass writes for the chosen journeys: each journey's accepted replacements, or, when
+    the model returned nothing valid for a journey that had flows, nothing new, so the journey's
+    existing flows stay. Removing every flow of a journey takes explicit intent (--replace-flows), never
+    an empty or wholly rejected response. Returns (replacement flows, journeys kept as they were)."""
+    replacements: list[dict[str, Any]] = []
+    kept: list[tuple[str, str | None]] = []
+    for (journey, page_id), result in zip(journeys, results):
+        key = journey_key(journey, page_id)
+        had = any((f.get("journey"), f.get("page")) == key for f in existing)
+        if not result and had:
+            kept.append((journey, page_id))
+            continue
+        replacements.extend(result)
+    return replacements, kept
+
+
+def run_glossary_repair(ctx: Context) -> int:
+    """The glossary's mechanical half applied to what is already on disk, so a new or tightened
+    glossary does not need a model to re-case a proper noun or swap an alias for its term. What
+    still departs after that is printed, record by record: those need `--constructs --stale-only`
+    and `--flows --stale-only`, which rewrite exactly the records and journeys the validators drop."""
+    compiler, terms = ctx.compiler, ctx.glossary
+    if not terms:
+        print("glossary: no terms declared in architecture/glossary.json")
+        return 0
+    dump = lambda doc: json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    constructs = json.loads(CONSTRUCTS_PATH.read_text(encoding="utf-8")) if CONSTRUCTS_PATH.is_file() else {"schema_version": "1.0.0", "records": []}
+    changed = 0
+    for index, record in enumerate(constructs["records"]):
+        repairs = glossary_repair_record(record, terms, compiler)
+        if repairs:
+            changed += 1
+            print(f"glossary: {record.get('key')}: {', '.join(repairs)}")
+            # A term longer than the word it replaced can push a field past its cap; the same fitting
+            # the agent applies to fresh output applies here, and is printed the same way.
+            constructs["records"][index] = repair_record(record, compiler.CONSTRUCT_SCHEMAS.get(str(record.get("kind")), {}), compiler, str(record.get("key")), ctx.line_counts)
+    if changed:
+        CONSTRUCTS_PATH.write_text(dump(constructs), encoding="utf-8")
+    flows = json.loads(FLOWS_PATH.read_text(encoding="utf-8")) if FLOWS_PATH.is_file() else {"schema_version": "1.0.0", "flows": []}
+    changed_flows = 0
+    for index, flow in enumerate(flows["flows"]):
+        repairs = glossary_repair_flow(flow, terms, compiler)
+        if repairs:
+            changed_flows += 1
+            print(f"glossary: flow {flow.get('id')}: {', '.join(repairs)}")
+            flows["flows"][index] = repair_flow(flow, compiler)
+    if changed_flows:
+        FLOWS_PATH.write_text(dump(flows), encoding="utf-8")
+    print(f"glossary: repaired {changed} record(s) and {changed_flows} flow(s)")
+    remaining = 0
+    for record in constructs["records"]:
+        try:
+            compiler.validate_construct_record(record, ctx.interplay, ctx.files, ctx.externals, persisted=True)
+        except compiler.ArchitectureError as exc:
+            if "glossary" in str(exc):
+                remaining += 1
+                print(f"glossary: still departs: {exc}", file=sys.stderr)
+    for flow in flows["flows"]:
+        try:
+            compiler.validate_flow(flow, ctx.interplay, ctx.files, persisted=True)
+        except compiler.ArchitectureError as exc:
+            if "glossary" in str(exc):
+                remaining += 1
+                print(f"glossary: still departs: {exc}", file=sys.stderr)
+    print(f"glossary: {remaining} record(s)/flow(s) still depart" + ("; rewrite them with --constructs --stale-only and --flows --stale-only" if remaining else ""))
+    return 0
+
+
+def persisted_gate_records(ctx: Context) -> dict[str, dict[str, Any] | None]:
+    """Each CI job's record as the strict validators see it now: None when there is none or it no
+    longer validates, else the validated record with its `stale` flag. The lenient compile sets gate
+    records aside, so they are judged here against the index this context rebuilt."""
+    persisted = json.loads(CONSTRUCTS_PATH.read_text(encoding="utf-8")).get("records", []) if CONSTRUCTS_PATH.is_file() else []
+    by_key = {r["key"]: r for r in persisted if isinstance(r, dict) and str(r.get("key", "")).startswith("gate:")}
+    out: dict[str, dict[str, Any] | None] = {}
+    for job_id in ((ctx.interplay.get("ci_jobs") or {}).get("jobs") or {}):
+        record = by_key.get(f"gate:{job_id}")
+        if record is None:
+            out[f"gate:{job_id}"] = None
+            continue
+        try:
+            out[f"gate:{job_id}"] = ctx.compiler.validate_construct_record(record, ctx.interplay, ctx.files, ctx.externals, persisted=True)
+        except ctx.compiler.ArchitectureError:
+            out[f"gate:{job_id}"] = None
+    return out
+
+
+def stale_journeys(ctx: Context) -> list[tuple[str, str | None]]:
+    """The journeys whose flows went stale (cited lines changed) or broke (an edge went), plus those whose
+    persisted flow the lenient compile dropped (a validator rejected it), which the compiled list no
+    longer shows: exactly the journeys a refresh must rewrite."""
+    compiled = ctx.interplay.get("flows", [])
+    kept_ids = {flow["id"] for flow in compiled}
+    persisted = json.loads(FLOWS_PATH.read_text(encoding="utf-8")).get("flows", []) if FLOWS_PATH.is_file() else []
+    keys = {(f["journey"], f["page"]) for f in compiled if f.get("stale") or f.get("status") != "traceable"}
+    keys |= {(f.get("journey"), f.get("page")) for f in persisted
+             if isinstance(f, dict) and isinstance(f.get("id"), str) and f["id"] not in kept_ids and f.get("journey")}
+    return [(journey, page_id) for journey, page_id in all_journeys(ctx) if journey_key(journey, page_id) in keys]
 
 
 # ---------------------------------------------------------------------------
@@ -1140,10 +1442,11 @@ def main() -> int:
     parser.add_argument("--constructs", action="store_true", help="write construct records (architecture/semantic/constructs.json)")
     parser.add_argument("--kinds", default="", help="construct mode: comma-separated schema kinds to include")
     parser.add_argument("--keys", default="", help="construct mode: comma-separated construct keys to include")
-    parser.add_argument("--stale-only", action="store_true", help="construct mode: only constructs with no record or a stale one")
+    parser.add_argument("--stale-only", action="store_true", help="constructs: only constructs with no record or a stale one; flows: only journeys with a stale, broken or dropped flow")
     parser.add_argument("--flows", action="store_true", help="write system flows (architecture/semantic/flows.json)")
     parser.add_argument("--journeys", default="", help="flows mode: comma-separated journeys to (re)write, e.g. launch,chat_turn,page:cron (default: all)")
     parser.add_argument("--replace-flows", action="store_true", help="flows mode: discard every existing flow first")
+    parser.add_argument("--glossary-repair", action="store_true", help="apply the glossary's mechanical repairs (avoid words, proper-noun case) to the records and flows on disk, without a model")
     parser.add_argument("--jobs", type=int, default=4, help="construct mode: parallel requests")
     parser.add_argument("--dry-run", action="store_true", help="print the bounded packet(s) without calling a model")
     args = parser.parse_args()
@@ -1151,6 +1454,8 @@ def main() -> int:
     try:
         head = git_output("rev-parse", args.head)
         compiler = load_compiler()
+        if args.glossary_repair:
+            return run_glossary_repair(Context(compiler))
         if args.constructs or args.flows:
             ctx = Context(compiler)
             if args.constructs:
@@ -1164,6 +1469,7 @@ def main() -> int:
                 if args.stale_only:
                     described = {n["history_key"]: n.get("semantic") for n in ctx.interplay["nodes"]}
                     described.update({f"page:{p['id']}": p.get("semantic") for p in ctx.interplay.get("pages", [])})
+                    described.update(persisted_gate_records(ctx))
                     targets = [t for t in targets if not described.get(t["key"]) or described[t["key"]].get("stale")]
                 if not targets:
                     print("no constructs selected")
@@ -1176,6 +1482,13 @@ def main() -> int:
                 if args.journeys:
                     wanted = [j.strip() for j in args.journeys.split(",") if j.strip()]
                     journeys = [(j.split(":", 1)[0], j.split(":", 1)[1] if ":" in j else None) for j in wanted]
+                if args.stale_only:
+                    stale = stale_journeys(ctx)
+                    journeys = [j for j in journeys if j in stale]
+                    if not journeys:
+                        print("flows: nothing stale or broken")
+                        return 0
+                    print(f"flows: {len(journeys)} journey(s) with stale or broken flows: " + ", ".join(f"{j}:{p}" if p else j for j, p in journeys))
                 accepted, rejected = run_flows(ctx, head, journeys, args.jobs, args.dry_run, args.replace_flows)
                 if not args.dry_run:
                     print(f"flows: {accepted} kept, {rejected} rejected")
@@ -1183,7 +1496,7 @@ def main() -> int:
 
         base = args.base or git_output("rev-parse", f"{head}^")
         changes = changed_files(base, head)
-        model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+        model = Context(compiler).model
         existing = json.loads(SEMANTIC_PATH.read_text(encoding="utf-8"))
         components = (
             [component for component in model["components"] if not component["external"]]
