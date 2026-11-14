@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import fnmatch
+import functools
 import hashlib
 import json
 import re
@@ -375,15 +376,20 @@ def header_open_brace(code: str, index: int) -> int | None:
 DECLARATION_HEADER_RE = re.compile(r"\b(class|struct|enum|actor|extension|func)\s+([A-Za-z_][A-Za-z0-9_]*)")
 
 
-def declaration_blocks(code: str) -> list[tuple[int, int, str, str]]:
-    """Every declaration with a body: (start, end, kind, name), bracket-aware headers."""
+@functools.lru_cache(maxsize=None)
+def declaration_blocks(code: str) -> tuple[tuple[int, int, str, str], ...]:
+    """Every declaration with a body: (start, end, kind, name), bracket-aware headers.
+
+    Remembered per text: the enclosing-context lookups ask for the same file's blocks once per
+    match, tens of thousands of times a compile, and the answer depends on the text alone.
+    """
     blocks: list[tuple[int, int, str, str]] = []
     for match in DECLARATION_HEADER_RE.finditer(code):
         open_brace = header_open_brace(code, match.end())
         if open_brace is None:
             continue
         blocks.append((match.start(), balanced_block_end(code, open_brace + 1), match.group(1), match.group(2)))
-    return blocks
+    return tuple(blocks)
 
 
 def enclosing_context(code: str, offset: int) -> tuple[str | None, str | None]:

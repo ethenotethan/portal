@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import copy
 import json
 import re
 import subprocess
@@ -26,9 +27,20 @@ sys.modules[HISTORY_SPEC.name] = history  # dataclasses resolve deferred annotat
 HISTORY_SPEC.loader.exec_module(history)
 
 
+_COMPILED: dict = {}
+
+
+def compiled() -> tuple[dict, dict]:
+    """One compile shared by every test: the compiler is pure, so the result is the same.
+    Each test gets its own copy, so a test that edits the model cannot reach the next one."""
+    if "model" not in _COMPILED:
+        _COMPILED["model"], _COMPILED["site_data"] = architecture.compile_architecture()
+    return copy.deepcopy(_COMPILED["model"]), copy.deepcopy(_COMPILED["site_data"])
+
+
 class ArchitectureCompilerTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.model, self.site_data = architecture.compile_architecture()
+        self.model, self.site_data = compiled()
 
     def test_every_swift_file_is_assigned(self) -> None:
         self.assertEqual([], self.model["inventory"]["unassigned_files"])
