@@ -87,6 +87,69 @@ internal enum SessionTurnBuilder {
         }
         return turns
     }
+
+    /// A cheap identity for `messages` as far as `turns(from:)` is concerned:
+    /// every field the builder and `composeTimeline` read, hashed per message.
+    /// Assistant content is hashed by length — a streaming message grows with
+    /// every delta and the turn only needs its preview — while a user prompt is
+    /// hashed by value because it IS the turn's label.
+    internal static func fingerprint(of messages: [ChatMessage]) -> Int {
+        var hasher = Hasher()
+        hasher.combine(messages.count)
+        for message in messages {
+            hasher.combine(message.id)
+            hasher.combine(message.role.rawValue)
+            if message.role == .user {
+                hasher.combine(message.content)
+            } else {
+                hasher.combine(message.content.count)
+            }
+            hasher.combine(message.isStreaming)
+            hasher.combine(message.skills.count)
+            hasher.combine(message.toolCalls.count)
+            for tool in message.toolCalls {
+                hasher.combine(tool.id)
+                hasher.combine(tool.name)
+                hasher.combine(tool.isComplete)
+                hasher.combine(tool.startedAt)
+                hasher.combine(tool.completedAt)
+                hasher.combine(tool.summary?.count ?? -1)
+                hasher.combine(tool.context?.count ?? -1)
+                hasher.combine(tool.durationSeconds)
+                hasher.combine(tool.riskLevel?.rawValue)
+            }
+            if let snapshot = message.graphSnapshot {
+                hasher.combine(snapshot.agentNodes.count)
+                hasher.combine(snapshot.reasoningNodes.count)
+                hasher.combine(snapshot.compactions?.count ?? -1)
+            } else {
+                hasher.combine(-1)
+            }
+        }
+        return hasher.finalize()
+    }
+
+    /// `turns(from:)` is read from several computed properties of one view body
+    /// (the pager, the counter, the panel context, the export scope), so each
+    /// publish ran it about five times — every pass sorting every turn's tool
+    /// calls and composing its timeline over the whole session. The canvas and
+    /// the graph pane go through this memo instead; a few entries so the two
+    /// surfaces showing different transcripts don't evict each other.
+    @MainActor private static var memo: [(fingerprint: Int, turns: [SessionTurn])] = []
+    private static let memoLimit = 4
+
+    @MainActor
+    internal static func memoizedTurns(from messages: [ChatMessage]) -> [SessionTurn] {
+        let fingerprint = fingerprint(of: messages)
+        if let hit = memo.first(where: { $0.fingerprint == fingerprint }) { return hit.turns }
+        let built = turns(from: messages)
+        memo.append((fingerprint, built))
+        if memo.count > memoLimit { memo.removeFirst() }
+        return built
+    }
+
+    /// How many transcripts the memo currently holds — for tests.
+    @MainActor internal static var memoizedTranscriptCount: Int { memo.count }
 }
 
 // MARK: - Per-turn metrics

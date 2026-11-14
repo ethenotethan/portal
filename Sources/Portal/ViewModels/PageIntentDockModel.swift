@@ -157,6 +157,27 @@ internal final class PageIntentDockModel: ObservableObject {
         }
     }
 
+    /// Forget everything tied to the previous gateway. ContentView owns this
+    /// model for the app's lifetime, so without this a gateway switch left the
+    /// dock chats holding session ids from the old gateway: the next open sent
+    /// `session.set_prompt` for a session the new gateway never had, and the
+    /// scope stayed marked as primed so nothing re-primed it. The chats are
+    /// dropped outright, which also ends their event subscriptions on the old
+    /// client.
+    internal func resetForGatewaySwitch() async {
+        await close()
+        for task in preparationTasks.values { task.cancel() }
+        preparationTasks = [:]
+        chats = [:]
+        primed = []
+        promptDigests = [:]
+        latestContexts = [:]
+        activeScope = nil
+        context = nil
+        status = nil
+        backend = nil
+    }
+
     /// Hand the active session to the chat page.
     internal func openInChat() {
         guard let sessionID = activeChat?.currentSessionID else { return }

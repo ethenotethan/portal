@@ -277,6 +277,27 @@ class ConstraintGrowthTests(unittest.TestCase):
 
     # ---- the real repository ---------------------------------------------------
 
+    # ---- enrichment freshness --------------------------------------------------
+
+    def test_enrichment_staleness_may_not_grow(self) -> None:
+        # The fixture tree has no compiler: it predates the check and is skipped.
+        self.assertIsNone(guard._stale_enrichment(self.root, "head"))
+        original = guard._stale_enrichment
+        trees = {"head": {"records": ["store:a", "store:b"], "flows": ["f1", "f2"]}, "base": {"records": ["store:a"], "flows": ["f1"]}}
+        try:
+            guard._stale_enrichment = lambda root, label: trees[label]
+            problems = guard.check_enrichment_fresh(self.root, "main")
+            self.assertEqual(2, len(problems), problems)
+            self.assertIn("store:b", problems[0])
+            self.assertNotIn("store:a", problems[0])
+            self.assertIn("f2", problems[1])
+            trees["head"] = {"records": ["store:a"], "flows": ["f1"]}
+            self.assertEqual([], guard.check_enrichment_fresh(self.root, "main"))
+            trees["head"] = {"error": ["ArchitectureError: boom"]}
+            self.assertIn("does not compile", guard.check_enrichment_fresh(self.root, "main")[0])
+        finally:
+            guard._stale_enrichment = original
+
     def test_real_repository_is_not_looser_than_its_own_head(self) -> None:
         problems = guard.evaluate(ROOT, "HEAD")
         loosened_by_this_change = [p for p in problems if not p.endswith("deleted (a guarded file may be replaced, not removed)")]

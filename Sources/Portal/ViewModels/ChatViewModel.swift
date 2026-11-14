@@ -360,8 +360,11 @@ final class ChatViewModel: ObservableObject {
     @Published internal private(set) var isConversationActive: Bool = false
 
     /// Smoothed 0...1 microphone level while a conversation is capturing, so the
-    /// orb can expand and shrink with the user's voice. Zero when idle.
-    @Published internal private(set) var voiceLevel: Float = 0
+    /// orb can expand and shrink with the user's voice. Zero when idle. Kept on
+    /// its own observable object (see `AudioLevelMeter`): publishing ~10 Hz mic
+    /// samples from this view model re-rendered the whole transcript per sample.
+    internal let voiceMeter = AudioLevelMeter()
+    internal var voiceLevel: Float { voiceMeter.level }
 
     /// The open local side-discussion, if any: a spoken exchange about one
     /// assistant reply that runs entirely on this machine. Non-nil is what routes
@@ -785,7 +788,7 @@ client.eventStream
 
         // session.info is applied via the eventStream path (handleEvent /
         // applySessionEvent), which routes by the event's session_id. Do NOT
-        // also subscribe to sessionInfoPublisher here: it carries no session
+        // also subscribe to the client's published sessionInfo here: it carries no session
         // ID, so a session.info from ANY session (peekSession observers,
         // subagents, cron, another device) would clobber the active chat's
         // model badge with that session's model — e.g. snapping back to the
@@ -794,9 +797,11 @@ client.eventStream
         // Handle reconnection. Session creation is explicit from the Sessions UI;
         // reconnect should not implicitly create an invisible chat that races with
         // the New Session button and leaves the list empty on compact iOS.
-        client.onReconnected = { [weak self] in
-            self?.handleGatewayReconnected()
-        }
+        client.reconnectedPublisher
+            .sink { [weak self] in
+                self?.handleGatewayReconnected()
+            }
+            .store(in: &cancellables)
     }
 
     /// React to a gateway connection-state transition. Extracted from the
@@ -847,7 +852,7 @@ client.eventStream
     /// creation is explicit from the Sessions UI; reconnect should not
     /// implicitly create an invisible chat that races with the New Session
     /// button and leaves the list empty on compact iOS. Extracted from the
-    /// `onReconnected` closure so it can be exercised directly.
+    /// `reconnectedPublisher` sink so it can be exercised directly.
     private func handleGatewayReconnected() {
         Task { await reconcileAfterReconnect() }
     }
@@ -1702,6 +1707,14 @@ client.eventStream
                 snapshotCurrentSessionState()
             }
 
+            // Prompts the agent is still blocked on come back with the resume;
+            // put them on screen again (the state reset above cleared the old ones).
+            for request in result.openRequests {
+                if let event = request.event {
+                    handleEvent(event, eventSessionID: result.sessionID)
+                }
+            }
+
             // The resume bound the session's real runtime ID — ask what model it
             // is on now that model.options can be scoped to it.
             fillModelBadgeIfEmpty()
@@ -2501,7 +2514,7 @@ client.eventStream
             self?.updateVoiceLevel(level)
         }
         inputText = ""
-        voiceLevel = 0
+        voiceMeter.reset()
         isVoiceRecording = true
         if conversation {
             await localVoiceService.startConversation()
@@ -2537,8 +2550,7 @@ client.eventStream
     /// moving average tames the ~10 Hz buffer jitter so the orb pulses smoothly
     /// with the voice instead of strobing.
     private func updateVoiceLevel(_ raw: Float) {
-        let clamped = max(0, min(1, raw))
-        voiceLevel = voiceLevel * 0.7 + clamped * 0.3
+        voiceMeter.fold(raw)
     }
 
     /// Submit an on-device transcript as the user's prompt, mirroring the
@@ -2578,7 +2590,7 @@ client.eventStream
         isConversationActive = false
         isBargingIn = false
         isVoiceRecording = false
-        voiceLevel = 0
+        voiceMeter.reset()
         conversationSpeaker.stop()
         // A local discussion only exists as a spoken exchange, so closing the mic
         // closes it too rather than leaving it open with no way to talk. It stays
@@ -3181,6 +3193,7 @@ client.eventStream
         guard !approvalQueue.isEmpty else { return }
 
         var queue = approvalQueue
+        let answered = applyToAll ? nil : queue.head
         if applyToAll {
             queue.removeAll()
         } else {
@@ -3193,20 +3206,40 @@ client.eventStream
         // not retroactively released. So they stay queued and get asked, rather
         // than being optimistically cleared here.
         do {
-            try await client.respondApproval(sessionID: sid, choice: choice, all: applyToAll)
+            try await client.respondApproval(sessionID: sid, choice: choice, all: applyToAll, requestID: answered?.approvalID)
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    /// Answer a pending clarify question. An empty answer cancels the
-    /// prompt (the gateway treats "" as no answer and the agent proceeds).
+    /// Answer the clarify question on screen. An empty answer skips it. A
+    /// server→client request is answered one question at a time through
+    /// `clarify.lock`; the next open question of the batch takes its place
+    /// until the gateway reports none remaining. A legacy prompt goes through
+    /// `clarify.respond` as one answer.
     func respondClarify(answer: String) async {
-        guard let client = gatewayClient, let clarify = pendingClarify else { return }
+        guard let client = gatewayClient, let clarify = pendingClarify, let owner = sessionID else { return }
         pendingClarify = nil
         snapshotCurrentSessionState()
         do {
-            try await client.respondClarify(requestID: clarify.requestID, answer: answer)
+            if clarify.isServerRequest {
+                guard let questionID = clarify.questionID else { return }
+                let remaining = try await client.lockClarifyAnswer(
+                    requestID: clarify.requestID, questionID: questionID, answer: answer.isEmpty ? nil : answer
+                )
+                // The user may have switched sessions during the round trip: the
+                // next question belongs to the session that asked, not whatever is
+                // on screen now, and never displaces a prompt that arrived meanwhile.
+                if let next = clarify.advanced(remaining: remaining) {
+                    mutateSessionState(for: owner) { state in
+                        if state.pendingClarify == nil {
+                            state.pendingClarify = next
+                        }
+                    }
+                }
+            } else {
+                try await client.respondClarify(requestID: clarify.requestID, answer: answer)
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -4015,9 +4048,13 @@ client.eventStream
             SessionRunHistoryStore.shared.recordRunStart(sessionID: displayID)
 
         case .messageDelta(let text, _):
+            // Existence check only. The text reaches the transcript through the
+            // pending-delta buffers and the 500 ms flush; `state` is never
+            // written back for a delta (see the persist switch below), so
+            // appending here too only copy-on-wrote the whole messages array
+            // per token and then threw the copy away.
             if let msgID = state.streamingMessageID,
-               let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
-                state.messages[idx].content += text
+               state.messages.contains(where: { $0.id == msgID }) {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     recordPerfEvent("sessionMessageDelta", bytes: text.count)
                     claimDeltaBuffers(for: displayID)
@@ -4172,12 +4209,10 @@ client.eventStream
             }
 
         case .reasoningDelta(let text):
-            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
+            // Same as `.messageDelta`: only the pending buffer carries the text.
+            // Rebuilding `existing + text` here copied the whole accumulated
+            // reasoning string per token into a discarded state.
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
-                if let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                    let existing = state.messages[idx].reasoning ?? ""
-                    state.messages[idx].reasoning = existing + text
-                }
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     claimDeltaBuffers(for: displayID)
                     pendingVisibleReasoningDelta += text
@@ -4187,7 +4222,6 @@ client.eventStream
             }
 
         case .thinkingDelta(let text):
-            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     appendPendingVisibleThinkingDelta(text, owner: displayID, separator: "\n")
@@ -4200,6 +4234,12 @@ client.eventStream
 
         case .clarifyRequest(payload: let payload):
             state.pendingClarify = payload
+
+        case .requestCancelled(let id, _, _):
+            if state.pendingClarify?.requestID == id {
+                state.pendingClarify = nil
+            }
+            state.approvalQueue.remove(requestID: id)
 
         case .error(let message):
             state.error = message
@@ -4711,6 +4751,14 @@ client.eventStream
         case .secretRequest:
             // TODO: Present secret input dialog
             break
+
+        case .requestCancelled(let id, _, _):
+            if pendingClarify?.requestID == id {
+                pendingClarify = nil
+            }
+            var queue = approvalQueue
+            queue.remove(requestID: id)
+            setApprovalQueue(queue)
 
         case .voiceTranscript, .voiceStatus:
             break

@@ -22,7 +22,13 @@ internal struct DatasetSpec {
     internal let rows: [[String: String]]
     internal let actions: [ArtifactAction]
 
+    private static let parseMemo = RenderMemo<DatasetSpec?>(limit: 32)
+
     internal static func parse(_ json: String) -> DatasetSpec? {
+        parseMemo.value(for: json) { parseUncached(json) }
+    }
+
+    private static func parseUncached(_ json: String) -> DatasetSpec? {
         guard let data = json.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let rawRows = obj["rows"] as? [[String: Any]], !rawRows.isEmpty else { return nil }

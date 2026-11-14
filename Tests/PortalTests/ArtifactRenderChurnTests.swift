@@ -190,4 +190,23 @@ internal struct ArtifactRenderChurnTests {
         #expect(storeChanges == 0)
         #expect(store.intentStates.count == 1)
     }
+
+    @Test("markdown text memoizes per input, never across base fonts")
+    internal func markdownTextMemoKeysOnFont() {
+        let plain = MarkdownText(text: "**bold** cell").renderedForTesting
+        #expect(MarkdownText(text: "**bold** cell").renderedForTesting == plain)
+        let headed = MarkdownText(text: "**bold** cell", baseFont: .system(size: 11)).renderedForTesting
+        #expect(headed != plain, "a different base font must not be served the cached rendering")
+    }
+
+    @Test("dataset parse is memoized and still reflects its content")
+    internal func datasetParseMemoized() {
+        let json = #"{"key": "login", "rows": [{"login": "greg", "commits": 44}, {"login": "x", "_deleted": true}]}"#
+        let first = DatasetSpec.parse(json)
+        let second = DatasetSpec.parse(json)
+        #expect(first?.rows.count == 1)
+        #expect(second?.rows == first?.rows)
+        #expect(second?.columns == ["login", "commits"])
+        #expect(DatasetSpec.parse(#"{"rows": []}"#) == nil, "not-a-dataset is memoized as nil")
+    }
 }
