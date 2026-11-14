@@ -15,31 +15,45 @@ What "looser" means, per file:
 
   architecture/interplay/invariants.json
       an invariant removed; its `kind` changed; `min` lowered (or a per-key
-      minimum dropped); `allow_*` exceptions grown; a `*_outside_lock` gate
-      flipped off; a `declared` machine dropped; `transports` widened.
+      minimum dropped); `max_*` raised; `allow_*` exceptions grown; a
+      `*_outside_lock` gate flipped off; a `declared` machine dropped;
+      `transports` widened; a set that names what an invariant checks
+      (`configures`, `relations`, `systems`, `containers`, `roots`, `zones`)
+      narrowed.
   architecture/config.json
-      a declared external system, external group, page, layer, specified edge,
-      ratchet, workflow family, architectural run-site or static-check job
-      removed. (Components are not guarded: every file must be assigned anyway.)
+      a declared external system, external group, page, layer, launch root,
+      specified edge, ratchet, workflow family, architectural run-site or
+      static-check job removed. A `release` or `maintenance` workflow family
+      may go with its deleted workflow file: those workflows ship or upkeep,
+      they do not decide what CI accepts.
+      (Components are not guarded: every file must be assigned anyway.)
   .swiftlint.yml
       a custom rule removed or demoted from error to warning; a rule's or the
       top-level `excluded` list grown; `disabled_rules` grown; `opt_in_rules`
       shrunk.
   Tests/PortalTests/ArchitectureTests.swift
       fewer `@Test(` cases than base.
-  architecture/specifications/*.md, scripts/check-*.py, scripts/collect-*.py
+  scripts/test_architecture.py, scripts/test_interplay.py, scripts/test_constraint_growth.py
+      fewer `def test_` cases than base; the file deleted.
+  architecture/specifications/*.md, scripts/check-*.py, scripts/collect-*.py,
+  scripts/build_architecture*.py, scripts/architecture_agent.py, scripts/test_*.py
       a file deleted.
   .github/workflows/{tests,ratchet,architecture-pages}.yml
       a job removed; a job given an `if:` it did not have (or `if: false`);
       fewer gate steps in a job (steps that run a check script, a test runner,
-      swiftlint, gitleaks or periphery); `pull_request` dropped from `on`.
+      swiftlint, gitleaks or periphery); a gate step that still names its gate
+      but can no longer fail the job (a step `if:`, `continue-on-error` on the
+      step or the job, the command neutralised by `echo`, `|| true`, `|| :` or
+      `; exit 0`); `pull_request` dropped from `on`, or given a `paths` or
+      `paths-ignore` filter it did not have.
   .github/CODEOWNERS
       an owned path removed.
   architecture/semantic/{constructs,flows}.json (enrichment freshness)
       a construct record or flow that is stale or broken in the working tree
       (the lines it cites changed, or an edge it walks went) and was not so on
       the base. Both trees are compiled leniently with their own compiler; the
-      base is checked out into a temporary worktree.
+      base is checked out into a temporary worktree. A record or flow the
+      lenient compile dropped as invalid counts as broken, not absent.
 
 A deliberate loosening (retiring an invariant after a redesign, deleting a rule
 that was wrong) is still possible: it carries the `constraints-loosened` label,
@@ -67,6 +81,9 @@ INVARIANTS = "architecture/interplay/invariants.json"
 CONFIG = "architecture/config.json"
 SWIFTLINT = ".swiftlint.yml"
 ARCH_TESTS = "Tests/PortalTests/ArchitectureTests.swift"
+# The Python suites behind the architecture gate: the compiler's, the interplay's and this guard's own.
+COMPILER_TESTS = ("scripts/test_architecture.py", "scripts/test_interplay.py", "scripts/test_constraint_growth.py")
+PY_TEST_RE = re.compile(r"^\s*def test_[A-Za-z0-9_]+\(", re.M)
 CODEOWNERS = ".github/CODEOWNERS"
 SPECIFICATIONS = "architecture/specifications"
 GUARDED_WORKFLOWS = (
@@ -137,6 +154,10 @@ def _members(value: Any) -> set:
     return set()
 
 
+# Lists on an invariant that name what it checks (as opposed to `allow_*`, which name what it excuses).
+NARROWABLE_SETS = ("configures", "relations", "systems", "containers", "roots", "zones")
+
+
 def check_invariants(base: Optional[str], head: Optional[str]) -> List[str]:
     problems: List[str] = []
     base_doc = _load_json(base, INVARIANTS, problems)
@@ -163,6 +184,16 @@ def check_invariants(base: Optional[str], head: Optional[str]) -> List[str]:
                 elif after_numbers[sub] < value:
                     problems.append(f"{where} lowered {label} {value:g} → {after_numbers[sub]:g}")
         for key, value in before.items():
+            # The sets that define what an invariant checks may not shrink: a narrower set checks less.
+            if key in NARROWABLE_SETS and isinstance(value, list):
+                narrowed = _members(value) - _members(after.get(key))
+                if narrowed:
+                    names = sorted(str(item).strip('"') for item in narrowed)
+                    problems.append(f"{where} narrowed {key}: {', '.join(names)}")
+            elif key.startswith("max_") and isinstance(value, (int, float)) and not isinstance(value, bool):
+                after_value = after.get(key)
+                if isinstance(after_value, (int, float)) and not isinstance(after_value, bool) and after_value > value:
+                    problems.append(f"{where} raised {key} {value:g} → {after_value:g}")
             if key.startswith("allow_"):
                 grown = _members(after.get(key)) - _members(value)
                 if grown:
@@ -187,7 +218,11 @@ def _ids(items: Any, key: str = "id") -> set:
     return {str(item[key]) for item in items or [] if isinstance(item, dict) and key in item}
 
 
-def check_config(base: Optional[str], head: Optional[str]) -> List[str]:
+# Workflows that ship or upkeep; they do not decide what CI accepts.
+NON_GATING_FAMILIES = {"release", "maintenance"}
+
+
+def check_config(base: Optional[str], head: Optional[str], root: Optional[Path] = None) -> List[str]:
     problems: List[str] = []
     base_doc = _load_json(base, CONFIG, problems)
     head_doc = _load_json(head, CONFIG, problems)
@@ -203,12 +238,21 @@ def check_config(base: Optional[str], head: Optional[str]) -> List[str]:
     removed("external group(s)", _ids(base_doc.get("external_groups")), _ids(head_doc.get("external_groups")))
     removed("layer(s)", _ids(base_doc.get("layers")), _ids(head_doc.get("layers")))
     removed("page(s)", _ids((base_doc.get("pages") or {}).get("items")), _ids((head_doc.get("pages") or {}).get("items")))
+    removed("launch root(s)", set(map(str, (base_doc.get("launch") or {}).get("roots") or [])), set(map(str, (head_doc.get("launch") or {}).get("roots") or [])))
     edges = lambda doc: {f"{e.get('source')}→{e.get('target')}" for e in doc.get("specified_edges") or [] if isinstance(e, dict)}
     removed("specified edge(s)", edges(base_doc), edges(head_doc))
     base_ci = base_doc.get("ci") or {}
     head_ci = head_doc.get("ci") or {}
     removed("ratchet(s)", _ids(base_ci.get("ratchets")), _ids(head_ci.get("ratchets")))
-    removed("workflow famil(ies)", set(base_ci.get("workflows") or {}), set(head_ci.get("workflows") or {}))
+    base_workflows = base_ci.get("workflows") or {}
+    # Retiring a release or maintenance workflow together with its file is not a loosening: it ships
+    # or upkeeps, it gates nothing. A gating family stays guarded even when its file goes.
+    retired = {
+        wid for wid, entry in base_workflows.items()
+        if root is not None and isinstance(entry, dict) and entry.get("family") in NON_GATING_FAMILIES
+        and not (root / ".github/workflows" / f"{wid}.yml").is_file()
+    }
+    removed("workflow famil(ies)", set(base_workflows) - retired, set(head_ci.get("workflows") or {}))
     removed("architectural run site(s)", set((base_ci.get("architectural") or {}).get("runs_in") or []),
             set((head_ci.get("architectural") or {}).get("runs_in") or []))
     removed("static-check job(s)", set((base_ci.get("static_checks") or {}).get("jobs") or []),
@@ -265,11 +309,20 @@ def check_swiftlint(base: Optional[str], head: Optional[str], parse: Callable[[s
 
 
 def check_architecture_tests(base: Optional[str], head: Optional[str]) -> List[str]:
-    if base is None or head is None:
+    if base is None:
         return []
     before = base.count("@Test(")
-    after = head.count("@Test(")
+    after = head.count("@Test(") if head is not None else 0  # a deleted suite has no tests left
     return [f"{ARCH_TESTS}: architecture tests dropped {before} → {after}"] if after < before else []
+
+
+def check_compiler_tests(path: str, base: Optional[str], head: Optional[str]) -> List[str]:
+    """The tests that hold the compiler, the agent and this guard to their rules may not thin out."""
+    if base is None:
+        return []
+    before = len(PY_TEST_RE.findall(base))
+    after = len(PY_TEST_RE.findall(head)) if head is not None else 0
+    return [f"{path}: tests dropped {before} → {after}"] if after < before else []
 
 
 def check_files_kept(root: Path, base_ref: str, directory: str, pattern: str = "*") -> List[str]:
@@ -291,13 +344,61 @@ def check_codeowners(base: Optional[str], head: Optional[str]) -> List[str]:
 # ── Workflows ────────────────────────────────────────────────────────────────
 
 
+NEUTRALISED_LINE_RE = re.compile(r"\|\|\s*(?:true|:)(?:\s|$)|;\s*exit\s+0\b|^\s*echo\b")
+
+
+def _truthy_flag(value: Any) -> bool:
+    return str(value).strip().lower() in ("true", "${{ true }}", "1", "yes")
+
+
+def _gate_lines(run: str) -> List[str]:
+    """The lines of a step's command that name a gate and can still fail: not printed with `echo`,
+    not followed by `|| true`, `|| :` or `; exit 0`."""
+    return [line for line in run.splitlines() if GATE_STEP_RE.search(line) and not NEUTRALISED_LINE_RE.search(line)]
+
+
 def _gate_steps(job: Any) -> int:
+    """Every step that names a gate, whatever its condition: the count a job may not lose."""
     steps = job.get("steps") if isinstance(job, dict) else None
     count = 0
     for step in steps or []:
         if isinstance(step, dict) and isinstance(step.get("run"), str) and GATE_STEP_RE.search(step["run"]):
             count += 1
     return count
+
+
+def _effective_gate_runs(job: Any) -> Dict[str, str]:
+    """The gate steps of a job that can still fail it, keyed by their gate lines: a step whose `run`
+    names a gate, that carries no `if:` and no `continue-on-error: true`, and whose gate command is
+    not neutralised. Anything that stops a gate from failing the job, by whatever means, drops it
+    from this set. The value says why a step is not effective, or is empty when it is."""
+    runs: Dict[str, str] = {}
+    if not isinstance(job, dict):
+        return runs
+    job_tolerates = _truthy_flag(job.get("continue-on-error"))
+    for step in job.get("steps") or []:
+        if not isinstance(step, dict) or not isinstance(step.get("run"), str) or not GATE_STEP_RE.search(step["run"]):
+            continue
+        named = " ".join(" ".join(line.split()) for line in step["run"].splitlines() if GATE_STEP_RE.search(line))
+        key = re.sub(r"\s*(?:\|\|\s*(?:true|:)|;\s*exit\s+0)\s*$", "", re.sub(r"^\s*echo\s+", "", named)).strip("'\" ")
+        if job_tolerates:
+            reason = "the job gained continue-on-error: true"
+        elif _truthy_flag(step.get("continue-on-error")):
+            reason = "the step carries continue-on-error: true"
+        elif step.get("if") is not None:
+            reason = f"the step carries a condition (if: {str(step.get('if')).strip()})"
+        elif not _gate_lines(step["run"]):
+            reason = "the command is neutralised (echo, `|| true`, `|| :` or `; exit 0`)"
+        else:
+            reason = ""
+        if key not in runs or not reason:
+            runs[key] = reason
+    return runs
+
+
+def _trigger_filters(doc_on: Dict[str, Any], key: str) -> set:
+    trigger = doc_on.get("pull_request") if isinstance(doc_on.get("pull_request"), dict) else {}
+    return set(map(str, trigger.get(key) or [])) if isinstance(trigger.get(key), list) else set()
 
 
 def check_workflow(path: str, base: Optional[str], head: Optional[str], parse: Callable[[str], Any]) -> List[str]:
@@ -313,6 +414,16 @@ def check_workflow(path: str, base: Optional[str], head: Optional[str], parse: C
     after_on = after.get("on") if isinstance(after.get("on"), dict) else {}
     if "pull_request" in before_on and "pull_request" not in after_on:
         problems.append(f"{path}: no longer runs on pull_request")
+    elif "pull_request" in after_on:
+        # A path filter on the trigger is a loosening: a PR touching other files no longer runs the workflow.
+        ignored = _trigger_filters(after_on, "paths-ignore") - _trigger_filters(before_on, "paths-ignore")
+        if ignored:
+            problems.append(f"{path}: pull_request gained paths-ignore: {', '.join(sorted(ignored))}")
+        before_paths, after_paths = _trigger_filters(before_on, "paths"), _trigger_filters(after_on, "paths")
+        if before_paths and after_paths and before_paths - after_paths:
+            problems.append(f"{path}: pull_request narrowed paths: {', '.join(sorted(before_paths - after_paths))}")
+        elif not before_paths and after_paths:
+            problems.append(f"{path}: pull_request gained a paths filter: {', '.join(sorted(after_paths))}")
     before_jobs = before.get("jobs") if isinstance(before.get("jobs"), dict) else {}
     after_jobs = after.get("jobs") if isinstance(after.get("jobs"), dict) else {}
     for job_id, job in before_jobs.items():
@@ -326,10 +437,18 @@ def check_workflow(path: str, base: Optional[str], head: Optional[str], parse: C
             problems.append(f"{where} gained a condition: if: {str(head_job.get('if')).strip()}")
         elif str(head_job.get("if") or "").strip().lower() in ("false", "${{ false }}") and str(job.get("if") or "").strip().lower() not in ("false", "${{ false }}"):
             problems.append(f"{where} was disabled")
+        if not _truthy_flag(job.get("continue-on-error")) and _truthy_flag(head_job.get("continue-on-error")):
+            problems.append(f"{where} gained continue-on-error: true")
         before_gates = _gate_steps(job)
         after_gates = _gate_steps(head_job)
         if after_gates < before_gates:
             problems.append(f"{where} lost gate step(s): {before_gates} → {after_gates}")
+        # A step that still names its gate but can no longer fail the job is a loosening however it is done.
+        before_runs = _effective_gate_runs(job)
+        after_runs = _effective_gate_runs(head_job)
+        for run, reason in sorted(before_runs.items()):
+            if not reason and after_runs.get(run):
+                problems.append(f"{where} gate step can no longer fail the job: {after_runs[run]}: {run[:120]}")
     return problems
 
 
@@ -357,7 +476,19 @@ records = sorted(
     + [f"page:{p['id']}" for p in interplay.get("pages", []) if (p.get("semantic") or {}).get("stale")]
 )
 flows = sorted(f["id"] for f in interplay.get("flows", []) if f.get("stale") or f.get("status") != "traceable")
-print(json.dumps({"records": records, "flows": flows}))
+# A lenient compile drops a record or flow it cannot validate (a key for a construct that is gone, a
+# step over a node that left the map) and records why under FIDELITY; those are broken, not absent.
+import re
+fidelity = getattr(module, "FIDELITY", {}) or {}
+for message in fidelity.get("constructs_invalid", []):
+    found = re.search(r"construct (?:record )?([^\\s]+)", str(message))
+    if found and found.group(1) not in records:
+        records.append(found.group(1))
+for message in fidelity.get("flows_invalid", []):
+    found = re.search(r"flow (?:id )?([^\\s:]+)", str(message))
+    if found and found.group(1) not in flows:
+        flows.append(found.group(1))
+print(json.dumps({"records": sorted(records), "flows": sorted(flows)}))
 """
 
 
@@ -410,7 +541,7 @@ def check_enrichment_fresh(root: Path, base_ref: str) -> List[str]:
     flows = sorted(set(head["flows"]) - tolerated_flows)
     if flows:
         problems.append(f"enrichment: {len(flows)} flow(s) went stale or broke (cited lines changed, or an edge went) and were not "
-                        f"rewritten: {named(flows)}; run `python3 scripts/architecture_agent.py --flows --journeys <journey>`")
+                        f"rewritten: {named(flows)}; run `python3 scripts/architecture_agent.py --flows --stale-only`")
     return problems
 
 
@@ -422,12 +553,17 @@ def evaluate(root: Path, base_ref: str) -> List[str]:
     parse = _yaml()
     problems: List[str] = []
     problems += check_invariants(git_show(root, base_ref, INVARIANTS), working(root, INVARIANTS))
-    problems += check_config(git_show(root, base_ref, CONFIG), working(root, CONFIG))
+    problems += check_config(git_show(root, base_ref, CONFIG), working(root, CONFIG), root)
     problems += check_swiftlint(git_show(root, base_ref, SWIFTLINT), working(root, SWIFTLINT), parse)
     problems += check_architecture_tests(git_show(root, base_ref, ARCH_TESTS), working(root, ARCH_TESTS))
     problems += check_files_kept(root, base_ref, SPECIFICATIONS, "*.md")
     problems += check_files_kept(root, base_ref, "scripts", "check-*.py")
     problems += check_files_kept(root, base_ref, "scripts", "collect-*.py")
+    problems += check_files_kept(root, base_ref, "scripts", "build_architecture*.py")
+    problems += check_files_kept(root, base_ref, "scripts", "architecture_agent.py")
+    problems += check_files_kept(root, base_ref, "scripts", "test_*.py")
+    for path in COMPILER_TESTS:
+        problems += check_compiler_tests(path, git_show(root, base_ref, path), working(root, path))
     problems += check_codeowners(git_show(root, base_ref, CODEOWNERS), working(root, CODEOWNERS))
     for path in GUARDED_WORKFLOWS:
         problems += check_workflow(path, git_show(root, base_ref, path), working(root, path), parse)

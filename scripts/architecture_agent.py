@@ -41,7 +41,6 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-MODEL_PATH = ROOT / "architecture/model/model.json"
 SEMANTIC_PATH = ROOT / "architecture/semantic/components.json"
 CONSTRUCTS_PATH = ROOT / "architecture/semantic/constructs.json"
 FLOWS_PATH = ROOT / "architecture/semantic/flows.json"
@@ -362,7 +361,17 @@ class Context:
 
     def __init__(self, compiler: Any) -> None:
         self.compiler = compiler
-        self.model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+        # Compiled here, leniently, rather than read from architecture/model/model.json: when a merge breaks
+        # a flow or strands a record, the strict compile fails before writing that file, and an agent
+        # reading the previous model would see nothing stale to refresh. The lenient compile drops what
+        # it cannot validate, so those constructs come back as "no record" and are rewritten.
+        was_lenient = compiler.LENIENT
+        compiler.LENIENT = True
+        try:
+            compiler.FIDELITY.clear()
+            self.model, _site = compiler.compile_architecture()
+        finally:
+            compiler.LENIENT = was_lenient
         config = compiler.load_json(compiler.CONFIG_PATH)
         files, _digest = compiler.read_sources(config)
         launch_files, _launch_digest = compiler.read_launch_sources(config)
@@ -1111,23 +1120,73 @@ def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str 
             out.append(({k: v for k, v in flow.items() if k not in ("status", "problems", "authority")}, "ok"))
         return out
 
-    kept: dict[str, dict[str, Any]] = {}
-    if not replace:
-        kept = {f["id"]: f for f in existing if (f.get("journey"), f.get("page")) not in selected and f.get("journey")}
     rejected = 0
-    accepted = 0
+    results_by_journey: list[list[dict[str, Any]]] = []
     with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
         for results in pool.map(work, journeys):
+            valid: list[dict[str, Any]] = []
             for flow, reason in results:
                 if flow is None:
                     rejected += 1
                     print(f"rejected flow {reason}", file=sys.stderr, flush=True)
                 else:
-                    kept[flow["id"]] = flow
-                    accepted += 1
+                    valid.append(flow)
                     print(f"traced flow {flow['id']} ({flow['journey']} {flow['page']}, {len(flow['steps'])} steps)", flush=True)
+            results_by_journey.append(valid)
+    replacements, kept_journeys = merge_journey_results(existing, journeys, results_by_journey)
+    for journey, page_id in kept_journeys:
+        print(f"flows: {journey}{':' + page_id if page_id else ''} produced no valid replacement; its existing flows are kept", file=sys.stderr, flush=True)
+    kept_keys = {journey_key(j, p) for j, p in kept_journeys}
+    kept: dict[str, dict[str, Any]] = {}
+    for flow in existing:
+        key = (flow.get("journey"), flow.get("page"))
+        if not flow.get("journey"):
+            continue
+        # --replace-flows discards every flow; otherwise a flow stays when its journey was not asked
+        # for, or was asked for and produced nothing valid.
+        if key in kept_keys or (not replace and key not in selected):
+            kept[flow["id"]] = flow
+    for flow in replacements:
+        kept[flow["id"]] = flow
+    accepted = len(replacements)
     FLOWS_PATH.write_text(json.dumps({"schema_version": "1.0.0", "flows": [kept[k] for k in sorted(kept)]}, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
     return accepted, rejected
+
+
+def journey_key(journey: str, page_id: str | None) -> tuple[str, str]:
+    """A journey as flows record it: launch and a chat turn carry their own page ids."""
+    return (journey, page_id or ("launch" if journey == "launch" else "chat"))
+
+
+def merge_journey_results(existing: list[dict[str, Any]], journeys: list[tuple[str, str | None]],
+                          results: list[list[dict[str, Any]]]) -> tuple[list[dict[str, Any]], list[tuple[str, str | None]]]:
+    """What a flows pass writes for the chosen journeys: each journey's accepted replacements, or, when
+    the model returned nothing valid for a journey that had flows, nothing new, so the journey's
+    existing flows stay. Removing every flow of a journey takes explicit intent (--replace-flows), never
+    an empty or wholly rejected response. Returns (replacement flows, journeys kept as they were)."""
+    replacements: list[dict[str, Any]] = []
+    kept: list[tuple[str, str | None]] = []
+    for (journey, page_id), result in zip(journeys, results):
+        key = journey_key(journey, page_id)
+        had = any((f.get("journey"), f.get("page")) == key for f in existing)
+        if not result and had:
+            kept.append((journey, page_id))
+            continue
+        replacements.extend(result)
+    return replacements, kept
+
+
+def stale_journeys(ctx: Context) -> list[tuple[str, str | None]]:
+    """The journeys whose flows went stale (cited lines changed) or broke (an edge went), plus those whose
+    persisted flow the lenient compile dropped (a validator rejected it), which the compiled list no
+    longer shows: exactly the journeys a refresh must rewrite."""
+    compiled = ctx.interplay.get("flows", [])
+    kept_ids = {flow["id"] for flow in compiled}
+    persisted = json.loads(FLOWS_PATH.read_text(encoding="utf-8")).get("flows", []) if FLOWS_PATH.is_file() else []
+    keys = {(f["journey"], f["page"]) for f in compiled if f.get("stale") or f.get("status") != "traceable"}
+    keys |= {(f.get("journey"), f.get("page")) for f in persisted
+             if isinstance(f, dict) and isinstance(f.get("id"), str) and f["id"] not in kept_ids and f.get("journey")}
+    return [(journey, page_id) for journey, page_id in all_journeys(ctx) if journey_key(journey, page_id) in keys]
 
 
 # ---------------------------------------------------------------------------
@@ -1140,7 +1199,7 @@ def main() -> int:
     parser.add_argument("--constructs", action="store_true", help="write construct records (architecture/semantic/constructs.json)")
     parser.add_argument("--kinds", default="", help="construct mode: comma-separated schema kinds to include")
     parser.add_argument("--keys", default="", help="construct mode: comma-separated construct keys to include")
-    parser.add_argument("--stale-only", action="store_true", help="construct mode: only constructs with no record or a stale one")
+    parser.add_argument("--stale-only", action="store_true", help="constructs: only constructs with no record or a stale one; flows: only journeys with a stale, broken or dropped flow")
     parser.add_argument("--flows", action="store_true", help="write system flows (architecture/semantic/flows.json)")
     parser.add_argument("--journeys", default="", help="flows mode: comma-separated journeys to (re)write, e.g. launch,chat_turn,page:cron (default: all)")
     parser.add_argument("--replace-flows", action="store_true", help="flows mode: discard every existing flow first")
@@ -1176,6 +1235,13 @@ def main() -> int:
                 if args.journeys:
                     wanted = [j.strip() for j in args.journeys.split(",") if j.strip()]
                     journeys = [(j.split(":", 1)[0], j.split(":", 1)[1] if ":" in j else None) for j in wanted]
+                if args.stale_only:
+                    stale = stale_journeys(ctx)
+                    journeys = [j for j in journeys if j in stale]
+                    if not journeys:
+                        print("flows: nothing stale or broken")
+                        return 0
+                    print(f"flows: {len(journeys)} journey(s) with stale or broken flows: " + ", ".join(f"{j}:{p}" if p else j for j, p in journeys))
                 accepted, rejected = run_flows(ctx, head, journeys, args.jobs, args.dry_run, args.replace_flows)
                 if not args.dry_run:
                     print(f"flows: {accepted} kept, {rejected} rejected")
@@ -1183,7 +1249,7 @@ def main() -> int:
 
         base = args.base or git_output("rev-parse", f"{head}^")
         changes = changed_files(base, head)
-        model = json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+        model = Context(compiler).model
         existing = json.loads(SEMANTIC_PATH.read_text(encoding="utf-8"))
         components = (
             [component for component in model["components"] if not component["external"]]

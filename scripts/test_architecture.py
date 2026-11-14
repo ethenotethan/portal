@@ -1127,6 +1127,28 @@ class ArchitectureCompilerTests(unittest.TestCase):
         launch, _launch_digest = architecture.read_launch_sources(config)
         return files + launch
 
+    def test_a_flows_pass_never_empties_a_journey_by_accident(self) -> None:
+        """A journey whose pass yields no valid flow keeps the flows it had; only --replace-flows removes them.
+        The agent compiles the map itself, leniently, so a flow a merge broke cannot block its own refresh."""
+        spec = importlib.util.spec_from_file_location("architecture_agent", ROOT / "scripts/architecture_agent.py")
+        agent = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = agent
+        spec.loader.exec_module(agent)
+        existing = [
+            {"id": "a", "journey": "launch", "page": "launch"},
+            {"id": "b", "journey": "page", "page": "cron"},
+            {"id": "c", "journey": "chat_turn", "page": "chat"},
+        ]
+        journeys = [("launch", None), ("page", "cron"), ("page", "wiki")]
+        new_cron = {"id": "b2", "journey": "page", "page": "cron"}
+        replacements, kept = agent.merge_journey_results(existing, journeys, [[], [new_cron], []])
+        self.assertEqual([new_cron], replacements)
+        self.assertEqual([("launch", None)], kept, "launch had flows and got nothing valid, so it keeps them; wiki had none to keep")
+        self.assertEqual(("chat_turn", "chat"), agent.journey_key("chat_turn", None))
+        source = (ROOT / "scripts/architecture_agent.py").read_text(encoding="utf-8")
+        self.assertIn("compiler.LENIENT = True", source)
+        self.assertNotIn("MODEL_PATH.read_text", source, "the agent reads the map it compiles, not the file a failed strict build never wrote")
+
     def test_citations_are_bound_to_content_not_position(self) -> None:
         """A citation keeps the text of its line. A line that moved is found again and the record stays fresh; a line
         whose text is gone is lost and the record is stale; a site written without text is bound to its line and
