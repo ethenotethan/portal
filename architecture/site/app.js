@@ -2059,7 +2059,7 @@
     close.addEventListener("click", clearFlow);
     container.append(close);
     container.style.setProperty("--component-color", INTERPLAY_ROLE_COLORS.interplay || INTERPLAY_ROLE_COLORS.hub);
-    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}${flow.stale ? " · STALE" : ""}`), element("h3", "", flow.title), element("p", "", flow.summary));
+    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}${flow.stale ? " · STALE" : ""}`), element("h3", "", flow.title), prose(flow.summary, ""));
     const nameOf = (key) => { const id = idByHistoryKey.get(key); const node = id ? interplayNodeById.get(id) : null; return node ? node.label : (key.startsWith("page:") ? `${PAGE_LABEL.get(key.slice(5)) || key.slice(5)} (page)` : key); };
     const steps = element("ol", "inspector-steps");
     flow.steps.forEach((step) => {
@@ -2076,7 +2076,7 @@
       const trigger = triggers.find((t) => t.id === flow.trigger);
       if (trigger) container.append(element("p", "described-meta", `Starts from ${trigger.api} in ${trigger.view || "?"} · ${trigger.method}() · ${PAGE_LABEL.get(trigger.page) || trigger.page}`));
     }
-    if (flow.outcome) container.append(element("p", "", flow.outcome));
+    if (flow.outcome) container.append(prose(flow.outcome, ""));
     if ((flow.problems || []).length) {
       const problems = element("ul", "evidence-list");
       flow.problems.forEach((problem) => problems.append(element("li", "", problem)));
@@ -2191,7 +2191,7 @@
         const disclosure = element("summary", "flow-disclosure");
         const head = element("div", "flow-head");
         head.append(element("h5", "", flow.title));
-        if (flow.interaction) head.append(element("span", "flow-interaction", flow.interaction));
+        if (flow.interaction) { const interaction = element("span", "flow-interaction"); interaction.append(inlineCode(flow.interaction)); head.append(interaction); }
         if (flow.status !== "traceable") head.append(element("span", "invariant-status violated", "BROKEN"));
         if (flow.stale) head.append(element("span", "stale-badge", "stale · cited lines changed"));
         head.append(element("span", "flow-steps-count", `${flow.steps.length} steps`));
