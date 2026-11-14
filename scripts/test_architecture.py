@@ -1167,6 +1167,24 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn("compiler.LENIENT = True", source)
         self.assertNotIn("MODEL_PATH.read_text", source, "the agent reads the map it compiles, not the file a failed strict build never wrote")
 
+    def test_a_job_condition_a_pull_request_cannot_satisfy_makes_it_a_release(self) -> None:
+        excludes = architecture._job_condition_excludes_pull_requests
+        self.assertFalse(excludes(None))
+        self.assertFalse(excludes("needs.measure.outputs.skip != 'true'"), "a condition on another job's output still runs on pull requests")
+        self.assertFalse(excludes("github.event_name == 'pull_request' && needs.measure.outputs.skip != 'true'"),
+                         "naming pull_request beside an unrelated != does not take a job off pull requests")
+        self.assertTrue(excludes("github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"))
+        self.assertTrue(excludes("github.ref_type == 'tag' && startsWith(github.ref_name, 'v')"), "a tag-only release never runs on a pull request")
+        self.assertTrue(excludes("(github.ref_type == 'tag' && (startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'beta-v'))) || github.event_name == 'workflow_dispatch'"),
+                        "every alternative of the top-level || excludes pull requests")
+        self.assertTrue(excludes("${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"))
+        self.assertFalse(excludes("github.ref_type == 'tag' || always()"), "an alternative a pull request can satisfy keeps the job a gate")
+        self.assertFalse(excludes("github.event_name == 'pull_request'"))
+        roles = {job["id"]: job["role"] for job in self.model["ci"]["jobs"]}
+        self.assertEqual("post-merge", roles["architecture-pages/deploy"])
+        self.assertEqual("post-merge", roles["testflight/testflight"])
+        self.assertEqual("gate", roles["architecture-pages/validate"])
+
     def test_citations_are_bound_to_content_not_position(self) -> None:
         """A citation keeps the text of its line. A line that moved is found again and the record stays fresh; a line
         whose text is gone is lost and the record is stale; a site written without text is bound to its line and

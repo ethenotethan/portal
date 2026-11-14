@@ -4970,12 +4970,53 @@ def _tool_pins(env: Any, run: Any) -> list[dict[str, str]]:
     return pins
 
 
+# Atoms a pull-request run can never satisfy. A job whose `if` requires one of them, in every
+# alternative of its top-level `||`, never runs on a pull request: a tag-only release, a push-only
+# publisher, a dispatch-only rollout. The shapes are the ones GitHub's expression grammar offers.
+_PR_EXCLUDING_ATOMS = (
+    "github.event_name!='pull_request'", 'github.event_name!="pull_request"',
+    "github.event_name=='push'", 'github.event_name=="push"',
+    "github.event_name=='workflow_dispatch'", 'github.event_name=="workflow_dispatch"',
+    "github.event_name=='schedule'", 'github.event_name=="schedule"',
+    "github.ref_type=='tag'", 'github.ref_type=="tag"',
+    "startswith(github.ref,'refs/tags/", 'startswith(github.ref,"refs/tags/',
+    "github.ref=='refs/heads/", 'github.ref=="refs/heads/',
+)
+
+
+def _top_level_alternatives(compact: str) -> list[str]:
+    """The operands of the outermost `||`, parentheses respected; the whole string when there is none."""
+    parts: list[str] = []
+    depth = 0
+    start = 0
+    index = 0
+    while index < len(compact) - 1:
+        char = compact[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif depth == 0 and compact[index:index + 2] == "||":
+            parts.append(compact[start:index])
+            start = index + 2
+            index += 1
+        index += 1
+    parts.append(compact[start:])
+    return [part.strip("()") for part in parts if part.strip("()")]
+
+
 def _job_condition_excludes_pull_requests(condition: str | None) -> bool:
-    """`if: github.event_name != 'pull_request'` (the deploy shape) keeps a job off PRs."""
+    """Whether a job's `if:` keeps it off pull requests: `github.event_name != 'pull_request'` (the
+    deploy shape), a tag ref, a push, dispatch or schedule event, or a branch ref. Every alternative
+    of the top-level `||` must exclude pull requests on its own: `tag || dispatch` does, `tag ||
+    always()` does not, and a condition that merely mentions pull_request beside some other `!=` does not."""
     if not condition:
         return False
-    compact = condition.replace(" ", "")
-    return "pull_request" in compact and "!=" in compact
+    compact = condition.replace(" ", "").replace("\n", "")
+    if compact.startswith("${{") and compact.endswith("}}"):
+        compact = compact[3:-2]
+    lowered = compact.lower()
+    return all(any(atom.lower() in alternative for atom in _PR_EXCLUDING_ATOMS) for alternative in _top_level_alternatives(lowered))
 
 
 def _normalize_triggers(raw: Any, workflow: str) -> list[dict[str, Any]]:
