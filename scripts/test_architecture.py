@@ -1127,6 +1127,59 @@ class ArchitectureCompilerTests(unittest.TestCase):
         launch, _launch_digest = architecture.read_launch_sources(config)
         return files + launch
 
+    def test_citations_are_bound_to_content_not_position(self) -> None:
+        """A citation keeps the text of its line. A line that moved is found again and the record stays fresh; a line
+        whose text is gone is lost and the record is stale; a site written without text is bound to its line and
+        acquires the text it finds there; a citation past the end of a shrunken file is lost, not rejected."""
+        text = "a\nlet x = 1\nb\n\nlet y = 2\n"
+        lines = text.splitlines()
+        self.assertEqual({"path": "p", "line": 2, "text": "let x = 1"}, architecture.resolve_site("p", 2, None, lines), "a site without text acquires the text at its line")
+        self.assertEqual({"path": "p", "line": 2, "text": "let x = 1"}, architecture.resolve_site("p", 2, "let x = 1", lines))
+        self.assertEqual({"path": "p", "line": 2, "text": "let x = 1", "moved_from": 1}, architecture.resolve_site("p", 1, "let x = 1", lines), "the line moved; the citation follows its text")
+        self.assertEqual(5, architecture.resolve_site("p", 3, "let y = 2", lines)["line"])
+        self.assertEqual({"path": "p", "line": 5, "text": "let y = 2", "moved_from": 4}, architecture.resolve_site("p", 4, None, lines), "a blank citation follows the next line with text")
+        lost = architecture.resolve_site("p", 2, "let z = 3", lines)
+        self.assertTrue(lost["lost"])
+        self.assertEqual(2, lost["line"])
+        self.assertEqual(5, architecture.resolve_site("p", 40, "gone", lines)["line"], "a lost site past the end clamps to the file")
+        self.assertEqual(4, architecture.resolve_site("p", 3, "dup", ["dup", "x", "x", "dup"])["line"], "duplicates resolve to the nearest line")
+        # Through the validators: lines inserted above a citation leave a record fresh; removing the cited text makes it stale.
+        interplay = self.model["interplay"]
+        files = self._files()
+        externals = self.model["externals"]
+        store = next(n for n in interplay["nodes"] if n["kind"] == "store" and (n.get("semantic") or {}).get("evidence"))
+        record = {**store["semantic"], "key": store["history_key"]}
+        fresh = architecture.validate_construct_record(record, interplay, files, externals, persisted=True)
+        self.assertFalse(fresh["stale"])
+        self.assertTrue(all(site.get("text") for site in fresh["evidence"]), "validated sites carry their text")
+        site = next(s for s in fresh["evidence"] if s["line"] > 1)
+        bound = {**record, "evidence": fresh["evidence"], "cited_hash": fresh["cited_hash"]}
+
+        def with_text(change) -> list[dict]:
+            out = []
+            for item in files:
+                if item["path"] == site["path"]:
+                    text = change(item["_text"])
+                    item = {**item, "_text": text, "line_count": len(text.splitlines())}
+                out.append(item)
+            return out
+        after = architecture.validate_construct_record(bound, interplay, with_text(lambda t: "// an inserted line\n// and another\n" + t), externals, persisted=True)
+        self.assertFalse(after["stale"], "two lines inserted above the citations do not make the record stale")
+        self.assertEqual(site["line"] + 2, next(s for s in after["evidence"] if s["path"] == site["path"] and s["text"] == site["text"])["line"])
+        gone = architecture.validate_construct_record(bound, interplay, with_text(lambda t: "\n".join(l for l in t.splitlines() if l.strip()[:160] != site["text"]) + "\n"), externals, persisted=True)
+        self.assertTrue(gone["stale"], "the cited text left the file")
+        self.assertTrue(any(s.get("lost") for s in gone["evidence"]))
+        shrunk = architecture.validate_construct_record(bound, interplay, with_text(lambda t: "\n".join(t.splitlines()[:1]) + "\n"), externals, persisted=True)
+        self.assertTrue(shrunk["stale"], "a citation past the end of a file that shrank is lost, so the record is stale, not rejected")
+        # Every persisted citation carries its text, and nothing committed is stale at this revision.
+        for name, key in (("constructs.json", "records"), ("flows.json", "flows")):
+            document = json.loads((ROOT / "architecture/semantic" / name).read_text(encoding="utf-8"))
+            for entry in document[key]:
+                for cited in entry["evidence"] + [c for step in entry.get("steps", []) for c in step.get("cites", [])]:
+                    self.assertTrue(cited.get("text"), f"{name}: {entry.get('key') or entry.get('id')} cites {cited['path']}:{cited['line']} without its text")
+        self.assertEqual(0, interplay["constructs"]["stale"])
+        self.assertEqual(0, interplay["flow_counts"]["stale"])
+
     def test_construct_records_are_validated_against_the_map(self) -> None:
         interplay = self.model["interplay"]
         files = self._files()
@@ -1141,9 +1194,12 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertEqual("store", record["kind"])
         self.assertFalse(record["stale"])
         self.assertEqual(["SavedGateway"], record["fields"]["record_type"])
-        # A recorded hash that no longer matches the cited files marks the record stale.
+        # A recorded hash that no longer matches the cited lines marks the record stale, and so does a
+        # persisted record with no hash at all: it cannot prove which lines it was written from.
         stale = architecture.validate_construct_record({**good, "cited_hash": "0" * 64}, interplay, files, externals)
         self.assertTrue(stale["stale"])
+        self.assertTrue(architecture.validate_construct_record(good, interplay, files, externals, persisted=True)["stale"])
+        self.assertFalse(architecture.validate_construct_record({**good, "cited_hash": record["cited_hash"]}, interplay, files, externals, persisted=True)["stale"])
         bad_cases = [
             ({**good, "kind": "external"}, "kind"),
             ({**good, "key": "store:nowhere:Ghost"}, "not a construct"),
@@ -1236,7 +1292,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
         flow = architecture.validate_flow(good, interplay, files)
         self.assertEqual("traceable", flow["status"])
         self.assertFalse(flow["stale"])
-        self.assertEqual([{"path": vm, "line": 40}], flow["steps"][0]["cites"])
+        self.assertEqual([(vm, 40)], [(c["path"], c["line"]) for c in flow["steps"][0]["cites"]])
+        self.assertTrue(all(c.get("text") for step in flow["steps"] for c in step["cites"]), "validated citations carry the text of their line")
         self.assertEqual("", flow["steps"][2]["detail"])
         self.assertEqual([(vm, 40), (vm, 41)], [(e["path"], e["line"]) for e in flow["evidence"]])
         # A step may only cite files on its own path; a detail has a cap.
@@ -1248,10 +1305,11 @@ class ArchitectureCompilerTests(unittest.TestCase):
             with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
                 architecture.validate_flow(raw, interplay, files)
             self.assertIn(needle, str(caught.exception))
-        # The hash covers the lines around each citation: an edit there makes the flow stale,
-        # an edit elsewhere in the same file does not.
+        # The hash covers each cited line and the lines after it: an edit there makes the flow stale,
+        # an edit elsewhere in the same file does not. A persisted flow that lost its hash is stale.
         recorded = {**good, "cited_hash": flow["cited_hash"]}
-        self.assertFalse(architecture.validate_flow(recorded, interplay, files)["stale"])
+        self.assertFalse(architecture.validate_flow(recorded, interplay, files, persisted=True)["stale"])
+        self.assertTrue(architecture.validate_flow(good, interplay, files, persisted=True)["stale"], "a persisted flow cannot shed its staleness by losing its hash")
 
         def edited(line_number: int) -> list[dict]:
             out = []

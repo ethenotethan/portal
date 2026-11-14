@@ -4054,10 +4054,45 @@ def page_files(page_id: str, interplay: dict[str, Any], files: list[dict[str, An
     return paths
 
 
-def validate_evidence_sites(raw: Any, allowed: set[str], line_counts: dict[str, int], owner: str) -> list[dict[str, Any]]:
+CITED_TEXT_MAX = 160  # how much of a cited line a citation keeps; enough to find the line again when it moves
+CITATION_RADIUS = 3  # lines after a cited line that count as what the sentence was written from
+
+
+def resolve_site(path: str, line: int, text: str | None, lines: list[str] | None) -> dict[str, Any]:
+    """A citation bound to content, not position. A site records the trimmed text of the line it cites; when the
+    line number no longer holds that text, the nearest line that does is the citation now (`moved_from` keeps the
+    old number). Only when the text is gone from the file is the site `lost`, which makes its record stale. A site
+    without text (written before text was kept) is bound to its line number and acquires the text it finds there;
+    on a blank line it follows the next line that has text, since a blank line has nothing to be found again by."""
+    site: dict[str, Any] = {"path": path, "line": line}
+    if lines is None:
+        if text:
+            site["text"] = text
+        return site
+    at = lines[line - 1].strip()[:CITED_TEXT_MAX] if 1 <= line <= len(lines) else None
+    if not text:
+        if at:
+            site["text"] = at
+        elif at is not None:
+            following = next((index + 1 for index in range(line, len(lines)) if lines[index].strip()), None)
+            if following is not None:
+                return {"path": path, "line": following, "text": lines[following - 1].strip()[:CITED_TEXT_MAX], "moved_from": line}
+        return site
+    if at == text:
+        site["text"] = text
+        return site
+    candidates = [index + 1 for index, content in enumerate(lines) if content.strip()[:CITED_TEXT_MAX] == text]
+    if candidates:
+        moved = min(candidates, key=lambda n: (abs(n - line), n))
+        return {"path": path, "line": moved, "text": text, "moved_from": line}
+    return {"path": path, "line": min(max(line, 1), max(len(lines), 1)), "text": text, "lost": True}
+
+
+def validate_evidence_sites(raw: Any, allowed: set[str], line_counts: dict[str, int], owner: str,
+                            text_by_path: dict[str, str] | None = None) -> list[dict[str, Any]]:
     if not isinstance(raw, list) or not raw:
         raise ArchitectureError(f"{owner} needs at least one evidence site")
-    sites: list[dict[str, Any]] = []
+    sites: dict[tuple[str, int], dict[str, Any]] = {}
     for item in raw:
         if not isinstance(item, dict) or not isinstance(item.get("path"), str):
             raise ArchitectureError(f"{owner} evidence entries must be objects with a path")
@@ -4065,34 +4100,46 @@ def validate_evidence_sites(raw: Any, allowed: set[str], line_counts: dict[str, 
         if path not in allowed:
             raise ArchitectureError(f"{owner} cites {path}, outside its bounded file set")
         line = item.get("line", 1)
-        if not isinstance(line, int) or line < 1 or (path in line_counts and line > line_counts[path]):
+        if not isinstance(line, int) or isinstance(line, bool) or line < 1:
             raise ArchitectureError(f"{owner} cites {path}:{line}, which is not a line of that file")
-        sites.append({"path": path, "line": line})
-    return sorted({(site["path"], site["line"]): site for site in sites}.values(), key=lambda s: (s["path"], s["line"]))
+        text = item.get("text")
+        text = text.strip()[:CITED_TEXT_MAX] if isinstance(text, str) and text.strip() else None
+        lines = text_by_path[path].splitlines() if text_by_path is not None and path in text_by_path else None
+        # A citation with no text is bound to its number and must be a line of the file. One that carries text and
+        # points past the end of a file that shrank is lost, not rejected: the record survives as stale.
+        if text is None and path in line_counts and line > line_counts[path]:
+            raise ArchitectureError(f"{owner} cites {path}:{line}, which is not a line of that file")
+        site = resolve_site(path, line, text, lines)
+        key = (path, site["line"])
+        if key not in sites or site.get("lost"):
+            sites[key] = site
+    return [sites[key] for key in sorted(sites)]
 
 
-def cited_hash(paths: set[str], text_by_path: dict[str, str]) -> str:
-    digest = hashlib.sha256()
-    for path in sorted(paths):
-        digest.update(path.encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(text_by_path.get(path, "").encode("utf-8"))
-        digest.update(b"\0")
-    return digest.hexdigest()
-
-
-def cited_window_hash(sites: list[dict[str, Any]], text_by_path: dict[str, str]) -> str:
-    """The hash of the FLOW_CITE_RADIUS lines around every cited line: the provenance of
-    prose written from those lines, insensitive to edits elsewhere in the file."""
+def cited_hash(sites: list[dict[str, Any]], text_by_path: dict[str, str]) -> str:
+    """The provenance of a record or flow: a digest of the cited line and the lines that follow it, at the line the
+    citation resolves to now, with whitespace trimmed. An edit elsewhere in a cited file leaves it fresh, and so
+    does an insertion above the citation (the site follows its text); an edit to the lines a sentence was written
+    from makes it stale. A citation of a file's first line stands for the file and hashes that line alone, so an
+    import added beneath it does not stale every record that cites the file."""
     digest = hashlib.sha256()
     for site in sorted(sites, key=lambda item: (item["path"], item["line"])):
         lines = text_by_path.get(site["path"], "").splitlines()
-        lo, hi = max(1, site["line"] - FLOW_CITE_RADIUS), site["line"] + FLOW_CITE_RADIUS
-        digest.update(f"{site['path']}:{site['line']}".encode("utf-8"))
+        head = site["line"] == 1 or site.get("moved_from") == 1  # the file's first line stands for the file, wherever that line is now
+        lo, hi = site["line"] - 1, (site["line"] if head else site["line"] + CITATION_RADIUS)
+        digest.update(site["path"].encode("utf-8"))
         digest.update(b"\0")
-        digest.update("\n".join(lines[lo - 1:hi]).encode("utf-8"))
+        digest.update("\n".join(line.strip() for line in lines[lo:hi]).encode("utf-8"))
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def provenance_stale(recorded_hash: Any, current_hash: str, evidence: list[dict[str, Any]], persisted: bool) -> bool:
+    """A record the agent just wrote takes the current hash as its provenance. A persisted record without one
+    cannot prove it describes these lines, so it is stale until regenerated: a record cannot shed its staleness
+    by losing its hash. A citation whose text left the file is stale too."""
+    return bool((recorded_hash is not None and recorded_hash != current_hash) or (persisted and recorded_hash is None)
+                or any(site.get("lost") for site in evidence))
 
 
 def flow_allowed_paths(steps: list[tuple[str, str]], page_id: str, interplay: dict[str, Any], files: list[dict[str, Any]]) -> set[str]:
@@ -4112,7 +4159,7 @@ def flow_allowed_paths(steps: list[tuple[str, str]], page_id: str, interplay: di
 
 
 def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]],
-                              externals: dict[str, Any] | None = None) -> dict[str, Any]:
+                              externals: dict[str, Any] | None = None, persisted: bool = False) -> dict[str, Any]:
     """Validate one record against the model; returns the normalised record.
 
     Raises ArchitectureError naming the field, so the agent can report exactly why
@@ -4177,20 +4224,19 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
                 raise ArchitectureError(f"{owner} claims medium {medium!r} but the source shows {', '.join(persistence)}")
         if "keychain" in persistence and body.get("sensitive") is False:
             raise ArchitectureError(f"{owner} is keychain-backed; sensitive cannot be false")
-    evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner)
+    evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner, text_by_path)
     open_questions = normalized_strings(raw.get("open_questions", []))
     for question in open_questions:
         if len(question) > 200:
             raise ArchitectureError(f"{owner} has an open question over 200 characters")
-    cited = {site["path"] for site in evidence}
-    current_hash = cited_hash(cited, text_by_path)
+    current_hash = cited_hash(evidence, text_by_path)
     recorded_hash = raw.get("cited_hash")
     return {
         "key": key, "kind": expected_kind, "summary": summary.strip(), "purpose": purpose.strip(), "fields": body,
         "open_questions": open_questions, "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
         "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),
-        "stale": bool(recorded_hash is not None and recorded_hash != current_hash),
+        "stale": provenance_stale(recorded_hash, current_hash, evidence, persisted),
         "authority": "synthesized",
     }
 
@@ -4290,7 +4336,7 @@ def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], exte
         if not isinstance(entry, dict):
             raise ArchitectureError("construct records must be objects")
         try:
-            record = validate_construct_record(entry, interplay, files, externals)
+            record = validate_construct_record(entry, interplay, files, externals, persisted=True)
         except ArchitectureError as exc:
             gate("constructs_invalid", str(exc))
             continue
@@ -4318,13 +4364,12 @@ FLOW_MIN_STEPS, FLOW_MAX_STEPS = 3, 12
 # agent was shown; its cites are the lines that prose came from. The lines around
 # every citation are hashed, so the flow goes stale (not broken) when they change.
 FLOW_DETAIL_MAX = 900
-FLOW_CITE_RADIUS = 3
 # A flow belongs to one user journey: starting the app, doing a chat turn, or
 # entering and using one navigation page. The site orders and groups by this.
 FLOW_JOURNEYS = ("launch", "chat_turn", "page")
 
 
-def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]]) -> dict[str, Any]:
+def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]], persisted: bool = False) -> dict[str, Any]:
     """Validate one flow: a path over edges the map draws. Returns the flow with
     ``status`` traceable and no problems, or raises for schema errors. A step over
     an edge that no longer exists is not a schema error: it is recorded as a problem
@@ -4407,14 +4452,15 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
     line_counts = {item["path"]: item["line_count"] for item in files}
     # Each step cites the lines its detail was written from; the flow's evidence is their union
     # plus any flow-level citation, and every one must be a line of a file this path may cite.
-    for index, step in enumerate(normalized_steps, start=1):
-        step["cites"] = validate_evidence_sites(step["cites"], allowed, line_counts, f"{owner} step {index}") if step["cites"] else []
-    raw_evidence = raw.get("evidence") if isinstance(raw.get("evidence"), list) else []
-    evidence = validate_evidence_sites(raw_evidence + [c for step in normalized_steps for c in step["cites"]], allowed, line_counts, owner)
-    # The same provenance a construct record carries, at line rather than file grain: the lines
-    # around every citation are hashed, and the flow is stale (not broken) once one changes.
+    # A citation is bound to the text of its line: a line that moved is found again, a line that is gone is lost.
     text_by_path = {item["path"]: item["_text"] for item in files if "_text" in item}
-    current_hash = cited_window_hash(evidence, text_by_path)
+    for index, step in enumerate(normalized_steps, start=1):
+        step["cites"] = validate_evidence_sites(step["cites"], allowed, line_counts, f"{owner} step {index}", text_by_path) if step["cites"] else []
+    raw_evidence = raw.get("evidence") if isinstance(raw.get("evidence"), list) else []
+    evidence = validate_evidence_sites(raw_evidence + [c for step in normalized_steps for c in step["cites"]], allowed, line_counts, owner, text_by_path)
+    # The same provenance a construct record carries: the lines at each (relocated) citation are hashed, and
+    # the flow is stale (not broken) once any of them changes under it or a cited line leaves the file.
+    current_hash = cited_hash(evidence, text_by_path)
     recorded_hash = raw.get("cited_hash")
     return {
         "id": flow_id, "title": title.strip(), "summary": summary.strip(), "trigger": trigger_id,
@@ -4422,7 +4468,7 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
         "steps": normalized_steps, "outcome": outcome.strip(), "evidence": evidence,
         "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
         "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),
-        "stale": bool(recorded_hash is not None and recorded_hash != current_hash),
+        "stale": provenance_stale(recorded_hash, current_hash, evidence, persisted),
         "status": "broken" if problems else "traceable", "problems": problems, "authority": "synthesized",
     }
 
@@ -4441,7 +4487,7 @@ def load_flows(interplay: dict[str, Any], files: list[dict[str, Any]]) -> list[d
         if not isinstance(entry, dict):
             raise ArchitectureError("flows must be objects")
         try:
-            flow = validate_flow(entry, interplay, files)
+            flow = validate_flow(entry, interplay, files, persisted=True)
         except ArchitectureError as exc:
             gate("flows_invalid", str(exc))
             continue
