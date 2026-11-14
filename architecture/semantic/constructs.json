@@ -1254,41 +1254,33 @@
       "summary": "`GatewayClient+Wiki` is a `client_extension` of `GatewayClient` in the `hermes-services` component that implements the `wiki` JSON-RPC namespace. `docs/rpc-reference.md` lists it among the RPC source files, and `docs/wiki-graph-view-model.md` says `GatewayClient` conforms to `WikiSource` as the home Hermes wiki source. Its callers on the map are `WikiGraphViewModel` and `WikiTimelineViewModel`."
     },
     {
-      "cited_hash": "e332adfd2136285e12e869b2027541b883ae0b8719c436379fe1c65704e7adde",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ActivityInboxViewModel.swift"
         }
       ],
       "fields": {},
       "key": "endpoint:jsonrpc:activity",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "No excerpt ranges were given, so evidence lines point at file starts, not method sites.",
         "No excerpts were supplied; the four method names and payload shapes are unverified.",
         "Whether any method pushes updates as notifications rather than request-reply is not settled.",
         "Whether state-mutating methods, if any, are safe to retry is unknown."
       ],
-      "purpose": "Inferred, since no `docs` paragraph names the namespace. Its sole caller is the activity inbox model, and `docs/GLOSSARY.md` describes `ActivityArtifact` as a payload attached to an inbox activity item, so this namespace likely feeds that inbox. It lets the person running Portal see what the agent surfaced without reopening each session. Without it, the inbox would have no source.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "purpose": "Inferred, since no `docs` paragraph names the namespace. Its sole caller is the activity inbox model, and `docs/GLOSSARY.md` describes `ActivityArtifact` as a payload attached to an inbox activity item, so this namespace likely feeds that inbox. It would let the person running Portal see what the agent surfaced without reopening each session. Without it, the inbox would have no source.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`activity` is a four-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over WebSocket. `ActivityInboxViewModel` is its only caller in the map. Each call is correlated to its reply through the shared `pendingRequests` pool."
     },
     {
-      "cited_hash": "09e80193b2392be555e6314cdb259a5dc2754b537bc3b908521fa03838b4f257",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
-          "line": 1,
+          "line": 32,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         }
       ],
       "fields": {
@@ -1296,14 +1288,15 @@
       },
       "key": "endpoint:jsonrpc:approval",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "Behavior on a repeated decision for the same approval is unknown.",
+        "Evidence line is the `GatewayClient` declaration line cited by `docs/GLOSSARY.md`; no excerpt range was supplied to check it.",
         "How the approval request arrives (likely a `GatewayEvent`) is outside the evidence.",
         "No excerpts: the method name, approval identifier, and decision values are unverified."
       ],
       "purpose": "Inferred from the code map alone, as no `docs` paragraph names it: `approval` likely carries the person's decision back to the gateway when the agent pauses for permission, so a risky tool action waits on a human choice made in Portal instead of stalling or proceeding unchecked. Without it the person running Portal would have no way to answer a pending permission request from the app.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`approval` is a single-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway and that `ChatViewModel` invokes. Calls are matched to replies through `pendingRequests`. No source excerpt is in the packet, so the method name, approval identifier and decision values are not visible."
     },
     {
@@ -1330,7 +1323,7 @@
       "summary": "The `architecture` JSON-RPC namespace groups four methods that `GatewayClient` dispatches to the Harness gateway over its WebSocket transport. The `GatewayClient+Architecture` extension implements them, and replies are matched through `pendingRequests`. The map records no caller."
     },
     {
-      "cited_hash": "6869dd5ebc53635c5caa14ce54deebc550e58de1af0ac4cd60d59070ed018d01",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
@@ -1342,28 +1335,24 @@
       },
       "key": "endpoint:jsonrpc:artifact",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "Idempotency of revision-creating calls is not visible without the source.",
+        "Evidence line is a placeholder at the top of `GatewayClient.swift`; no excerpt range was supplied.",
         "No caller edge is recorded; which view model or service invokes the namespace is unknown.",
-        "Whether any `artifact` method streams, or every call is single request/reply.",
+        "Whether any `artifact` method streams, and whether revision-creating calls are idempotent.",
         "Whether intent dispatch (`binding_id`, pinned revision) travels through this namespace.",
-        "Which 12 methods make up the namespace and their parameters; no excerpt was provided."
+        "Which 13 methods make up the namespace and their parameters; no excerpt was provided."
       ],
-      "purpose": "Per `architecture/specifications/artifact-intents.md`, a living artifact is a persistent, revisioned object the agent maintains across turns and sessions, and it can declare intents as data that a real user click dispatches back to the harness. This namespace is how Portal reaches that object on the gateway; the setup docs list artifact RPCs among those only Harness provides, so without it the artifact surface would have no backend.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
-      "summary": "The `artifact` JSON-RPC namespace is a group of 12 methods that `GatewayClient` dispatches over the Harness WebSocket transport. Replies are correlated by id through `pendingRequests`, and the Harness gateway serves them. The map records no caller outside `GatewayClient`. No source excerpt is in the packet, so method names and payloads are not visible."
+      "purpose": "Per `architecture/specifications/artifact-intents.md`, a living artifact is a persistent, revisioned object the agent maintains across turns and sessions, and it can declare intents as data that a real user click dispatches back to the harness. This namespace is presumably how Portal reaches that object on the gateway (inferred); the setup docs list artifact RPCs among those only Harness provides, so without it the artifact surface would have no backend.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "The `artifact` JSON-RPC namespace is a group of 13 methods that `GatewayClient` dispatches over the Harness WebSocket transport. Replies are correlated by id through `pendingRequests`, and the Harness gateway serves them. The map records no caller outside `GatewayClient`. No source excerpt is in the packet, so method names and payloads are not visible."
     },
     {
-      "cited_hash": "09e80193b2392be555e6314cdb259a5dc2754b537bc3b908521fa03838b4f257",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
-          "line": 1,
+          "line": 32,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         }
       ],
       "fields": {
@@ -1371,18 +1360,19 @@
       },
       "key": "endpoint:jsonrpc:clarify",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
+        "Evidence line is the `GatewayClient` declaration line cited by `docs/GLOSSARY.md`; no excerpt range was supplied to check it.",
         "How the two methods divide responsibility (for example answer versus dismiss) is not visible.",
         "No excerpts: the two method names, question id, and answer shape are unverified.",
         "Whether a second answer to the same question is rejected is unknown."
       ],
       "purpose": "Inferred from the code map, since no `docs` paragraph names it: `clarify` likely returns the person's answer to a clarifying question the agent asks mid-run, so an ambiguous task can resume with human input rather than guessing or aborting. Without it a run that needs a decision from the person running Portal would have no channel to receive it.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`clarify` is a JSON-RPC namespace of two methods that `GatewayClient` dispatches to the Harness gateway and that `ChatViewModel` invokes. Each request is correlated with its reply through `pendingRequests`. No source excerpt is in the packet, so the two method names, the question identifier and the answer shape are not visible."
     },
     {
-      "cited_hash": "6869dd5ebc53635c5caa14ce54deebc550e58de1af0ac4cd60d59070ed018d01",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 32,
@@ -1394,15 +1384,16 @@
       },
       "key": "endpoint:jsonrpc:client",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "Whether the method is idempotent or streams is not determinable without the method's source.",
-        "Whether the namespace is Hermes-only or also reached via the Hermes Standard `/api/ws` sidecar (docs note `GatewayClient` serves three backends).",
+        "No excerpt was supplied; the evidence line is the `GatewayClient` declaration location cited by `docs/GLOSSARY.md`, not a line read from source.",
+        "Whether the method is idempotent or streams cannot be determined without the method's source.",
+        "Whether the namespace is Hermes-only or also reached via the Hermes Standard `/api/ws` sidecar (docs say `GatewayClient` serves three backends).",
         "Which single method the `client` namespace carries, and its parameter and result shapes, are not shown in any excerpt."
       ],
-      "purpose": "Inferred from the component and docs, since no excerpt names this namespace: Portal is the native client for Harness, and the `client` namespace is part of the native-client RPC surface the person running Portal depends on to exchange requests with the gateway over the keepalive, auto-reconnecting `GatewayClient` connection. Without it the one method it carries has no path from the app to the gateway.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
-      "summary": "The `client` JSON-RPC namespace is dispatched by `GatewayClient` in `Sources/Portal/Services/GatewayClient.swift`, the Harness WebSocket JSON-RPC transport. The map records one method under this namespace, served by the Harness gateway over `/v1/ws`, with in-flight calls correlated against the `pendingRequests` pool so each reply is matched to the request that produced it."
+      "purpose": "Inferred from the component description and docs, since no excerpt or doc paragraph names this namespace: Portal is the native client for Harness and talks to its gateway over WebSocket JSON-RPC at `/v1/ws`, so the `client` namespace is one slice of that native-client RPC surface that the person running Portal relies on. Without it, the single method it carries would have no route from the app to the gateway; what that method does for the user is not shown.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "The `client` JSON-RPC namespace is dispatched by `GatewayClient` in `Sources/Portal/Services/GatewayClient.swift`. The map records one method under it, served by the Harness gateway, with in-flight calls correlated through the `pendingRequests` pool. No source excerpt shows the method itself."
     },
     {
       "cited_hash": "18ebe50d08d905904581d244b0b794fd5054153fc36a2d299b08bf83bf81f4e4",
@@ -1436,49 +1427,33 @@
       "summary": "The `code` JSON-RPC namespace is a single gateway method dispatched by `GatewayClient` and implemented in the `GatewayClient+CodeGraph` extension. It is invoked by `CodeGraphSource` in the operations state layer and by `CodeGraphSurfaceView` in the operations UI, with replies correlated through `pendingRequests` and served by the Harness gateway."
     },
     {
-      "cited_hash": "c8f6dba7a3a54b95db197880734c6120a7fb65688d71daa77d20bdb850ab85a1",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/Services/SkillStore.swift"
         }
       ],
       "fields": {},
       "key": "endpoint:jsonrpc:commands",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "How a command differs from a skill, and whether it feeds slash-command completion, is not established.",
         "No excerpt ranges were given, so evidence lines point at file starts, not method sites.",
         "No excerpts were supplied; the method name, parameters and result shape are unverified.",
         "Whether `commands` and `slash` overlap is unknown."
       ],
-      "purpose": "Inferred, since no `docs` paragraph names this namespace. Sharing callers with the skills loaders suggests it lists the commands the gateway accepts, so the person using Portal sees commands alongside skills on one surface. Without it, the app would know the skills but not the commands.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "purpose": "Inferred, since no `docs` paragraph names this namespace. Sharing callers with the skills loaders suggests it lists the commands the gateway accepts, so the person using Portal sees commands alongside skills on one surface. Without it, the app would presumably know the skills but not the commands; the excerpts do not confirm this.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`commands` is a one-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over WebSocket. `SkillStore`, `SkillCache` and `SkillsViewModel` invoke it, the same callers as `skills`, and its reply is correlated through `pendingRequests`."
     },
     {
-      "cited_hash": "a7a0d3606e82e4f2a68403903bb6c35385fea420040ba9f133aeb52dfdbc0708",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/Services/SessionMetaSyncService.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/PersonaManager.swift"
         }
       ],
       "fields": {
@@ -1486,14 +1461,15 @@
       },
       "key": "endpoint:jsonrpc:config",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
+        "Evidence line is a placeholder at the top of `GatewayClient.swift`; no excerpt range was supplied.",
         "Idempotency of any write cannot be stated.",
         "No excerpts: whether the two methods are get and set, and which keys, is unverified.",
         "Which callers write versus only read is not settled."
       ],
       "purpose": "Inferred from the code map, as no `docs` paragraph names it: with callers in chat, persona management and session metadata sync, `config` likely lets Portal read and write settings the gateway holds, so the person running Portal sees and changes what the gateway actually applies rather than a local copy. Without it those three surfaces would have no shared source of truth for gateway-side settings.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`config` is a JSON-RPC namespace of two methods that `GatewayClient` dispatches to the Harness gateway. It is invoked by `ChatViewModel`, `PersonaManager` and `SessionMetaSyncService`, and replies are matched through `pendingRequests`. No source excerpt is in the packet, so the method names and the keys they touch are not visible."
     },
     {
@@ -1532,7 +1508,7 @@
       "summary": "The `cron` JSON-RPC namespace groups four gateway methods dispatched by `GatewayClient` and implemented across `GatewayClient+Cron`, `GatewayClient+CronChangesets` and `GatewayClient+CronRevisions`. The component summary names `cron.changesets` (paged, filterable by since, until and job) and `cron.changeset_diff` (graphs around one change). `CronGraphViewModel` and `CronListViewModel` invoke it."
     },
     {
-      "cited_hash": "6869dd5ebc53635c5caa14ce54deebc550e58de1af0ac4cd60d59070ed018d01",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
@@ -1542,16 +1518,16 @@
       "fields": {},
       "key": "endpoint:jsonrpc:delegation",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "How `delegation` relates to the `subagent` and `spawn_tree` namespaces is not established.",
         "No caller edge exists; whether any surface invokes `delegation` is unknown.",
         "No excerpt ranges were given, so the evidence line is the file start, not the method site.",
         "No excerpts were supplied; the method name, parameters and result shape are unverified."
       ],
-      "purpose": "Inferred, since no `docs` paragraph names it: `docs/gateway-setup.md` says Harness adds a native-client RPC surface over upstream Hermes, and the name suggests this namespace lets Portal observe or direct how a running agent hands work to other agents. Without it, hand-offs between agents would be invisible to the person running Portal.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
-      "summary": "`delegation` is a one-method JSON-RPC namespace that `GatewayClient` dispatches over its WebSocket transport to the Harness gateway. The gateway's reply is matched back to the waiting caller through the shared `pendingRequests` pool. The map records no feature extension and no caller that invokes it."
+      "purpose": "Inferred, since no `docs` paragraph names it: `docs/gateway-setup.md` says Harness adds a native-client RPC surface over upstream Hermes, and the name suggests this namespace lets the person running Portal see or direct how a running agent hands work to other agents. Without it, such hand-offs would presumably have no entry point in the app; the excerpts do not confirm this.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "`delegation` is a one-method JSON-RPC namespace that `GatewayClient` dispatches over its WebSocket transport to the Harness gateway. The gateway's reply is matched back to the waiting caller through the shared `pendingRequests` pool. The map records no caller that invokes it beyond the owning client."
     },
     {
       "cited_hash": "4f24dc18f758db532a70e23247d916140a3ba61f63a3b57a5c853b8cd086f09b",
@@ -1641,15 +1617,11 @@
       "summary": "The `gateway` JSON-RPC namespace is a single method that `GatewayClient` dispatches and the `GatewayClient+Restart` extension implements. `GatewayRestartController` invokes it, with the reply correlated through `pendingRequests` and served by the Harness gateway."
     },
     {
-      "cited_hash": "09e80193b2392be555e6314cdb259a5dc2754b537bc3b908521fa03838b4f257",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
-          "line": 1,
+          "line": 32,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         }
       ],
       "fields": {
@@ -1657,14 +1629,15 @@
       },
       "key": "endpoint:jsonrpc:image",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
+        "Evidence line is the `GatewayClient` declaration line cited by `docs/GLOSSARY.md`; no excerpt range was supplied to check it.",
         "Idempotency on reconnect retry is unknown.",
         "No excerpts: whether the method uploads, generates, or fetches an image is unknown.",
         "Payload encoding and chunking for large data are not settled."
       ],
       "purpose": "Inferred from the code map, since no `docs` paragraph names it: with `ChatViewModel` as the caller, `image` likely lets a conversation carry picture content between Portal and the gateway, so the person running Portal can work with images rather than text alone. Without it the chat surface would be limited to what text alone can express.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`image` is a single-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway and that `ChatViewModel` invokes. The request is correlated with its reply through `pendingRequests`. No source excerpt is in the packet, so whether the method uploads, fetches or generates image data is not visible."
     },
     {
@@ -1691,15 +1664,11 @@
       "summary": "The `learning` JSON-RPC namespace is two gateway methods that `GatewayClient` dispatches and the `GatewayClient+Learning` extension implements. Replies are correlated through `pendingRequests` and served by the Harness gateway. The map records no in-app caller."
     },
     {
-      "cited_hash": "09e80193b2392be555e6314cdb259a5dc2754b537bc3b908521fa03838b4f257",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         }
       ],
       "fields": {
@@ -1707,26 +1676,23 @@
       },
       "key": "endpoint:jsonrpc:model",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
+        "Evidence line is a placeholder at the top of `GatewayClient.swift`; no excerpt range was supplied.",
         "Idempotency depends on whether it mutates state, which cannot be confirmed.",
         "No excerpts: whether the method lists, reads, or switches the model is unknown.",
         "Whether the call is per-session or gateway-wide is not settled."
       ],
       "purpose": "Inferred from the code map and the glossary's `SessionRuntimeState` entry, which records a per-session model badge that survives session switches: `model` likely lets Portal learn or set the model behind a session, so the person running Portal can see which model is answering and choose another from within the chat. Without it the badge and any model picker would have no gateway data to show.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
-      "summary": "`model` is a single-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over the WebSocket at `/v1/ws`, invoked by `ChatViewModel`. The call is tracked in `pendingRequests` until the gateway answers. No source excerpt is in the packet, so whether the method lists, reads or switches a model is not visible."
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "`model` is a single-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway, invoked by `ChatViewModel`. The call is tracked in `pendingRequests` until the gateway answers. No source excerpt is in the packet, so whether the method lists, reads or switches a model is not visible."
     },
     {
-      "cited_hash": "09e80193b2392be555e6314cdb259a5dc2754b537bc3b908521fa03838b4f257",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
-          "line": 1,
+          "line": 32,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         }
       ],
       "fields": {
@@ -1734,14 +1700,15 @@
       },
       "key": "endpoint:jsonrpc:prompt",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
+        "Evidence line is the `GatewayClient` declaration line cited by `docs/GLOSSARY.md`; no excerpt range was supplied to check it.",
         "No excerpts: the method name, parameters, and immediate result shape are unverified.",
         "Retry semantics for an in-flight prompt on reconnect are not visible.",
         "Whether the reply is an acknowledgement followed by `GatewayEvent` streaming is not confirmed."
       ],
       "purpose": "Inferred from the code map, since no `docs` paragraph names it: `prompt` is most likely how a chat turn leaves Portal and reaches the agent, the central action for the person running Portal. The setup docs say the WebSocket JSON-RPC surface exists only in Harness, so against a stock install this call could not start a run and the chat surface would have nothing to show.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`prompt` is a single-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over the WebSocket at `/v1/ws`. `ChatViewModel` is its only recorded caller, and each request is matched to its reply through `pendingRequests`. No source excerpt is in the packet, so the method name, parameters and result are not visible."
     },
     {
@@ -1793,67 +1760,51 @@
       "summary": "`service` is a JSON-RPC namespace of two methods that `GatewayClient` dispatches over its WebSocket transport to the Harness gateway. The `GatewayClient+ServiceLogs` extension implements them, and replies are matched through `pendingRequests`."
     },
     {
-      "cited_hash": "a0fc56544e9d7c6996b47c74b40855458652969c1276a6d52810da2b8003e49e",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/SessionListViewModel.swift"
         }
       ],
       "fields": {},
       "key": "endpoint:jsonrpc:session",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "No excerpt ranges were given, so evidence lines point at file starts, not method sites.",
         "No excerpts were supplied; the eleven method names and their shapes are unverified.",
         "Whether any method streams, or streaming arrives separately as notifications, is unknown.",
         "Which methods each caller uses, and which are reads versus mutations, is not established."
       ],
-      "purpose": "`architecture/specifications/artifact-intents.md` says sessions author and revise artifacts and that an intent may run as a contained session with native click-through into that run. `docs/GLOSSARY.md` lists session resume among the client's duties. This namespace is how the person using Portal starts, lists, resumes and inspects that agent work. Without it, chat, the session list and the intent dock have nothing to act on.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
-      "summary": "`session` is an eleven-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over WebSocket. `ChatViewModel`, `PageIntentDockModel`, `SessionListViewModel`, `SessionUsageBadge` and `SystemPromptSection` invoke it, and every reply is matched to its call through `pendingRequests`. It is the most widely called namespace in the map."
+      "purpose": "`architecture/specifications/artifact-intents.md` says sessions author and revise artifacts and that an intent may run as a contained session with native click-through into that run; `docs/GLOSSARY.md` lists session resume among the client's duties. This namespace is how the person using Portal reaches that agent work from chat, the session list, the usage badge and the intent dock. Without it those surfaces have nothing to act on. The specific verbs are inferred, not shown.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "`session` is an eleven-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over WebSocket. `ChatViewModel`, `PageIntentDockModel`, `SessionListViewModel`, `SessionUsageBadge` and `SystemPromptSection` invoke it, and every reply is matched to its call through `pendingRequests`."
     },
     {
-      "cited_hash": "a22daec9c0dd9c89e612944d1a581281b891aaa530d9b1bfb3ff8c4d7f7cdc40",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/Services/SkillStore.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/SkillsViewModel.swift"
         }
       ],
       "fields": {},
       "key": "endpoint:jsonrpc:skills",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "No excerpt ranges were given, so evidence lines point at file starts, not method sites.",
         "No excerpts were supplied; the four method names and their shapes are unverified.",
         "Which methods mutate skills and which only read them is not established.",
         "`SkillCache` is a caller in the map though docs call it dead; whether its path is reachable is unknown."
       ],
-      "purpose": "`docs/gateway-setup.md` says skills live on the gateway host outside the code checkout. This namespace is how Portal reads and works with them so the person using the app can browse skills without touching the host, with `SkillStore` holding the result across navigations. Without it, the skills surface would be empty. Which of the four methods read and which modify is inferred, not documented.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "purpose": "`docs/gateway-setup.md` says skills live on the gateway host outside the code checkout. This namespace is how Portal reaches them, so the person using the app can work with skills without touching the host, with `SkillStore` as the live holder per `docs/GLOSSARY.md`. Without it, the skills surface would have no source. Which of the four methods read and which modify is inferred, not documented.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`skills` is a four-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over WebSocket. `SkillStore`, `SkillCache` and `SkillsViewModel` invoke it, and replies are correlated through `pendingRequests`. `docs/GLOSSARY.md` describes `SkillCache` as having no references outside its own file."
     },
     {
-      "cited_hash": "6869dd5ebc53635c5caa14ce54deebc550e58de1af0ac4cd60d59070ed018d01",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
@@ -1863,19 +1814,19 @@
       "fields": {},
       "key": "endpoint:jsonrpc:slash",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "Idempotency and streaming cannot be stated without the code.",
         "No caller edge exists; whether any view model invokes `slash` is unknown.",
         "No excerpt ranges were given, so the evidence line is the file start, not the method site.",
         "No excerpts were supplied; the method name, parameters and result type are unverified."
       ],
-      "purpose": "Inferred from the code map alone, since no `docs` paragraph names it: the `slash` namespace likely lets Portal ask the gateway about slash-style commands, keeping the gateway the authority on what the person running Portal can type. Without it, slash handling would have to be hard-coded in the client.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "purpose": "Inferred from the map alone, since no `docs` paragraph names it: the `slash` namespace likely lets Portal hand slash-style commands to the gateway, keeping the gateway the authority on what the person running Portal can type. Without it, slash handling would presumably have to be hard-coded in the client; the excerpts do not confirm this.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`slash` is a one-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over WebSocket. Replies are matched to calls through the `pendingRequests` pool. The map records no caller for this namespace, only the owning client."
     },
     {
-      "cited_hash": "6869dd5ebc53635c5caa14ce54deebc550e58de1af0ac4cd60d59070ed018d01",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
@@ -1885,19 +1836,19 @@
       "fields": {},
       "key": "endpoint:jsonrpc:spawn_tree",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "No caller edge exists; which surface would render a tree, if any, is unknown.",
         "No excerpt ranges were given, so the evidence line is the file start, not the method site.",
         "No excerpts were supplied; the two method names and their shapes are unverified.",
         "Whether one method fetches a snapshot and the other subscribes to changes is not established."
       ],
-      "purpose": "Inferred, since no `docs` paragraph names this namespace. The name suggests it returns the tree of agents spawned from a session, so the person running Portal can see how work fanned out from one request. Without it, parent and child sessions would appear unrelated in the app.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "purpose": "Inferred, since no `docs` paragraph names this namespace. The name suggests it returns the tree of agents spawned from a session, so the person running Portal can see how work fanned out from one request. Without it, parent and child agent runs would presumably appear unrelated in the app; the excerpts do not confirm this.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`spawn_tree` is a two-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over WebSocket. Both methods have their replies correlated through the shared `pendingRequests` pool. The map records no caller for either method."
     },
     {
-      "cited_hash": "6869dd5ebc53635c5caa14ce54deebc550e58de1af0ac4cd60d59070ed018d01",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 1,
@@ -1907,27 +1858,23 @@
       "fields": {},
       "key": "endpoint:jsonrpc:subagent",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "No caller edge exists in the map; whether any surface reaches `subagent` is unknown.",
         "No excerpt ranges were given, so the evidence line is the file start, not the method site.",
         "No excerpts were supplied; the method name, parameters and result shape are unverified.",
         "Whether it overlaps with `spawn_tree` or `delegation` is not established."
       ],
-      "purpose": "Inferred, since no `docs` paragraph names this namespace. The name suggests it reads or acts on a child agent spawned from a parent session, which would let the person running Portal inspect nested agent work rather than only top-level sessions. Without it, work done by spawned agents would have no dedicated entry point in Portal.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "purpose": "Inferred, since no `docs` paragraph names this namespace. The name suggests it reads or acts on a child agent spawned from a parent session, which would let the person running Portal inspect nested agent work rather than only top-level sessions. Without it, work done by spawned agents would presumably have no dedicated entry point in Portal; the excerpts do not confirm this.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "`subagent` is a one-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over its WebSocket transport. Replies are correlated to the originating call through `pendingRequests`. The map records no caller for it beyond the owning client."
     },
     {
-      "cited_hash": "09e80193b2392be555e6314cdb259a5dc2754b537bc3b908521fa03838b4f257",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
-          "line": 1,
+          "line": 32,
           "path": "Sources/Portal/Services/GatewayClient.swift"
-        },
-        {
-          "line": 1,
-          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         }
       ],
       "fields": {
@@ -1935,14 +1882,15 @@
       },
       "key": "endpoint:jsonrpc:voice",
       "kind": "endpoint",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
+        "Evidence line is the `GatewayClient` declaration line cited by `docs/GLOSSARY.md`; no excerpt range was supplied to check it.",
         "How `ChatViewModel` uses the replies; no excerpt was provided.",
         "What the two `voice` methods are named and whether they carry audio, transcripts or configuration.",
         "Whether either method streams, or both are single request/reply."
       ],
       "purpose": "No `docs` paragraph in the packet names a voice feature, so this is inferred: `ChatViewModel` invoking the namespace suggests a spoken input or output path for the chat surface, letting the person running Portal talk to or hear the agent instead of typing. Without the Harness gateway serving these calls, that voice behaviour would not work.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "summary": "The `voice` JSON-RPC namespace is a pair of methods that `GatewayClient` dispatches over the Harness WebSocket transport. Replies are matched through `pendingRequests` and served by the Harness gateway, and `ChatViewModel` is the recorded caller. No source excerpt is in the packet, so method names and payloads are not visible."
     },
     {
@@ -2016,14 +1964,10 @@
       "summary": "In-process Apple MLX runtime (`MLX`, `MLXLLM`, `MLXLMCommon`) used by `MLXLocalChatEngine`, `MLXReasoningSummarizer` and `SkillSummaryService`. `MLXLocalChatEngine` loads a `ModelContainer` through `LLMModelFactory.shared.loadContainer` with `HFHubDownloader` and `HFTokenizerLoaderWrapper`. It tracks the loaded `LocalChatModel` so that changing the model reloads the weights."
     },
     {
-      "cited_hash": "f2561bbd0c1eab1a6a76d86dba87556a1922414b637a1d4afc08ee0ed9eb721c",
+      "cited_hash": "68a9bb7caaa08a450530bac18b9d73ddf9044f2ade5c9ca421138e73f5e882dc",
       "evidence": [
         {
-          "line": 18,
-          "path": "Sources/Portal/Models/ActivityStore.swift"
-        },
-        {
-          "line": 22,
+          "line": 19,
           "path": "Sources/Portal/Models/ActivityStore.swift"
         },
         {
@@ -2035,18 +1979,19 @@
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
-          "line": 692,
+          "line": 694,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         }
       ],
       "fields": {
         "auth": "none",
         "direction": "both",
-        "failure_visible_as": "Paths fall back to `/tmp` or the temporary directory when Application Support cannot be resolved",
+        "failure_visible_as": "Path falls back to `/tmp` or `temporaryDirectory`; `try?` drops directory-creation errors",
         "namespaces_or_apis": [
           "`FileManager.default`",
-          "`applicationSupportDirectory/portal`",
+          "`applicationSupportDirectory`",
           "`hermes-videos`",
+          "`long-session-perf.log`",
           "`portal/activity-items.json`",
           "`portal/artifacts.json`",
           "`portal/cron-graph-revisions.json`",
@@ -2064,17 +2009,18 @@
       },
       "key": "external:file-system",
       "kind": "external",
-      "model": "anthropic/claude-opus-5.5",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "The excerpts do not show whether `hermes-videos` sits under the `portal` folder or somewhere else.",
-        "Whether writes are atomic, or debounced beyond the `saveTask` in `ActivityStore`, is not shown."
+        "Read and write code for most listed files is not excerpted; only path construction for artifacts, activity and the perf log is visible.",
+        "The excerpts do not show whether `hermes-videos` sits under the `portal` folder or elsewhere.",
+        "Whether writes are atomic, and what the `saveTask` in `ActivityStore` debounces, is not shown."
       ],
-      "purpose": "Keeps the larger state behind README features on the device so it reloads on relaunch: living artifacts with their revisions, the activity inbox, cron and session run history, skills, curricula and quizzes. Users can then reopen work without refetching it from the gateway. Without it that state would be lost between launches. Part of this purpose is inferred from the file names in the map.",
-      "source_revision": "28a704cc176c5609f09622534d3cb2c00fa9ec42",
-      "summary": "Per-user JSON documents and directories under the Application Support `portal` folder, written through `FileManager.default`. `ArtifactStore` creates the folder and backs itself with `artifacts.json`. `ActivityStore` sets its `storageDir` there. `ChatViewModel` derives `perfLogURL` from Application Support when `--long-session-perf` is passed."
+      "purpose": "Keeps the larger state behind README features on the device so it survives a relaunch: living artifacts, the activity inbox, cron and session run history, skills, curricula and quizzes. The person running Portal can then reopen that work where they left it. Without it that state would not carry over between launches. Beyond `artifacts.json` and the activity folder, this purpose is inferred from the file names on the map, since the docs do not name this storage directly.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "Per-user JSON documents and directories under the Application Support `portal` folder, resolved through `FileManager.default`. `ArtifactStore` creates the folder and backs itself with `artifacts.json`. `ActivityStore` points its `storageDir` there. `ChatViewModel` derives `perfLogURL` (`long-session-perf.log`) there when `--long-session-perf` is passed."
     },
     {
-      "cited_hash": "71f6daaf44ee239d331249a91e7bccbb432572b367dd6f3182e9f6b2482abcfc",
+      "cited_hash": "809db820e4b8af25aa32f26152678425bb1d153f4a7728aaa13f718d0dfb4fab",
       "evidence": [
         {
           "line": 230,
@@ -2095,7 +2041,7 @@
       ],
       "fields": {
         "direction": "both",
-        "failure_visible_as": "`GatewayClient.ConnectionState` goes amber/red; client reconnects with exponential backoff and resumes session",
+        "failure_visible_as": "`GatewayClient.ConnectionState`, presented as green/amber/red on every surface",
         "namespaces_or_apis": [
           "`/v1/ws`",
           "`activity`",
@@ -2130,16 +2076,16 @@
       },
       "key": "external:harness-gateway",
       "kind": "external",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "The docs describe ping/pong keepalive, exponential-backoff reconnect and session resume, but that code is outside the excerpts.",
-        "The docs say `http(s)://` is converted to `ws(s)://` with `/v1/ws` appended, presumably in `GatewayURL.swift`, but that code is not excerpted.",
+        "The docs say `http(s)://` becomes `ws(s)://` with `/v1/ws` appended; the converting code is not excerpted.",
         "`NAMING-COLLISIONS.md` says `GatewayClient` also serves Centaur wiki and the Hermes Standard `/api/ws` sidecar; whether this node covers those is unsettled.",
         "`OnboardingView` has an `Authentication` section, but the excerpts do not show which credential the gateway expects."
       ],
-      "purpose": "This is the running agent runtime that Portal fronts, so the app is a control surface for a live agent rather than a viewer of local state. The setup docs have the operator install Hermes and run Harness for Portal, then paste its URL; the glossary centralizes `ConnectionState` so every surface agrees on what green/amber/red means. A client workaround (`resolvedMediaURL`) for a server-side bug shows Portal adapts to the gateway, not the reverse. Without it, chat, sessions, wiki, skills and cron stop.",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
-      "summary": "The Hermes backend: a WebSocket JSON-RPC server that `GatewayClient` reaches over a `URLSessionWebSocketTask` at a `/v1/ws` URL, matching numbered requests to `pendingRequests` continuations. `OnboardingView` collects the Harness URL (for example `ws://192.168.1.x:8642/v1/ws`) into `settings.gatewayURL`. Every chat, session, wiki, skills, cron, learning and artifact RPC crosses this boundary."
+      "purpose": "This is the agent runtime Portal fronts; the app is a client for it. `docs/gateway-setup.md` has the operator install Hermes, run Harness for Portal and paste its URL, and the glossary centralizes `GatewayClient.ConnectionState` so \"every surface agrees on what green/amber/red means\". The mechanical description says every chat, session, wiki, skills, cron, learning and artifact RPC crosses this boundary, so without a reachable gateway those features have nothing to talk to.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "The Hermes backend: a WebSocket JSON-RPC server that `GatewayClient` reaches with a `URLSessionWebSocketTask`, tracking replies in `pendingRequests` keyed by request ID. `OnboardingView` collects the Harness URL (placeholder `wss://your-harness.example.com/v1/ws`) into `settings.gatewayURL`. The map routes 27 JSON-RPC namespaces such as `session`, `cron` and `wiki` to it."
     },
     {
       "cited_hash": "0a589ba8be18e6ff7fb48f520576105137eb30426e3c983e01f52d925f875db6",
@@ -2230,14 +2176,10 @@
       "summary": "On-device speech engine that `TTSService` runs on. `LocalVoiceEngine.swift` compiles only under `#if canImport(FluidAudio)`. It imports `AVFoundation`, `CoreML` and `FluidAudio`, and it logs through a `PortalLogger` with category `LocalVoiceEngine`."
     },
     {
-      "cited_hash": "22edcc9a8bedf185411d6ac1e477ee31e168d94b0cde7ae27d9ad1acea65ded6",
+      "cited_hash": "78bf2e59b588f50bc23482c45e2b2df83fa46078c510b4e777d1580b2cfdcf4d",
       "evidence": [
         {
-          "line": 26,
-          "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
-        },
-        {
-          "line": 30,
+          "line": 25,
           "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
         },
         {
@@ -2255,8 +2197,7 @@
         "namespaces_or_apis": [
           "`@AppStorage`",
           "`UserDefaults.standard`",
-          "`artifactCellMode`",
-          "`artifactViewMode`",
+          "`artifactFolderSelection`",
           "`chatSkin`",
           "`macTopChromeCollapsed`",
           "`portal.*.fileMigrated`",
@@ -2264,21 +2205,25 @@
           "`portal.cronRunHistory`",
           "`portal.delegationBatchHistory`",
           "`portal.sessionRunHistory`",
+          "`portal.skillCache.timestamp`",
           "`portal.skillCache.v1`",
-          "`portal.skillStore.v2`"
+          "`portal.skillStore.timestamp`",
+          "`portal.skillStore.v2`",
+          "`portal.skillStore.version`"
         ],
         "protocol": "framework_api"
       },
       "key": "external:user-defaults",
       "kind": "external",
-      "model": "anthropic/claude-opus-5.5",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "The excerpts do not show whether any defaults are read off the main actor or synced across devices.",
-        "Which type writes `portal.skillCache.v1` and which writes `portal.skillStore.v2` is not settled, since the docs call `SkillCache` and `SkillStore` the same concept."
+        "The excerpts show only `@AppStorage` bindings in views; the code that reads and writes the `portal.*` keys is not excerpted.",
+        "Whether the `portal.*` payload keys are still written or only read once for migration to files is not shown.",
+        "Which type writes `portal.skillCache.v1` versus `portal.skillStore.v2` is unsettled; the docs call `SkillCache` and `SkillStore` the same concept."
       ],
-      "purpose": "Lets the person running Portal keep per-device choices across launches. `ContentView` persists the collapsed top chrome after users reported chrome that \"never seems to go away\" (#261). The glossary says `ThemeManager` persists the active palette here. Without it each relaunch would reset the chat skin, the artifact layout and the palette. The role of the `.fileMigrated` markers is inferred from the key names: they appear to record a move of older payloads into files.",
-      "source_revision": "28a704cc176c5609f09622534d3cb2c00fa9ec42",
-      "summary": "`UserDefaults` holds Portal's small preferences, reached through `UserDefaults.standard` and `@AppStorage`. Views bind display choices such as `macTopChromeCollapsed`, `chatSkin`, `artifactViewMode` and `artifactCellMode`. Stores keep `portal.*` keys for skill caches, run history, activity items and `.fileMigrated` markers."
+      "purpose": "Lets the person running Portal keep small per-device choices across launches. `ContentView` persists the collapsed top chrome after a report of chrome that \"never seems to go away\" (#261), and `ArtifactCanvasView` remembers the folder being shown. The glossary says `ThemeManager` persists the active palette here. Without it each relaunch would reset those choices. The role of the `.fileMigrated` markers is inferred from key names: they appear to record a move of older payloads into files.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "`UserDefaults` is the platform defaults store Portal reaches through `UserDefaults.standard` and `@AppStorage`. Views bind `macTopChromeCollapsed`, `chatSkin` and `artifactFolderSelection` to it. The map also places `portal.*` keys there for activity items, run histories, skill caches and `.fileMigrated` markers."
     },
     {
       "cited_hash": "f1d773ce58ca5bc19e371525673ec83929f9552e71bf0d2a1f9f5b9112a758c0",
@@ -2315,7 +2260,7 @@
       "summary": "As the `chat-state` hub, `ChatViewModel` binds the `AgentBackend` seam and receives its `eventStream`. It drives `GatewayClient` as transport and `MLXReasoningSummarizer` and `TTSService` as engines. It uses `ArtifactStore`, `LearningStore`, `SpawnTreeStore`, `ChatHistoryStore` and `SessionRunHistoryStore`, and persists to Application Support files and `UserDefaults`."
     },
     {
-      "cited_hash": "6869dd5ebc53635c5caa14ce54deebc550e58de1af0ac4cd60d59070ed018d01",
+      "cited_hash": "011beeaea72719201e1ea2fa361f26379fc5c8b49b52ab932d02289182152857",
       "evidence": [
         {
           "line": 40,
@@ -2330,11 +2275,27 @@
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         {
-          "line": 82,
+          "line": 236,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         {
-          "line": 86,
+          "line": 246,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 261,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 262,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 299,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 304,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         }
       ],
@@ -2356,16 +2317,17 @@
       },
       "key": "owner:hermes-services:GatewayClient",
       "kind": "transport",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "How `call` picks its timeout and how `CronPoller` reacts to `lateResponses` are outside the excerpt.",
         "Reconnect state (`reconnectAttempt`, `isReconnectScheduled`, `transportGeneration`) is not under `pendingRequestsLock`; which thread or actor owns it is unsettled.",
+        "The backoff formula itself is not in the excerpt; only `maxReconnectDelay` and `maxReconnectAttempts` are shown.",
         "Whether `eventStream` subscribers can fall behind is unsettled; `PassthroughSubject` shows no buffering.",
         "Whether the `promptBreakdown` mock fallback is still reachable from a shipping gateway is not shown."
       ],
       "purpose": "Gives the person running Portal one live connection through which every screen chats with and operates a Hermes gateway. Chat orchestration sees only the normalized `GatewayEvent` stream behind the `AgentBackend` seam, so a second backend can sit behind the same UI. A dropped link recovers and resumes the session instead of ending the conversation, while a genuinely dead host exhausts its attempts and stops with an error the user can act on rather than an endless \"Connecting…\".",
-      "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
-      "summary": "`GatewayClient` is the Hermes WebSocket JSON-RPC client and `URLSessionWebSocketDelegate`. It pairs `call` requests with replies via an `NSLock`-guarded `pendingRequests` table, pings every 15s and publishes `connectionState` and `lastPingRTT`. Events fan out on `eventStream`; late replies are named on `lateResponses`. It reconnects with capped backoff and keeps `lastSessionKey` for resume."
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "`GatewayClient` is the Hermes WebSocket JSON-RPC client and `URLSessionWebSocketDelegate`. It matches `call` requests to replies through an `NSLock`-guarded `pendingRequests` table, pings every 15s, and publishes `connectionState` and `lastPingRTT`. Events fan out on `eventStream`; late replies are named on `lateResponses`. It reconnects with capped backoff and keeps `lastSessionKey` for resume."
     },
     {
       "cited_hash": "46b7c670d02489c20d0d280a5dfd171543854b1434ed1876380c115403510fae",
@@ -2704,43 +2666,61 @@
       "summary": "`ActivityInboxView` shows the `ActivityItem` list from `ActivityInboxViewModel` inside a `NavigationStack`. It has an empty state, an error line and navigation to `ActivityDetailView`. Row context menus and toolbar buttons call `markRead`, `dismiss`, `markAllRead`, `clearAll` and `refresh`, and the view refreshes in a `.task` when it appears."
     },
     {
-      "cited_hash": "647364015022fc5e7a4dfc35061d872c25c70f357b95cc16cc5527f0a5b531ba",
+      "cited_hash": "bd0d10666dfc9a5c832bd18d90846946694629e0275acb69f0fa02b91f7de8dc",
       "evidence": [
         {
           "line": 9,
           "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
         },
         {
-          "line": 51,
+          "line": 10,
+          "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+        },
+        {
+          "line": 55,
+          "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+        },
+        {
+          "line": 58,
+          "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+        },
+        {
+          "line": 66,
           "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
         }
       ],
       "fields": {
         "entry_triggers": [
-          "trigger-2b0e66e5fa92",
+          "trigger-2cc580ca87e2",
           "trigger-5ccb880b41db",
-          "trigger-86901d8d660a",
-          "trigger-ba8f89d09d91",
-          "trigger-c0e5380c0c21",
-          "trigger-d2b7eafe9062",
-          "trigger-ef57759bd9ba"
+          "trigger-5e92e085a061",
+          "trigger-6e25ddc35707",
+          "trigger-75858bbdea6a",
+          "trigger-9fe08c3afdb0",
+          "trigger-c3ea65621612",
+          "trigger-f2a37a8f828c"
         ],
         "owns_state_in": [
+          "state:artifact-intents:ArtifactStore.idempotencyKeys",
+          "state:artifact-intents:ArtifactStore.querySubscriptions",
+          "state:artifact-intents:ArtifactStore.queryTasks",
+          "state:artifact-intents:ArtifactStore.sortedArtifactsCache",
           "store:artifact-intents:ArtifactQueryStateStore",
           "subscriber:ArtifactStore"
         ]
       },
       "key": "page:artifacts",
       "kind": "page",
-      "model": "us.anthropic.claude-fable-5-1",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "How `canvasBody`, `listBody`, and `reconcileLayout` persist layout under `artifactCanvasLayout.v1` is truncated.",
-        "Why `ArtifactDetailView` drives `CronListViewModel` refreshes is not visible here.",
-        "`ArtifactQueryStateStore` is a member but does not appear in the excerpt; its role on this page is not shown."
+        "No excerpt of `ArtifactStore.swift` was provided; the roles of `ArtifactQueryStateStore`, `idempotencyKeys`, `querySubscriptions` and `queryTasks` on this page are unconfirmed.",
+        "Why `ArtifactDetailView` calls `setGatewayClient` and `refreshJobs` on `CronListViewModel` is not visible in the excerpts.",
+        "`ArtifactNewFolderPrompt`, `ArtifactListRow` and `ArtifactMaintenanceSection` are named only by triggers; how they are reached from `ArtifactCanvasView` is not shown.",
+        "`canvasBody`, `listBody` and `reconcileLayout` are truncated; how the layout is persisted under `artifactCanvasLayout.v1` is not shown."
       ],
-      "purpose": "The architecture spec describes a living artifact as a named, persistent object the agent maintains across turns and sessions, one that accumulates revisions and may carry its own verbs so the user acts on the thing itself. This page is where the person running Portal finds those objects outside any single conversation, resyncs them from the harness, and expands one into a full control surface. Without it artifacts remain pictures inside the message that produced them.",
-      "source_revision": "570a8cf12cc1b6c4a976005ef9d30e1cd85bfb59",
-      "summary": "`ArtifactCanvasView` is the living-artifacts page. It observes `ArtifactStore.shared`, pulls from the harness on appear and via a resync button, renders artifacts as a list or a dashboard canvas with preview or full cells, reconciles the canvas layout when `sortedArtifactIDs` change, and expands a chosen artifact in place through `ArtifactExpandedOverlay`."
+      "purpose": "The spec describes a living artifact as a named, persistent object the agent maintains across turns and sessions, accumulating revisions and possibly carrying its own verbs so the user acts on the thing itself. This page is where the person running Portal finds those objects outside any single conversation, refreshes them, and expands one into a full control surface. Without it, artifacts would have no standing place to be browsed; that last point is inferred from the code.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "`ArtifactCanvasView` is the living-artifacts page. It observes `ArtifactStore.shared`, calls `pull()` on appear and from a toolbar refresh button, shows artifacts as a list or a canvas (`viewMode`) with preview or full cells (`cellMode`), reconciles the canvas layout when `sortedArtifactIDs` changes, and expands a chosen artifact in place through `ArtifactExpandedOverlay`."
     },
     {
       "cited_hash": "281b47ddd09e0584214ebf1662c495d63153cad121b26f85c571557948263069",
@@ -3384,23 +3364,23 @@
       "summary": "`AgentBackend` is the protocol in `Services/AgentBackend.swift` that `ChatViewModel` binds to and that `ChatViewModel` and `PageIntentDockModel` hold as their backend handle. `GatewayClient` conforms to it. It declares an `eventStream` that delivers normalized `GatewayEvent` values."
     },
     {
-      "cited_hash": "5a9c25fea9616ec0f01b44857ab25c161a8d7d80c5fd8d49d462b02a1d5bc3bc",
+      "cited_hash": "e15cfdaed30ebd8957af8a68b1adbd3651865c3272e3f00ca05d5448f139b364",
       "evidence": [
         {
-          "line": 857,
+          "line": 912,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
-          "line": 858,
+          "line": 913,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
-          "line": 859,
+          "line": 914,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         }
       ],
       "fields": {
-        "keyed_by": "`intentStates` by `String` slot key; `queryStates` by `QuerySlot`",
+        "keyed_by": "`intentStates` by `String`; `queryStates` by `QuerySlot`",
         "medium": "in_memory",
         "readers": [
           "subscriber:ArtifactStore"
@@ -3411,22 +3391,22 @@
           "QueryState"
         ],
         "retention": "session",
-        "sensitive": false,
         "writers": [
           "subscriber:ArtifactStore"
         ]
       },
       "key": "store:artifact-intents:ArtifactQueryStateStore",
       "kind": "store",
-      "model": "anthropic/claude-opus-5.5",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
         "Does ledger rehydration seed `intentStates` at launch, as the component summary suggests?",
+        "What is the format of the `String` key for `intentStates`?",
         "Which `ArtifactStore` methods mutate these dictionaries, and when are entries cleared?",
         "Which views observe this object directly rather than through `ArtifactStore`?"
       ],
-      "purpose": "The component summary says dispatch slots are keyed so sibling rows report independently. It also says a silent refusal looks like a dead control. This object gives artifact surfaces one observable place to read each slot's live intent and query status. The user who clicked an artifact control then sees a pending, failed or refused outcome. The purpose is partly inferred, since the docs name `ArtifactStore` rather than this class.",
-      "source_revision": "28a704cc176c5609f09622534d3cb2c00fa9ec42",
-      "summary": "`ArtifactQueryStateStore` is a small `ObservableObject` declared in `ArtifactStore.swift`. It publishes two in-memory dictionaries. `intentStates` maps a `String` slot key to `ArtifactStore.IntentInvocationState`. `queryStates` maps `ArtifactStore.QuerySlot` to `ArtifactStore.QueryState`. Both setters are `fileprivate`, so only code in that file can mutate them, and nothing is persisted."
+      "purpose": "Inferred from the code and the component summary, since the docs name `ArtifactStore` rather than this class: dispatch slots are keyed so sibling rows report independently, and a silent refusal looks like a dead control. This object gives artifact surfaces one observable place for per-slot intent and query status, so the person running Portal who clicks an artifact control can see its outcome instead of nothing.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "`ArtifactQueryStateStore` is a small `ObservableObject` declared in `ArtifactStore.swift`. It publishes two in-memory dictionaries: `intentStates`, mapping a `String` key to `ArtifactStore.IntentInvocationState`, and `queryStates`, mapping `ArtifactStore.QuerySlot` to `ArtifactStore.QueryState`. Both setters are `fileprivate`, so only code in that file can mutate them."
     },
     {
       "cited_hash": "1097f312fbca3a26795a1fe05a052c42aa21ea5bf3344fd73bb23b5d893f44d6",
@@ -4556,7 +4536,7 @@
       "summary": "`ActivityInboxViewModel` subscribes to `eventStream` on the main run loop in `setGatewayClient(_:)` and routes each `GatewayEvent` through `handle(_:eventSessionID:)`. Activity events are upserted directly. Approval, clarify, sudo, secret, error, background and subagent events become synthesized `ActivityItem`s in `ActivityStore`, and most are sent to `NotificationService`."
     },
     {
-      "cited_hash": "5a9c25fea9616ec0f01b44857ab25c161a8d7d80c5fd8d49d462b02a1d5bc3bc",
+      "cited_hash": "e15cfdaed30ebd8957af8a68b1adbd3651865c3272e3f00ca05d5448f139b364",
       "evidence": [
         {
           "line": 18,
@@ -4571,13 +4551,22 @@
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
-          "line": 39,
+          "line": 78,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 99,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 116,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         }
       ],
       "fields": {
         "reacts_to": [
           "`artifact.query` conflict (one retry)",
+          "change of `artifacts` or `focusedGatewayID`",
           "fence block with id (`upsert`)",
           "page query run or release (`runQuery`, `releaseQueries`)",
           "user action on an entry (`applyAction`)"
@@ -4587,18 +4576,20 @@
           "`focusedGatewayID: UUID?` (@Published)",
           "`idempotencyKeys`, `querySubscriptions`, `queryTasks`",
           "`live: ArtifactQueryStateStore` (`queryStates`, `intentStates`)",
+          "`sortedArtifactsCache`, `sortedArtifactIDsCache`",
           "`syncAvailable: Bool?` and weak `client`"
         ]
       },
       "key": "subscriber:ArtifactStore",
       "kind": "surface",
-      "model": "anthropic/claude-opus-5.5",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "The excerpt truncates before `invokeIntent`, `schedulePush`, `persistToDisk` and `setClient`; how `eventStream` is subscribed is not visible."
+        "How `idempotencyKeys` are issued and reused is described only in a comment; the code that does it is not in the excerpt.",
+        "The excerpt truncates before `invokeIntent`, `schedulePush`, `persistToDisk` and the client setter; how `eventStream` notifications are subscribed and handled is not visible."
       ],
-      "purpose": "Per `artifact-intents.md`, a living artifact is a named, persistent object that the agent maintains and the user can act on. `ArtifactStore` keeps that object on the device for the person running Portal. Their triage lands in revision history, and query results reach the page without redrawing the whole canvas. Without it, artifacts would be transient rendered messages rather than control surfaces.",
-      "source_revision": "28a704cc176c5609f09622534d3cb2c00fa9ec42",
-      "summary": "`ArtifactStore` is a shared `ObservableObject` that holds each `LivingArtifact` by id. It merges fence bodies in `upsert`, applies declared per-entry actions in `applyAction`, and runs page queries in `runQuery` through an `ArtifactGateway`. It persists to `portal/artifacts.json` and keeps query and intent states in `ArtifactQueryStateStore`."
+      "purpose": "Per `artifact-intents.md`, a living artifact is a named, persistent object the agent maintains across turns and the user can act on. `ArtifactStore` keeps that object on the device for the person running Portal: their triage reaches agents and revision history, and live query results refresh only the slot that shows them rather than the whole canvas. Without it, artifacts would be transient rendered messages rather than control surfaces.",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "summary": "`ArtifactStore` is a shared `ObservableObject` that holds each `LivingArtifact` by id. It merges fence bodies in `upsert`, applies declared per-entry actions in `applyAction`, and runs coalesced page queries in `runQuery` through an `ArtifactGateway`. It loads from and persists to `portal/artifacts.json` and keeps query and intent states in `ArtifactQueryStateStore`."
     },
     {
       "cited_hash": "9dd62b144f520acb1eb5e3a91639418b275d5dc309c0c95f6afe228a48dfe7e4",

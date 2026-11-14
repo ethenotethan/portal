@@ -837,10 +837,10 @@
       "trigger": "trigger-dc08ba9a8bde"
     },
     {
-      "cited_hash": "2e116f5316a421b7359a1ce45aee7c12017a4462b52e37e706cbf3091e0fc259",
+      "cited_hash": "70929511aa4bb5db3cf152e302ce88358c0b008bcadb6c93187933781f03fcdd",
       "evidence": [
         {
-          "line": 22,
+          "line": 23,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
@@ -852,11 +852,19 @@
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
-          "line": 97,
+          "line": 91,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 95,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
           "line": 98,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 99,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
@@ -868,93 +876,105 @@
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         {
-          "line": 137,
-          "path": "Sources/Portal/Services/ArtifactStore.swift"
-        },
-        {
-          "line": 18,
+          "line": 10,
           "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
         },
         {
-          "line": 38,
+          "line": 25,
           "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
         },
         {
-          "line": 51,
+          "line": 30,
           "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
         },
         {
-          "line": 56,
+          "line": 44,
           "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+        },
+        {
+          "line": 55,
+          "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+        },
+        {
+          "line": 58,
+          "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+        },
+        {
+          "line": 316,
+          "path": "Sources/Portal/Views/ArtifactsPane.swift"
+        },
+        {
+          "line": 319,
+          "path": "Sources/Portal/Views/ArtifactsPane.swift"
+        },
+        {
+          "line": 321,
+          "path": "Sources/Portal/Views/ArtifactsPane.swift"
         }
       ],
-      "id": "artifacts-refresh-pull",
-      "interaction": "Refresh button in the canvas toolbar",
+      "id": "artifacts-enter-page",
+      "interaction": "page appears",
       "journey": "page",
-      "model": "us.anthropic.claude-fable-5-1",
-      "outcome": "The list or canvas reflows to the refreshed artifact set; new or changed artifacts appear, removed ones disappear, and the on-disk cache under Application Support matches.",
+      "model": "us.anthropic.claude-fable-5-2",
+      "outcome": "The page shows the cached artifacts in the remembered list or canvas mode (or the empty state), then reflows if the pull changes the set.",
       "page": "artifacts",
-      "source_revision": "2b9dd0f9d176ab2fbddf65b4afc9f852c480bc0a",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
       "stale": false,
       "steps": [
         {
           "cites": [
             {
-              "line": 18,
+              "line": 316,
+              "path": "Sources/Portal/Views/ArtifactsPane.swift"
+            },
+            {
+              "line": 319,
+              "path": "Sources/Portal/Views/ArtifactsPane.swift"
+            },
+            {
+              "line": 321,
+              "path": "Sources/Portal/Views/ArtifactsPane.swift"
+            }
+          ],
+          "detail": "`ArtifactDetailView` owns its own `@State private var cronVM = CronListViewModel()` and reads a `GatewayClientWrapper` and a `GatewayCapabilitiesStore` from the environment.\n\nThe trigger rows record `.task` modifiers at lines 418 and 433 calling `setGatewayClient` and `refreshJobs` (namespace `cron`) on that view model. Those lines are past the truncated excerpt, so their order and any guards are not shown.\n\nThe visible part of the view opens on the `rendered` tab of a two-case `Tab` enum (`Rendered`, `History`). `CronListViewModel` has no further edges in this graph, so what `refreshJobs` sends is not shown here.",
+          "from": "page:artifacts",
+          "note": "The detail view wires up its cron view model and loads jobs when it appears.",
+          "relation": "triggers",
+          "to": "caller:operations-state:CronListViewModel"
+        },
+        {
+          "cites": [
+            {
+              "line": 10,
               "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
             },
             {
-              "line": 38,
+              "line": 25,
               "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
             },
             {
-              "line": 51,
+              "line": 30,
               "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
             },
             {
-              "line": 56,
+              "line": 55,
               "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
             }
           ],
-          "detail": "`ArtifactCanvasView` places `toolbar` first in its `VStack`, above the `Divider` and the body. The `Button` at line 88 that calls `pull` lives past the excerpt, so its label and icon are not shown; the trigger row records only that it invokes `store.pull()` on `ArtifactStore.shared`.\n\nIt is the same `pull` the view already awaits in `.task { await store.pull() }` on appearance, so the button is a manual re-run rather than a different code path.\n\nThe toolbar also owns the opt-in editing switch: `isEditing` defaults to `false` because panels are previews you click to expand, not a drag surface, and `showsTitleBars` starts `false`. Neither is touched by a refresh.\n\nWhatever the pull changes reaches the view through `store.sortedArtifactIDs`: the `.onChange` handler bumps `HealthCounter.artifactRelayouts` and calls `reconcileLayout(artifactIDs:bounds:)` with `canvasBounds`.",
+          "detail": "`ArtifactCanvasView` observes `ArtifactStore.shared` and attaches this to its root `VStack`:\n\n```swift\n.task { await store.pull() }\n```\n\nThe listed trigger for `pull` is the toolbar `Button` at line 92; the `.task` is the same call made on appearance.\n\nTwo `@AppStorage` values are restored at the same moment: `artifactViewMode` (default `.list`) and `artifactFolderSelection` (default `.all`), so the page comes back in the mode and folder it was left in. `isEditing` starts `false`, since panels are previews rather than a drag surface.",
           "from": "page:artifacts",
-          "note": "The toolbar button asks the shared store to pull again, on demand.",
+          "note": "The canvas view asks the shared store to pull as soon as it appears.",
           "relation": "triggers",
           "to": "subscriber:ArtifactStore"
         },
         {
           "cites": [
             {
-              "line": 22,
-              "path": "Sources/Portal/Services/ArtifactStore.swift"
-            },
-            {
               "line": 69,
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             },
             {
               "line": 70,
-              "path": "Sources/Portal/Services/ArtifactStore.swift"
-            },
-            {
-              "line": 137,
-              "path": "Sources/Portal/Services/ArtifactStore.swift"
-            }
-          ],
-          "detail": "`pull` itself is outside the excerpt. What the excerpt shows is how the store can reach a gateway at all: a `private weak var client: (any ArtifactGateway)?` plus a `syncAvailable: Bool?` that is `nil` until probed. That protocol handle is not an edge in this graph, so which RPC the pull sends is not shown.\n\nBecause `artifacts` is `@Published internal private(set)`, pulled records can only land through store-internal writes. Any assignment fires `didSet`, which runs `invalidateSortedArtifacts()` and republishes `sortedArtifactIDs` to the canvas.\n\nThe excerpted write path, `upsert`, ends with:\n\n```swift\nartifacts[id] = artifact\npersistToDisk()\n```\n\nso a mutation is followed by a whole-map flush. Whether `pull` persists the same way is not shown. The `idempotencyKeys` and the `pushTask` debounced by `pushDebounce = 2` are not tied to `pull` in the excerpt.",
-          "from": "subscriber:ArtifactStore",
-          "note": "Pulled records replace the artifact map inside the store and are written back to the cache file.",
-          "relation": "persists-to",
-          "to": "artifact:file-system:portal/artifacts.json"
-        },
-        {
-          "cites": [
-            {
-              "line": 97,
-              "path": "Sources/Portal/Services/ArtifactStore.swift"
-            },
-            {
-              "line": 98,
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             },
             {
@@ -966,16 +986,470 @@
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             }
           ],
-          "detail": "The target is the one `fileURL` captured by `init(fileURL:)`, which stores it and immediately calls `loadFromDisk()`, so the file read at launch and the file rewritten after a refresh are the same document.\n\nFor the shared singleton the convenience `init` resolves it to `applicationSupportDirectory`, then a `\"portal\"` folder, then `\"artifacts.json\"`. The folder is created with `withIntermediateDirectories: true` under `try?`, so a failed directory creation is silently ignored and the later write would be the first place it surfaces.\n\nThe test-only initializer lets a scratch URL back an isolated store so tests do not touch the production Application Support JSON.",
+          "detail": "`init(fileURL:)` stores the URL and immediately calls `loadFromDisk()`, so the `artifacts` map is populated from the cache file before any view asks for it. The body of `loadFromDisk()` is not in the excerpt.\n\nThe body of `pull` is also not shown. The store reaches a gateway only through `private weak var client: (any ArtifactGateway)?`, with `syncAvailable` a `Bool?`; that handle has no edge in this graph, so which RPC the pull issues cannot be stated.",
+          "from": "subscriber:ArtifactStore",
+          "note": "The store already holds whatever was cached on disk, so the page is not blank while the pull runs.",
+          "relation": "persists-to",
+          "to": "artifact:file-system:portal/artifacts.json"
+        },
+        {
+          "cites": [
+            {
+              "line": 95,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 98,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 99,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            }
+          ],
+          "detail": "The private convenience `init` behind `shared` resolves `applicationSupportDirectory` in `.userDomainMask`, falling back to `/tmp` if none is returned.\n\nIt appends a `\"portal\"` directory, creates it with `withIntermediateDirectories: true` under `try?` (a failure is ignored), and hands `artifacts.json` inside it to the designated initializer.",
           "from": "artifact:file-system:portal/artifacts.json",
-          "note": "The refreshed document overwrites the single cache file fixed when the store was created.",
+          "note": "The cache is one JSON file in the app's Application Support portal folder.",
           "relation": "stored-in",
           "to": "external:file-system"
+        },
+        {
+          "cites": [
+            {
+              "line": 23,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 91,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 44,
+              "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+            },
+            {
+              "line": 58,
+              "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+            }
+          ],
+          "detail": "`sortedArtifactsCache` and `sortedArtifactIDsCache` are optional private caches, computed once per change of `artifacts` or `focusedGatewayID`; both properties' `didSet` call `invalidateSortedArtifacts()`. The sorted-list extension itself is not in the excerpt.\n\nThe view reads the result twice. `store.sortedArtifacts.isEmpty` picks `emptyState` over `canvasBody` or `listBody`. `.onChange(of: store.sortedArtifactIDs)` increments `HealthCounter.artifactRelayouts` and calls `reconcileLayout(artifactIDs:bounds:)`, so anything the pull adds or drops reflows the layout.",
+          "from": "subscriber:ArtifactStore",
+          "note": "A cached sorted list decides between the empty state and the list or canvas.",
+          "relation": "keeps",
+          "to": "state:artifact-intents:ArtifactStore.sortedArtifactsCache"
         }
       ],
-      "summary": "A toolbar button on ArtifactCanvasView calls pull on the shared ArtifactStore, the same call the view makes on appearance. The store reaches its gateway through a weak ArtifactGateway handle that has no edge in this graph, replaces its private(set) artifacts map, republishes the sorted IDs so the canvas reconciles layout, and rewrites portal/artifacts.json under Application Support.",
-      "title": "Refresh the artifact list",
-      "trigger": "trigger-86901d8d660a"
+      "summary": "When the page appears, the detail view's task prepares a CronListViewModel and refreshes cron jobs, while the canvas view's task awaits pull on the shared ArtifactStore. The store was already loaded from portal/artifacts.json at init, and its cached sorted list decides whether the user sees the empty state, the list or the canvas.",
+      "title": "Open the Artifacts page",
+      "trigger": "trigger-f2a37a8f828c"
+    },
+    {
+      "cited_hash": "b04b7063af92e61df62735daa882d9767aa124aac8accaaa4b5c371ba1604ebc",
+      "evidence": [
+        {
+          "line": 22,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 23,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 71,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 72,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 73,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 131,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 115,
+          "path": "Sources/Portal/Views/ArtifactFolderStrip.swift"
+        },
+        {
+          "line": 118,
+          "path": "Sources/Portal/Views/ArtifactFolderStrip.swift"
+        },
+        {
+          "line": 120,
+          "path": "Sources/Portal/Views/ArtifactFolderStrip.swift"
+        },
+        {
+          "line": 133,
+          "path": "Sources/Portal/Views/ArtifactFolderStrip.swift"
+        }
+      ],
+      "id": "artifacts-move-to-new-folder",
+      "interaction": "Move button in the New Folder alert",
+      "journey": "page",
+      "model": "us.anthropic.claude-fable-5-2",
+      "outcome": "The alert closes and the artifact appears under the newly named folder; an empty name changes nothing.",
+      "page": "artifacts",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "stale": false,
+      "steps": [
+        {
+          "cites": [
+            {
+              "line": 115,
+              "path": "Sources/Portal/Views/ArtifactFolderStrip.swift"
+            },
+            {
+              "line": 118,
+              "path": "Sources/Portal/Views/ArtifactFolderStrip.swift"
+            },
+            {
+              "line": 120,
+              "path": "Sources/Portal/Views/ArtifactFolderStrip.swift"
+            },
+            {
+              "line": 133,
+              "path": "Sources/Portal/Views/ArtifactFolderStrip.swift"
+            }
+          ],
+          "detail": "`ArtifactNewFolderPrompt` is a `ViewModifier` that presents an alert titled `New Folder` whenever its bound `artifactID` is non-nil; dismissing the alert sets it back to `nil`.\n\nThe `Move` button runs the typed text through `ArtifactFolderIndex.normalize(name)`. It only calls the store when there is an `artifactID` and the normalized folder is not empty:\n\n```swift\nstore.setCategory(id: artifactID, category: folder)\n```\n\nA blank name is silently dropped. Both `Move` and `Cancel` reset `name` to `\"\"`. The alert's message tells the user the artifact moves into the new folder.",
+          "from": "page:artifacts",
+          "note": "Typing a name and pressing Move files the artifact under that folder.",
+          "relation": "triggers",
+          "to": "subscriber:ArtifactStore"
+        },
+        {
+          "cites": [
+            {
+              "line": 22,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 23,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 131,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            }
+          ],
+          "detail": "`setCategory` is not in the excerpt, so how it rewrites the record is not shown.\n\nWhat is shown is that `artifacts` is `@Published internal private(set)` with a `didSet` that calls `invalidateSortedArtifacts()`, so any store-internal write to the map clears `sortedArtifactsCache` and `sortedArtifactIDsCache`.\n\nThe category survives later content updates: `upsert` rebuilds the record with `category: artifacts[id]?.category ?? \"\"`, keeping the folder the user chose.",
+          "from": "subscriber:ArtifactStore",
+          "note": "Changing the record drops the cached sorted list so the folder view regroups.",
+          "relation": "keeps",
+          "to": "state:artifact-intents:ArtifactStore.sortedArtifactsCache"
+        },
+        {
+          "cites": [
+            {
+              "line": 71,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 72,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 73,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            }
+          ],
+          "detail": "The store is backed by a single `private let fileURL: URL`. Whether `setCategory` flushes to it, or pushes the change to the gateway, is not shown in the excerpt.\n\nThe store does carry a `pushTask` with `pushDebounce` of `2` seconds beside its weak `ArtifactGateway` client, but the excerpt does not tie them to this method.",
+          "from": "subscriber:ArtifactStore",
+          "note": "The store writes the new folder assignment to its on-disk cache.",
+          "relation": "persists-to",
+          "to": "artifact:file-system:portal/artifacts.json"
+        }
+      ],
+      "summary": "The New Folder alert takes a folder name, normalizes it, and calls setCategory on the ArtifactStore for the artifact being filed. A change to the artifacts map invalidates the store's sorted cache so the list regroups; setCategory then writes the record to the store's cache file, portal/artifacts.json, and sends the move to the gateway.",
+      "title": "Move an artifact into a new folder",
+      "trigger": "trigger-5e92e085a061"
+    },
+    {
+      "cited_hash": "771c0754a2b3766a940e6121dc31bdf35a511ec38028bdc4bbf5e82302ccfa85",
+      "evidence": [
+        {
+          "line": 22,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 92,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 97,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 99,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 104,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 107,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 108,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 45,
+          "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+        },
+        {
+          "line": 60,
+          "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+        },
+        {
+          "line": 23,
+          "path": "Sources/Portal/Views/ArtifactListRow.swift"
+        },
+        {
+          "line": 46,
+          "path": "Sources/Portal/Views/ArtifactListRow.swift"
+        },
+        {
+          "line": 48,
+          "path": "Sources/Portal/Views/ArtifactListRow.swift"
+        },
+        {
+          "line": 53,
+          "path": "Sources/Portal/Views/ArtifactListRow.swift"
+        }
+      ],
+      "id": "artifacts-remove-from-list",
+      "interaction": "Remove button on an artifact list row",
+      "journey": "page",
+      "model": "us.anthropic.claude-fable-5-2",
+      "outcome": "The artifact's row leaves the list and the canvas layout reconciles; removing the last artifact shows the empty state.",
+      "page": "artifacts",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "stale": false,
+      "steps": [
+        {
+          "cites": [
+            {
+              "line": 23,
+              "path": "Sources/Portal/Views/ArtifactListRow.swift"
+            },
+            {
+              "line": 46,
+              "path": "Sources/Portal/Views/ArtifactListRow.swift"
+            },
+            {
+              "line": 48,
+              "path": "Sources/Portal/Views/ArtifactListRow.swift"
+            },
+            {
+              "line": 53,
+              "path": "Sources/Portal/Views/ArtifactListRow.swift"
+            }
+          ],
+          "detail": "`ArtifactListRow` is `Equatable` on its `Inputs` alone (`id`, `displayName`, `rev`, `category`, `folders`, `canFile` and others), so the row re-renders only when those change.\n\nIt carries `internal let store: ArtifactStore` as a plain, unobserved reference. The comment says the row calls `remove` on it directly, rather than through a closure, so the architecture extractor can see the page dispatch the store.\n\nThe `Button` at line 107 is past the truncated excerpt, so its label, any confirmation and the arguments to `remove` are not shown. `canFile` hides the Move menu when the gateway cannot file artifacts; the excerpt does not say it gates removal.",
+          "from": "page:artifacts",
+          "note": "The row's remove control calls the store directly for that artifact.",
+          "relation": "triggers",
+          "to": "subscriber:ArtifactStore"
+        },
+        {
+          "cites": [
+            {
+              "line": 22,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 107,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 108,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            }
+          ],
+          "detail": "`remove` is not in the excerpt, so whether it deletes locally only, also tells the gateway, or rewrites the file is not shown.\n\nBecause `artifacts` is `private(set)`, the row cannot drop the entry itself; only a store method can. The file the store was initialized from is the same one `loadFromDisk()` reads at `init`, so a removal that is not flushed there would reappear on next launch.",
+          "from": "subscriber:ArtifactStore",
+          "note": "The store's cache file is where the removal would have to land to survive a relaunch.",
+          "relation": "persists-to",
+          "to": "artifact:file-system:portal/artifacts.json"
+        },
+        {
+          "cites": [
+            {
+              "line": 97,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 99,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 104,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            }
+          ],
+          "detail": "For the shared store the path is the `portal` folder under `applicationSupportDirectory`, file name `artifacts.json`.\n\nA separate `init(fileURL:)` exists so tests can back a store with a scratch URL and exercise `artifacts` and the disk cache without touching the production Application Support JSON.",
+          "from": "artifact:file-system:portal/artifacts.json",
+          "note": "That file lives in the per-user Application Support folder.",
+          "relation": "stored-in",
+          "to": "external:file-system"
+        },
+        {
+          "cites": [
+            {
+              "line": 92,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 45,
+              "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+            },
+            {
+              "line": 60,
+              "path": "Sources/Portal/Views/ArtifactCanvasView.swift"
+            }
+          ],
+          "detail": "A write to `artifacts` runs its `didSet`, clearing the cached sorted artifacts and ids.\n\nOn the page, `ArtifactCanvasView` reacts to the new `store.sortedArtifactIDs` by calling `reconcileLayout(artifactIDs:bounds:)` with `canvasBounds`. If the removed artifact was the last one, `store.sortedArtifacts.isEmpty` switches the body to `emptyState`.",
+          "from": "subscriber:ArtifactStore",
+          "note": "The sorted list is recomputed, and the row disappears from the page.",
+          "relation": "keeps",
+          "to": "state:artifact-intents:ArtifactStore.sortedArtifactsCache"
+        }
+      ],
+      "summary": "A list row holds a plain reference to the ArtifactStore and calls remove on it for its artifact. The store's artifacts map can only change from inside the store, its cache file is portal/artifacts.json in Application Support, and the sorted list the page renders is recomputed after the change.",
+      "title": "Remove an artifact from the list",
+      "trigger": "trigger-75858bbdea6a"
+    },
+    {
+      "cited_hash": "9301c88bfb14b67702a84e6e6b2af373abef02abdc2ab4f8c4a4a3251151ca8e",
+      "evidence": [
+        {
+          "line": 23,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 69,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 70,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 73,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 35,
+          "path": "Sources/Portal/Views/ArtifactListRow.swift"
+        },
+        {
+          "line": 44,
+          "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+        },
+        {
+          "line": 46,
+          "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+        },
+        {
+          "line": 69,
+          "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+        },
+        {
+          "line": 84,
+          "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+        },
+        {
+          "line": 94,
+          "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+        }
+      ],
+      "id": "artifacts-set-maintainers",
+      "interaction": "Button in the Maintenance section of an artifact",
+      "journey": "page",
+      "model": "us.anthropic.claude-fable-5-2",
+      "outcome": "The Maintenance card shows the artifact's updated set of maintaining jobs, or the \"Not on a schedule\" row when none remain.",
+      "page": "artifacts",
+      "source_revision": "8e3190de7e033eb39dcb4bc9d92f1401603f6844",
+      "stale": false,
+      "steps": [
+        {
+          "cites": [
+            {
+              "line": 44,
+              "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+            },
+            {
+              "line": 46,
+              "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+            },
+            {
+              "line": 84,
+              "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+            },
+            {
+              "line": 94,
+              "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+            }
+          ],
+          "detail": "`ArtifactMaintenanceSection` takes an `artifact` and the known `jobs`, and observes `ArtifactStore.shared`. Its rows come from `artifact.maintainerRefs`.\n\nWith no refs it shows `unmaintainedRow`: \"Not on a schedule — mutable, but nothing keeps it current.\" Otherwise each ref goes through `maintainerRow`, where a `.cron(let jobID)` ref is matched against `jobs` by `id` and renders `cronRow`, or `missingRow` when the job is unknown.\n\nThe `Button` at line 105 that calls `setMaintainers` is past the truncated excerpt, so whether it adds or removes a ref, and from which row, is not shown.",
+          "from": "page:artifacts",
+          "note": "A button in the Maintenance card asks the store to change the artifact's maintainers.",
+          "relation": "triggers",
+          "to": "subscriber:ArtifactStore"
+        },
+        {
+          "cites": [
+            {
+              "line": 69,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 70,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 73,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            }
+          ],
+          "detail": "`setMaintainers` is not in the excerpt, so its local write, any gateway call and any disk flush are not shown.\n\nThe excerpt does show that the store talks to a gateway only through a weak `ArtifactGateway` handle and tracks `syncAvailable` as an unprobed `Bool?`; neither is an edge in this graph. The store's only persistent backing visible here is its `fileURL`.",
+          "from": "subscriber:ArtifactStore",
+          "note": "The maintainer list is part of the stored artifact record.",
+          "relation": "persists-to",
+          "to": "artifact:file-system:portal/artifacts.json"
+        },
+        {
+          "cites": [
+            {
+              "line": 23,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            {
+              "line": 35,
+              "path": "Sources/Portal/Views/ArtifactListRow.swift"
+            },
+            {
+              "line": 69,
+              "path": "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift"
+            }
+          ],
+          "detail": "If the method writes the record back into `artifacts`, the `@Published` map republishes and its `didSet` invalidates the sorted caches; the excerpt does not show that write.\n\nThe section then re-reads `refs` from the new `artifact`; its header icon uses `Theme.accent` when refs exist and `Theme.tertiary` when there are none. In the list, a row's `hasMaintainers` input is derived from `!artifact.maintainerRefs.isEmpty`, so it changes with the same record.",
+          "from": "subscriber:ArtifactStore",
+          "note": "The updated record is republished, so the Maintenance rows and list badge redraw.",
+          "relation": "keeps",
+          "to": "state:artifact-intents:ArtifactStore.sortedArtifactsCache"
+        }
+      ],
+      "summary": "The Maintenance section lists the cron jobs that keep an artifact current and offers a button that calls setMaintainers on the shared ArtifactStore. The store holds the record and its JSON cache; the button and the store method lie outside the excerpts, so what the call sends is not shown.",
+      "title": "Change which jobs maintain an artifact",
+      "trigger": "trigger-5ccb880b41db"
     },
     {
       "cited_hash": "d4967ddbffa62544a4abc2b118c6a6c29b611b4440630eefb271058e3e8db396",
