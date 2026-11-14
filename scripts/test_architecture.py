@@ -1185,6 +1185,58 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertEqual("post-merge", roles["testflight/testflight"])
         self.assertEqual("gate", roles["architecture-pages/validate"])
 
+    def test_gate_records_are_held_to_their_workflow(self) -> None:
+        """A CI job's record is pinned to the job's own facts: what it blocks follows from its role, what it
+        waits for from its `needs`, what it consumes and produces from its artifacts, and the scripts it
+        notes from the scripts it runs. It may cite only its workflow and those scripts."""
+        interplay = self.model["interplay"]
+        interplay["ci_jobs"] = architecture.ci_record_index()
+        files = self._files()
+        externals = self.model["externals"]
+        job = interplay["ci_jobs"]["jobs"]["ratchet/constraints"]
+        workflow = job["evidence"]["path"]
+        script = job["scripts"][0]
+        good = {
+            "key": "gate:ratchet/constraints", "kind": "gate", "summary": "Runs the constraint guard against the base branch.",
+            "purpose": "Keeps a pull request from loosening the declarations that decide what CI accepts.",
+            "fields": {"proves": ["No guarded declaration is looser than base"], "fails_when": ["An invariant was removed"], "blocks": "merge",
+                       "depends_on": [], "scripts": {script: "Compares each guarded declaration with the base branch."}},
+            "evidence": [{"path": workflow, "line": job["evidence"]["line"]}, {"path": script, "line": 1}],
+        }
+        record = architecture.validate_construct_record(good, interplay, files, externals)
+        self.assertEqual("gate", record["kind"])
+        self.assertTrue(all(site.get("text") for site in record["evidence"]), "workflow and script citations carry their text")
+        post_merge = next(j for j in interplay["ci_jobs"]["jobs"].values() if j["role"] == "post-merge")
+        for raw, needle in [
+            ({**good, "fields": {**good["fields"], "blocks": "release"}}, "blocks says 'release'"),
+            ({**good, "key": f"gate:{post_merge['id']}", "evidence": [{"path": post_merge["evidence"]["path"], "line": post_merge["evidence"]["line"]}],
+              "fields": {"blocks": "merge"}}, "which blocks 'release'"),
+            ({**good, "fields": {**good["fields"], "depends_on": ["tests/swift-test"]}}, "not among the jobs it needs"),
+            ({**good, "fields": {**good["fields"], "produces": ["coverage-report"]}}, "not among its artifacts out"),
+            ({**good, "fields": {**good["fields"], "scripts": {"scripts/check-perf-ratchet.py": "x"}}}, "which the job does not run"),
+            ({**good, "evidence": [{"path": ".github/workflows/tests.yml", "line": 1}]}, "outside its bounded file set"),
+            ({**good, "key": "gate:ratchet/nowhere"}, "names a CI job no workflow"),
+        ]:
+            with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
+                architecture.validate_construct_record(raw, interplay, files, externals)
+            self.assertIn(needle, str(caught.exception))
+        # A lenient build compiles no CI plane: a gate record cannot be judged there, so it is set aside, not failed.
+        with self.assertRaises(architecture.ArchitectureError) as caught:
+            architecture.validate_construct_record(good, {**interplay, "ci_jobs": None}, files, externals)
+        self.assertIn("compiles no CI plane", str(caught.exception))
+        # Every job carries a record, none stale, and the validators' working index is not published.
+        jobs = self.model["ci"]["jobs"]
+        self.assertEqual([], sorted(j["id"] for j in jobs if not j.get("semantic")))
+        self.assertEqual([], sorted(j["id"] for j in jobs if j["semantic"]["stale"]))
+        for job_ in jobs:
+            self.assertEqual(architecture.GATE_ROLE_BLOCKS[job_["role"]], job_["semantic"]["fields"].get("blocks", architecture.GATE_ROLE_BLOCKS[job_["role"]]))
+        published, _site = compiled()
+        self.assertNotIn("ci_jobs", published["interplay"])
+        self.assertNotIn("gate_records", published["interplay"])
+        self.assertEqual(0, published["interplay"]["constructs"]["set_aside"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        self.assertIn("if (job.semantic) sections.push(describedSection(job.semantic));", app)
+
     def test_citations_are_bound_to_content_not_position(self) -> None:
         """A citation keeps the text of its line. A line that moved is found again and the record stays fresh; a line
         whose text is gone is lost and the record is stale; a site written without text is bound to its line and
@@ -1397,7 +1449,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
     def test_described_constructs_fold_onto_nodes_and_the_site_renders_them(self) -> None:
         interplay = self.model["interplay"]
         described = [n for n in interplay["nodes"] if n.get("semantic")]
-        self.assertEqual(interplay["constructs"]["described"], len(described) + sum(1 for p in interplay["pages"] if p.get("semantic")))
+        gates = sum(1 for job in self.model["ci"]["jobs"] if job.get("semantic"))
+        self.assertEqual(interplay["constructs"]["described"], len(described) + sum(1 for p in interplay["pages"] if p.get("semantic")) + gates)
         for node in described:
             self.assertEqual(architecture.construct_kind(node), node["semantic"]["kind"])
             self.assertTrue(node["semantic"]["evidence"])

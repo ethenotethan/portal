@@ -383,6 +383,13 @@ class Context:
         self.by_key = {node["history_key"]: node for node in self.interplay["nodes"] if node["kind"] != "operation"}
         self.line_counts = {item["path"]: item["line_count"] for item in self.files}
         self.component_by_id = {c["id"]: c for c in self.model.get("components", [])}
+        # The CI jobs a `gate:` record describes, with the workflow and script texts. The lenient compile
+        # builds no CI plane and sets gate records aside, so the strict index is rebuilt here for the
+        # validators and the packets.
+        self.interplay["ci_jobs"] = compiler.ci_record_index()
+        for path, text in ((self.interplay.get("ci_jobs") or {}).get("texts") or {}).items():
+            self.text_by_path.setdefault(path, text)
+            self.line_counts.setdefault(path, len(text.splitlines()))
 
     def component_facts(self, component_id: str | None) -> dict[str, Any] | None:
         """The declared description and the summarised component a construction belongs to:
@@ -434,6 +441,12 @@ def describe_schema(schema: dict[str, tuple[Any, ...]]) -> dict[str, str]:
             out[name] = "list of page ids from the packet"
         elif kind == "page_nodes":
             out[name] = "list of construct keys that belong to this page (from `members`)"
+        elif kind == "job_needs":
+            out[name] = "list of job ids this job waits for (only ids from `mechanical.needs`)"
+        elif kind == "job_artifacts":
+            out[name] = f"list of artifact names (only names from `mechanical.{spec[1]}`)"
+        elif kind == "job_scripts":
+            out[name] = f"object: each key a script path the job runs (from `mechanical.scripts`), its value what that script checks, at most {spec[1]} characters"
     return out
 
 
@@ -585,6 +598,11 @@ def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compi
             if len(kept) != len(value):
                 repairs.append(f"{name}: dropped {len(value) - len(kept)} over-long item(s)")
             value = kept
+        if spec and spec[0] == "job_scripts" and isinstance(value, dict):
+            fitted = {k: (clip(v, spec[1]) if isinstance(v, str) else v) for k, v in value.items()}
+            if fitted != value:
+                repairs.append(f"{name}: script note(s) fitted to the cap")
+            value = fitted
         if spec and spec[0] == "types" and isinstance(value, list):
             # A nested type written with its outer type (`ArtifactStore.QuerySlot`) is declared by its own name.
             unqualified = [item.rsplit(".", 1)[-1] if isinstance(item, str) else item for item in value]
@@ -614,11 +632,56 @@ def construct_targets(ctx: Context) -> list[dict[str, Any]]:
             targets.append({"key": node["history_key"], "kind": kind, "node": node})
     for page in ctx.interplay.get("pages", []):
         targets.append({"key": f"page:{page['id']}", "kind": "page", "page": page})
+    for job_id, job in sorted(((ctx.interplay.get("ci_jobs") or {}).get("jobs") or {}).items()):
+        targets.append({"key": f"gate:{job_id}", "kind": "gate", "job": job})
     return targets
+
+
+GATE_EXCERPT_LINES = 120  # a job's own block in its workflow
+GATE_SCRIPT_LINES = 40  # the head of each script it runs: the docstring that says what the script checks
+
+
+def gate_facts(target: dict[str, Any], ctx: Context) -> dict[str, Any]:
+    """A CI job's packet: its mechanical facts, its own block of the workflow from the comment above
+    the job key to the next job (the workflow's comments are where this repository says what a job
+    is for), and the head of each script it runs."""
+    compiler = ctx.compiler
+    job = target["job"]
+    jobs = (ctx.interplay.get("ci_jobs") or {}).get("jobs") or {}
+    workflow_path = str(job["evidence"]["path"])
+    text = ctx.text_by_path.get(workflow_path, "")
+    lines = text.splitlines()
+    start = job["evidence"]["line"]
+    while start > 1 and (lines[start - 2].strip() == "" or lines[start - 2].lstrip().startswith("#")):
+        start -= 1
+    later = sorted(j["evidence"]["line"] for j in jobs.values() if j["evidence"]["path"] == workflow_path and j["evidence"]["line"] > job["evidence"]["line"])
+    end = later[0] if later else len(lines) + 1
+    excerpts = []
+    if text:
+        block = lines[start - 1:end - 1]
+        excerpts.append({"path": workflow_path, "from_line": start,
+                         "text": "\n".join(block[:GATE_EXCERPT_LINES]) + ("\n… (truncated)" if len(block) > GATE_EXCERPT_LINES else "")})
+    for script in job["scripts"][:6]:
+        script_lines = ctx.text_by_path.get(script, "").splitlines()
+        if script_lines:
+            excerpts.append({"path": script, "from_line": 1,
+                             "text": "\n".join(script_lines[:GATE_SCRIPT_LINES]) + ("\n… (truncated)" if len(script_lines) > GATE_SCRIPT_LINES else "")})
+    return {
+        "key": target["key"], "kind": "gate", "label": job["name"],
+        "mechanical": {"workflow": job["workflow"], "role": job["role"], "blocks": compiler.GATE_ROLE_BLOCKS.get(str(job["role"]), "nothing"),
+                       "condition": job.get("condition"), "runs_on": job.get("runs_on"), "needs": job["needs"],
+                       "artifacts_in": job["artifacts_in"], "artifacts_out": job["artifacts_out"], "scripts": job["scripts"],
+                       "pins": job.get("pins"), "steps": job["steps"],
+                       "needed_by": sorted(j["id"] for j in jobs.values() if job["id"] in j["needs"])},
+        "docs": docs_for(job["name"], [workflow_path, *job["scripts"][:3]]),
+        "bounded_files": sorted(compiler.gate_files(job)), "excerpts": excerpts, "prefilled": {},
+    }
 
 
 def construct_facts(target: dict[str, Any], ctx: Context) -> dict[str, Any]:
     compiler = ctx.compiler
+    if target["kind"] == "gate":
+        return gate_facts(target, ctx)
     if target["kind"] == "page":
         page = target["page"]
         members = [n for n in ctx.interplay["nodes"] if n.get("page") == page["id"]]
@@ -723,6 +786,8 @@ def fields_json_schema(schema: dict[str, tuple[Any, ...]]) -> dict[str, Any]:
             properties[name] = {"type": "boolean"}
         elif kind == "int":
             properties[name] = {"type": "integer", "minimum": 0}
+        elif kind == "job_scripts":
+            properties[name] = {"type": "object", "additionalProperties": {"type": "string", "maxLength": spec[1]}}
         else:
             properties[name] = {"type": "array", "items": {"type": "string"}}
     return {"type": "object", "properties": properties, "additionalProperties": False}
@@ -754,8 +819,8 @@ Return one JSON object {{"records": [...]}} with exactly one record per input re
 {{
   "key": "the input key, unchanged",
   "kind": "{kind}",
-  "summary": "one paragraph, present tense, what this construction is and does in the current source",
-  "purpose": "one paragraph, at most {compiler.SEMANTIC_PURPOSE_MAX} characters: why this exists in the product — the need it serves, for whom (the person running Portal, an operator of the gateway, the team), what it unlocks, and what stops working without it. Written from the `docs` paragraphs when they name it; from the code alone otherwise, with a clause saying the purpose is inferred.",
+  "summary": "one paragraph, present tense, what this construction is and does in the current source{" — for a CI job: what a green run establishes, step by step, from the workflow and the scripts it runs" if kind == "gate" else ""}",
+  "purpose": "one paragraph, at most {compiler.SEMANTIC_PURPOSE_MAX} characters: {"for a CI job: what merging or releasing without this job would let through, and who would pay for it; not what the job does — " if kind == "gate" else ""}why this exists in the product — the need it serves, for whom (the person running Portal, an operator of the gateway, the team), what it unlocks, and what stops working without it. Written from the `docs` paragraphs when they name it; from the code alone otherwise, with a clause saying the purpose is inferred.",
   "fields": {{ ...only fields from the schema below; omit a field rather than guess... }},
   "open_questions": ["what the excerpts do not settle"],
   "evidence": [{{"path": "a path from bounded_files", "line": 1}}]
@@ -769,6 +834,7 @@ Rules:
 - Where a field wants construct keys, use only keys that appear in this record's `edges` (or `members` for a page). Never invent a key.
 - `record_type` must be Swift type names that appear in the excerpts.
 - Every evidence path must be in this record's bounded_files, with a line number inside the excerpt ranges you saw (from_line plus the offset).
+- For a CI job: `blocks` must equal `mechanical.blocks`; `depends_on`, `consumes`, `produces` and the keys of `scripts` may only name what `mechanical` lists. `proves` and `fails_when` are short separate statements, one fact each.
 - Prefer an open question over an unsupported claim. Do not describe desired design.
 - The summary says what it does; the purpose says why anyone wanted it. They must not repeat each other. A purpose that lists dependencies ("talks to the gateway and the Keychain") is rejected in review; name the outcome those dependencies buy. `component` is the declared module the construction sits in and `docs` are the repository's own paragraphs naming it: ground the purpose there.
 - Set every identifier, type, method, file, route, namespace and key you mention in backticks, in the summary, the purpose and every string field.
@@ -1203,6 +1269,25 @@ def merge_journey_results(existing: list[dict[str, Any]], journeys: list[tuple[s
     return replacements, kept
 
 
+def persisted_gate_records(ctx: Context) -> dict[str, dict[str, Any] | None]:
+    """Each CI job's record as the strict validators see it now: None when there is none or it no
+    longer validates, else the validated record with its `stale` flag. The lenient compile sets gate
+    records aside, so they are judged here against the index this context rebuilt."""
+    persisted = json.loads(CONSTRUCTS_PATH.read_text(encoding="utf-8")).get("records", []) if CONSTRUCTS_PATH.is_file() else []
+    by_key = {r["key"]: r for r in persisted if isinstance(r, dict) and str(r.get("key", "")).startswith("gate:")}
+    out: dict[str, dict[str, Any] | None] = {}
+    for job_id in ((ctx.interplay.get("ci_jobs") or {}).get("jobs") or {}):
+        record = by_key.get(f"gate:{job_id}")
+        if record is None:
+            out[f"gate:{job_id}"] = None
+            continue
+        try:
+            out[f"gate:{job_id}"] = ctx.compiler.validate_construct_record(record, ctx.interplay, ctx.files, ctx.externals, persisted=True)
+        except ctx.compiler.ArchitectureError:
+            out[f"gate:{job_id}"] = None
+    return out
+
+
 def stale_journeys(ctx: Context) -> list[tuple[str, str | None]]:
     """The journeys whose flows went stale (cited lines changed) or broke (an edge went), plus those whose
     persisted flow the lenient compile dropped (a validator rejected it), which the compiled list no
@@ -1250,6 +1335,7 @@ def main() -> int:
                 if args.stale_only:
                     described = {n["history_key"]: n.get("semantic") for n in ctx.interplay["nodes"]}
                     described.update({f"page:{p['id']}": p.get("semantic") for p in ctx.interplay.get("pages", [])})
+                    described.update(persisted_gate_records(ctx))
                     targets = [t for t in targets if not described.get(t["key"]) or described[t["key"]].get("stale")]
                 if not targets:
                     print("no constructs selected")

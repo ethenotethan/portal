@@ -488,7 +488,28 @@ for message in fidelity.get("flows_invalid", []):
     found = re.search(r"flow (?:id )?([^\\s:]+)", str(message))
     if found and found.group(1) not in flows:
         flows.append(found.group(1))
-print(json.dumps({"records": sorted(records), "flows": sorted(flows)}))
+# The lenient compile builds no CI plane and sets `gate:` records aside, so they are judged here against
+# the workflows as they are: a record whose cited workflow lines changed is stale, and one that no
+# longer validates (a renamed job, a dropped script, a changed role) is broken.
+if hasattr(module, "ci_record_index"):
+    try:
+        module.LENIENT = False
+        interplay["ci_jobs"] = module.ci_record_index()
+        config = module.load_json(module.CONFIG_PATH)
+        files = module.read_sources(config)[0] + module.read_launch_sources(config)[0]
+        persisted = module.load_json(module.CONSTRUCTS_PATH).get("records", []) if module.CONSTRUCTS_PATH.is_file() else []
+        for record in persisted:
+            key = str(record.get("key", "")) if isinstance(record, dict) else ""
+            if not key.startswith("gate:"):
+                continue
+            try:
+                if module.validate_construct_record(record, interplay, files, model.get("externals"), persisted=True)["stale"]:
+                    records.append(key)
+            except module.ArchitectureError:
+                records.append(key)
+    except Exception as exc:  # no CI plane to judge against is a fact to report, not a reason to hide the rest
+        records.append(f"gate:* (the CI plane did not compile: {type(exc).__name__})")
+print(json.dumps({"records": sorted(set(records)), "flows": sorted(flows)}))
 """
 
 

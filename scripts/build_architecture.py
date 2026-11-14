@@ -3935,6 +3935,15 @@ STORE_MEDIUM_OF_PERSISTENCE = {
 # "out": edge.source is the node, "any") | ("types",) declared Swift type names
 # | ("endpoints",) endpoint labels on the map | ("triggers",) trigger ids | ("pages",) page ids.
 CONSTRUCT_SCHEMAS: dict[str, dict[str, tuple[Any, ...]]] = {
+    "gate": {  # a CI job: what a green run proves, what turns it red, and what it stands between
+        "proves": ("list_str", 120),
+        "fails_when": ("list_str", 120),
+        "blocks": ("enum", ["merge", "release", "nothing"]),
+        "depends_on": ("job_needs",),
+        "consumes": ("job_artifacts", "artifacts_in"),
+        "produces": ("job_artifacts", "artifacts_out"),
+        "scripts": ("job_scripts", SEMANTIC_NOTE_MAX),
+    },
     "store": {
         "medium": ("enum", STORE_MEDIA),
         "location": ("str", 120),
@@ -4183,7 +4192,22 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
     if not isinstance(key, str) or not key:
         raise ArchitectureError("construct record needs a key")
     owner = f"construct {key}"
-    if key.startswith("page:"):
+    # A gate record cites its workflow and the scripts the job runs; their texts join the index so
+    # those citations are bounded and hash-bound like any other.
+    ci_index = interplay.get("ci_jobs")
+    if ci_index:
+        for path, text in ci_index["texts"].items():
+            text_by_path.setdefault(path, text)
+            line_counts.setdefault(path, len(text.splitlines()))
+    if key.startswith("gate:"):
+        if not ci_index:
+            raise ArchitectureError(f"{owner} describes a CI job, but this build compiles no CI plane")
+        node = ci_index["jobs"].get(key.split(":", 1)[1])
+        if node is None:
+            raise ArchitectureError(f"{owner} names a CI job no workflow under .github/workflows defines")
+        expected_kind = "gate"
+        allowed = gate_files(node)
+    elif key.startswith("page:"):
         page_id = key.split(":", 1)[1]
         if page_id not in page_labels:
             raise ArchitectureError(f"{owner} names a page that is not on the map")
@@ -4224,6 +4248,10 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
         if spec is None:
             raise ArchitectureError(f"{owner} has a field {name!r} that the {expected_kind} schema does not define")
         body[name] = validate_construct_field(name, value, spec, node, interplay, by_key, declared_types, page_labels, owner)
+    if expected_kind == "gate" and "blocks" in body and body["blocks"] != GATE_ROLE_BLOCKS.get(str(node["role"]), "nothing"):
+        # What a job stands between is a fact of the workflow (its events and condition), not an opinion:
+        # a record may not promote a post-merge job to a merge gate or demote a gate.
+        raise ArchitectureError(f"{owner}.blocks says {body['blocks']!r}, but the job's role is {node['role']!r}, which blocks {GATE_ROLE_BLOCKS.get(str(node['role']), 'nothing')!r}")
     # Cross-field mechanics the model may refine but not contradict.
     if expected_kind == "store" and node is not None:
         persistence = (node.get("store") or {}).get("persistence") or ["unobserved"]
@@ -4281,6 +4309,27 @@ def validate_construct_field(name: str, value: Any, spec: tuple[Any, ...], node:
         if not isinstance(value, int) or isinstance(value, bool) or value < 0:
             raise ArchitectureError(f"{owner}.{name} must be a non-negative integer")
         return value
+    if kind in ("job_needs", "job_artifacts"):
+        if node is None or "needs" not in node:
+            raise ArchitectureError(f"{owner}.{name} cannot be validated without the job")
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be a list of strings")
+        declared = set(node["needs"]) if kind == "job_needs" else set(node[spec[1]])
+        what = "the jobs it needs" if kind == "job_needs" else f"its {spec[1].replace('_', ' ')}"
+        for item in value:
+            if item not in declared:
+                raise ArchitectureError(f"{owner}.{name} names {item!r}, which is not among {what} in the workflow")
+        return sorted(set(value))
+    if kind == "job_scripts":
+        if node is None or "scripts" not in node:
+            raise ArchitectureError(f"{owner}.{name} cannot be validated without the job")
+        if not isinstance(value, dict) or not all(isinstance(k, str) and isinstance(v, str) and len(v) <= spec[1] for k, v in value.items()):
+            raise ArchitectureError(f"{owner}.{name} must map script paths to strings of at most {spec[1]} characters")
+        for script, note in value.items():
+            if script not in node["scripts"]:
+                raise ArchitectureError(f"{owner}.{name} notes {script!r}, which the job does not run")
+            require_whole(owner, f"{name}[{script}]", note)
+        return {k: v.strip() for k, v in sorted(value.items()) if v.strip()}
     if kind == "types":
         if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
             raise ArchitectureError(f"{owner}.{name} must be a list of type names")
@@ -4334,19 +4383,52 @@ def validate_construct_field(name: str, value: Any, spec: tuple[Any, ...], node:
     raise ArchitectureError(f"unknown field spec {kind!r}")
 
 
+GATE_ROLE_BLOCKS = {"gate": "merge", "post-merge": "release", "manual": "nothing", "disabled": "nothing"}
+
+
+def ci_record_index() -> dict[str, Any] | None:
+    """The CI jobs a `gate:` record may describe, with the text of the workflow files and the check
+    scripts they run, so a record's citations can be bounded and hash-bound like any other. None in
+    a lenient build: the history walk compiles no CI plane, so gate records are set aside there."""
+    if LENIENT:
+        return None
+    jobs: dict[str, dict[str, Any]] = {}
+    texts: dict[str, str] = {}
+    for workflow in read_workflows():
+        path = str(workflow["path"])
+        if path not in texts and (ROOT / path).is_file():
+            texts[path] = (ROOT / path).read_text(encoding="utf-8")
+        for job in workflow["_jobs"]:
+            jobs[job["id"]] = job
+            for script in job["scripts"]:
+                if script not in texts and (ROOT / script).is_file():
+                    texts[script] = (ROOT / script).read_text(encoding="utf-8", errors="replace")
+    return {"jobs": jobs, "texts": texts}
+
+
+def gate_files(job: dict[str, Any]) -> set[str]:
+    """What a gate record may cite: the workflow that declares the job and the scripts it runs."""
+    return {str(job["evidence"]["path"])} | set(job["scripts"])
+
+
 def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], externals: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Read, validate and fold the construct records onto their nodes as `semantic`."""
     if not CONSTRUCTS_PATH.is_file():
-        interplay["constructs"] = {"described": 0, "stale": 0}
+        interplay["constructs"] = {"described": 0, "stale": 0, "set_aside": 0}
+        interplay["gate_records"] = {}
         return []
     raw = load_json(CONSTRUCTS_PATH)
     if raw.get("schema_version") != "1.0.0" or not isinstance(raw.get("records"), list):
         raise ArchitectureError("architecture/semantic/constructs.json has an unsupported schema")
     records: list[dict[str, Any]] = []
     seen: set[str] = set()
+    set_aside = 0
     for entry in raw["records"]:
         if not isinstance(entry, dict):
             raise ArchitectureError("construct records must be objects")
+        if interplay.get("ci_jobs") is None and str(entry.get("key", "")).startswith("gate:"):
+            set_aside += 1  # a lenient build compiles no CI plane: nothing to validate the record against
+            continue
         try:
             record = validate_construct_record(entry, interplay, files, externals, persisted=True)
         except ArchitectureError as exc:
@@ -4366,7 +4448,9 @@ def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], exte
         record = next((r for r in records if r["key"] == f"page:{page['id']}"), None)
         if record is not None:
             page["semantic"] = {k: v for k, v in record.items() if k != "key"}
-    interplay["constructs"] = {"described": len(records), "stale": sum(1 for r in records if r["stale"])}
+    # Gate records are folded onto the CI model's jobs when that model is built (it reads the same workflows).
+    interplay["gate_records"] = {r["key"].split(":", 1)[1]: {k: v for k, v in r.items() if k != "key"} for r in records if r["key"].startswith("gate:")}
+    interplay["constructs"] = {"described": len(records), "stale": sum(1 for r in records if r["stale"]), "set_aside": set_aside}
     return records
 
 
@@ -5334,6 +5418,9 @@ def build_ci_model(config: dict[str, Any], interplay: dict[str, Any]) -> dict[st
         workflow["question"] = str(entry.get("question") or CI_FAMILIES[entry["family"]])
         for job in workflow.pop("_jobs"):
             job["family"] = entry["family"]
+            record = (interplay.get("gate_records") or {}).get(job["id"])
+            if record is not None:
+                job["semantic"] = record  # what a green run proves and what it blocks, held to this job's own facts
             jobs.append(job)
     present = {workflow["id"] for workflow in workflows}
     if workflows:
@@ -5906,10 +5993,15 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     attach_state_machines(interplay, files)
     assign_history_keys(interplay)
     # Records may cite the launch roots too: they are part of the analysed tree.
+    interplay["ci_jobs"] = ci_record_index()  # the CI jobs a gate record may describe, with their texts
     load_constructs(interplay, files + launch_files, externals)
     load_flows(interplay, files + launch_files)
     interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
     ci = build_ci_model(config, interplay)
+    # Working data for the record validators, not part of the document: the CI model carries the
+    # gate records on its jobs, and the texts live in the files they were read from.
+    interplay.pop("ci_jobs", None)
+    interplay.pop("gate_records", None)
     extraction = build_extraction_map(
         files + launch_files, {"behavior": behavior, "interplay": interplay, "stores": stores, "externals": externals}
     )

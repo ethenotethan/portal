@@ -1839,6 +1839,8 @@
     if (Array.isArray(value)) return value.map((item) => (typeof item === "string" && item.includes(":") ? nameOf(item) : String(item).replace(/_/g, " "))).join(", ") || "—";
     if (typeof value === "boolean") return value ? "yes" : "no";
     if (typeof value === "string") return value.includes(":") && idByHistoryKey.has(value) ? nameOf(value) : value.replace(/_/g, " ");
+    // A map of notes (a CI job's scripts and what each checks): one clause per key, the key as code.
+    if (value && typeof value === "object") return Object.entries(value).map(([key, note]) => `\`${key}\`: ${note}`).join("; ") || "—";
     return String(value);
   }
   // ---- Code-shaped tokens in prose -------------------------------------------
@@ -1897,7 +1899,7 @@
   function describedSection(semantic) {
     const section = element("section", "inspector-section described");
     const head = element("h4", "", "Described");
-    if (semantic.stale) head.append(element("span", "stale-badge", `stale · files changed since ${String(semantic.source_revision).slice(0, 9)}`));
+    if (semantic.stale) head.append(element("span", "stale-badge", `stale · cited lines changed since ${String(semantic.source_revision).slice(0, 9)}`));
     // Why it exists comes first: the summary says what the construction does, the
     // purpose says why anyone wanted it, and a reader meeting a box cold needs the why.
     section.append(head, prose(semantic.purpose, "described-purpose"), prose(semantic.summary));
@@ -3361,6 +3363,8 @@
         job.role === "gate" ? "runs on pull requests and gates the merge" : job.role === "post-merge" ? "runs after a merge (or tag); never on a pull request" : job.role === "manual" ? "runs only when dispatched" : "disabled: its condition is `false`"
       ].filter(Boolean).join(" · ")));
       if (job.condition) sections.push(element("p", "derivation", `if: ${job.condition}`));
+      // What a green run proves and what it blocks, written by the agent and held to this job's own facts.
+      if (job.semantic) sections.push(describedSection(job.semantic));
       const metrics = element("div", "inspector-metrics");
       [[job.step_count, "steps"], [job.needs.length, "needs"], [job.artifacts_out.length + job.artifacts_in.length, "artifacts"]].forEach(([value, label]) => {
         const metric = element("div", "inspector-metric");

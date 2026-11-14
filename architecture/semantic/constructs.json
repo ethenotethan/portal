@@ -2457,6 +2457,1494 @@
       "summary": "`UserDefaults` holds Portal's small preferences, reached through `UserDefaults.standard` and `@AppStorage`. Views bind display choices such as `macTopChromeCollapsed`, `chatSkin`, `artifactViewMode` and `artifactCellMode`. Stores keep `portal.*` keys for skill caches, run history, activity items and `.fileMigrated` markers."
     },
     {
+      "cited_hash": "8e4ba86900e548230831177c9325ee6ddfd3692325f300e2dd084f34d724b474",
+      "evidence": [
+        {
+          "line": 21,
+          "path": ".github/workflows/architecture-maintenance.yml",
+          "text": "maintain:"
+        },
+        {
+          "line": 29,
+          "path": ".github/workflows/architecture-maintenance.yml",
+          "text": "- name: Compile deterministic architecture model"
+        },
+        {
+          "line": 32,
+          "path": ".github/workflows/architecture-maintenance.yml",
+          "text": "- name: Run constrained semantic maintainer"
+        },
+        {
+          "line": 59,
+          "path": ".github/workflows/architecture-maintenance.yml",
+          "text": "- name: Validate proposed architecture"
+        },
+        {
+          "line": 67,
+          "path": ".github/workflows/architecture-maintenance.yml",
+          "text": "- name: Enrichment is no staler than main"
+        },
+        {
+          "line": 70,
+          "path": ".github/workflows/architecture-maintenance.yml",
+          "text": "- name: Open or update architecture pull request"
+        },
+        {
+          "line": 2,
+          "path": "scripts/architecture_agent.py",
+          "text": "\"\"\"Produce constrained, evidence-backed semantic architecture records."
+        },
+        {
+          "line": 2,
+          "path": "scripts/check-constraint-growth.py",
+          "text": "\"\"\"Constraint ratchet: the declarations that decide what CI accepts may only tighten."
+        }
+      ],
+      "fields": {
+        "blocks": "nothing",
+        "fails_when": [
+          "`node --check architecture/site/app.js` reports a syntax error",
+          "`scripts/architecture_agent.py` exits non-zero while `OPENAI_API_KEY` is configured",
+          "`scripts/build_architecture.py` or its `--check` pass exits non-zero",
+          "`scripts/check-constraint-growth.py HEAD` rejects the refreshed tree",
+          "a test in `scripts/test_architecture.py` fails"
+        ],
+        "proves": [
+          "`architecture/site/app.js` passes `node --check`",
+          "`scripts/build_architecture.py --check` accepts the rebuilt outputs",
+          "`scripts/build_architecture.py` compiles the checked-out tree, before and after the semantic step",
+          "`scripts/check-constraint-growth.py HEAD` exits zero against the refreshed tree",
+          "`scripts/test_architecture.py` passes under `python3 -m unittest`"
+        ],
+        "scripts": {
+          "scripts/architecture_agent.py": "Writes component summaries for `HEAD^`..`HEAD` and re-describes stale constructs; rejected records are dropped",
+          "scripts/build_architecture.py": "Compiles the deterministic model and site data; `--check` validates the proposed outputs",
+          "scripts/check-constraint-growth.py": "Ratchet against `HEAD`; the step's comment says enrichment may not be staler than main",
+          "scripts/test_architecture.py": "Unit tests for the deterministic architecture compiler"
+        }
+      },
+      "key": "gate:architecture-maintenance/maintain",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "How `scripts/check-constraint-growth.py` measures staleness of records and flows is in the truncated part of the script.",
+        "The workflow's trigger block is outside the excerpt; `inputs.full_reconciliation` suggests manual dispatch but the triggers are not shown.",
+        "Without the secret the semantic step exits 0 with `configured=false`; whether any later step reads that output is not shown."
+      ],
+      "purpose": "Gives the team a manual way to refresh the architecture model and its model-written summaries when the scheduled Hermes documentation worker has not, so the repository's architecture record does not drift from source. Its validation steps keep unvalidated or staler semantic records out of the proposed pull request, so reviewers are not asked to read unsupported claims. It blocks nothing itself: human review and merge of that pull request make the result canonical.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "Manual fallback job `maintain`: compiles the model with `scripts/build_architecture.py`, runs `scripts/architecture_agent.py` only when `ARCHITECTURE_OPENAI_API_KEY` is set, rebuilds, runs `--check`, `scripts/test_architecture.py`, `node --check` and `scripts/check-constraint-growth.py HEAD`, then opens or updates the `automation/architecture-portal` pull request."
+    },
+    {
+      "cited_hash": "e876a91772ea4e4ec56c396f3dae9c93cfbd0e1af1425605a76449ed324b9892",
+      "evidence": [
+        {
+          "line": 163,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "deploy:"
+        },
+        {
+          "line": 165,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
+        },
+        {
+          "line": 179,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Compile architecture model and site data"
+        },
+        {
+          "line": 197,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Derive architecture history"
+        },
+        {
+          "line": 207,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Assemble Pages tree"
+        },
+        {
+          "line": 222,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Deploy Pages site"
+        },
+        {
+          "line": 2,
+          "path": "scripts/build_architecture_history.py",
+          "text": "\"\"\"Derive Portal's System map at every commit that touched the app source."
+        },
+        {
+          "line": 17,
+          "path": "scripts/check_site_assets.py",
+          "text": "python3 scripts/check_site_assets.py --sync   # rewrite the hero stats from the model"
+        }
+      ],
+      "fields": {
+        "blocks": "release",
+        "depends_on": [
+          "architecture-pages/validate"
+        ],
+        "fails_when": [
+          "`architecture-pages/validate` does not succeed",
+          "`scripts/build_architecture.py` or `scripts/check_site_assets.py --sync` exits non-zero",
+          "`scripts/build_architecture_history.py` exits non-zero",
+          "the Pages upload or `actions/deploy-pages@v4` step fails"
+        ],
+        "proves": [
+          "The `_site` tree is assembled, uploaded and deployed by `actions/deploy-pages@v4`",
+          "`scripts/build_architecture.py` compiles the merge commit's tree",
+          "`scripts/build_architecture_history.py --ref \"$GITHUB_SHA\"` completes and yields `architecture/site/history.js`",
+          "`scripts/check_site_assets.py --sync` rewrites the hero stats from the compiled model"
+        ],
+        "scripts": {
+          "scripts/build_architecture.py": "Recompiles the model and site data so the published tree is current",
+          "scripts/build_architecture_history.py": "Derives the System map at each first-parent commit into `architecture/site/history.js`",
+          "scripts/check_site_assets.py": "With `--sync`, rewrites the hero file and line counts in the site from `architecture/model/model.json`"
+        }
+      },
+      "key": "gate:architecture-pages/deploy",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The deploy rebuilds `_site` itself; whether it ever downloads `validate`'s `pages-site` artifact is not shown, and `mechanical.artifacts_in` is empty.",
+        "Whether commits recorded under `failed` by the history walk make `scripts/build_architecture_history.py` exit non-zero is in the truncated part."
+      ],
+      "purpose": "Publishes the product site and the architecture observatory that readers of the repository's GitHub Pages see. Without it, a merge to main would leave the public site showing an older model, because the committed outputs can predate the regeneration; compiling again here keeps the published tree current even before the bookkeeping commit lands. It also builds the per-commit System map history, which is never committed and so would not otherwise reach the site.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "Post-merge job `deploy`, run on non-pull-request events on `refs/heads/main` after `validate`: recompiles with `scripts/build_architecture.py`, syncs hero stats with `scripts/check_site_assets.py --sync`, restores or derives `architecture/site/history.js` via `scripts/build_architecture_history.py`, assembles `_site` from `site/` and `architecture/site/`, and deploys it to GitHub Pages."
+    },
+    {
+      "cited_hash": "0ffe5afb137b49ca8b74214d1c270ce34380caf127080305cb9949808a38ce72",
+      "evidence": [
+        {
+          "line": 48,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "validate:"
+        },
+        {
+          "line": 62,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Guard against committed generated outputs"
+        },
+        {
+          "line": 84,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Compile architecture model and site data"
+        },
+        {
+          "line": 90,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Verify generated architecture is current"
+        },
+        {
+          "line": 95,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Check the architecture contract pins"
+        },
+        {
+          "line": 98,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Test architecture compiler"
+        },
+        {
+          "line": 106,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Check product site asset references"
+        },
+        {
+          "line": 115,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Commit regenerated outputs to main"
+        },
+        {
+          "line": 155,
+          "path": ".github/workflows/architecture-pages.yml",
+          "text": "- name: Upload validated site"
+        },
+        {
+          "line": 2,
+          "path": "scripts/check-contract-pins.py",
+          "text": "\"\"\"Contract pin check: the vendored hermes.architecture contract is the one Harness ships."
+        },
+        {
+          "line": 2,
+          "path": "scripts/check_site_assets.py",
+          "text": "\"\"\"Check the product site's local asset references and its quoted repo stats."
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "fails_when": [
+          "`node --check architecture/site/app.js` reports a syntax error",
+          "`scripts/build_architecture.py` or its `--check` pass exits non-zero",
+          "`scripts/check-contract-pins.py` finds pin drift, a foreign schema export, or a non-conforming model",
+          "`scripts/check_site_assets.py` lists an unresolved local reference or stale hero stat",
+          "a pull request changes `architecture/model/model.json` or `architecture/site/data.js` against its base",
+          "a pull request edits the hero count lines in `site/index.html`",
+          "a test in `scripts/test_architecture.py` fails",
+          "the `_site` upload finds no files (`if-no-files-found: error`)"
+        ],
+        "produces": [
+          "pages-site"
+        ],
+        "proves": [
+          "A pull request commits neither `architecture/model/model.json` nor `architecture/site/data.js`",
+          "A pull request does not edit the hero file and line counts in `site/index.html`",
+          "The vendored contract and its schema export match `pins.json`, and the model conforms",
+          "`architecture/site/app.js` passes `node --check`",
+          "`scripts/build_architecture.py` compiles the tree and a second `--check` pass finds nothing to change",
+          "`scripts/check_site_assets.py` finds no problem in the site's asset references or hero stats",
+          "`scripts/test_architecture.py` passes under `python3 -m unittest`"
+        ],
+        "scripts": {
+          "scripts/build_architecture.py": "Compiles the model and site data from this tree; `--check` verifies a second pass changes nothing",
+          "scripts/check-contract-pins.py": "Vendored contract module and schema export match `pins.json`; committed model conforms",
+          "scripts/check_site_assets.py": "Site's local `src`/`href` references resolve and hero counts match the model; `--sync` rewrites the counts",
+          "scripts/test_architecture.py": "Unit tests for the deterministic architecture compiler"
+        }
+      },
+      "key": "gate:architecture-pages/validate",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The workflow's trigger block is outside the excerpt, so which paths and events start this job is not shown.",
+        "Whether the fallback `automation/architecture-sync` push or `gh pr create` failing fails the job in practice depends on repository settings not shown here."
+      ],
+      "purpose": "Without it, a PR could carry compiled outputs and make every other open PR conflict after each merge, as the docs record happening. A change that breaks the compiler, lets the vendored `hermes.architecture` contract drift from `pins.json`, or renames a site asset could merge, and the cost would land on the gateway and clients that read `model.json` and on site visitors who get 404s. It also keeps main's committed model current for the Swift tests and the gateway.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "Job `validate`: on a pull request rejects committed `architecture/model/model.json`, `architecture/site/data.js` or hero-count edits; compiles and syncs, runs `--check`, `scripts/check-contract-pins.py`, `scripts/test_architecture.py`, `node --check`, `scripts/check_site_assets.py`; on a push commits regenerated outputs to main or opens the `automation/architecture-sync` PR; uploads `pages-site`."
+    },
+    {
+      "cited_hash": "8786d0469e38c63ac252d5b06371fac991c9dbc9c146fcdab33eb5ce5508e309",
+      "evidence": [
+        {
+          "line": 14,
+          "path": ".github/workflows/build.yml",
+          "text": "build:"
+        },
+        {
+          "line": 22,
+          "path": ".github/workflows/build.yml",
+          "text": "- name: Generate Xcode project"
+        },
+        {
+          "line": 25,
+          "path": ".github/workflows/build.yml",
+          "text": "- name: Select an available iPhone simulator"
+        },
+        {
+          "line": 37,
+          "path": ".github/workflows/build.yml",
+          "text": "- name: Build macOS"
+        },
+        {
+          "line": 47,
+          "path": ".github/workflows/build.yml",
+          "text": "- name: Build iOS Simulator"
+        },
+        {
+          "line": 58,
+          "path": ".github/workflows/build.yml",
+          "text": "- name: Run offline iOS Simulator UI smoke test"
+        },
+        {
+          "line": 79,
+          "path": ".github/workflows/build.yml",
+          "text": "name: ios-ui-smoke-artifacts"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "No available iPhone simulator is found on the runner",
+          "The simulator does not boot, or the offline onboarding UI smoke test fails",
+          "`brew install xcodegen` or `xcodegen generate` fails",
+          "`xcodebuild build` fails for scheme `Portal` or scheme `Portal-iOS`"
+        ],
+        "produces": [
+          "ios-ui-smoke-artifacts"
+        ],
+        "proves": [
+          "Scheme `Portal-iOS` builds for an iOS Simulator with code signing disabled",
+          "Scheme `Portal` builds for `platform=macOS` with ad-hoc signing",
+          "`PortalOfflineSmokeUITests/testOnboardingRendersWithoutGatewaySecrets` passes on a booted simulator",
+          "`xcodegen generate` produces a usable `Portal.xcodeproj` from a clean checkout"
+        ]
+      },
+      "key": "gate:build/build",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The workflow's triggers sit above the excerpt, so which events run this job is not shown.",
+        "What `testOnboardingRendersWithoutGatewaySecrets` asserts is not in the excerpts."
+      ],
+      "purpose": "Without this job, a change could merge that no longer generates a project from `project.yml`, no longer compiles for macOS or iOS, or breaks the onboarding screen when no gateway secrets are present. The person installing or first launching Portal, and teammates running `make build`, would hit the breakage. The README says the app is built by regenerating `Portal.xcodeproj` first; the rest of this purpose is inferred from the workflow.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "On `macos-15`, the job installs `xcodegen`, regenerates `Portal.xcodeproj`, picks the newest available iPhone simulator by UDID, builds scheme `Portal` for macOS and `Portal-iOS` for the simulator, then runs the single UI test `testOnboardingRendersWithoutGatewaySecrets`. It always uploads the logs and `.xcresult` as `ios-ui-smoke-artifacts`."
+    },
+    {
+      "cited_hash": "58aefb5683f9836d67f5587b50e0492e057c2b3ceb71e48a76348b5f0fb577d7",
+      "evidence": [
+        {
+          "line": 397,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "constraints:"
+        },
+        {
+          "line": 407,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "LOOSENED: ${{ contains(github.event.pull_request.labels.*.name, 'constraints-loosened') && '--allow-loosening' || '' }}"
+        },
+        {
+          "line": 410,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/check-constraint-growth.py \"$BASE\" $LOOSENED"
+        },
+        {
+          "line": 413,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "run: python3 -m unittest scripts/test_constraint_growth.py"
+        },
+        {
+          "line": 2,
+          "path": "scripts/check-constraint-growth.py",
+          "text": "\"\"\"Constraint ratchet: the declarations that decide what CI accepts may only tighten."
+        },
+        {
+          "line": 9,
+          "path": "scripts/check-constraint-growth.py",
+          "text": "surface the same way the other ratchets do: read each file as it exists on the"
+        },
+        {
+          "line": 2,
+          "path": "scripts/test_constraint_growth.py",
+          "text": "\"\"\"Tests for the constraint ratchet (scripts/check-constraint-growth.py).\"\"\""
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "A guarded declaration is removed from `architecture/config.json`",
+          "A guarded specification, check, collector or test script is deleted",
+          "A unit test in `scripts/test_constraint_growth.py` fails",
+          "An invariant in `architecture/interplay/invariants.json` is removed or loosened without the label",
+          "`.swiftlint.yml` drops or demotes a custom rule, grows `excluded` or `disabled_rules`, or shrinks `opt_in_rules`",
+          "`Tests/PortalTests/ArchitectureTests.swift` has fewer `@Test(` cases than base"
+        ],
+        "produces": [],
+        "proves": [
+          "No guarded declaration in the working tree is looser than on the base branch",
+          "The unit tests in `scripts/test_constraint_growth.py` pass"
+        ],
+        "scripts": {
+          "scripts/check-constraint-growth.py": "Compares declared constraints on the base branch with the working tree and rejects any that are looser",
+          "scripts/test_constraint_growth.py": "Unit-tests the guard, loading `check-constraint-growth.py` as a module against fixture invariants and config"
+        }
+      },
+      "key": "gate:ratchet/constraints",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The script's docstring is truncated; the rules for workflows and CODEOWNERS named in the job comment are not shown.",
+        "Which cases `scripts/test_constraint_growth.py` covers is cut off after the fixtures."
+      ],
+      "purpose": "Without this job, a PR blocked by a rule could remove the rule in the same change: delete an invariant, grow an exception list, drop a lint rule, remove a gate step from a workflow, or delete a specification. The team would lose every other gate's guarantee without noticing. The docs name this constraint erosion and note that this ratchet also guards the contract check script. A deliberate loosening is a code owner's call via the `constraints-loosened` label.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `Constraints` job checks out full history and runs `scripts/check-constraint-growth.py` against the base ref; it reads each guarded declaration on base (`git show BASE:path`) and in the working tree and rejects anything looser. The `constraints-loosened` label passes `--allow-loosening`, so the guard reports and passes. It then runs `scripts/test_constraint_growth.py`."
+    },
+    {
+      "cited_hash": "b671aeb379e38716e89822178419034ce4d2d7161208218bc72d9d0ba27b71c1",
+      "evidence": [
+        {
+          "line": 189,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "coverage:"
+        },
+        {
+          "line": 192,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "needs: measure"
+        },
+        {
+          "line": 201,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "name: metric-snapshots"
+        },
+        {
+          "line": 206,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/check-metrics-ratchet.py --coverage coverage.json --base \"$BASE\""
+        },
+        {
+          "line": 2,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "\"\"\"Metric ratchet: fail a PR that regresses a tracked code-health metric."
+        },
+        {
+          "line": 33,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "For `coverage` (scoped to testable layers — Views are unreachable by"
+        },
+        {
+          "line": 36,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "FLOOR  — aggregate testable-layer line coverage must not drop more than"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [
+          "metric-snapshots"
+        ],
+        "depends_on": [
+          "ratchet/measure"
+        ],
+        "fails_when": [
+          "Aggregate testable-layer coverage drops more than `COVERAGE_FLOOR_TOLERANCE` points below base",
+          "Covered share of the PR's added executable testable-layer lines is under `COVERAGE_PATCH_THRESHOLD`",
+          "The `measure` job fails or the `metric-snapshots` artifact cannot be downloaded"
+        ],
+        "produces": [],
+        "proves": [
+          "Aggregate testable-layer line coverage has not dropped more than `COVERAGE_FLOOR_TOLERANCE` points vs base",
+          "At least `COVERAGE_PATCH_THRESHOLD` of executable lines the PR added in testable-layer files are covered"
+        ],
+        "scripts": {
+          "scripts/check-metrics-ratchet.py": "With `--coverage`, runs floor and patch coverage checks against the base branch's baseline and the PR diff"
+        }
+      },
+      "key": "gate:ratchet/coverage",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The values of `COVERAGE_FLOOR_TOLERANCE` and `COVERAGE_PATCH_THRESHOLD` are not in the excerpt.",
+        "Which layers count as testable, beyond Views being excluded, is not shown."
+      ],
+      "purpose": "Without this job, PRs could merge new logic with no tests, or let overall test coverage of the testable layers drift down unnoticed. The team would pay later, when regressions slip through code no test exercises. The docs describe ratchets as committed benchmarks that allow improvement and block regression, and keep `Coverage` as its own job so a red check names the attribute that regressed.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `Coverage` job waits for `measure`, checks out full history, downloads the `metric-snapshots` artifact, and runs `scripts/check-metrics-ratchet.py --coverage coverage.json --base` against the base ref. The engine runs only the coverage check: a floor on aggregate testable-layer line coverage versus base, and a patch ratio on the executable lines the PR added in testable-layer files."
+    },
+    {
+      "cited_hash": "dec2ac2476705e6c8c4fbeb8bdd9c523c617b65fcb0543614141e2ca94aef6ea",
+      "evidence": [
+        {
+          "line": 281,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "# Periphery's existing findings are frozen debt; only growth fails. Keep this"
+        },
+        {
+          "line": 294,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "PERIPHERY_VERSION: 3.8.0"
+        },
+        {
+          "line": 314,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "run: xcodegen generate"
+        },
+        {
+          "line": 323,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "periphery scan --project Portal.xcodeproj --schemes Portal \\"
+        },
+        {
+          "line": 330,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/check-metrics-ratchet.py --deadcode deadcode.json --base \"$BASE\""
+        },
+        {
+          "line": 336,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "name: deadcode-snapshot"
+        },
+        {
+          "line": 12,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "`deadcode` (Periphery unused declarations), `layout` (SwiftUI lazy stacks with"
+        },
+        {
+          "line": 9,
+          "path": "scripts/collect-deadcode.py",
+          "text": "backlog, we FREEZE it and only fail when the count RISES. A false positive lives"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "The Periphery `3.8.0` download, `brew install xcodegen` or `xcodegen generate` fails",
+          "`periphery scan` fails, including when the `Portal` scheme does not compile",
+          "`scripts/check-metrics-ratchet.py --deadcode` reports dead-code growth versus `origin/<base>`",
+          "`scripts/collect-deadcode.py` cannot reduce `periphery.json`"
+        ],
+        "produces": [
+          "deadcode-snapshot"
+        ],
+        "proves": [
+          "Periphery `3.8.0` downloaded and ran (`periphery version`)",
+          "The Periphery finding count in `deadcode.json` did not grow against the base branch",
+          "The `Portal` scheme compiles under a Periphery scan of a freshly generated `Portal.xcodeproj`"
+        ],
+        "scripts": {
+          "scripts/check-metrics-ratchet.py": "Compares the `deadcode` metric in `deadcode.json` against the base branch's committed baseline",
+          "scripts/collect-deadcode.py": "Reduces `periphery.json` to a snapshot: total finding count, per-hint counts, repo-relative sites"
+        }
+      },
+      "key": "gate:ratchet/dead-code",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The `deadcode` section of `scripts/check-metrics-ratchet.py` is truncated: is the floor on the total or per hint, and does a patch check apply?",
+        "The workflow's trigger and required-check configuration are not in the excerpt; `blocks: merge` is taken from the mechanical facts."
+      ],
+      "purpose": "Without this job, a PR could merge new unreferenced declarations into Portal unnoticed, and the team would pay as the frozen Periphery backlog quietly grows. The docs define a ratchet as a committed benchmark that allows improvement and blocks regression, and require one job per concern so a red check names the attribute that regressed. Dead code stays its own job because it owns a distinct tool and build.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `Dead Code` job in `ratchet.yml` runs on `macos-26`. It installs Periphery `3.8.0`, regenerates `Portal.xcodeproj` with `xcodegen generate`, and scans the `Portal` scheme. `scripts/collect-deadcode.py` reduces the scan to `deadcode.json`, which `scripts/check-metrics-ratchet.py --deadcode` compares to the base branch. Green means the finding count did not grow."
+    },
+    {
+      "cited_hash": "d0e94820d5d1d3d7b8932b9cf83645ec325b4899e6deb288f2561cc331a88201",
+      "evidence": [
+        {
+          "line": 229,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "# SwiftUI lazy stacks with no scroll viewport on their axis. Each one is the"
+        },
+        {
+          "line": 232,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "# the count plus a patch check on added lines."
+        },
+        {
+          "line": 244,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "run: python3 -m unittest scripts/test_collectors.py"
+        },
+        {
+          "line": 247,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "run: python3 scripts/collect-layout-smells.py Sources --root \"$PWD\" --json layout.json"
+        },
+        {
+          "line": 252,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/check-metrics-ratchet.py --layout layout.json --base \"$BASE\""
+        },
+        {
+          "line": 12,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "`deadcode` (Periphery unused declarations), `layout` (SwiftUI lazy stacks with"
+        },
+        {
+          "line": 13,
+          "path": "scripts/collect-layout-smells.py",
+          "text": "lazy_stack_cross_axis_scroll   the nearest enclosing ScrollView scrolls the"
+        },
+        {
+          "line": 1,
+          "path": "scripts/test_collectors.py",
+          "text": "\"\"\"Unit tests for the metric collectors that have no build behind them."
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "`python3 -m unittest scripts/test_collectors.py` fails",
+          "`scripts/check-metrics-ratchet.py --layout` reports a floor regression versus `origin/<base>`",
+          "`scripts/check-metrics-ratchet.py --layout` reports a patch-check failure on added lines",
+          "`scripts/collect-layout-smells.py` fails to produce `layout.json`"
+        ],
+        "produces": [],
+        "proves": [
+          "The collector rules pinned in `scripts/test_collectors.py` pass",
+          "The count of lazy stacks without a viewport in `Sources` did not rise against the base branch",
+          "The patch check on this PR's added lines passed for layout smells"
+        ],
+        "scripts": {
+          "scripts/check-metrics-ratchet.py": "Compares the `layout` metric in `layout.json` against the base branch (floor and patch)",
+          "scripts/collect-layout-smells.py": "Counts `lazy_stack_cross_axis_scroll` and `lazy_stack_without_viewport` sites by textual scan",
+          "scripts/test_collectors.py": "Unit tests pinning the rules of the layout scan and the slow-test log parser"
+        }
+      },
+      "key": "gate:ratchet/layout",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The `layout` section of `scripts/check-metrics-ratchet.py` is truncated: is the floor per kind or on the total?",
+        "The workflow's trigger and required-check configuration are not in the excerpt; `blocks: merge` is taken from the mechanical facts.",
+        "`scripts/test_collectors.py` also loads `collect-slow-tests`, which is outside this record's bounded files; its tests run here too."
+      ],
+      "purpose": "Without this job, a PR could merge a new SwiftUI lazy stack that has no scroll viewport. The workflow and collector describe that shape as the self-rescheduling relayout loop that beachballed the chat canvas (#249) and the model surface (#606), so the person running Portal would pay with a hung UI. Per the docs it is its own ratchet job so a red check names the attribute that regressed.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `Layout` job in `ratchet.yml` runs on `ubuntu-latest` with no build. It runs the unit tests in `scripts/test_collectors.py`, then `scripts/collect-layout-smells.py` scans `Sources` for lazy stacks with no same-axis `ScrollView` and writes `layout.json`. `scripts/check-metrics-ratchet.py --layout` compares it to the base branch: a count floor plus a patch check on added lines."
+    },
+    {
+      "cited_hash": "d6847105ce7c383e9793c95951d4f97cece5e3b13d3c6cb9e1b60fb91e300140",
+      "evidence": [
+        {
+          "line": 94,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "# Warnings and Coverage both need a from-scratch compile, and coverage needs"
+        },
+        {
+          "line": 116,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "swift build --build-tests 2>&1 | tee build.log"
+        },
+        {
+          "line": 117,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/collect-warnings.py build.log --root \"$PWD\" --json warnings.json"
+        },
+        {
+          "line": 128,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "swift test --enable-code-coverage --no-parallel 2>&1 | tee test.log | tail -5"
+        },
+        {
+          "line": 133,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/collect-coverage.py cov-export.json --root \"$PWD\" --json coverage.json"
+        },
+        {
+          "line": 151,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "name: metric-snapshots"
+        },
+        {
+          "line": 2,
+          "path": "scripts/collect-coverage.py",
+          "text": "\"\"\"Turn `llvm-cov export` output into a coverage snapshot for the metric ratchet."
+        },
+        {
+          "line": 2,
+          "path": "scripts/collect-warnings.py",
+          "text": "\"\"\"Parse a `swift build` log into a de-duplicated, categorized warning snapshot."
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "`scripts/collect-warnings.py` or `scripts/collect-coverage.py` exits non-zero",
+          "`swift build --build-tests` fails (`set -o pipefail`)",
+          "`swift test --enable-code-coverage --no-parallel` fails (`set -o pipefail`)",
+          "`xcrun llvm-cov export` fails"
+        ],
+        "produces": [
+          "metric-snapshots"
+        ],
+        "proves": [
+          "A from-scratch `swift build --build-tests` succeeds, test targets included",
+          "`swift test --enable-code-coverage --no-parallel` passes in a serialized run",
+          "`warnings.json` and `coverage.json` were produced from this build and test run"
+        ],
+        "scripts": {
+          "scripts/collect-coverage.py": "Reduces `llvm-cov export` to testable-layer coverage with covered and uncovered lines; Views excluded",
+          "scripts/collect-warnings.py": "Collapses `build.log` into unique warning sites with per-category counts; no comparison"
+        }
+      },
+      "key": "gate:ratchet/measure",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The workflow's trigger and required-check configuration are not in the excerpt; `blocks: merge` is taken from the mechanical facts.",
+        "Whether the downstream `ratchet/warnings`, `ratchet/coverage` and `ratchet/slow-tests` jobs still run when this job fails is not shown in the excerpt."
+      ],
+      "purpose": "Without this job, the `Warnings`, `Coverage` and `Slow Tests` ratchets would have no snapshots to compare, so warning, coverage and slow-test regressions could merge unchecked, or each job would pay for its own from-scratch build. The docs say it builds once and publishes snapshots so those stay separate green/red checks without two builds. The build is clean because an incremental build under-counts warnings.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `Measure (build + test)` job in `ratchet.yml` runs on `macos-26` with no cache. It runs `swift build --build-tests`, and `scripts/collect-warnings.py` turns `build.log` into `warnings.json`. It then runs `swift test --enable-code-coverage --no-parallel`, and `scripts/collect-coverage.py` turns the `llvm-cov export` into `coverage.json`. It uploads `metric-snapshots` even on failure."
+    },
+    {
+      "cited_hash": "ee2a9f9d8de477b628084c72768843d76c51bf9651af18e72e518b953996bbd0",
+      "evidence": [
+        {
+          "line": 356,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "performance:"
+        },
+        {
+          "line": 366,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "- name: Run the instrumented perf harness"
+        },
+        {
+          "line": 375,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "- name: Ratchet algorithmic op counts against base"
+        },
+        {
+          "line": 380,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "- name: Upload perf snapshot"
+        },
+        {
+          "line": 13,
+          "path": "scripts/check-perf-ratchet.py",
+          "text": "FLOOR (the only check — op counts aren't attributable to added lines, so there"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "A counter in the current snapshot exceeds its value in the base branch's `perf-baseline.json`",
+          "`swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests` fails to build or pass"
+        ],
+        "produces": [
+          "perf-counts"
+        ],
+        "proves": [
+          "Every counter in `perf-counts.json` is ≤ its value in the base branch's committed `perf-baseline.json`",
+          "`PerfCountHarnessTests` builds and passes with `-DPERF_COUNTERS` on macOS"
+        ],
+        "scripts": {
+          "scripts/check-perf-ratchet.py": "Each op count in the snapshot is ≤ base's `perf-baseline.json` (read via `git show`); new counters pass"
+        }
+      },
+      "key": "gate:ratchet/performance",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The script body is truncated: its behaviour when `perf-counts.json` is missing or malformed is not shown.",
+        "Which layout paths `PerfCountHarnessTests` instruments is not visible in the excerpts."
+      ],
+      "purpose": "Without this job a PR could merge a complexity regression in the hot pure layout paths (the workflow's example is O(n)→O(n²)) unnoticed, and the person running Portal would pay for it in slower layout. An integer op count on fixed inputs is deterministic on any runner, so the team gets a regression signal without timing flake. Reading the ceiling from base stops a PR from raising `perf-baseline.json` to wave its own regression through. Constant-factor slowdowns are left to the `Tests` hang gate.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `performance` job of `ratchet.yml` checks out full history on `macos-26`, runs `swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests` to write `perf-counts.json`, then runs `scripts/check-perf-ratchet.py` against the base branch's `perf-baseline.json`. Green means no counter exceeds its base ceiling. It always uploads the snapshot as `perf-counts`."
+    },
+    {
+      "cited_hash": "52d9b7fbde329f09048f6d44344a66f14b58f85eb1638e906e8166e85da3c9af",
+      "evidence": [
+        {
+          "line": 425,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "quality:"
+        },
+        {
+          "line": 436,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "- name: Check the lint baseline did not grow"
+        },
+        {
+          "line": 2,
+          "path": "scripts/check-baseline-growth.py",
+          "text": "\"\"\"Fail if .swiftlint-baseline gained frozen violations versus the base branch."
+        },
+        {
+          "line": 13,
+          "path": "scripts/check-baseline-growth.py",
+          "text": "and fails if an *existing* rule's count grew. Per-rule (not just the total) is"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "An already-tracked rule's entry count in `.swiftlint-baseline` grows versus the base branch"
+        ],
+        "produces": [],
+        "proves": [
+          "No rule already tracked in base's `.swiftlint-baseline` has more frozen entries in the PR's baseline"
+        ],
+        "scripts": {
+          "scripts/check-baseline-growth.py": "Per-rule entry counts in `.swiftlint-baseline` did not grow versus the base ref's copy"
+        }
+      },
+      "key": "gate:ratchet/quality",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The script body is truncated: how entries are parsed and counted per rule is not shown."
+      ],
+      "purpose": "Without this job, `make lint-baseline` is an escape hatch: a PR can freeze a brand-new SwiftLint violation into `.swiftlint-baseline`, turning `Tests / SwiftLint` green while the rule quietly rots. The team would pay, as every enforced lint rule becomes honor-system. This ratchet locks that hatch so a new violation must be fixed, not baselined, and the frozen lint debt can only shrink.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `quality` job of `ratchet.yml` checks out full history on `ubuntu-latest` and runs `scripts/check-baseline-growth.py` with the base ref. The script compares per-rule entry counts in the PR's `.swiftlint-baseline` against the base branch's copy, read via `git show`. Green means no already-tracked rule's count grew; shrinking counts and newly enabled rules pass."
+    },
+    {
+      "cited_hash": "00eb426d68307e0a454be44bf4ba764901b6561280e69c4b51764e2c04b81ab8",
+      "evidence": [
+        {
+          "line": 34,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "security:"
+        },
+        {
+          "line": 44,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "- name: Install gitleaks"
+        },
+        {
+          "line": 63,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "- name: Scan working tree for secrets"
+        },
+        {
+          "line": 75,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "- name: Check the secret ignore-list did not grow"
+        },
+        {
+          "line": 84,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "- name: Upload gitleaks report"
+        },
+        {
+          "line": 13,
+          "path": "scripts/check-secret-baseline-growth.py",
+          "text": "fingerprint lines in the PR's .gitleaksignore against the base branch and fails"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "The count of fingerprint lines in `.gitleaksignore` grew versus the base branch",
+          "The pinned gitleaks 8.30.1 release fails to download or install",
+          "`gitleaks dir` reports a finding whose fingerprint is not in `.gitleaksignore`"
+        ],
+        "produces": [
+          "gitleaks-report"
+        ],
+        "proves": [
+          "`.gitleaksignore` has no more fingerprint lines than the base branch's copy",
+          "`gitleaks dir` finds no secret in the checked-out tree beyond fingerprints accepted in `.gitleaksignore`"
+        ],
+        "scripts": {
+          "scripts/check-secret-baseline-growth.py": "Count of fingerprint lines in `.gitleaksignore` did not grow versus the base ref's copy"
+        }
+      },
+      "key": "gate:ratchet/security",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The scan uses `dir` on the working tree, not history; whether git history is scanned anywhere else is not shown.",
+        "The script says a grown list must be justified in the PR description, but no override that lets such a PR pass is shown."
+      ],
+      "purpose": "Without this job, an API key, token, private key or live credential could be merged into the tree, or a real leak could be silenced by pasting its fingerprint into `.gitleaksignore` so the scan goes green while the secret stays. Whoever owns the leaked credential pays, and so does the team that must rotate it. The growth guard turns the \"only accepted false-positives\" policy from honor-system into an enforced floor.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `security` job of `ratchet.yml` checks out full history, installs gitleaks pinned at `GITLEAKS_VERSION` 8.30.1, and scans the working tree with `gitleaks dir` using `.gitleaks.toml` and `.gitleaksignore`, exiting 1 on any un-accepted finding. It then always runs `scripts/check-secret-baseline-growth.py` against base and uploads `gitleaks.sarif` as `gitleaks-report`."
+    },
+    {
+      "cited_hash": "47ebe5449fd8f4d15330c1dc348983e2e101bbc38a42d48c40ab79386e0a809e",
+      "evidence": [
+        {
+          "line": 212,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "skipped-tests:"
+        },
+        {
+          "line": 221,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "run: python3 scripts/collect-skipped-tests.py Tests --root \"$PWD\" --json skipped.json"
+        },
+        {
+          "line": 226,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/check-metrics-ratchet.py --skipped skipped.json --base \"$BASE\""
+        },
+        {
+          "line": 11,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "(testable-layer line coverage), `skipped` (disabled/known-issue tests),"
+        },
+        {
+          "line": 2,
+          "path": "scripts/collect-skipped-tests.py",
+          "text": "\"\"\"Count disabled / skipped / known-issue tests in the test suite."
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "Either script step exits non-zero",
+          "`check-metrics-ratchet.py --skipped` finds the skipped-test metric regressed versus the base branch"
+        ],
+        "produces": [],
+        "proves": [
+          "The skipped-test metric did not regress against the base branch per `check-metrics-ratchet.py --skipped`",
+          "`scripts/collect-skipped-tests.py` produced a `skipped.json` snapshot from the `Tests` directory"
+        ],
+        "scripts": {
+          "scripts/check-metrics-ratchet.py": "Compares the `skipped` snapshot against the base branch's committed `metrics-baseline.json` and fails on regression",
+          "scripts/collect-skipped-tests.py": "Counts `.disabled`, `.enabled(if:)`, `withKnownIssue` and `XCTSkip*` sites under `Tests` into a JSON snapshot"
+        }
+      },
+      "key": "gate:ratchet/skipped-tests",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "How `.enabled(if:)` sites map onto the three count keys (`disabled`, `known_issue`, `xctest_skip`) is not visible.",
+        "The collector docstring says the metric is gated at a zero floor; the excerpts do not show the `skipped` handler or the baseline value that enforces it."
+      ],
+      "purpose": "Without this job, a PR could make a failing test \"pass\" by disabling it, gating it on a condition, or wrapping it in `withKnownIssue`, and the suite would stay green while no longer defending that behavior. The collector's docstring names this as the laziest move for a swarm optimizing against the suite; the team would pay with regressions that tests claim to cover. Per `docs/architecture-rules.md` it is its own job so a red check names the attribute that regressed.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `Skipped Tests` job in `ratchet.yml` checks out full history, runs `scripts/collect-skipped-tests.py` over `Tests` to write `skipped.json` (per-kind counts and sites of disabled, conditionally enabled, known-issue and XCTest-skipped tests), then runs `scripts/check-metrics-ratchet.py --skipped` against the base branch. It is a text-only scan with no build."
+    },
+    {
+      "cited_hash": "0d3a9e6c187d90160405b65fd47f088fc83b250c5df2db3b396ca5bde00c0605",
+      "evidence": [
+        {
+          "line": 258,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "slow-tests:"
+        },
+        {
+          "line": 261,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "needs: measure"
+        },
+        {
+          "line": 270,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "name: metric-snapshots"
+        },
+        {
+          "line": 273,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "run: python3 scripts/collect-slow-tests.py test.log --json slowtests.json"
+        },
+        {
+          "line": 278,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/check-metrics-ratchet.py --slowtests slowtests.json --base \"$BASE\""
+        },
+        {
+          "line": 14,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "duration threshold in a serialized run). Each metric has its own CI posture"
+        },
+        {
+          "line": 10,
+          "path": "scripts/collect-slow-tests.py",
+          "text": "The gate is on a COUNT over a generous threshold (default 5 s), not on total"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [
+          "metric-snapshots"
+        ],
+        "depends_on": [
+          "ratchet/measure"
+        ],
+        "fails_when": [
+          "Either script step exits non-zero",
+          "The `metric-snapshots` artifact cannot be downloaded",
+          "`check-metrics-ratchet.py --slowtests` finds the over-threshold test count regressed versus the base branch"
+        ],
+        "produces": [],
+        "proves": [
+          "The count of tests over the duration threshold did not rise versus the base branch",
+          "`scripts/collect-slow-tests.py` parsed the `test.log` from the `measure` run into `slowtests.json`"
+        ],
+        "scripts": {
+          "scripts/check-metrics-ratchet.py": "Compares the `slowtests` snapshot against the base branch's committed `metrics-baseline.json` and fails on regression",
+          "scripts/collect-slow-tests.py": "Counts tests over a threshold (default 5 s) in a `swift test` log; 1 s-to-threshold tests go to an uncounted `watchlist`"
+        }
+      },
+      "key": "gate:ratchet/slow-tests",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The `slowtests` handler in `check-metrics-ratchet.py` is truncated out of the excerpt, so the exact comparison rule is not visible.",
+        "Whether a failed `measure` job leaves this check skipped or red is not settled by the excerpts."
+      ],
+      "purpose": "Without this job, a PR could add a test that sleeps its way to a timeout or drives a real clock, and every later CI run would pay for it; the collector's docstring cites two tests taking ~100 s each in a suite whose other 2,000 tests finish in under 20 s. The team pays in a slower inner loop on every PR. It gates on a count rather than total time because durations wobble with runner load, and it is a separate job so a red check names the attribute that regressed.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `Slow Tests` job in `ratchet.yml` waits for `measure`, checks out full history, downloads the `metric-snapshots` artifact, runs `scripts/collect-slow-tests.py` on `test.log` to write `slowtests.json` (count of tests over a duration threshold, default 5 s), then runs `scripts/check-metrics-ratchet.py --slowtests` against the base branch. It does no build of its own."
+    },
+    {
+      "cited_hash": "62445c3c9c1c149a5d4f8a3458fc9a2355b295a643c1b96a4be7bae42a9a27ca",
+      "evidence": [
+        {
+          "line": 164,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "warnings:"
+        },
+        {
+          "line": 167,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "needs: measure"
+        },
+        {
+          "line": 178,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "name: metric-snapshots"
+        },
+        {
+          "line": 183,
+          "path": ".github/workflows/ratchet.yml",
+          "text": "python3 scripts/check-metrics-ratchet.py --warnings warnings.json --base \"$BASE\""
+        },
+        {
+          "line": 20,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "FLOOR  — per-category site counts in the CURRENT build must not exceed the"
+        },
+        {
+          "line": 26,
+          "path": "scripts/check-metrics-ratchet.py",
+          "text": "PATCH  — no warning site may sit on a line this PR ADDED. Added lines come"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [
+          "metric-snapshots"
+        ],
+        "depends_on": [
+          "ratchet/measure"
+        ],
+        "fails_when": [
+          "A warning category's site count exceeds the base branch baseline for that category",
+          "A warning site falls on a line added in `git diff --unified=0 BASE...HEAD`",
+          "The `metric-snapshots` artifact cannot be downloaded"
+        ],
+        "produces": [],
+        "proves": [
+          "No compiler warning site sits on a line this PR added",
+          "No warning category's site count in the current build exceeds the base branch's baseline count"
+        ],
+        "scripts": {
+          "scripts/check-metrics-ratchet.py": "Runs the `warnings` floor (per-category counts vs base baseline) and patch (no warnings on added lines) checks"
+        }
+      },
+      "key": "gate:ratchet/warnings",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "How `warnings.json` is produced is not shown; the `measure` job that publishes `metric-snapshots` is outside the excerpt.",
+        "Whether a failed `measure` job leaves this check skipped or red is not settled by the excerpts."
+      ],
+      "purpose": "Without this job, compiler-warning debt could grow unnoticed: a PR could add warnings in one category while fixing another and net flat, or ship new code that already warns. The team would pay with a baseline that only gets noisier. Per `docs/architecture-rules.md` the ratchet allows improvement and blocks regression, and `Warnings` stays a separate check fed by the shared `Measure` build so a red result names the attribute that regressed without paying for a second build.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `Warnings` job in `ratchet.yml` waits for `measure`, checks out full history so the base baseline and `BASE...HEAD` diff resolve, downloads the `metric-snapshots` artifact, and runs `scripts/check-metrics-ratchet.py --warnings warnings.json` against the base branch. The engine runs a per-category floor check and a patch check on lines the PR added."
+    },
+    {
+      "cited_hash": "e2bf3845169a0a82a3a3b913180e0e00f613aea3d80b37184f781aa50a8f0531",
+      "evidence": [
+        {
+          "line": 32,
+          "path": ".github/workflows/snapshot-record.yml",
+          "text": "record:"
+        },
+        {
+          "line": 37,
+          "path": ".github/workflows/snapshot-record.yml",
+          "text": "runs-on: macos-26"
+        },
+        {
+          "line": 51,
+          "path": ".github/workflows/snapshot-record.yml",
+          "text": "run: swift test --disable-sandbox"
+        },
+        {
+          "line": 57,
+          "path": ".github/workflows/snapshot-record.yml",
+          "text": "if: ${{ inputs.commit }}"
+        },
+        {
+          "line": 72,
+          "path": ".github/workflows/snapshot-record.yml",
+          "text": "- name: Upload goldens as artifact"
+        }
+      ],
+      "fields": {
+        "blocks": "nothing",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "`git commit` or `git push origin \"HEAD:${GITHUB_REF_NAME}\"` fails when `inputs.commit` is set",
+          "`swift test --disable-sandbox` exits non-zero"
+        ],
+        "produces": [
+          "snapshot-goldens"
+        ],
+        "proves": [
+          "Goldens under `Tests/PortalTests/__Snapshots__` were rendered on the same image the verify job uses",
+          "With `inputs.commit` set, changed golden PNGs are committed and pushed to the dispatched branch",
+          "`swift test --disable-sandbox` completes under `SNAPSHOT_RECORD=1` on the `macos-26` image"
+        ]
+      },
+      "key": "gate:snapshot-record/record",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The excerpt does not show the `workflow_dispatch` inputs or `permissions`; what is the default of `inputs.commit`, and is write access granted?",
+        "`docs/testing-strategy.md` says this workflow records/verifies; the excerpt only shows recording.",
+        "`git diff --quiet` only sees tracked files; do brand-new untracked golden PNGs get committed, or does the step exit with \"No golden changes\"?"
+      ],
+      "purpose": "Without this job, view goldens would have to be rendered on a developer machine, where a different macOS image renders text differently, so they would not match what the `Measure` job in `ratchet.yml` renders at verify time. Per `docs/architecture-rules.md`, it is the step that turns a new snapshot test from non-fatal `.missingGolden` into a real per-pixel comparison. The team pays otherwise: view drift goes unpinned or the verify job fails spuriously. It blocks nothing itself.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "Manually dispatched job on `macos-26`. It checks out the dispatched branch, runs `swift test --disable-sandbox` with `SNAPSHOT_RECORD=1` so snapshot tests overwrite their goldens, and prints changes under `Tests/PortalTests/__Snapshots__`. If `inputs.commit` is set it commits and pushes the PNGs back. It always uploads them as `snapshot-goldens`."
+    },
+    {
+      "cited_hash": "e1c14af8cf4a69fe35607c22dc9ccfa55dae86b5884e2dc6f4d78c360ab36978",
+      "evidence": [
+        {
+          "line": 162,
+          "path": ".github/workflows/testflight.yml",
+          "text": "# ── macOS Notarized Build (needs Developer ID cert, disabled for now) ──"
+        },
+        {
+          "line": 166,
+          "path": ".github/workflows/testflight.yml",
+          "text": "if: false"
+        },
+        {
+          "line": 204,
+          "path": ".github/workflows/testflight.yml",
+          "text": "<key>method</key>"
+        },
+        {
+          "line": 233,
+          "path": ".github/workflows/testflight.yml",
+          "text": "xcrun notarytool submit build/Portal-macOS.zip \\"
+        },
+        {
+          "line": 238,
+          "path": ".github/workflows/testflight.yml",
+          "text": "xcrun stapler staple build/export-macOS/Portal.app"
+        }
+      ],
+      "fields": {
+        "blocks": "nothing",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "Never at present: the job is skipped by `if: false`"
+        ],
+        "produces": [
+          "Portal-macOS.app"
+        ],
+        "proves": [
+          "Nothing at present: the job is gated by `if: false` and never executes"
+        ]
+      },
+      "key": "gate:testflight/notarize-macos",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "Export writes to `build/export-macos` but `stapler` and the artifact upload read `build/export-macOS`; would this work on a case-sensitive volume?",
+        "The job imports `APPLE_DISTRIBUTION_CERT_P12` and signs as `Apple Distribution` yet exports with method `developer-id`; which certificate is intended?",
+        "What condition would re-enable this job is not stated beyond the comment about needing a Developer ID cert."
+      ],
+      "purpose": "Purpose inferred from the workflow alone, as no docs name this job. It is a parked path to a notarized, Developer ID-signed macOS build of Portal that people could run outside the App Store without Gatekeeper rejecting it. The header comment says it needs a Developer ID certificate and is disabled for now. Because it never runs, it protects nothing today, and no notarized macOS app comes out of CI.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "Disabled job (`if: false`) in the `testflight` workflow, so it never runs. As written, it would generate the project with `xcodegen`, import a signing certificate, archive scheme `Portal` for macOS, export with method `developer-id`, zip `Portal.app`, submit it with `xcrun notarytool submit --wait`, staple it, and upload it as `Portal-macOS.app`."
+    },
+    {
+      "cited_hash": "8823ce0c227126ab2abb303abe362027b9934aa47969e49963825e8a1bd6e9e8",
+      "evidence": [
+        {
+          "line": 26,
+          "path": ".github/scripts/distribute_testflight.rb",
+          "text": "def latest_build_number(app_id)"
+        },
+        {
+          "line": 19,
+          "path": ".github/workflows/testflight.yml",
+          "text": "testflight:"
+        },
+        {
+          "line": 57,
+          "path": ".github/workflows/testflight.yml",
+          "text": "- name: Archive iOS App"
+        },
+        {
+          "line": 99,
+          "path": ".github/workflows/testflight.yml",
+          "text": "- name: Export IPA"
+        },
+        {
+          "line": 111,
+          "path": ".github/workflows/testflight.yml",
+          "text": "- name: Find Current TestFlight Build"
+        },
+        {
+          "line": 123,
+          "path": ".github/workflows/testflight.yml",
+          "text": "- name: Upload to TestFlight"
+        }
+      ],
+      "fields": {
+        "blocks": "release",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "Signing or provisioning via `-allowProvisioningUpdates` fails during archive or export",
+          "`distribute_testflight.rb --print-latest-build` fails, e.g. a required `ENV.fetch` variable is missing",
+          "`xcodegen generate` or `xcodebuild archive` exits non-zero",
+          "`xcrun altool --upload-app` rejects the IPA"
+        ],
+        "produces": [
+          "Portal-iOS.ipa"
+        ],
+        "proves": [
+          "Automatic signing resolves a provisioning profile via the App Store Connect API key and imported cert",
+          "Unless `upload` is `false`, `xcrun altool --upload-app` accepts `build/export/Portal-iOS.ipa`",
+          "`xcodebuild -exportArchive` produces an `app-store` IPA from `build/Portal.xcarchive`",
+          "`xcodegen generate` produces a `Portal.xcodeproj` that archives scheme `Portal-iOS` for `generic/platform=iOS`"
+        ],
+        "scripts": {
+          ".github/scripts/distribute_testflight.rb": "With `--print-latest-build`, reads the latest uploaded build version from App Store Connect; also run to assign groups"
+        }
+      },
+      "key": "gate:testflight/testflight",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "How `PREVIOUS_BUILD_NUMBER` is used after upload is not visible.",
+        "The `Assign Build to TestFlight Groups` step and most of `distribute_testflight.rb` are truncated; which groups, and how processing is awaited, is not shown.",
+        "The workflow triggers are outside the excerpt; only an `upload` dispatch input is implied."
+      ],
+      "purpose": "Purpose inferred from the workflow and script, as no docs paragraph names this job. It is the path by which a signed iOS build of Portal reaches TestFlight testers. Without it, a commit that cannot be archived, signed against the App Store Connect-resolved profile, or exported as an `app-store` IPA would only surface when someone tried to ship by hand, and testers would get no new build. The team and its testers bear that cost.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "Post-merge release job on `macos-26`. It generates the project with `xcodegen`, imports the distribution cert, archives `Portal-iOS` with `-allowProvisioningUpdates` and build number `github.run_number`, and exports an `app-store` IPA. Unless `upload` is `false`, it reads the latest build, uploads with `xcrun altool`, and assigns TestFlight groups. It keeps `Portal-iOS.ipa` as an artifact."
+    },
+    {
+      "cited_hash": "6b7c855975783b9c738115b65bfdd76e48128f887e30db4e1cb92f866c08dd70",
+      "evidence": [
+        {
+          "line": 302,
+          "path": ".github/workflows/tests.yml",
+          "text": "# The beachball gate. Launches the macOS app under the MainThreadWatchdog with"
+        },
+        {
+          "line": 306,
+          "path": ".github/workflows/tests.yml",
+          "text": "hang-gate:"
+        },
+        {
+          "line": 320,
+          "path": ".github/workflows/tests.yml",
+          "text": "- name: Run macOS hang gate (--hang-fatal)"
+        },
+        {
+          "line": 336,
+          "path": ".github/workflows/tests.yml",
+          "text": "- name: Assert the hang test actually executed"
+        },
+        {
+          "line": 350,
+          "path": ".github/workflows/tests.yml",
+          "text": "- name: Upload hang-gate artifacts"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "`brew install xcodegen` or `xcodegen generate` fails",
+          "`hang-gate.log` has no `Test Case` line for `MainThreadHangGateUITests` (`passed` or `started`)",
+          "`xcodebuild test` of `MainThreadHangGateUITests` fails, e.g. a >250ms main-thread stall per the comment"
+        ],
+        "produces": [
+          "macos-hang-gate-artifacts"
+        ],
+        "proves": [
+          "The log contains a `Test Case` line for `MainThreadHangGateUITests` marked `passed` or `started`",
+          "`MainThreadHangGateUITests` ran against the macOS `Portal` scheme and `xcodebuild test` exited successfully",
+          "`xcodegen generate` produces a `Portal.xcodeproj` that builds for `platform=macOS` without code signing"
+        ],
+        "scripts": {}
+      },
+      "key": "gate:tests/hang-gate",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The assertion accepts `started` as well as `passed`; whether a started-but-crashed test is always caught by the `xcodebuild` exit code is not shown.",
+        "Where `--hang-fatal` is passed and the 250ms threshold is set: the step name and comment mention them, but the `xcodebuild` command shown does not; presumably inside the test or `MainThreadWatchdog`."
+      ],
+      "purpose": "Without this job, a change that stalls the macOS main thread could merge and reach the person running Portal as a beachball. The workflow comment says every hang this app has shipped was on macOS, so the gate runs on that platform; `docs/testing-strategy.md` lists it as layer 4 of the behavior gates. The extra log assertion exists so a UI-test runner that never attaches cannot leave the check green while gating nothing.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `hang-gate` job in `tests.yml` runs on `macos-15`: it generates the Xcode project with `xcodegen generate`, runs `xcodebuild test` on scheme `Portal` limited to `PortalMacUITests/MainThreadHangGateUITests`, then greps `hang-gate.log` to assert the test actually ran, and uploads `HangGate.xcresult` and the log as `macos-hang-gate-artifacts`."
+    },
+    {
+      "cited_hash": "85b2f1536368c3c299a9a4168118d8be952aa3775b497a3db9160f3aad678034",
+      "evidence": [
+        {
+          "line": 90,
+          "path": ".github/workflows/tests.yml",
+          "text": "ios-smoke:"
+        },
+        {
+          "line": 104,
+          "path": ".github/workflows/tests.yml",
+          "text": "- name: Checkout Hermes Agent"
+        },
+        {
+          "line": 125,
+          "path": ".github/workflows/tests.yml",
+          "text": "- name: Start local Hermes API server"
+        },
+        {
+          "line": 183,
+          "path": ".github/workflows/tests.yml",
+          "text": "- name: Select an available iPhone simulator"
+        },
+        {
+          "line": 195,
+          "path": ".github/workflows/tests.yml",
+          "text": "- name: Build iOS Simulator app"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "Installing `hermes-agent` with `pip install -e '.[messaging,cron]'` under `python3.14` fails",
+          "No available iPhone simulator is found by `xcrun simctl list devices available`",
+          "The Hermes API server exits early or is not healthy within 60 one-second polls",
+          "The offline onboarding, local-Hermes gateway smoke or E2E integration step fails",
+          "`xcodebuild build` of scheme `Portal-iOS` fails"
+        ],
+        "produces": [
+          "ios-simulator-test-artifacts"
+        ],
+        "proves": [
+          "A local Hermes API server from `hermes-agent` starts and answers `/health` with the CI bearer key",
+          "Scheme `Portal-iOS` builds for an available iPhone simulator resolved by UDID",
+          "The offline onboarding smoke, local-Hermes gateway smoke and E2E integration steps complete"
+        ],
+        "scripts": {}
+      },
+      "key": "gate:tests/ios-smoke",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The Hermes config names provider `openai` and model `gpt-4o-mini` with no API key in the excerpt; whether the E2E flows ever reach a model is not settled.",
+        "The excerpt is truncated after the build step: what the three test steps invoke and assert, and what the uploaded artifact contains, is not shown.",
+        "`hermes-agent` is checked out with no `ref`; whether the job is exposed to upstream changes on its default branch is not addressed."
+      ],
+      "purpose": "Without this job, a change could merge that builds but breaks the iOS app's onboarding offline or its conversation with a real Hermes gateway, and the person running Portal on an iPhone would find out first. `docs/testing-strategy.md` names it layer 3: the hermetic offline + gateway + E2E flows, which the unit suite cannot cover because they need a running simulator and a live local gateway.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `ios-smoke` job in `tests.yml` runs on `macos-15`: it checks out Portal and `NousResearch/hermes-agent`, starts a local Hermes API server on `127.0.0.1:18642` and waits for `/health`, picks the newest available iPhone simulator, builds scheme `Portal-iOS`, then runs offline onboarding, local-gateway smoke and E2E steps, uploading `ios-simulator-test-artifacts`."
+    },
+    {
+      "cited_hash": "7badf9b07bb6cced7c2007a20c5f8a380800df6c35f4928fea270fa19d46393a",
+      "evidence": [
+        {
+          "line": 28,
+          "path": ".github/workflows/tests.yml",
+          "text": "# Strict lint gated on the frozen baseline: only NEWLY introduced violations"
+        },
+        {
+          "line": 31,
+          "path": ".github/workflows/tests.yml",
+          "text": "swift-lint:"
+        },
+        {
+          "line": 47,
+          "path": ".github/workflows/tests.yml",
+          "text": "SWIFTLINT_VERSION: 0.65.0"
+        },
+        {
+          "line": 54,
+          "path": ".github/workflows/tests.yml",
+          "text": "- name: Verify SwiftLint version"
+        },
+        {
+          "line": 62,
+          "path": ".github/workflows/tests.yml",
+          "text": "run: swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "A change introduces a SwiftLint violation, warning or error, not listed in `.swiftlint-baseline`",
+          "The `portable_swiftlint.zip` download for the pinned `SWIFTLINT_VERSION` or its unzip fails"
+        ],
+        "produces": [],
+        "proves": [
+          "The lint ran with the SwiftLint release pinned by `SWIFTLINT_VERSION` (`0.65.0`)",
+          "`swiftlint lint --strict` reports no violation that is not already frozen in `.swiftlint-baseline`"
+        ],
+        "scripts": {}
+      },
+      "key": "gate:tests/swift-lint",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The README says SwiftLint enforces zero violations on every CI run, while the job tolerates baselined ones; the baseline's current size is not shown.",
+        "`Verify SwiftLint version` only prints `swiftlint version`; nothing in the excerpt compares the output to `SWIFTLINT_VERSION`."
+      ],
+      "purpose": "Without this job, new lint violations could merge, including breaches of the custom rules in `.swiftlint.yml` that `docs/architecture-rules.md` says are blocking because `--strict` promotes warnings to errors; the team would pay through eroding architecture rules and a growing debt pile. The version pin exists because a newer SwiftLint finds violations the baseline was not written with, which broke CI before (#222). Stopping the baseline from being grown is a separate check, `Ratchet / Quality`.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `swift-lint` job in `tests.yml` runs on `macos-14`: it downloads the portable SwiftLint release pinned by `SWIFTLINT_VERSION` `0.65.0`, adds it to the path, prints `swiftlint version`, then runs `swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging`, so only violations absent from the baseline fail."
+    },
+    {
+      "cited_hash": "960ce65bc2b3b0db36e886a4fae384d865bca92c166f4ae034830228e66906db",
+      "evidence": [
+        {
+          "line": 67,
+          "path": ".github/workflows/tests.yml",
+          "text": "swift-test:"
+        },
+        {
+          "line": 69,
+          "path": ".github/workflows/tests.yml",
+          "text": "runs-on: macos-26"
+        },
+        {
+          "line": 76,
+          "path": ".github/workflows/tests.yml",
+          "text": "swift test --disable-sandbox 2>&1 | tee swift-test.log"
+        },
+        {
+          "line": 82,
+          "path": ".github/workflows/tests.yml",
+          "text": "name: swift-test-log"
+        }
+      ],
+      "fields": {
+        "blocks": "merge",
+        "consumes": [],
+        "depends_on": [],
+        "fails_when": [
+          "Any test in the SwiftPM unit suite fails",
+          "The package or its tests fail to compile under `swift test`",
+          "`swift test` exits non-zero; `set -o pipefail` propagates it through the `tee` pipe"
+        ],
+        "produces": [
+          "swift-test-log"
+        ],
+        "proves": [
+          "The architecture tests run by `swift test` pass, per `docs/architecture-rules.md`",
+          "`swift test --disable-sandbox` exits zero for the SwiftPM unit suite on `macos-26`"
+        ],
+        "scripts": {}
+      },
+      "key": "gate:tests/swift-test",
+      "kind": "gate",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "The workflow's triggers and any branch-protection settings sit outside the excerpt; which events run this job is not shown.",
+        "Why `--disable-sandbox` is needed is not stated in the excerpt."
+      ],
+      "purpose": "Without this check, a change that breaks unit-level behavior could merge unnoticed, along with violations of the cross-file architecture assertions in `Tests/PortalTests/ArchitectureTests.swift`, which the docs say `swift test` runs and which regex linting cannot express. The team would pay by finding these regressions later, in slower layers or after merge. It is layer 1 of the testing strategy, reported as the `Tests / Swift package tests` check.",
+      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+      "summary": "The `swift-test` job in `tests.yml` runs on `macos-26`, checks out the repository, and runs `swift test --disable-sandbox` under `set -o pipefail`, teeing output to `swift-test.log`. A green run establishes that the auto-discovered SwiftPM unit suite (swift-testing + XCTest) passes. The log is always uploaded as `swift-test-log`, kept 14 days."
+    },
+    {
       "cited_hash": "0ef597ce0f48662ebad2daf68c3531f13c40b9fad3d2bf8301544231c5f146de",
       "evidence": [
         {
