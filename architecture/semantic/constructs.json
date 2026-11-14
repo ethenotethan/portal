@@ -6616,9 +6616,9 @@
         "Mechanical facts mark the store's persistence as unobserved; the excerpt only shows delegation to `DelegationBatchHistoryStore`.",
         "The excerpt is truncated before `recordTerminalBatches`, `createTree` and the buffer flush, so how batches are judged terminal is not shown."
       ],
-      "purpose": "Inferred from code comments, since no docs paragraph names it: it exists so Mission Control can show a live tree of an agent run's sub-agents, tool calls, thinking and transcript to the person watching a chat session, whichever of the stable or runtime session ID opened it. Persisting finished batches in `DelegationBatchHistoryStore` lets the delegation-batch panel show past work after the in-memory tree is gone. Without it, spawn and delegation events have nowhere to accumulate.",
+      "purpose": "Inferred from code comments, since no docs paragraph names it: it exists so Mission Control can show a live tree of an agent run's subagents, tool calls, thinking and transcript to the person watching a chat session, whichever of the stable or runtime session ID opened it. Persisting finished batches in `DelegationBatchHistoryStore` lets the delegation-batch panel show past work after the in-memory tree is gone. Without it, spawn and delegation events have nowhere to accumulate.",
       "source_revision": "570a8cf12cc1b6c4a976005ef9d30e1cd85bfb59",
-      "summary": "`SpawnTreeStore` subscribes to a `GatewayClient`'s `eventStream`, batches events, and builds per-session `SessionTree`s of root and sub-agent nodes from spawn, tool, delta and completion events. It buffers events for sessions without a tree, maps stable display IDs to runtime IDs, coalesces streaming deltas, and persists terminal batches into `DelegationBatchHistoryStore`."
+      "summary": "`SpawnTreeStore` subscribes to a `GatewayClient`'s `eventStream`, batches events, and builds per-session `SessionTree`s of root and subagent nodes from spawn, tool, delta and completion events. It buffers events for sessions without a tree, maps stable display IDs to runtime IDs, coalesces streaming deltas, and persists terminal batches into `DelegationBatchHistoryStore`."
     }
   ],
   "schema_version": "1.0.0"

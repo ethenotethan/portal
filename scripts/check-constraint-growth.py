@@ -27,6 +27,9 @@ What "looser" means, per file:
       may go with its deleted workflow file: those workflows ship or upkeep,
       they do not decide what CI accepts.
       (Components are not guarded: every file must be assigned anyway.)
+  architecture/glossary.json (the vocabulary the enrichment layer is held to)
+      a term removed; an `avoid` word dropped; a proper noun demoted to a
+      case-insensitive kind; a distinction dropped; the file deleted.
   .swiftlint.yml
       a custom rule removed or demoted from error to warning; a rule's or the
       top-level `excluded` list grown; `disabled_rules` grown; `opt_in_rules`
@@ -81,6 +84,7 @@ INVARIANTS = "architecture/interplay/invariants.json"
 CONFIG = "architecture/config.json"
 SWIFTLINT = ".swiftlint.yml"
 ARCH_TESTS = "Tests/PortalTests/ArchitectureTests.swift"
+GLOSSARY = "architecture/glossary.json"
 # The Python suites behind the architecture gate: the compiler's, the interplay's and this guard's own.
 COMPILER_TESTS = ("scripts/test_architecture.py", "scripts/test_interplay.py", "scripts/test_constraint_growth.py")
 PY_TEST_RE = re.compile(r"^\s*def test_[A-Za-z0-9_]+\(", re.M)
@@ -208,6 +212,41 @@ def check_invariants(base: Optional[str], head: Optional[str]) -> List[str]:
                 widened = _members(after.get(key)) - _members(value)
                 if widened:
                     problems.append(f"{where} widened transports by {len(widened)}")
+    return problems
+
+
+# ── glossary.json ────────────────────────────────────────────────────────────
+
+
+def check_glossary(base: Optional[str], head: Optional[str]) -> List[str]:
+    """The vocabulary the enrichment layer is held to may only grow or tighten: a term removed, an
+    `avoid` word dropped, a proper noun demoted to a case-insensitive kind, or a distinction dropped
+    is a loosening."""
+    problems: List[str] = []
+    if base is None:
+        return problems  # a repository without a glossary declares nothing to keep
+    if head is None:
+        return [f"{GLOSSARY}: the glossary was removed"]
+    base_doc = _load_json(base, GLOSSARY, problems)
+    head_doc = _load_json(head, GLOSSARY, problems)
+    if base_doc is None or head_doc is None:
+        return problems
+    before = {e["term"].lower(): e for e in base_doc.get("terms", []) if isinstance(e, dict) and isinstance(e.get("term"), str)}
+    after = {e["term"].lower(): e for e in head_doc.get("terms", []) if isinstance(e, dict) and isinstance(e.get("term"), str)}
+    for key, entry in before.items():
+        where = f"{GLOSSARY}: term {entry['term']!r}"
+        now = after.get(key)
+        if now is None:
+            problems.append(f"{where} was removed")
+            continue
+        if entry.get("kind") == "proper-noun" and now.get("kind") != "proper-noun":
+            problems.append(f"{where} is no longer a proper noun (its spelling was enforced; now it is not)")
+        dropped = _members(entry.get("avoid")) - _members(now.get("avoid"))
+        if dropped:
+            problems.append(f"{where} dropped {len(dropped)} avoid word(s): {', '.join(sorted(str(a).strip(chr(34)) for a in dropped))}")
+        gone = set((entry.get("distinguish_from") or {}).keys()) - set((now.get("distinguish_from") or {}).keys())
+        if gone:
+            problems.append(f"{where} dropped the distinction from {', '.join(sorted(gone))}")
     return problems
 
 
@@ -575,6 +614,7 @@ def evaluate(root: Path, base_ref: str) -> List[str]:
     problems: List[str] = []
     problems += check_invariants(git_show(root, base_ref, INVARIANTS), working(root, INVARIANTS))
     problems += check_config(git_show(root, base_ref, CONFIG), working(root, CONFIG), root)
+    problems += check_glossary(git_show(root, base_ref, GLOSSARY), working(root, GLOSSARY))
     problems += check_swiftlint(git_show(root, base_ref, SWIFTLINT), working(root, SWIFTLINT), parse)
     problems += check_architecture_tests(git_show(root, base_ref, ARCH_TESTS), working(root, ARCH_TESTS))
     problems += check_files_kept(root, base_ref, SPECIFICATIONS, "*.md")

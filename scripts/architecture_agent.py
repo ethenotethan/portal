@@ -383,6 +383,9 @@ class Context:
         self.by_key = {node["history_key"]: node for node in self.interplay["nodes"] if node["kind"] != "operation"}
         self.line_counts = {item["path"]: item["line_count"] for item in self.files}
         self.component_by_id = {c["id"]: c for c in self.model.get("components", [])}
+        # The product's own nouns (architecture/glossary.json): handed to the model with every packet and
+        # applied mechanically to what it returns, so a record is not rejected for a word a rule can fix.
+        self.glossary: list[dict[str, Any]] = list((self.interplay.get("glossary") or {}).get("terms") or [])
         # The CI jobs a `gate:` record describes, with the workflow and script texts. The lenient compile
         # builds no CI plane and sets gate records aside, so the strict index is rebuilt here for the
         # validators and the packets.
@@ -537,6 +540,73 @@ def docs_for(label: str, paths: list[str]) -> list[dict[str, str]]:
     return out
 
 
+def glossary_packet(terms: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The glossary as the model sees it: term, kind, definition, the words not to use, the confusions to avoid."""
+    out = []
+    for t in terms:
+        entry: dict[str, Any] = {"term": t["term"], "kind": t["kind"], "definition": t["definition"]}
+        if t.get("avoid"):
+            entry["avoid"] = t["avoid"]
+        if t.get("distinguish_from"):
+            entry["distinguish_from"] = t["distinguish_from"]
+        out.append(entry)
+    return out
+
+
+GLOSSARY_RULE = ("- Vocabulary: the packet's `glossary` names the product's own nouns and concepts. Use those exact terms "
+                 "(proper nouns with their exact spelling and case), never a word listed under `avoid`, and keep the distinctions "
+                 "it draws. Identifiers in backticks are code and are exempt. A record that departs from the glossary is rejected.")
+
+
+def glossary_repair_texts(raw: dict[str, Any], terms: list[dict[str, Any]], compiler: Any, paths: list[tuple[str, ...]]) -> list[str]:
+    """Apply the compiler's mechanical glossary repairs to every prose field named by ``paths`` (a path of
+    keys; a list or dict at the end is repaired element by element). Mutates ``raw``; returns the log."""
+    if not terms:
+        return []
+    repairs: list[str] = []
+
+    def fix(text: Any) -> Any:
+        if not isinstance(text, str):
+            return text
+        new, done = compiler.glossary_repair(text, terms)
+        repairs.extend(done)
+        return new
+
+    for path in paths:
+        holder: Any = raw
+        for key in path[:-1]:
+            holder = holder.get(key) if isinstance(holder, dict) else None
+            if holder is None:
+                break
+        if not isinstance(holder, dict) or path[-1] not in holder:
+            continue
+        value = holder[path[-1]]
+        if isinstance(value, str):
+            holder[path[-1]] = fix(value)
+        elif isinstance(value, list):
+            holder[path[-1]] = [fix(v) for v in value]
+        elif isinstance(value, dict):
+            holder[path[-1]] = {k: fix(v) for k, v in value.items()}
+    return repairs
+
+
+def glossary_repair_record(raw: dict[str, Any], terms: list[dict[str, Any]], compiler: Any) -> list[str]:
+    paths: list[tuple[str, ...]] = [("summary",), ("purpose",), ("open_questions",)]
+    fields = raw.get("fields") if isinstance(raw.get("fields"), dict) else {}
+    # Only prose fields: a list of construct keys, type names or enum values is structure, not vocabulary.
+    schema = compiler.CONSTRUCT_SCHEMAS.get(str(raw.get("kind")), {})
+    paths.extend(("fields", name) for name in fields if schema.get(name, ("",))[0] in compiler.PROSE_FIELD_KINDS)
+    return glossary_repair_texts(raw, terms, compiler, paths)
+
+
+def glossary_repair_flow(raw: dict[str, Any], terms: list[dict[str, Any]], compiler: Any) -> list[str]:
+    repairs = glossary_repair_texts(raw, terms, compiler, [("title",), ("summary",), ("interaction",), ("outcome",)])
+    for step in raw.get("steps") or []:
+        if isinstance(step, dict):
+            repairs.extend(glossary_repair_texts(step, terms, compiler, [("note",), ("detail",)]))
+    return repairs
+
+
 SHORTEN_SCHEMA = {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}
 
 
@@ -575,13 +645,17 @@ def clip(text: str, limit: int) -> str:
     return text[:limit - 1].rstrip() + "…"
 
 
-def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compiler: Any, owner: str, line_counts: dict[str, int]) -> dict[str, Any]:
+def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compiler: Any, owner: str, line_counts: dict[str, int],
+                  glossary: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Length caps are mechanical, so a response that overruns one is fitted to it (at a
     sentence end, or by asking the model to shorten it) rather than dropped, and a cited line past the end of a real file is pinned to its last
     line; every repair is printed. Vocabulary and evidence-path errors are not repaired:
     the validator rejects those and the reason is printed."""
     out = dict(raw)
     repairs: list[str] = []
+    # The glossary's mechanical half first, so a term longer than the word it replaced is fitted by the caps below.
+    for change in glossary_repair_record(out, glossary or [], compiler):
+        repairs.append(f"glossary {change}")
     for key, limit in (("summary", compiler.SEMANTIC_SUMMARY_MAX), ("purpose", compiler.SEMANTIC_PURPOSE_MAX)):
         if isinstance(out.get(key), str) and len(out[key]) > limit:
             out[key] = clip(out[key], limit)
@@ -803,7 +877,7 @@ def construct_prompt(batch: list[dict[str, Any]], kind: str, ctx: Context, exist
         if record:
             facts["existing_record"] = {k: record[k] for k in ("summary", "purpose", "fields", "open_questions") if record.get(k) is not None}
         records.append(facts)
-    packet = {"repository": ctx.model["repository"], "source_revision": source_revision, "kind": kind, "records": records}
+    packet = {"repository": ctx.model["repository"], "source_revision": source_revision, "kind": kind, "glossary": glossary_packet(ctx.glossary), "records": records}
     text = json.dumps(packet, indent=1, sort_keys=True, ensure_ascii=False)
     while len(text) > PACKET_CHARS and any(r["excerpts"] for r in records):
         longest = max((x for r in records for x in r["excerpts"]), key=lambda x: len(x["text"]))
@@ -835,6 +909,7 @@ Rules:
 - `record_type` must be Swift type names that appear in the excerpts.
 - Every evidence path must be in this record's bounded_files, with a line number inside the excerpt ranges you saw (from_line plus the offset).
 - For a CI job: `blocks` must equal `mechanical.blocks`; `depends_on`, `consumes`, `produces` and the keys of `scripts` may only name what `mechanical` lists. `proves` and `fails_when` are short separate statements, one fact each.
+{GLOSSARY_RULE}
 - Prefer an open question over an unsupported claim. Do not describe desired design.
 - The summary says what it does; the purpose says why anyone wanted it. They must not repeat each other. A purpose that lists dependencies ("talks to the gateway and the Keychain") is rejected in review; name the outcome those dependencies buy. `component` is the declared module the construction sits in and `docs` are the repository's own paragraphs naming it: ground the purpose there.
 - Set every identifier, type, method, file, route, namespace and key you mention in backticks, in the summary, the purpose and every string field.
@@ -909,7 +984,7 @@ def run_constructs(ctx: Context, targets: list[dict[str, Any]], source_revision:
             raw["source_revision"] = source_revision
             raw["model"] = model_name
             raw.pop("cited_hash", None)
-            raw = repair_record(raw, compiler.CONSTRUCT_SCHEMAS[kind], compiler, target["key"], ctx.line_counts)
+            raw = repair_record(raw, compiler.CONSTRUCT_SCHEMAS[kind], compiler, target["key"], ctx.line_counts, ctx.glossary)
             try:
                 record = compiler.validate_construct_record(raw, ctx.interplay, ctx.files, ctx.externals)
             except compiler.ArchitectureError as exc:
@@ -1002,10 +1077,13 @@ def inside_windows(cites: Any, windows: list[dict[str, Any]]) -> list[dict[str, 
     return kept
 
 
-def repair_flow(raw: dict[str, Any], compiler: Any) -> dict[str, Any]:
-    """Length caps are mechanical: an overrun is cut to the cap rather than dropped, and printed."""
+def repair_flow(raw: dict[str, Any], compiler: Any, glossary: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Length caps and the glossary's mechanical half: an overrun is fitted to the cap and an `avoid`
+    word or a miscased proper noun is corrected rather than the flow dropped, and each repair is printed."""
     out = dict(raw)
     repairs: list[str] = []
+    for change in glossary_repair_flow(out, glossary or [], compiler):
+        repairs.append(f"glossary {change}")
     for key, limit in (("title", compiler.FLOW_TITLE_MAX), ("summary", compiler.SEMANTIC_SUMMARY_MAX), ("interaction", compiler.FLOW_INTERACTION_MAX), ("outcome", compiler.FLOW_OUTCOME_MAX)):
         if isinstance(out.get(key), str) and len(out[key]) > limit:
             out[key] = clip(out[key], limit)
@@ -1070,7 +1148,7 @@ def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list
     excerpts, windows = flow_source(ctx, scope, page)
     packet = {
         "repository": ctx.model["repository"], "source_revision": source_revision,
-        "journey": journey, "page": page, "page_label": page_label, "brief": brief,
+        "journey": journey, "page": page, "page_label": page_label, "brief": brief, "glossary": glossary_packet(ctx.glossary),
         "nodes": nodes, "edges": [list(t) for t in triples],
         "trigger_edges": f"a trigger row implies the edge [\"page:{page}\", \"triggers\", surface_key]; a flow that starts from a user action or from launch should begin with it",
         "triggers": trigger_rows[:120], "node_files": files_of, "source": excerpts,
@@ -1105,6 +1183,7 @@ Hard rules:
 - {compiler.FLOW_MIN_STEPS} to {compiler.FLOW_MAX_STEPS} steps. Start each flow from the trigger edge when a trigger fits.
 - Cover the interactions the triggers show; do not describe interactions the triggers and edges cannot support.
 - Cites are provenance: every step with a detail cites at least one path and line inside an excerpt in `source` that the detail was written from. A citation outside the excerpts shown is discarded; a flow with no citation left anywhere is rejected.
+{GLOSSARY_RULE.replace("A record", "A flow")}
 - Say only what the excerpts show. Where an excerpt is truncated or a hop has no excerpt, the detail says what is not shown rather than guessing.
 - The reader follows the steps in order; the details together are the story. Do not repeat a hop's facts in another hop's detail.
 - Output JSON only.
@@ -1201,7 +1280,7 @@ def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str 
                 continue
             if dropped:
                 print(f"flow {raw.get('id')}: dropped {dropped} citation(s) outside the source shown", file=sys.stderr, flush=True)
-            raw = repair_flow(raw, compiler)
+            raw = repair_flow(raw, compiler, ctx.glossary)
             try:
                 flow = compiler.validate_flow(raw, ctx.interplay, ctx.files)
             except compiler.ArchitectureError as exc:
@@ -1269,6 +1348,58 @@ def merge_journey_results(existing: list[dict[str, Any]], journeys: list[tuple[s
     return replacements, kept
 
 
+def run_glossary_repair(ctx: Context) -> int:
+    """The glossary's mechanical half applied to what is already on disk, so a new or tightened
+    glossary does not need a model to re-case a proper noun or swap an alias for its term. What
+    still departs after that is printed, record by record: those need `--constructs --stale-only`
+    and `--flows --stale-only`, which rewrite exactly the records and journeys the validators drop."""
+    compiler, terms = ctx.compiler, ctx.glossary
+    if not terms:
+        print("glossary: no terms declared in architecture/glossary.json")
+        return 0
+    dump = lambda doc: json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    constructs = json.loads(CONSTRUCTS_PATH.read_text(encoding="utf-8")) if CONSTRUCTS_PATH.is_file() else {"schema_version": "1.0.0", "records": []}
+    changed = 0
+    for index, record in enumerate(constructs["records"]):
+        repairs = glossary_repair_record(record, terms, compiler)
+        if repairs:
+            changed += 1
+            print(f"glossary: {record.get('key')}: {', '.join(repairs)}")
+            # A term longer than the word it replaced can push a field past its cap; the same fitting
+            # the agent applies to fresh output applies here, and is printed the same way.
+            constructs["records"][index] = repair_record(record, compiler.CONSTRUCT_SCHEMAS.get(str(record.get("kind")), {}), compiler, str(record.get("key")), ctx.line_counts)
+    if changed:
+        CONSTRUCTS_PATH.write_text(dump(constructs), encoding="utf-8")
+    flows = json.loads(FLOWS_PATH.read_text(encoding="utf-8")) if FLOWS_PATH.is_file() else {"schema_version": "1.0.0", "flows": []}
+    changed_flows = 0
+    for index, flow in enumerate(flows["flows"]):
+        repairs = glossary_repair_flow(flow, terms, compiler)
+        if repairs:
+            changed_flows += 1
+            print(f"glossary: flow {flow.get('id')}: {', '.join(repairs)}")
+            flows["flows"][index] = repair_flow(flow, compiler)
+    if changed_flows:
+        FLOWS_PATH.write_text(dump(flows), encoding="utf-8")
+    print(f"glossary: repaired {changed} record(s) and {changed_flows} flow(s)")
+    remaining = 0
+    for record in constructs["records"]:
+        try:
+            compiler.validate_construct_record(record, ctx.interplay, ctx.files, ctx.externals, persisted=True)
+        except compiler.ArchitectureError as exc:
+            if "glossary" in str(exc):
+                remaining += 1
+                print(f"glossary: still departs: {exc}", file=sys.stderr)
+    for flow in flows["flows"]:
+        try:
+            compiler.validate_flow(flow, ctx.interplay, ctx.files, persisted=True)
+        except compiler.ArchitectureError as exc:
+            if "glossary" in str(exc):
+                remaining += 1
+                print(f"glossary: still departs: {exc}", file=sys.stderr)
+    print(f"glossary: {remaining} record(s)/flow(s) still depart" + ("; rewrite them with --constructs --stale-only and --flows --stale-only" if remaining else ""))
+    return 0
+
+
 def persisted_gate_records(ctx: Context) -> dict[str, dict[str, Any] | None]:
     """Each CI job's record as the strict validators see it now: None when there is none or it no
     longer validates, else the validated record with its `stale` flag. The lenient compile sets gate
@@ -1315,6 +1446,7 @@ def main() -> int:
     parser.add_argument("--flows", action="store_true", help="write system flows (architecture/semantic/flows.json)")
     parser.add_argument("--journeys", default="", help="flows mode: comma-separated journeys to (re)write, e.g. launch,chat_turn,page:cron (default: all)")
     parser.add_argument("--replace-flows", action="store_true", help="flows mode: discard every existing flow first")
+    parser.add_argument("--glossary-repair", action="store_true", help="apply the glossary's mechanical repairs (avoid words, proper-noun case) to the records and flows on disk, without a model")
     parser.add_argument("--jobs", type=int, default=4, help="construct mode: parallel requests")
     parser.add_argument("--dry-run", action="store_true", help="print the bounded packet(s) without calling a model")
     args = parser.parse_args()
@@ -1322,6 +1454,8 @@ def main() -> int:
     try:
         head = git_output("rev-parse", args.head)
         compiler = load_compiler()
+        if args.glossary_repair:
+            return run_glossary_repair(Context(compiler))
         if args.constructs or args.flows:
             ctx = Context(compiler)
             if args.constructs:

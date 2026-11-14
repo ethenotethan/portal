@@ -269,6 +269,7 @@
     operations_resolve_scope: "Every extracted operation resolves to an enclosing function, so critical sections lose no steps.",
     endpoints_dispatched_by_transport: "Every namespace box is dispatched by a transport core.",
     pages_populated: "Every declared navigation page owns at least one construct.",
+    glossary_observed: "Every term in architecture/glossary.json is used by at least one construct record or flow, so the list cannot hold words nobody says. Records and flows that depart from the glossary are rejected before this is judged.",
     stores_mapped: "Every store the extractor recognises appears on the map, so the map cannot disagree with the extractor about what holds state.",
     triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
     launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core.",
@@ -341,6 +342,7 @@
   setEdgesColoured(edgesColoured());
   renderInvariants();
   renderFlows();
+  renderGlossary();
   renderTimeline();
   renderInventory();
   renderExtraction();
@@ -2291,6 +2293,31 @@
       ol.append(...items.map(invariantItem));
       group.append(ol);
       return group;
+    }));
+  }
+
+  // The glossary: each term with its kind, definition, the words that may not stand in for it, the
+  // terms it is told apart from, how many records and flows use it, and the line that grounds it.
+  function renderGlossary() {
+    const section = document.getElementById("glossary");
+    const list = document.getElementById("glossary-list");
+    const lede = document.getElementById("glossary-lede");
+    const glossary = (interplay && interplay.glossary) || { terms: [] };
+    if (!section || !list || !lede || !glossary.terms.length) return;
+    section.hidden = false;
+    lede.textContent = `${glossary.count} terms, declared in architecture/glossary.json and checked against ${glossary.described} construct records and ${glossary.flows} flows on this build. A record or flow that uses an avoided word, or spells a proper noun with the wrong case, is rejected; text in backticks is code and is exempt.`;
+    const KIND_LABEL = { "proper-noun": "proper noun", role: "role", concept: "concept" };
+    list.replaceChildren(...glossary.terms.flatMap((term) => {
+      const name = element("dt", "glossary-term");
+      name.append(element("strong", "", term.term), element("span", "invariant-meta", `${KIND_LABEL[term.kind] || term.kind} · used by ${term.uses}`));
+      const body = element("dd", "glossary-body");
+      body.append(prose(term.definition, "glossary-definition"));
+      if ((term.avoid || []).length) body.append(element("p", "glossary-note", `Not: ${term.avoid.join(", ")}`));
+      Object.entries(term.distinguish_from || {}).forEach(([other, rule]) => body.append(element("p", "glossary-note", `Not the same as ${other}: ${rule}`)));
+      const sites = element("p", "glossary-note");
+      (term.evidence || []).forEach((site) => sites.append(sourceLink(site), document.createTextNode(" ")));
+      body.append(sites);
+      return [name, body];
     }));
   }
 

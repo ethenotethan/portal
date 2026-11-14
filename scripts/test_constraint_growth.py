@@ -364,6 +364,34 @@ class ConstraintGrowthTests(unittest.TestCase):
         self.assertTrue(any("scripts/test_architecture.py: tests dropped 2 → 0" in p for p in problems), problems)
         self.assertTrue(any("architecture tests dropped 2 → 0" in p for p in problems), problems)
 
+    def test_the_glossary_may_only_grow_or_tighten(self) -> None:
+        glossary = {"schema_version": "1.0.0", "terms": [
+            {"term": "Keychain", "kind": "proper-noun", "definition": "d", "avoid": ["Key Chain"], "evidence": [{"path": "README.md", "line": 1}]},
+            {"term": "gateway", "kind": "concept", "definition": "d", "avoid": [], "distinguish_from": {"backend": "rule"}, "evidence": [{"path": "README.md", "line": 1}]},
+            {"term": "backend", "kind": "concept", "definition": "d", "evidence": [{"path": "README.md", "line": 1}]},
+        ]}
+        self.assertEqual([], self.problems(), "a tree that gains a glossary has tightened")
+        self.write(guard.GLOSSARY, json.dumps(glossary, indent=2))
+        self.assertEqual([], self.problems())
+        self.git("add", "-A"); self.git("commit", "-q", "-m", "glossary")
+
+        def loosen(doc):
+            doc["terms"][0]["kind"] = "concept"
+            doc["terms"][0]["avoid"] = []
+            doc["terms"][1]["distinguish_from"] = {}
+            doc["terms"].pop()
+        self.edit_json(guard.GLOSSARY, loosen)
+        problems = guard.evaluate(self.root, "HEAD")
+        for needle in ("term 'Keychain' is no longer a proper noun", "term 'Keychain' dropped 1 avoid word(s): Key Chain",
+                       "term 'gateway' dropped the distinction from backend", "term 'backend' was removed"):
+            self.assertTrue(any(needle in p for p in problems), f"{needle!r} not in {problems}")
+        self.assertEqual(4, len(problems))
+        # Growing it passes; deleting it does not.
+        self.write(guard.GLOSSARY, json.dumps({**glossary, "terms": glossary["terms"] + [{"term": "turn", "kind": "concept", "definition": "d", "avoid": ["round"], "evidence": []}]}, indent=2))
+        self.assertEqual([], guard.evaluate(self.root, "HEAD"))
+        (self.root / guard.GLOSSARY).unlink()
+        self.assertEqual([f"{guard.GLOSSARY}: the glossary was removed"], guard.evaluate(self.root, "HEAD"))
+
     def test_guard_predating_a_file_skips_it(self) -> None:
         # A base without CODEOWNERS or the specifications dir: nothing to compare, nothing flagged.
         self.git("rm", "-q", guard.CODEOWNERS)

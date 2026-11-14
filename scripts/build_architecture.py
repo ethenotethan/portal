@@ -25,6 +25,7 @@ INTERPLAY_OVERLAY_PATH = ROOT / "architecture/interplay/overlay.json"
 INTERPLAY_INVARIANTS_PATH = ROOT / "architecture/interplay/invariants.json"
 CONSTRUCTS_PATH = ROOT / "architecture/semantic/constructs.json"
 FLOWS_PATH = ROOT / "architecture/semantic/flows.json"
+GLOSSARY_PATH = ROOT / "architecture/glossary.json"
 
 # Snapshot mode (`--snapshot`, used by scripts/build_architecture_history.py):
 # today's extractor runs over an older checkout with today's curated files, so
@@ -2632,7 +2633,7 @@ INVARIANT_KINDS = {
     "single_transport", "surfaces_hold_transport", "pool_guarded_by_lock", "pool_lifecycle_observed",
     "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
     "stores_mapped", "triggers_observed", "launch_zoned", "flows_traceable", "machines_complete",
-    "tasks_parsed", "resources_parsed",
+    "tasks_parsed", "resources_parsed", "glossary_observed",
 }
 # The rung of the pipeline an invariant pins. `extraction` invariants check the
 # mechanical model against its own rules (what the extractor recognises is on the
@@ -2849,6 +2850,19 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
                 site = f"{item['path']}:{item['line']}"
                 if site not in allowed:
                     problems.append(f"{item['shape']} shape at {site} was seen but not parsed: {item.get('text', '')}")
+
+        elif kind == "glossary_observed":
+            glossary = interplay.get("glossary") or {}
+            checked = len(glossary.get("terms", []))
+            allow_unused = set(entry.get("allow_unused", []))
+            # A tree with no enrichment at all (a history snapshot may carry none) has nothing to observe the
+            # words in, and a partial build cannot judge the vocabulary either: records set aside because the
+            # CI plane is absent still carry words, so only a build that loaded every record may fail a term.
+            partial = LENIENT or bool((interplay.get("constructs") or {}).get("set_aside"))
+            if not partial and (glossary.get("described", 0) or glossary.get("flows", 0)):
+                for term in glossary.get("terms", []):
+                    if term["uses"] == 0 and term["term"] not in allow_unused:
+                        problems.append(f"{term['term']!r} is used by no construct record or flow")
 
         elif kind == "pages_populated":
             allow_empty = set(entry.get("allow_empty", []))
@@ -4071,6 +4085,252 @@ def page_files(page_id: str, interplay: dict[str, Any], files: list[dict[str, An
     return paths
 
 
+# ── Glossary: the product's own nouns, enforced on the enrichment layer ──────
+#
+# architecture/glossary.json is curated like config.json: one entry per term the
+# product's people use (a proper noun, a role or a concept), its one-line
+# definition, the synonyms and misspellings that must not stand in for it, the
+# terms it is confused with, and a line of source or docs that grounds it.
+# Construct records and flows are checked against it: a record that uses an
+# `avoid` word, or spells a proper noun with the wrong case, is rejected like one
+# that names a store no edge reaches. Identifiers in backticks are code, not
+# prose, and are never checked. The `glossary-observed` invariant fails the build
+# when a term is used by no record or flow, so the list cannot hold words nobody says.
+
+GLOSSARY_KINDS = frozenset({"proper-noun", "role", "concept"})
+GLOSSARY_DEFINITION_MAX = 240
+GLOSSARY_TERM_MAX = 60
+_BACKTICK_SPAN_RE = re.compile(r"`[^`\n]*`")
+
+
+def _glossary_word_re(phrase: str, *, plural: bool, ignore_case: bool) -> re.Pattern[str]:
+    """A whole-phrase match: not inside a longer word, and not a piece of a domain, path, command or
+    identifier (`portal.app`, `hermes-agent`, `Portal/`): those are names, not prose. A full stop ends
+    a sentence unless a word follows it at once. Optionally with an English plural."""
+    body = re.escape(phrase) + (r"(?:e?s)?" if plural else "")
+    return re.compile(rf"(?<![\w\-./@:_]){body}(?![\w\-/@:_])(?!\.\w)", re.IGNORECASE if ignore_case else 0)
+
+
+def load_glossary() -> dict[str, Any]:
+    """Read and validate architecture/glossary.json; a repository without one has an empty glossary."""
+    if not GLOSSARY_PATH.is_file():
+        return {"terms": []}
+    raw = load_json(GLOSSARY_PATH)
+    if raw.get("schema_version") != "1.0.0" or not isinstance(raw.get("terms"), list):
+        raise ArchitectureError("architecture/glossary.json has an unsupported schema")
+    terms: list[dict[str, Any]] = []
+    seen: dict[str, str] = {}
+    for entry in raw["terms"]:
+        if not isinstance(entry, dict) or not isinstance(entry.get("term"), str) or not entry["term"].strip():
+            raise ArchitectureError("every glossary entry needs a term")
+        term = entry["term"].strip()
+        owner = f"glossary term {term!r}"
+        if len(term) > GLOSSARY_TERM_MAX or "`" in term:
+            raise ArchitectureError(f"{owner} must be plain text of at most {GLOSSARY_TERM_MAX} characters")
+        if term.lower() in seen:
+            raise ArchitectureError(f"{owner} is declared twice (also as {seen[term.lower()]!r})")
+        seen[term.lower()] = term
+        kind = entry.get("kind")
+        if kind not in GLOSSARY_KINDS:
+            raise ArchitectureError(f"{owner} kind must be one of {', '.join(sorted(GLOSSARY_KINDS))}, not {kind!r}")
+        definition = entry.get("definition")
+        if not isinstance(definition, str) or not definition.strip() or len(definition) > GLOSSARY_DEFINITION_MAX:
+            raise ArchitectureError(f"{owner} needs a definition of at most {GLOSSARY_DEFINITION_MAX} characters")
+        avoid = entry.get("avoid", [])
+        if not isinstance(avoid, list) or not all(isinstance(a, str) and a.strip() for a in avoid):
+            raise ArchitectureError(f"{owner} avoid must be a list of non-empty strings")
+        avoid = sorted({a.strip() for a in avoid}, key=lambda a: (a.lower(), a))  # a total order: two spellings of one word must not swap between builds
+        if any(a.lower() == term.lower() for a in avoid):
+            raise ArchitectureError(f"{owner} lists itself under avoid")
+        distinguish = entry.get("distinguish_from", {})
+        if not isinstance(distinguish, dict) or not all(isinstance(k, str) and isinstance(v, str) and v.strip() for k, v in distinguish.items()):
+            raise ArchitectureError(f"{owner} distinguish_from must map another term to a one-line rule")
+        evidence = entry.get("evidence")
+        if not isinstance(evidence, list) or not evidence:
+            raise ArchitectureError(f"{owner} needs at least one evidence site (a path and line in the repository)")
+        sites: list[dict[str, Any]] = []
+        for site in evidence:
+            if not isinstance(site, dict) or not isinstance(site.get("path"), str):
+                raise ArchitectureError(f"{owner} evidence entries must be objects with a path")
+            path = site["path"]
+            line = site.get("line", 1)
+            if path.startswith("/") or ".." in path.split("/") or not isinstance(line, int) or isinstance(line, bool) or line < 1:
+                raise ArchitectureError(f"{owner} cites {path}:{line}, which is not a repository path and line")
+            # Evidence is checked against the tree in a strict build, and bound to content like every other
+            # citation: the cited line is the nearest line of that file that uses the term, so an edit above
+            # it moves the citation instead of failing the build. A file that is gone, or one that no longer
+            # says the word anywhere, fails until the glossary follows the rename. The history walk compiles
+            # a scratch tree holding only the source roots, where docs are absent by construction; the check
+            # is not a fact about the map at that commit, so it is skipped there.
+            if not LENIENT:
+                if not (ROOT / path).is_file():
+                    raise ArchitectureError(f"{owner} cites {path}, which is not a file in the repository")
+                lines = (ROOT / path).read_text(encoding="utf-8", errors="replace").splitlines()
+                using = [index + 1 for index, content in enumerate(lines) if term.lower() in content.lower()]
+                if not using:
+                    raise ArchitectureError(f"{owner} cites {path}, but no line of that file uses the term")
+                resolved = min(using, key=lambda n: (abs(n - line), n))
+                sites.append({"path": path, "line": resolved, **({"moved_from": line} if resolved != line else {})})
+            else:
+                sites.append({"path": path, "line": line})
+        terms.append({"term": term, "kind": kind, "definition": definition.strip(), "avoid": avoid,
+                      "distinguish_from": dict(sorted(distinguish.items())), "evidence": sites})
+    by_lower = {t["term"].lower(): t["term"] for t in terms}
+    for t in terms:
+        for alias in t["avoid"]:
+            if alias.lower() in by_lower:
+                raise ArchitectureError(f"glossary term {t['term']!r} lists {alias!r} under avoid, but that is itself a term")
+        for other in t["distinguish_from"]:
+            if other.lower() not in by_lower or other.lower() == t["term"].lower():
+                raise ArchitectureError(f"glossary term {t['term']!r} distinguishes itself from {other!r}, which is not another term")
+    terms.sort(key=lambda t: t["term"].lower())
+    return {"terms": terms}
+
+
+def _glossary_prose(text: str) -> str:
+    """The text with every backticked span blanked: identifiers are code, not vocabulary."""
+    return _BACKTICK_SPAN_RE.sub(lambda m: " " * len(m.group(0)), text)
+
+
+def _mask(text: str, pattern: re.Pattern[str]) -> str:
+    return pattern.sub(lambda m: " " * len(m.group(0)), text)
+
+
+def glossary_violations(text: str, terms: list[dict[str, Any]]) -> list[str]:
+    """Every way ``text`` departs from the glossary: an `avoid` word standing in for a term, or a
+    proper noun spelled with the wrong case. Backticked spans are exempt; the canonical spelling of
+    every term is blanked first so an alias that is part of a term never fires inside it."""
+    if not terms or not text:
+        return []
+    prose = _glossary_prose(text)
+    ordered = sorted(terms, key=lambda t: -len(t["term"]))
+    for t in ordered:
+        prose = _mask(prose, _glossary_word_re(t["term"], plural=t["kind"] != "proper-noun", ignore_case=False))
+    problems: list[str] = []
+    for t in ordered:
+        if t["kind"] == "proper-noun":
+            for m in _glossary_word_re(t["term"], plural=False, ignore_case=True).finditer(prose):
+                problems.append(f"spells {m.group(0)!r}; the glossary term is {t['term']!r}")
+            prose = _mask(prose, _glossary_word_re(t["term"], plural=False, ignore_case=True))
+    for t in ordered:
+        for alias in sorted(t["avoid"], key=lambda a: -len(a)):
+            pattern = _glossary_word_re(alias, plural=t["kind"] != "proper-noun", ignore_case=True)
+            for m in pattern.finditer(prose):
+                problems.append(f"uses {m.group(0)!r}; the glossary term is {t['term']!r}")
+            prose = _mask(prose, pattern)
+    return sorted(set(problems))
+
+
+def glossary_check(owner: str, texts: list[str], interplay: dict[str, Any]) -> None:
+    terms = (interplay.get("glossary") or {}).get("terms") or []
+    if not terms:
+        return
+    problems = sorted({p for text in texts for p in glossary_violations(text, terms)})
+    if problems:
+        shown = problems[:6]
+        more = f" (+{len(problems) - len(shown)} more)" if len(problems) > len(shown) else ""
+        raise ArchitectureError(f"{owner} departs from the glossary: " + "; ".join(shown) + more)
+
+
+def glossary_repair(text: str, terms: list[dict[str, Any]]) -> tuple[str, list[str]]:
+    """The mechanical half of honouring the glossary: `avoid` words replaced by their term, proper
+    nouns re-cased. Backticked spans are left alone. Returns the text and what changed, for the log."""
+    if not terms or not text:
+        return text, []
+    repairs: list[str] = []
+    spans = [(m.start(), m.end()) for m in _BACKTICK_SPAN_RE.finditer(text)]
+
+    def in_code(start: int, end: int) -> bool:
+        return any(a <= start and end <= b for a, b in spans)
+
+    def apply(pattern: re.Pattern[str], replacement: Any, label: str, skip: Any = None) -> None:
+        nonlocal text, spans
+        out, last = [], 0
+        for m in pattern.finditer(text):
+            if in_code(m.start(), m.end()) or (skip is not None and skip(m)):
+                continue
+            out.append(text[last:m.start()])
+            new = replacement(m) if callable(replacement) else replacement
+            out.append(new)
+            repairs.append(f"{m.group(0)!r} → {new!r}" if label == "alias" else f"{m.group(0)!r} re-cased")
+            last = m.end()
+        out.append(text[last:])
+        text = "".join(out)
+        spans = [(m.start(), m.end()) for m in _BACKTICK_SPAN_RE.finditer(text)]
+
+    ordered = sorted(terms, key=lambda t: -len(t["term"]))
+    # The canonical spelling of a longer term is protected while a shorter one is re-cased or an alias
+    # swapped, exactly as the check masks it: "Hermes Standard" is not a miscased "Hermes" plus a word.
+    def protected(m: re.Match[str]) -> bool:
+        return any(c.start() <= m.start() and m.end() <= c.end()
+                   for t in ordered for c in _glossary_word_re(t["term"], plural=t["kind"] != "proper-noun", ignore_case=False).finditer(text)
+                   if (c.start(), c.end()) != (m.start(), m.end()))
+
+    for t in ordered:
+        if t["kind"] == "proper-noun":
+            loose = _glossary_word_re(t["term"], plural=False, ignore_case=True)
+            apply(loose, t["term"], "case", skip=lambda m, term=t["term"]: m.group(0) == term or protected(m))
+    for t in ordered:
+        for alias in sorted(t["avoid"], key=lambda a: -len(a)):
+            plural = t["kind"] != "proper-noun"
+            pattern = _glossary_word_re(alias, plural=plural, ignore_case=True)
+
+            def replacement(m: re.Match[str], term: str = t["term"], alias_: str = alias, kind: str = t["kind"]) -> str:
+                word = term
+                if plural and len(m.group(0)) > len(alias_) and not word.endswith("s"):
+                    word += "s" if not word.endswith(("s", "x", "ch", "sh")) else "es"
+                if kind != "proper-noun" and m.group(0)[:1].isupper() and not term[:1].isupper():
+                    word = word[:1].upper() + word[1:]
+                return word
+            apply(pattern, replacement, "alias", skip=protected)
+    return text, repairs
+
+
+PROSE_FIELD_KINDS = ("str", "list_str", "job_scripts")  # free text; every other field kind is structure (keys, type names, enum values)
+
+
+def record_prose(record: dict[str, Any]) -> list[str]:
+    """Every piece of prose a construct record carries: what the glossary is checked against. A field
+    that holds construct keys, Swift type names or enum values is structure, not vocabulary: a store
+    whose medium is `keychain` or whose record type is `CronJob` has not misspelled anything."""
+    texts = [str(record.get("summary", "")), str(record.get("purpose", "")), *[q for q in record.get("open_questions", []) if isinstance(q, str)]]
+    schema = CONSTRUCT_SCHEMAS.get(str(record.get("kind")), {})
+    for name, value in (record.get("fields") or {}).items():
+        if schema.get(name, ("",))[0] not in PROSE_FIELD_KINDS:
+            continue
+        if isinstance(value, str):
+            texts.append(value)
+        elif isinstance(value, list):
+            texts.extend(v for v in value if isinstance(v, str))
+        elif isinstance(value, dict):
+            texts.extend(v for v in value.values() if isinstance(v, str))
+    return texts
+
+
+def flow_prose(flow: dict[str, Any]) -> list[str]:
+    texts = [str(flow.get(key, "")) for key in ("title", "summary", "interaction", "outcome")]
+    for step in flow.get("steps", []):
+        if isinstance(step, dict):
+            texts.extend([str(step.get("note", "")), str(step.get("detail", ""))])
+    return texts
+
+
+def fold_glossary(interplay: dict[str, Any], records: list[dict[str, Any]], flows: list[dict[str, Any]]) -> None:
+    """Which records and flows use each term, folded onto `interplay.glossary` for the site and the invariant."""
+    terms = (interplay.get("glossary") or {}).get("terms") or []
+    if not terms:
+        interplay["glossary"] = {"terms": [], "count": 0, "described": 0, "flows": 0}
+        return
+    corpus: list[tuple[str, str]] = [(record["key"], _glossary_prose("\n".join(record_prose(record)))) for record in records]
+    corpus += [(f"flow:{flow['id']}", _glossary_prose("\n".join(flow_prose(flow)))) for flow in flows]
+    folded = []
+    for t in terms:
+        pattern = _glossary_word_re(t["term"], plural=t["kind"] != "proper-noun", ignore_case=t["kind"] != "proper-noun")
+        used_by = sorted(key for key, text in corpus if pattern.search(text))
+        folded.append({**t, "used_by": used_by, "uses": len(used_by)})
+    interplay["glossary"] = {"terms": folded, "count": len(folded), "described": len(records), "flows": len(flows)}
+
+
 CITED_TEXT_MAX = 160  # how much of a cited line a citation keeps; enough to find the line again when it moves
 CITATION_RADIUS = 3  # lines after a cited line that count as what the sentence was written from
 
@@ -4268,6 +4528,7 @@ def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], fi
         if len(question) > 200:
             raise ArchitectureError(f"{owner} has an open question over 200 characters")
         require_whole(owner, "open question", question)
+    glossary_check(owner, record_prose({"kind": expected_kind, "summary": summary, "purpose": purpose, "open_questions": open_questions, "fields": body}), interplay)
     current_hash = cited_hash(evidence, text_by_path)
     recorded_hash = raw.get("cited_hash")
     return {
@@ -4556,6 +4817,7 @@ def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[di
     if not isinstance(interaction, str) or len(interaction) > FLOW_INTERACTION_MAX:
         raise ArchitectureError(f"{owner} interaction must be a string of at most {FLOW_INTERACTION_MAX} characters")
     require_whole(owner, "interaction", interaction)
+    glossary_check(owner, flow_prose({"title": title, "summary": summary, "interaction": interaction, "outcome": outcome, "steps": normalized_steps}), interplay)
     allowed = flow_allowed_paths([(step["from"], step["to"]) for step in normalized_steps], page_id, interplay, files)
     line_counts = {item["path"]: item["line_count"] for item in files}
     # Each step cites the lines its detail was written from; the flow's evidence is their union
@@ -5994,8 +6256,10 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     assign_history_keys(interplay)
     # Records may cite the launch roots too: they are part of the analysed tree.
     interplay["ci_jobs"] = ci_record_index()  # the CI jobs a gate record may describe, with their texts
-    load_constructs(interplay, files + launch_files, externals)
-    load_flows(interplay, files + launch_files)
+    interplay["glossary"] = load_glossary()  # read before the records: their prose is checked against it
+    records = load_constructs(interplay, files + launch_files, externals)
+    flows = load_flows(interplay, files + launch_files)
+    fold_glossary(interplay, records, flows)
     interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
     ci = build_ci_model(config, interplay)
     # Working data for the record validators, not part of the document: the CI model carries the

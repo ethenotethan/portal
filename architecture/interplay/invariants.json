@@ -111,6 +111,13 @@
       "layer": "extraction",
       "allow_empty": [],
       "why": "Every declared page owns at least one construct. An empty page means its roots or ownership declarations have drifted from the source."
+    },
+    {
+      "id": "glossary-observed",
+      "kind": "glossary_observed",
+      "layer": "enrichment",
+      "allow_unused": [],
+      "why": "The glossary is the vocabulary the model-written layer is held to. A term no record or flow uses is a word nobody says: it either names something the map does not describe yet or was added speculatively, and a list that can hold such words stops meaning anything."
     }
   ]
 }

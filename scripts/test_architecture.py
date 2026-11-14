@@ -1237,6 +1237,48 @@ class ArchitectureCompilerTests(unittest.TestCase):
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
         self.assertIn("if (job.semantic) sections.push(describedSection(job.semantic));", app)
 
+    def test_the_glossary_is_enforced_on_records_and_flows(self) -> None:
+        """A record or flow that uses an `avoid` word, or spells a proper noun with the wrong case, is rejected;
+        backticked code and structural fields are exempt; the mechanical repair fixes both; every term is observed."""
+        terms = [
+            {"term": "Hermes Standard", "kind": "proper-noun", "definition": "d", "avoid": [], "distinguish_from": {}},
+            {"term": "Hermes", "kind": "proper-noun", "definition": "d", "avoid": [], "distinguish_from": {}},
+            {"term": "Keychain", "kind": "proper-noun", "definition": "d", "avoid": ["Key Chain"], "distinguish_from": {}},
+            {"term": "subagent", "kind": "concept", "definition": "d", "avoid": ["sub-agent"], "distinguish_from": {}},
+        ]
+        violations = architecture.glossary_violations
+        self.assertEqual([], violations("Hermes Standard manages a stock Hermes install; secrets live in the Keychain.", terms))
+        self.assertEqual(["spells 'keychain'; the glossary term is 'Keychain'"], violations("Secrets live in the keychain.", terms))
+        self.assertEqual(["uses 'Sub-agents'; the glossary term is 'subagent'"], violations("Sub-agents are drawn as children.", terms))
+        self.assertEqual([], violations("Reads `keychain` and the `hermes-agent` checkout at hermes-agent/run.py.", terms), "code, paths and compounds are names, not prose")
+        repaired, log = architecture.glossary_repair("The key chain holds what hermes standard needs; sub-agents read `keychain`.", terms)
+        self.assertEqual("The Keychain holds what Hermes Standard needs; subagents read `keychain`.", repaired)
+        self.assertEqual(3, len(log))
+        self.assertEqual([], violations(repaired, terms))
+        # Through the validators, with the repository's own glossary.
+        interplay = self.model["interplay"]
+        files = self._files()
+        externals = self.model["externals"]
+        self.assertGreaterEqual(interplay["glossary"]["count"], 20)
+        self.assertEqual([], [t["term"] for t in interplay["glossary"]["terms"] if t["uses"] == 0], "every term is used by a record or flow")
+        keychain = next(n for n in interplay["nodes"] if n["label"] == "KeychainStore")
+        good = {
+            "key": keychain["history_key"], "kind": "store", "summary": "Wraps the Keychain.", "purpose": "Keeps gateway credentials out of plain files.",
+            "fields": {"medium": "keychain", "sensitive": True}, "evidence": [{"path": keychain["path"], "line": 10}],
+        }
+        architecture.validate_construct_record(good, interplay, files, externals)  # `medium: keychain` is an enum value, not prose
+        for raw, needle in (({**good, "summary": "Wraps the key chain."}, "uses 'key chain'; the glossary term is 'Keychain'"),
+                            ({**good, "purpose": "Keeps Gateway credentials for the json-rpc client out of plain files."}, "spells 'json-rpc'; the glossary term is 'JSON-RPC'")):
+            with self.assertRaises(architecture.ArchitectureError) as caught:
+                architecture.validate_construct_record(raw, interplay, files, externals)
+            self.assertIn("departs from the glossary", str(caught.exception))
+            self.assertIn(needle, str(caught.exception))
+        observed = next(i for i in interplay["invariants"] if i["id"] == "glossary-observed")
+        self.assertEqual(("holds", "enrichment", interplay["glossary"]["count"]), (observed["status"], observed["layer"], observed["checked"]))
+        # An evidence line that moved is found again; a term its file no longer says fails the build.
+        self.assertTrue(all((ROOT / site["path"]).read_text(encoding="utf-8", errors="replace").splitlines()[site["line"] - 1].lower().count(term["term"].lower())
+                            for term in interplay["glossary"]["terms"] for site in term["evidence"]))
+
     def test_citations_are_bound_to_content_not_position(self) -> None:
         """A citation keeps the text of its line. A line that moved is found again and the record stays fresh; a line
         whose text is gone is lost and the record is stale; a site written without text is bound to its line and

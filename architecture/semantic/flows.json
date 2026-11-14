@@ -145,7 +145,7 @@
           ],
           "detail": "The file path is `storageDir.appendingPathComponent(\"activity-items.json\")` under the Application Support `portal` directory.\n\nFor `clearAll` the encoded payload is an empty array; the store does not delete the file.",
           "from": "artifact:file-system:portal/activity-items.json",
-          "note": "The whole inbox, possibly now empty, is rewritten to the portal folder",
+          "note": "The whole inbox, possibly now empty, is rewritten to the `portal` folder",
           "relation": "stored-in",
           "to": "external:file-system"
         }
@@ -831,7 +831,7 @@
           ],
           "detail": "`storageDir` resolves `.applicationSupportDirectory` in `.userDomainMask` and appends a `portal` directory. If that lookup fails it falls back to `/tmp/portal`.\n\n`storeFile` is `storageDir` plus `activity-items.json`.",
           "from": "artifact:file-system:portal/activity-items.json",
-          "note": "The file lives in the per-user Application Support portal folder",
+          "note": "The file lives in the per-user Application Support `portal` folder",
           "relation": "stored-in",
           "to": "external:file-system"
         },
@@ -6111,7 +6111,7 @@
           ],
           "detail": "Only the map records the `portal/cron-graph-revisions.json` location. The excerpt's comment about tests avoiding writes to this machine's history is the only shown reference to the file persisting across launches.",
           "from": "artifact:file-system:portal/cron-graph-revisions.json",
-          "note": "The log lives in Application Support with the other portal JSON documents",
+          "note": "The log lives in Application Support with the other `portal` JSON documents",
           "relation": "stored-in",
           "to": "external:file-system"
         },
