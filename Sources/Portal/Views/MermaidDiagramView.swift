@@ -280,18 +280,14 @@ private struct NativeMermaidRenderer: View {
         }
     }
 
-    // Shares the process-wide `mermaidImageCache`/`mermaidCacheLock` with the
-    // web renderer; native keys are prefixed ("native") so they never collide.
+    // Shares the process-wide `mermaidImageCache` with the web renderer; native
+    // keys are prefixed ("native") so they never collide.
     nonisolated private static func cachedNativeImage(for key: String) -> PlatformImage? {
-        mermaidCacheLock.lock()
-        defer { mermaidCacheLock.unlock() }
-        return mermaidImageCache[key]
+        mermaidImageCache.object(forKey: key as NSString)
     }
 
     nonisolated private static func cacheNativeImage(_ image: PlatformImage, for key: String) {
-        mermaidCacheLock.lock()
-        defer { mermaidCacheLock.unlock() }
-        mermaidImageCache[key] = image
+        mermaidImageCache.setObject(image, forKey: key as NSString, cost: mermaidImageCost(image))
     }
 }
 
@@ -398,25 +394,34 @@ enum MermaidExportRenderer {
         }
     }
 
-    // NSLock.lock() is unavailable in async contexts; hop through
-    // nonisolated sync helpers to touch the shared web-render cache.
     nonisolated private static func cachedWebImage(for key: String) -> PlatformImage? {
-        mermaidCacheLock.lock()
-        defer { mermaidCacheLock.unlock() }
-        return mermaidImageCache[key]
+        mermaidImageCache.object(forKey: key as NSString)
     }
 
     nonisolated private static func cacheWebImage(_ image: PlatformImage, for key: String) {
-        mermaidCacheLock.lock()
-        defer { mermaidCacheLock.unlock() }
-        mermaidImageCache[key] = image
+        mermaidImageCache.setObject(image, forKey: key as NSString, cost: mermaidImageCost(image))
     }
 }
 
 // MARK: - Web (WKWebView) Fallback Renderer
 
-nonisolated(unsafe) private var mermaidImageCache: [String: PlatformImage] = [:]
-private let mermaidCacheLock = NSLock()
+/// Rendered diagrams keyed by theme + source. An `NSCache`, so finished
+/// diagrams are evicted by count, by cost and under memory pressure instead of
+/// being pinned for the life of the process: the web renderer rasterizes at
+/// 1600×1200, and a plain dictionary grew by several MB for every distinct
+/// diagram ever shown — in every theme it was shown in. NSCache is thread-safe,
+/// so the accessors need no lock.
+nonisolated(unsafe) private let mermaidImageCache: NSCache<NSString, PlatformImage> = {
+    let cache = NSCache<NSString, PlatformImage>()
+    cache.countLimit = 48
+    cache.totalCostLimit = 192 * 1024 * 1024
+    return cache
+}()
+
+/// Approximate decoded size, as the cache cost: RGBA at up to 2× backing scale.
+private func mermaidImageCost(_ image: PlatformImage) -> Int {
+    Int(image.size.width * image.size.height * 16)
+}
 
 /// JS expression polled after `didFinish`. Returns "pending" until mermaid.run
 /// settles, "error" on render failure, or "x,y,w,h" of the rendered content.
@@ -754,9 +759,7 @@ private struct WebMermaidRenderer: View {
     }
 
     private func loadCachedOrRender() {
-        mermaidCacheLock.lock()
-        let cached = mermaidImageCache[renderKey]
-        mermaidCacheLock.unlock()
+        let cached = mermaidImageCache.object(forKey: renderKey as NSString)
         if let cached {
             cachedImage = cached
             isLoading = false
@@ -764,9 +767,7 @@ private struct WebMermaidRenderer: View {
         }
         MermaidSharedRenderer.shared.render(source: source) { image in
             if let image {
-                mermaidCacheLock.lock()
-                mermaidImageCache[renderKey] = image
-                mermaidCacheLock.unlock()
+                mermaidImageCache.setObject(image, forKey: renderKey as NSString, cost: mermaidImageCost(image))
                 cachedImage = image
                 isLoading = false
             } else {

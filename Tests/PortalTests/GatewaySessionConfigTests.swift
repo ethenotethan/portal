@@ -27,6 +27,24 @@ import Foundation
 @MainActor
 internal struct GatewaySessionConfigTests {
 
+    @Test("WebSocket URL preserves existing query and adds encoded API key")
+    internal func websocketURLAddsAPIKeyFallback() throws {
+        let base = try #require(URL(string: "wss://gateway.example/v1/ws?profile=default"))
+        let result = GatewayClient.authenticatedWebSocketURL(base, apiKey: "key +/?")
+        let components = try #require(URLComponents(url: result, resolvingAgainstBaseURL: false))
+        #expect(components.queryItems?.first(where: { $0.name == "profile" })?.value == "default")
+        #expect(components.queryItems?.first(where: { $0.name == "api_key" })?.value == "key +/?")
+    }
+
+    @Test("WebSocket URL does not duplicate an existing API key")
+    internal func websocketURLDoesNotDuplicateAPIKey() throws {
+        let base = try #require(URL(string: "wss://gateway.example/v1/ws?api_key=existing"))
+        let result = GatewayClient.authenticatedWebSocketURL(base, apiKey: "replacement")
+        let components = try #require(URLComponents(url: result, resolvingAgainstBaseURL: false))
+        #expect(components.queryItems?.filter { $0.name == "api_key" }.count == 1)
+        #expect(components.queryItems?.first(where: { $0.name == "api_key" })?.value == "existing")
+    }
+
     @Test("waitsForConnectivity is off so an unreachable harness reports an error")
     internal func doesNotWaitForConnectivity() {
         // If this ever flips back to true, connect failures go silent again and

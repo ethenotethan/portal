@@ -3,10 +3,10 @@ import Foundation
 @testable import Portal
 
 @Suite("Diff Line Parser")
-struct DiffLineParserTests {
+internal struct DiffLineParserTests {
 
     @Test("Classifies unified diff lines; file markers beat +/- prefixes")
-    func classifiesLines() {
+    internal func classifiesLines() {
         let diff = """
         diff --git a/foo.swift b/foo.swift
         index 1234567..89abcde 100644
@@ -28,17 +28,17 @@ struct DiffLineParserTests {
     }
 
     @Test("Bare -/+ diffs without git headers still classify")
-    func bareDiff() {
+    internal func bareDiff() {
         let lines = DiffLine.parse("-old\n+new\n context")
         #expect(lines.map(\.kind) == [.deletion, .addition, .context])
     }
 }
 
 @Suite("File Tree Parser")
-struct FileTreeParserTests {
+internal struct FileTreeParserTests {
 
     @Test("Parses box-drawing trees with correct depths")
-    func boxDrawing() {
+    internal func boxDrawing() {
         let tree = """
         portal/
         ├── Sources/
@@ -56,7 +56,7 @@ struct FileTreeParserTests {
     }
 
     @Test("Directory inferred from deeper children even without trailing slash")
-    func inferredDirectory() {
+    internal func inferredDirectory() {
         let nodes = FileTreeNode.parse("""
         src
         ├── lib
@@ -69,7 +69,7 @@ struct FileTreeParserTests {
     }
 
     @Test("Plain-indent trees and trailing annotations parse")
-    func indentAndAnnotations() {
+    internal func indentAndAnnotations() {
         let nodes = FileTreeNode.parse("""
         project/
           src/
@@ -82,7 +82,7 @@ struct FileTreeParserTests {
     }
 
     @Test("ASCII connector variants parse")
-    func asciiConnectors() {
+    internal func asciiConnectors() {
         let nodes = FileTreeNode.parse("""
         root/
         |-- a.txt
@@ -94,10 +94,10 @@ struct FileTreeParserTests {
 }
 
 @Suite("Fence Language Routing")
-struct FenceLanguageRoutingTests {
+internal struct FenceLanguageRoutingTests {
 
     @Test("diff/patch and tree fences route to their views")
-    func routing() {
+    internal func routing() {
         #expect(MarkdownParser.isDiffLanguage("diff"))
         #expect(MarkdownParser.isDiffLanguage("patch"))
         #expect(MarkdownParser.isDiffLanguage(" Diff "))
@@ -108,10 +108,10 @@ struct FenceLanguageRoutingTests {
 }
 
 @Suite("Inline Math")
-struct InlineMathTests {
+internal struct InlineMathTests {
 
     @Test("Simple variables and expressions convert to Unicode")
-    func simpleSpans() {
+    internal func simpleSpans() {
         #expect(InlineMath.render("coefficient of $x$, square it") == "coefficient of 𝑥, square it")
         #expect(InlineMath.render("$b^2 - 4ac$") == "𝑏² − 4𝑎𝑐")
         #expect(InlineMath.render("$x_1$ and $x_2$") == "𝑥₁ and 𝑥₂")
@@ -120,7 +120,7 @@ struct InlineMathTests {
     }
 
     @Test("Currency and unconvertible TeX pass through untouched")
-    func passthrough() {
+    internal func passthrough() {
         #expect(InlineMath.render("costs $5 and $10 total") == "costs $5 and $10 total")
         #expect(InlineMath.render("$\\frac{a}{b}$") == "$\\frac{a}{b}$")
         #expect(InlineMath.render("no math here") == "no math here")
@@ -129,7 +129,7 @@ struct InlineMathTests {
     }
 
     @Test("Unclosed dollar and mixed content stay safe")
-    func edgeCases() {
+    internal func edgeCases() {
         // Unclosed $ passes through.
         #expect(InlineMath.render("price is $99") == "price is $99")
         // First span converts; what remains has one unpaired $ and stays raw.

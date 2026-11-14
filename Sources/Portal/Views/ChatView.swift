@@ -282,6 +282,7 @@ struct ChatView: View {
                 reasoningGraph: chatViewModel.reasoningGraph,
                 persona: displayPersona,
                 skinProvider: skinProvider,
+                skin: activeSkin,
                 client: gatewayClientWrapper.client,
                 isInputFocused: $isInputFocused,
                 inputFieldRef: $inputFieldRef

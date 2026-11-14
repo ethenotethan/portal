@@ -35,6 +35,11 @@ What "looser" means, per file:
       swiftlint, gitleaks or periphery); `pull_request` dropped from `on`.
   .github/CODEOWNERS
       an owned path removed.
+  architecture/semantic/{constructs,flows}.json (enrichment freshness)
+      a construct record or flow that is stale or broken in the working tree
+      (the lines it cites changed, or an edge it walks went) and was not so on
+      the base. Both trees are compiled leniently with their own compiler; the
+      base is checked out into a temporary worktree.
 
 A deliberate loosening (retiring an invariant after a redesign, deleting a rule
 that was wrong) is still possible: it carries the `constraints-loosened` label,
@@ -52,6 +57,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -327,6 +333,87 @@ def check_workflow(path: str, base: Optional[str], head: Optional[str], parse: C
     return problems
 
 
+# ── enrichment freshness ─────────────────────────────────────────────────────
+
+# Run inside a tree with its own compiler: compile leniently and print the ids of
+# the stale construct records and the stale or broken flows. Lenient, because a
+# tree whose strict build fails for another reason must still yield its stale set.
+STALE_ENRICHMENT_PROBE = """
+import importlib.util, json, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("build_architecture", Path("scripts/build_architecture.py").resolve())
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+try:
+    spec.loader.exec_module(module)
+    module.LENIENT = True
+    model, _site = module.compile_architecture()
+except Exception as exc:  # the probe reports, the caller decides
+    print(json.dumps({"error": [f"{type(exc).__name__}: {exc}"]}))
+    raise SystemExit(0)
+interplay = model["interplay"]
+records = sorted(
+    [n["history_key"] for n in interplay["nodes"] if (n.get("semantic") or {}).get("stale")]
+    + [f"page:{p['id']}" for p in interplay.get("pages", []) if (p.get("semantic") or {}).get("stale")]
+)
+flows = sorted(f["id"] for f in interplay.get("flows", []) if f.get("stale") or f.get("status") != "traceable")
+print(json.dumps({"records": records, "flows": flows}))
+"""
+
+
+def _stale_enrichment(root: Path, label: str) -> Optional[Dict[str, List[str]]]:
+    """The stale records and stale/broken flows of the tree at ``root``, compiled with that
+    tree's own compiler; None when the tree has no compiler (it predates the check)."""
+    if not (root / "scripts/build_architecture.py").is_file():
+        return None
+    result = subprocess.run([sys.executable, "-c", STALE_ENRICHMENT_PROBE], cwd=root, capture_output=True, text=True, check=False)
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    try:
+        parsed = json.loads(lines[-1]) if lines else None
+    except json.JSONDecodeError:
+        parsed = None
+    if not isinstance(parsed, dict):
+        return {"error": [f"{label} tree: the compiler probe printed no result ({result.stderr.strip()[-300:]})"]}
+    return parsed
+
+
+def check_enrichment_fresh(root: Path, base_ref: str) -> List[str]:
+    """The model-written layer may not go stale in a PR: every record or flow that is stale or
+    broken in the working tree must already have been so on the base."""
+    head = _stale_enrichment(root, "head")
+    if head is None:
+        return []
+    if "error" in head:
+        return [f"enrichment: the working tree does not compile, so freshness cannot be judged ({head['error'][0][:300]})"]
+    base: Optional[Dict[str, List[str]]] = None
+    with tempfile.TemporaryDirectory() as tmp:
+        worktree = Path(tmp) / "base"
+        try:
+            subprocess.run(["git", "-C", str(root), "worktree", "add", "--detach", "--quiet", str(worktree), base_ref],
+                           check=True, capture_output=True, text=True)
+            base = _stale_enrichment(worktree, "base")
+        except subprocess.CalledProcessError:
+            base = None
+        finally:
+            subprocess.run(["git", "-C", str(root), "worktree", "remove", "--force", str(worktree)], capture_output=True, text=True)
+    tolerated_records = set(base["records"]) if base and "error" not in base else set()
+    tolerated_flows = set(base["flows"]) if base and "error" not in base else set()
+
+    def named(ids: List[str]) -> str:
+        return ", ".join(ids[:8]) + (f" … and {len(ids) - 8} more" if len(ids) > 8 else "")
+
+    problems: List[str] = []
+    records = sorted(set(head["records"]) - tolerated_records)
+    if records:
+        problems.append(f"enrichment: {len(records)} construct record(s) went stale (the lines they cite changed) and were not "
+                        f"refreshed: {named(records)}; run `python3 scripts/architecture_agent.py --constructs --stale-only`")
+    flows = sorted(set(head["flows"]) - tolerated_flows)
+    if flows:
+        problems.append(f"enrichment: {len(flows)} flow(s) went stale or broke (cited lines changed, or an edge went) and were not "
+                        f"rewritten: {named(flows)}; run `python3 scripts/architecture_agent.py --flows --journeys <journey>`")
+    return problems
+
+
 # ── Driver ───────────────────────────────────────────────────────────────────
 
 
@@ -344,6 +431,7 @@ def evaluate(root: Path, base_ref: str) -> List[str]:
     problems += check_codeowners(git_show(root, base_ref, CODEOWNERS), working(root, CODEOWNERS))
     for path in GUARDED_WORKFLOWS:
         problems += check_workflow(path, git_show(root, base_ref, path), working(root, path), parse)
+    problems += check_enrichment_fresh(root, base_ref)
     return problems
 
 

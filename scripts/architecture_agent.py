@@ -372,6 +372,18 @@ class Context:
         self.externals = self.model.get("externals") or {"systems": []}
         self.by_id = {node["id"]: node for node in self.interplay["nodes"]}
         self.by_key = {node["history_key"]: node for node in self.interplay["nodes"] if node["kind"] != "operation"}
+        self.line_counts = {item["path"]: item["line_count"] for item in self.files}
+        self.component_by_id = {c["id"]: c for c in self.model.get("components", [])}
+
+    def component_facts(self, component_id: str | None) -> dict[str, Any] | None:
+        """The declared description and the summarised component a construction belongs to:
+        the business context a purpose is written against."""
+        component = self.component_by_id.get(component_id or "")
+        if component is None:
+            return None
+        semantic = component.get("semantic") or {}
+        return {k: v for k, v in {"id": component["id"], "label": component["label"], "layer": component["layer"],
+                                  "description": component.get("description"), "summary": semantic.get("summary")}.items() if v}
 
     def edges_of(self, node: dict[str, Any]) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
@@ -438,6 +450,125 @@ def window_excerpt(text: str, line: int, radius: int = 6) -> dict[str, Any]:
     return {"from_line": lo, "text": "\n".join(lines[lo - 1:hi])}
 
 
+# The repository's own prose: the one place intent is written down. A purpose is
+# written against these paragraphs when they name the construction, and against
+# the code alone (saying so) when they do not.
+DOCS_CHARS = 2400
+DOCS_GLOBS = ("docs/*.md", "architecture/specifications/*.md", "README.md", "AGENTS.md")
+# Words of a Swift type or file name that name a shape, not a thing: alone they match everything.
+GENERIC_NAME_WORDS = {"view", "views", "model", "models", "store", "client", "service", "services", "manager", "helper", "helpers",
+                      "extension", "extensions", "utils", "types", "portal", "sources", "section", "sheet", "panel", "row", "list"}
+_DOCS_PARAGRAPHS: list[tuple[str, str]] | None = None
+
+
+def docs_paragraphs() -> list[tuple[str, str]]:
+    """Every paragraph of the repository's prose docs with its file, read once."""
+    global _DOCS_PARAGRAPHS
+    if _DOCS_PARAGRAPHS is None:
+        out: list[tuple[str, str]] = []
+        paths = sorted({path for pattern in DOCS_GLOBS for path in ROOT.glob(pattern) if path.is_file()})
+        for path in paths:
+            rel = path.relative_to(ROOT).as_posix()
+            for para in re.split(r"\n\s*\n", path.read_text(encoding="utf-8", errors="ignore")):
+                para = para.strip()
+                if 40 <= len(para) <= 1200 and not para.startswith(("```", "|")):
+                    out.append((rel, para))
+        _DOCS_PARAGRAPHS = out
+    return _DOCS_PARAGRAPHS
+
+
+def docs_for(label: str, paths: list[str]) -> list[dict[str, str]]:
+    """Paragraphs that name the construction: its label or a file stem (strong), or a
+    distinctive word of a camel-cased name (weak). Bounded by DOCS_CHARS, the paragraphs
+    naming the thing itself first, a doc titled for it before all."""
+    strong: set[str] = set()
+    words: set[str] = set()
+    if len(label) >= 4:
+        strong.add(label)
+    for path in paths:
+        stem = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+        if len(stem) >= 5 and stem.lower() not in GENERIC_NAME_WORDS:
+            strong.add(stem)
+        for word in re.split(r"[-_]|(?<=[a-z])(?=[A-Z])", stem):
+            if len(word) >= 6 and word.lower() not in GENERIC_NAME_WORDS:
+                words.add(word)
+    if not strong and not words:
+        return []
+    scored: list[tuple[int, str, str]] = []
+    for rel, para in docs_paragraphs():
+        doc_name = rel.rsplit("/", 1)[-1].lower()
+        in_title = any(name.lower() in doc_name for name in strong | words)
+        strong_hits = sum(1 for name in strong if name in para)
+        word_hits = sum(1 for name in words if name in para)
+        if strong_hits or word_hits or in_title:
+            scored.append((strong_hits * 3 + word_hits + (4 if in_title else 0), rel, para))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    out: list[dict[str, str]] = []
+    budget = DOCS_CHARS
+    for _score, rel, para in scored:
+        if len(para) > budget:
+            continue
+        out.append({"doc": rel, "text": para})
+        budget -= len(para)
+        if budget < 120:
+            break
+    return out
+
+
+def clip(text: str, limit: int) -> str:
+    """Cut prose at the last sentence end before ``limit``; a hard cut with an ellipsis when there is none."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    cut = max(text.rfind(". ", 0, limit - 1), text.rfind(".", 0, limit - 1))
+    if cut > limit // 2:
+        return text[:cut + 1].strip()
+    return text[:limit - 1].rstrip() + "…"
+
+
+def repair_record(raw: dict[str, Any], schema: dict[str, tuple[Any, ...]], compiler: Any, owner: str, line_counts: dict[str, int]) -> dict[str, Any]:
+    """Length caps are mechanical, so a response that overruns one is cut to it rather
+    than dropped, and a cited line past the end of a real file is pinned to its last
+    line; every repair is printed. Vocabulary and evidence-path errors are not repaired:
+    the validator rejects those and the reason is printed."""
+    out = dict(raw)
+    repairs: list[str] = []
+    for key, limit in (("summary", compiler.SEMANTIC_SUMMARY_MAX), ("purpose", compiler.SEMANTIC_PURPOSE_MAX)):
+        if isinstance(out.get(key), str) and len(out[key]) > limit:
+            out[key] = clip(out[key], limit)
+            repairs.append(f"{key} clipped")
+    fields = out.get("fields") if isinstance(out.get("fields"), dict) else {}
+    fixed: dict[str, Any] = {}
+    for name, value in fields.items():
+        spec = schema.get(name)
+        if spec and spec[0] == "str" and isinstance(value, str) and len(value) > spec[1]:
+            value = clip(value, spec[1])
+            repairs.append(f"{name} clipped")
+        if spec and spec[0] == "list_str" and isinstance(value, list):
+            kept = [item for item in value if isinstance(item, str) and len(item) <= spec[1]]
+            if len(kept) != len(value):
+                repairs.append(f"{name}: dropped {len(value) - len(kept)} over-long item(s)")
+            value = kept
+        if spec and spec[0] == "types" and isinstance(value, list):
+            # A nested type written with its outer type (`ArtifactStore.QuerySlot`) is declared by its own name.
+            unqualified = [item.rsplit(".", 1)[-1] if isinstance(item, str) else item for item in value]
+            if unqualified != value:
+                repairs.append(f"{name}: unqualified nested type name(s)")
+            value = unqualified
+        fixed[name] = value
+    out["fields"] = fixed
+    if isinstance(out.get("open_questions"), list):
+        out["open_questions"] = [clip(q, 200) for q in out["open_questions"] if isinstance(q, str)]
+    if isinstance(out.get("evidence"), list):
+        for site in out["evidence"]:
+            if isinstance(site, dict) and site.get("path") in line_counts and isinstance(site.get("line"), int) and site["line"] > line_counts[site["path"]]:
+                site["line"] = line_counts[site["path"]]
+                repairs.append(f"evidence line clamped in {site['path'].rsplit('/', 1)[-1]}")
+    if repairs:
+        print(f"repaired {owner}: {', '.join(sorted(set(repairs)))}", file=sys.stderr, flush=True)
+    return out
+
+
 def construct_targets(ctx: Context) -> list[dict[str, Any]]:
     """Every construct that carries a record: nodes with a schema kind, plus pages."""
     targets: list[dict[str, Any]] = []
@@ -466,9 +597,12 @@ def construct_facts(target: dict[str, Any], ctx: Context) -> dict[str, Any]:
                         excerpts.append({"path": path, **excerpt})
                         files.append(path)
                     break
+        components = sorted({n["component"] for n in members if n.get("component")})
         return {
             "key": target["key"], "kind": "page", "label": page["label"],
             "mechanical": {"roots": page.get("roots"), "namespaces": page.get("namespaces"), "type_count": page.get("type_count")},
+            "component": [ctx.component_facts(c) for c in components if ctx.component_facts(c)],
+            "docs": docs_for(page["label"], [*sorted(set(files)), *(page.get("roots") or [])]),
             "members": [{"key": n["history_key"], "kind": n["kind"], "label": n["label"]} for n in members],
             "triggers": [{"id": t["id"], "kind": t["kind"], "api": t["api"], "view": t.get("view"), "surface": t["surface"], "method": t["method"]} for t in triggers[:40]],
             "bounded_files": sorted(set(files)), "excerpts": excerpts, "prefilled": {},
@@ -529,6 +663,8 @@ def construct_facts(target: dict[str, Any], ctx: Context) -> dict[str, Any]:
                     budget -= 1
     return {
         "key": target["key"], "kind": target["kind"], "label": node["label"], "mechanical": mechanical,
+        "component": ctx.component_facts(node.get("component")),
+        "docs": docs_for(node["label"], [path for path in (node.get("path"), *sorted(allowed)) if path][:4]),
         "edges": edges[:60], "prefilled": prefilled, "bounded_files": sorted(allowed), "excerpts": excerpts,
     }
 
@@ -562,7 +698,9 @@ def construct_prompt(batch: list[dict[str, Any]], kind: str, ctx: Context, exist
     records = []
     for target in batch:
         facts = construct_facts(target, ctx)
-        facts["existing_record"] = existing.get(target["key"])
+        record = existing.get(target["key"])
+        if record:
+            facts["existing_record"] = {k: record[k] for k in ("summary", "purpose", "fields", "open_questions") if record.get(k) is not None}
         records.append(facts)
     packet = {"repository": ctx.model["repository"], "source_revision": source_revision, "kind": kind, "records": records}
     text = json.dumps(packet, indent=1, sort_keys=True, ensure_ascii=False)
@@ -581,6 +719,7 @@ Return one JSON object {{"records": [...]}} with exactly one record per input re
   "key": "the input key, unchanged",
   "kind": "{kind}",
   "summary": "one paragraph, present tense, what this construction is and does in the current source",
+  "purpose": "one paragraph, at most {compiler.SEMANTIC_PURPOSE_MAX} characters: why this exists in the product — the need it serves, for whom (the person running Portal, an operator of the gateway, the team), what it unlocks, and what stops working without it. Written from the `docs` paragraphs when they name it; from the code alone otherwise, with a clause saying the purpose is inferred.",
   "fields": {{ ...only fields from the schema below; omit a field rather than guess... }},
   "open_questions": ["what the excerpts do not settle"],
   "evidence": [{{"path": "a path from bounded_files", "line": 1}}]
@@ -595,7 +734,9 @@ Rules:
 - `record_type` must be Swift type names that appear in the excerpts.
 - Every evidence path must be in this record's bounded_files, with a line number inside the excerpt ranges you saw (from_line plus the offset).
 - Prefer an open question over an unsupported claim. Do not describe desired design.
-- Keep the summary under {compiler.SEMANTIC_SUMMARY_MAX} characters, open questions under 200. Output JSON only.
+- The summary says what it does; the purpose says why anyone wanted it. They must not repeat each other. A purpose that lists dependencies ("talks to the gateway and the Keychain") is rejected in review; name the outcome those dependencies buy. `component` is the declared module the construction sits in and `docs` are the repository's own paragraphs naming it: ground the purpose there.
+- Set every identifier, type, method, file, route, namespace and key you mention in backticks, in the summary, the purpose and every string field.
+- Keep the summary under {compiler.SEMANTIC_SUMMARY_MAX} characters, the purpose under {compiler.SEMANTIC_PURPOSE_MAX}, open questions under 200. Output JSON only.
 
 Packet:
 {text}
@@ -607,11 +748,12 @@ Packet:
             "properties": {
                 "key": {"type": "string"}, "kind": {"type": "string"},
                 "summary": {"type": "string", "maxLength": compiler.SEMANTIC_SUMMARY_MAX},
+                "purpose": {"type": "string", "maxLength": compiler.SEMANTIC_PURPOSE_MAX},
                 "fields": fields_json_schema(compiler.CONSTRUCT_SCHEMAS[kind]),
                 "open_questions": {"type": "array", "items": {"type": "string", "maxLength": 200}},
                 "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}},
             },
-            "required": ["key", "kind", "summary", "fields", "evidence"],
+            "required": ["key", "kind", "summary", "purpose", "fields", "evidence"],
         }}},
         "required": ["records"],
     }
@@ -665,6 +807,7 @@ def run_constructs(ctx: Context, targets: list[dict[str, Any]], source_revision:
             raw["source_revision"] = source_revision
             raw["model"] = model_name
             raw.pop("cited_hash", None)
+            raw = repair_record(raw, compiler.CONSTRUCT_SCHEMAS[kind], compiler, target["key"], ctx.line_counts)
             try:
                 record = compiler.validate_construct_record(raw, ctx.interplay, ctx.files, ctx.externals)
             except compiler.ArchitectureError as exc:
@@ -711,6 +854,74 @@ JOURNEY_BRIEFS = {
 }
 
 
+FLOW_SOURCE_CHARS = 60_000
+FLOW_EXCERPT_LINES = 120
+
+
+def flow_source(ctx: Context, keys: set[str], page_id: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The source the flows agent writes from: a bounded excerpt of every construction in the
+    journey's scope, the views holding the journey's triggers first, capped at FLOW_SOURCE_CHARS.
+    Returns the excerpts and the line windows they cover; a citation outside them is not provenance."""
+    excerpts: list[dict[str, Any]] = []
+    windows: list[dict[str, Any]] = []
+    seen: set[tuple[str, int]] = set()
+    budget = FLOW_SOURCE_CHARS
+
+    def add(path: str, excerpt: dict[str, Any] | None, label: str) -> None:
+        nonlocal budget
+        if excerpt is None or (path, excerpt["from_line"]) in seen or budget <= 0 or not excerpt["text"].strip():
+            return
+        seen.add((path, excerpt["from_line"]))
+        shown = excerpt["text"].replace("\n… (truncated)", "")
+        excerpts.append({"path": path, "for": label, **excerpt})
+        windows.append({"path": path, "from_line": excerpt["from_line"], "to_line": excerpt["from_line"] + shown.count("\n")})
+        budget -= len(excerpt["text"])
+
+    for trigger in ctx.interplay.get("triggers", []):
+        if trigger.get("page") == page_id and trigger.get("path") in ctx.text_by_path and trigger.get("view"):
+            add(trigger["path"], type_excerpt(ctx.text_by_path[trigger["path"]], trigger["view"], ctx.compiler, 60), f"trigger view {trigger['view']}")
+    order = {"caller": 0, "subscriber": 0, "hub": 0, "provider": 1, "owner": 2, "client": 3, "store": 4, "seam": 5}
+    nodes = sorted((ctx.by_key[k] for k in keys if k in ctx.by_key and ctx.by_key[k].get("path")), key=lambda n: (order.get(n["kind"], 9), n["history_key"]))
+    for node in nodes:
+        text = ctx.text_by_path.get(node["path"])
+        if text:
+            add(node["path"], type_excerpt(text, node["label"], ctx.compiler, FLOW_EXCERPT_LINES), node["history_key"])
+    return excerpts, windows
+
+
+def inside_windows(cites: Any, windows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The citations that fall inside an excerpt the agent was shown; the rest are not provenance."""
+    kept: list[dict[str, Any]] = []
+    for item in cites if isinstance(cites, list) else []:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not isinstance(item.get("line"), int):
+            continue
+        if any(w["path"] == item["path"] and w["from_line"] <= item["line"] <= w["to_line"] for w in windows):
+            kept.append({"path": item["path"], "line": item["line"]})
+    return kept
+
+
+def repair_flow(raw: dict[str, Any], compiler: Any) -> dict[str, Any]:
+    """Length caps are mechanical: an overrun is cut to the cap rather than dropped, and printed."""
+    out = dict(raw)
+    repairs: list[str] = []
+    for key, limit in (("title", 80), ("summary", compiler.SEMANTIC_SUMMARY_MAX), ("interaction", 80), ("outcome", 200)):
+        if isinstance(out.get(key), str) and len(out[key]) > limit:
+            out[key] = clip(out[key], limit)
+            repairs.append(f"{key} clipped")
+    steps = []
+    for step in out.get("steps") or []:
+        if isinstance(step, dict):
+            for key, limit in (("note", compiler.SEMANTIC_NOTE_MAX), ("detail", compiler.FLOW_DETAIL_MAX)):
+                if isinstance(step.get(key), str) and len(step[key]) > limit:
+                    step = {**step, key: clip(step[key], limit)}
+                    repairs.append(f"{key} clipped")
+        steps.append(step)
+    out["steps"] = steps
+    if repairs:
+        print(f"repaired flow {out.get('id')}: {', '.join(sorted(set(repairs)))}", file=sys.stderr, flush=True)
+    return out
+
+
 def journey_scope(ctx: Context, journey: str, page_id: str | None) -> tuple[set[str], list[dict[str, Any]]]:
     """The node keys and triggers a journey may use: the page's constructs, everything
     one edge away from them, the transport and gateway, the event stream, externals."""
@@ -735,7 +946,7 @@ def journey_scope(ctx: Context, journey: str, page_id: str | None) -> tuple[set[
     return scope, triggers
 
 
-def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list[dict[str, Any]], source_revision: str) -> tuple[str, dict[str, Any]]:
+def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list[dict[str, Any]], source_revision: str) -> tuple[str, dict[str, Any], list[dict[str, Any]]]:
     compiler = ctx.compiler
     key_of = {n["id"]: n["history_key"] for n in ctx.interplay["nodes"]}
     drawn = {n["history_key"]: n for n in ctx.interplay["nodes"] if n["kind"] != "operation"}
@@ -754,12 +965,14 @@ def flows_prompt(ctx: Context, journey: str, page_id: str | None, existing: list
                                  "method": t["method"], "namespaces": t.get("namespaces"), "path": t["path"], "line": t["line"]})
     files_of = {k: drawn[k].get("path") for k in scope if k in drawn and drawn[k].get("path")}
     title, brief = JOURNEY_BRIEFS[journey]
+    excerpts, windows = flow_source(ctx, scope, page)
     packet = {
         "repository": ctx.model["repository"], "source_revision": source_revision,
         "journey": journey, "page": page, "page_label": page_label, "brief": brief,
         "nodes": nodes, "edges": [list(t) for t in triples],
         "trigger_edges": f"a trigger row implies the edge [\"page:{page}\", \"triggers\", surface_key]; a flow that starts from a user action or from launch should begin with it",
-        "triggers": trigger_rows[:120], "node_files": files_of, "existing_flows_for_this_journey": existing,
+        "triggers": trigger_rows[:120], "node_files": files_of, "source": excerpts,
+        "existing_flows_for_this_journey": [{k: f.get(k) for k in ("id", "title", "interaction", "summary", "steps", "outcome")} for f in existing],
     }
     text = json.dumps(packet, indent=1, sort_keys=True, ensure_ascii=False)
     prompt = f"""You describe one user journey of an application as system flows over its mechanically derived architecture graph.
@@ -775,9 +988,13 @@ Return one JSON object {{"flows": [...]}}, each flow shaped:
   "journey": "{journey}",
   "page": "{page}",
   "trigger": "a trigger id from `triggers`, or null",
-  "steps": [{{"from": "node key", "to": "node key", "relation": "edge relation", "note": "what this hop means for the user, at most {compiler.SEMANTIC_NOTE_MAX} characters"}}],
-  "outcome": "what the user sees at the end, at most 200 characters",
-  "evidence": [{{"path": "a file from node_files of a node in the steps", "line": 1}}]
+  "steps": [{{
+    "from": "node key", "to": "node key", "relation": "edge relation",
+    "note": "what this hop means for the user, at most {compiler.SEMANTIC_NOTE_MAX} characters",
+    "detail": "two to six short sentences written from the excerpts in `source` for this hop, at most {compiler.FLOW_DETAIL_MAX} characters: what the code checks first and what it refuses, the state it reads or rewrites and where, what it hands on. Put every type, method, property, key, path and literal in `backticks`; separate ideas with a blank line; quote at most four lines of code verbatim in a ``` block only when the exact line matters.",
+    "cites": [{{"path": "a path from source", "line": "a line inside that excerpt's range (from_line to from_line plus its line count) that this detail was written from"}}]
+  }}],
+  "outcome": "what the user sees at the end, at most 200 characters"
 }}
 
 Hard rules:
@@ -785,7 +1002,9 @@ Hard rules:
 - Steps are connected: a step's `from` must be a node an earlier step already reached (or the very first `from`); fan-out from an earlier node is allowed.
 - {compiler.FLOW_MIN_STEPS} to {compiler.FLOW_MAX_STEPS} steps. Start each flow from the trigger edge when a trigger fits.
 - Cover the interactions the triggers show; do not describe interactions the triggers and edges cannot support.
-- Evidence lines are best-effort line numbers in the named file (line 1 is acceptable when unknown).
+- Cites are provenance: every step with a detail cites at least one path and line inside an excerpt in `source` that the detail was written from. A citation outside the excerpts shown is discarded; a flow with no citation left anywhere is rejected.
+- Say only what the excerpts show. Where an excerpt is truncated or a hop has no excerpt, the detail says what is not shown rather than guessing.
+- The reader follows the steps in order; the details together are the story. Do not repeat a hop's facts in another hop's detail.
 - Output JSON only.
 
 Packet:
@@ -805,16 +1024,17 @@ Packet:
                 "trigger": {"type": ["string", "null"]},
                 "steps": {"type": "array", "minItems": compiler.FLOW_MIN_STEPS, "maxItems": compiler.FLOW_MAX_STEPS, "items": {"type": "object", "properties": {
                     "from": {"type": "string"}, "to": {"type": "string"}, "relation": {"type": "string"},
-                    "note": {"type": "string", "maxLength": compiler.SEMANTIC_NOTE_MAX}},
-                    "required": ["from", "to", "relation"]}},
+                    "note": {"type": "string", "maxLength": compiler.SEMANTIC_NOTE_MAX},
+                    "detail": {"type": "string", "maxLength": compiler.FLOW_DETAIL_MAX},
+                    "cites": {"type": "array", "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}}},
+                    "required": ["from", "to", "relation", "note", "detail", "cites"]}},
                 "outcome": {"type": "string", "maxLength": 200},
-                "evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": "integer", "minimum": 1}}, "required": ["path", "line"]}},
             },
-            "required": ["id", "title", "interaction", "summary", "journey", "page", "steps", "outcome", "evidence"],
+            "required": ["id", "title", "interaction", "summary", "journey", "page", "steps", "outcome"],
         }}},
         "required": ["flows"],
     }
-    return prompt, json_schema
+    return prompt, json_schema, windows
 
 
 def all_journeys(ctx: Context) -> list[tuple[str, str | None]]:
@@ -837,13 +1057,16 @@ def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str 
 
     if dry_run:
         for journey, page_id in journeys:
-            prompt, _schema = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
-            print(f"--- {journey} {page_id or ''}: {len(prompt)} chars")
+            prompt, _schema, windows = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
+            print(f"--- {journey} {page_id or ''}: {len(prompt)} chars, {len(windows)} excerpt window(s)")
+            if len(journeys) == 1:
+                print(prompt)
         return 0, 0
 
     def work(item: tuple[str, str | None]) -> list[tuple[dict[str, Any] | None, str]]:
         journey, page_id = item
-        prompt, schema = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
+        prompt, schema, windows = flows_prompt(ctx, journey, page_id, [] if replace else for_journey(journey, page_id), source_revision)
+        page = page_id or ("launch" if journey == "launch" else "chat")
         try:
             response, model_name = request_json(prompt, schema)
         except AgentError as exc:
@@ -859,6 +1082,24 @@ def run_flows(ctx: Context, source_revision: str, journeys: list[tuple[str, str 
             raw = dict(raw)
             raw["source_revision"] = source_revision
             raw["model"] = model_name
+            raw.pop("cited_hash", None)
+            raw.pop("evidence", None)
+            # A citation counts when it falls inside an excerpt that was shown and in a file this
+            # flow's own path may cite (the validator's rule, shared); the rest are not provenance.
+            steps = [st for st in raw.get("steps") or [] if isinstance(st, dict)]
+            allowed = compiler.flow_allowed_paths([(str(st.get("from", "")), str(st.get("to", ""))) for st in steps], page, ctx.interplay, ctx.files)
+            dropped = 0
+            for st in steps:
+                cites = [c for c in inside_windows(st.get("cites"), windows) if c["path"] in allowed]
+                dropped += len(st.get("cites") or []) - len(cites)
+                st["cites"] = cites
+            raw["steps"] = steps
+            if not any(st["cites"] for st in steps):
+                out.append((None, f"{raw.get('id')!r}: no citation inside the source shown for its own path"))
+                continue
+            if dropped:
+                print(f"flow {raw.get('id')}: dropped {dropped} citation(s) outside the source shown", file=sys.stderr, flush=True)
+            raw = repair_flow(raw, compiler)
             try:
                 flow = compiler.validate_flow(raw, ctx.interplay, ctx.files)
             except compiler.ArchitectureError as exc:

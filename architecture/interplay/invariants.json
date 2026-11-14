@@ -4,6 +4,7 @@
     {
       "id": "single-transport",
       "kind": "single_transport",
+      "layer": "extraction",
       "seam": "AgentBackend",
       "transports": ["GatewayClient"],
       "why": "One WebSocket JSON-RPC client is shared by every page. A second transport, or a rename, must be declared here deliberately rather than absorbed by the graph."
@@ -11,12 +12,14 @@
     {
       "id": "surfaces-hold-core",
       "kind": "surfaces_hold_transport",
+      "layer": "extraction",
       "transport": "GatewayClient",
       "why": "Every calling surface competes for the same pool and socket. A surface that reaches the gateway some other way breaks the concurrent-access picture the graph draws."
     },
     {
       "id": "pool-guarded",
       "kind": "pool_guarded_by_lock",
+      "layer": "policy",
       "owner": "GatewayClient",
       "pool": "pendingRequests",
       "lock": "pendingRequestsLock",
@@ -27,6 +30,7 @@
     {
       "id": "pool-lifecycle-observed",
       "kind": "pool_lifecycle_observed",
+      "layer": "policy",
       "owner": "GatewayClient",
       "pool": "pendingRequests",
       "min": {"pool_register": 1, "pool_resolve": 1, "pool_remove": 1},
@@ -35,21 +39,25 @@
     {
       "id": "operations-scoped",
       "kind": "operations_resolve_scope",
+      "layer": "extraction",
       "why": "Sections are assembled per enclosing function; an operation with no resolved scope would silently drop out of its section."
     },
     {
       "id": "endpoints-dispatched",
       "kind": "endpoints_dispatched_by_transport",
+      "layer": "extraction",
       "why": "Every namespace box is dispatched by a transport core; a namespace reached any other way is a new construction, not a variant of this one."
     },
     {
       "id": "stores-mapped",
       "kind": "stores_mapped",
+      "layer": "extraction",
       "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
     },
     {
       "id": "triggers-observed",
       "kind": "triggers_observed",
+      "layer": "extraction",
       "min": 20,
       "allow_empty": [],
       "why": "Every page's views drive at least one surface through an observed action or lifecycle hook. SwiftUI has many ways to attach an action; if a refactor hides them from the rules, the first hop must fail loudly rather than vanish."
@@ -57,6 +65,7 @@
     {
       "id": "launch-zoned",
       "kind": "launch_zoned",
+      "layer": "extraction",
       "min": 8,
       "configures": ["SettingsViewModel"],
       "why": "The App entry points construct the objects that exist before any page: the settings object reads the keychain in its initialiser and is what the transport connects with. A store read only at launch belongs to the launch zone, not to the shared core; if the @StateObject or init rules stop matching, launch must fail loudly rather than dissolve into shared."
@@ -64,6 +73,7 @@
     {
       "id": "machines-complete",
       "kind": "machines_complete",
+      "layer": "extraction",
       "min": 4,
       "declared": {
         "GatewayClient.connectionState": ["disconnected", "connecting", "connected", "reconnecting", "error"],
@@ -75,14 +85,30 @@
       "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
     },
     {
+      "id": "tasks-parsed",
+      "kind": "tasks_parsed",
+      "layer": "extraction",
+      "allow_unparsed": [],
+      "why": "Every Task the source creates, however its generics or arguments are spelled, is read by the task rules. A spelling they do not know would otherwise vanish from the map without a trace."
+    },
+    {
+      "id": "resources-parsed",
+      "kind": "resources_parsed",
+      "layer": "extraction",
+      "allow_unparsed": [],
+      "why": "Every stored property typed as a resource the rules know (socket, session, timer, lock, continuation pool, model container, subject) is read by the resource rules, so a new field cannot leave its owner looking idle."
+    },
+    {
       "id": "flows-traceable",
       "kind": "flows_traceable",
+      "layer": "enrichment",
       "min": 6,
       "why": "A system flow is a path over edges the map draws, never a diagram beside it. When the construction changes under a flow, the flow must be updated in the same change rather than quietly describing wiring that no longer exists."
     },
     {
       "id": "pages-populated",
       "kind": "pages_populated",
+      "layer": "extraction",
       "allow_empty": [],
       "why": "Every declared page owns at least one construct. An empty page means its roots or ownership declarations have drifted from the source."
     }

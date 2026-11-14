@@ -144,7 +144,10 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
     /// Live 0...1 loudness of the neural voice as it plays, smoothed, so the
     /// conversation orb can breathe with the assistant's own speech. Zero when
     /// silent or when the system voice (which reports no samples) is speaking.
-    @Published internal private(set) var outputLevel: Float = 0
+    /// Lives on its own observable object so per-buffer samples re-render only
+    /// the orb that observes the meter, not every view observing this service.
+    internal let outputMeter = AudioLevelMeter()
+    internal var outputLevel: Float { outputMeter.level }
     /// The message whose sentences are queued or playing, so its bubble can
     /// show a speaking indicator and offer Stop instead of Speak.
     @Published internal private(set) var speakingMessageID: UUID?
@@ -556,8 +559,7 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
     /// pulses smoothly with the assistant's voice instead of strobing — the
     /// same shaping `ChatViewModel` applies to the mic level.
     private func updateOutputLevel(_ raw: Float) {
-        let clamped = max(0, min(1, raw))
-        outputLevel = outputLevel * 0.7 + clamped * 0.3
+        outputMeter.fold(raw)
     }
 
     private func handleNeuralEvent(_ event: NeuralSpeechEvent) {
@@ -615,7 +617,7 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         isPaused = false
         speakingMessageID = nil
         currentSentence = nil
-        outputLevel = 0
+        outputMeter.reset()
         if wasActive {
             playback.deactivate()
         }

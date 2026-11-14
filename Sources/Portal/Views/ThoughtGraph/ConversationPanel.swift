@@ -47,6 +47,9 @@ internal struct ConversationPanel: View {
     internal let persona: Persona
     /// The active skin, resolved by the host so bubbles match the rest of chat.
     internal let skinProvider: ChatSkinProviding
+    /// The skin behind `skinProvider`; part of each row's equality so a skin
+    /// switch still re-renders settled bubbles.
+    internal let skin: ChatSkin
     /// When set (Turns mode), render ONLY this turn's message(s) — the assistant
     /// message with this id and the user prompt that opened it — instead of the
     /// whole transcript. Nil (Scroll mode) shows the full ever-growing thread.
@@ -210,7 +213,17 @@ internal struct ConversationPanel: View {
                     VStack(alignment: .leading, spacing: 4) {
                         let showTimestamp = lastInGroup.contains(message.id)
                         let prepared = bubbleMessage(message, showTimestamp: showTimestamp)
-                        skinProvider.messageBubble(message: prepared, persona: persona)
+                        // Equatable host, as on the iOS transcript: a settled row's
+                        // body is skipped unless its render key, persona or skin
+                        // changed. Without it every one of the 60 windowed rows
+                        // re-ran on every publish from the view model.
+                        MessageBubbleHost(
+                            message: prepared,
+                            persona: persona,
+                            skin: skin,
+                            provider: skinProvider
+                        )
+                        .equatable()
                         // Peel affordance + any blocks already peeled into the scroll
                         // for this turn — layered directly under the bubble so they
                         // travel with the turn as you scroll. The live turn's tools come

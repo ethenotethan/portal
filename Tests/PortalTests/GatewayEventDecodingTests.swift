@@ -3,7 +3,7 @@ import Foundation
 @testable import Portal
 
 @Suite("Gateway Event Decoding — new families")
-struct GatewayEventDecodingTests {
+internal struct GatewayEventDecodingTests {
 
     // MARK: - architecture.changed
 
@@ -37,7 +37,7 @@ struct GatewayEventDecodingTests {
     // MARK: - tool.output_risk
 
     @Test("tool.output_risk parses full payload")
-    func toolOutputRiskFullPayload() {
+    internal func toolOutputRiskFullPayload() {
         let payload = AnyCodable.dictionary([
             "tool_id": .string("tool-42"),
             "name": .string("terminal"),
@@ -58,7 +58,7 @@ struct GatewayEventDecodingTests {
     }
 
     @Test("tool.output_risk defaults missing fields safely")
-    func toolOutputRiskDefaults() {
+    internal func toolOutputRiskDefaults() {
         let event = GatewayEvent.from(type: "tool.output_risk", payload: .dictionary([
             "tool_id": .string("tool-1"),
         ]))
@@ -72,7 +72,7 @@ struct GatewayEventDecodingTests {
     }
 
     @Test("tool.output_risk unknown risk string falls back to low")
-    func toolOutputRiskUnknownLevel() {
+    internal func toolOutputRiskUnknownLevel() {
         let event = GatewayEvent.from(type: "tool.output_risk", payload: .dictionary([
             "tool_id": .string("tool-1"),
             "risk": .string("catastrophic"),
@@ -87,7 +87,7 @@ struct GatewayEventDecodingTests {
     // MARK: - moa.*
 
     @Test("moa.reference parses label, text, and count")
-    func moaReferenceFullPayload() {
+    internal func moaReferenceFullPayload() {
         let event = GatewayEvent.from(type: "moa.reference", payload: .dictionary([
             "label": .string("slot-2 (gpt-4o)"),
             "text": .string("Reference answer body"),
@@ -103,7 +103,7 @@ struct GatewayEventDecodingTests {
     }
 
     @Test("moa.reference falls back to preview when text is missing")
-    func moaReferencePreviewFallback() {
+    internal func moaReferencePreviewFallback() {
         let event = GatewayEvent.from(type: "moa.reference", payload: .dictionary([
             "label": .string("slot-1"),
             "preview": .string("Preview body"),
@@ -118,7 +118,7 @@ struct GatewayEventDecodingTests {
     }
 
     @Test("moa.aggregating parses the aggregator name")
-    func moaAggregating() {
+    internal func moaAggregating() {
         let event = GatewayEvent.from(type: "moa.aggregating", payload: .dictionary([
             "aggregator": .string("claude-opus"),
         ]))
@@ -130,7 +130,7 @@ struct GatewayEventDecodingTests {
     }
 
     @Test("moa.aggregating with empty payload defaults to empty aggregator")
-    func moaAggregatingEmpty() {
+    internal func moaAggregatingEmpty() {
         let event = GatewayEvent.from(type: "moa.aggregating", payload: nil)
         guard case .moaAggregating(let aggregator) = event else {
             Issue.record("expected moaAggregating, got \(event.debugName)")
@@ -142,7 +142,7 @@ struct GatewayEventDecodingTests {
     // MARK: - browser/preview progress → statusUpdate
 
     @Test("browser.progress folds into statusUpdate(kind: browser)")
-    func browserProgress() {
+    internal func browserProgress() {
         let event = GatewayEvent.from(type: "browser.progress", payload: .dictionary([
             "message": .string("navigating to page"),
             "level": .string("info"),
@@ -156,7 +156,7 @@ struct GatewayEventDecodingTests {
     }
 
     @Test("preview.restart.progress folds into statusUpdate(kind: preview)")
-    func previewRestartProgress() {
+    internal func previewRestartProgress() {
         let event = GatewayEvent.from(type: "preview.restart.progress", payload: .dictionary([
             "task_id": .string("t1"),
             "level": .string("info"),
@@ -171,7 +171,7 @@ struct GatewayEventDecodingTests {
     }
 
     @Test("preview.restart.complete uses the text as-is")
-    func previewRestartComplete() {
+    internal func previewRestartComplete() {
         let event = GatewayEvent.from(type: "preview.restart.complete", payload: .dictionary([
             "task_id": .string("t1"),
             "text": .string("preview restarted"),
@@ -187,7 +187,7 @@ struct GatewayEventDecodingTests {
     // MARK: - reaction
 
     @Test("reaction parses the kind")
-    func reactionKind() {
+    internal func reactionKind() {
         let event = GatewayEvent.from(type: "reaction", payload: .dictionary([
             "kind": .string("hearts"),
         ]))
@@ -199,7 +199,7 @@ struct GatewayEventDecodingTests {
     }
 
     @Test("reaction with missing kind decodes to empty string")
-    func reactionMissingKind() {
+    internal func reactionMissingKind() {
         let event = GatewayEvent.from(type: "reaction", payload: nil)
         guard case .reaction(let kind) = event else {
             Issue.record("expected reaction, got \(event.debugName)")
@@ -211,7 +211,7 @@ struct GatewayEventDecodingTests {
     // MARK: - forward tolerance unchanged
 
     @Test("unrecognized types still decode to .unknown")
-    func unknownStillTolerated() {
+    internal func unknownStillTolerated() {
         let event = GatewayEvent.from(type: "pet.feed", payload: nil)
         guard case .unknown(let type) = event else {
             Issue.record("expected unknown, got \(event.debugName)")
@@ -273,10 +273,10 @@ internal struct JSONRPCValueCodingTests {
 // MARK: - ToolCallRecord risk update
 
 @Suite("ToolCallRecord risk update")
-struct ToolCallRecordRiskTests {
+internal struct ToolCallRecordRiskTests {
 
     @Test("applyRisk sets level, findings, and redacted marker")
-    func applyRiskSetsFields() {
+    internal func applyRiskSetsFields() {
         var record = ToolCallRecord(id: "tool-1", name: "terminal")
         record.applyRisk(ToolOutputRiskPayload(
             toolID: "tool-1",
@@ -291,7 +291,7 @@ struct ToolCallRecordRiskTests {
     }
 
     @Test("applyRisk normalizes empty findings and non-redacted to nil")
-    func applyRiskNormalizesEmpties() {
+    internal func applyRiskNormalizesEmpties() {
         var record = ToolCallRecord(id: "tool-1", name: "terminal")
         record.applyRisk(ToolOutputRiskPayload(
             toolID: "tool-1",
@@ -306,7 +306,7 @@ struct ToolCallRecordRiskTests {
     }
 
     @Test("risk metadata round-trips through Codable and old JSON still decodes")
-    func riskCodableRoundTrip() throws {
+    internal func riskCodableRoundTrip() throws {
         var record = ToolCallRecord(id: "tool-1", name: "browser", isComplete: true)
         record.applyRisk(ToolOutputRiskPayload(
             toolID: "tool-1", name: "browser", risk: .high,
@@ -329,11 +329,11 @@ struct ToolCallRecordRiskTests {
 // MARK: - ChatViewModel event application
 
 @Suite("ChatViewModel new-event application")
-struct ChatViewModelNewEventTests {
+internal struct ChatViewModelNewEventTests {
 
     @Test("tool.output_risk badges an active tool call")
     @MainActor
-    func riskBadgesActiveTool() async {
+    internal func riskBadgesActiveTool() async {
         let vm = ChatViewModel()
         _ = vm.beginSwitchToSession(key: "s1")
         vm.receiveGatewayEventForTesting(.messageStart, sessionID: "s1")
@@ -353,7 +353,7 @@ struct ChatViewModelNewEventTests {
 
     @Test("tool.output_risk arriving after messageComplete badges the merged record")
     @MainActor
-    func riskBadgesMergedTool() async {
+    internal func riskBadgesMergedTool() async {
         let vm = ChatViewModel()
         _ = vm.beginSwitchToSession(key: "s1")
         vm.receiveGatewayEventForTesting(.messageStart, sessionID: "s1")
@@ -377,7 +377,7 @@ struct ChatViewModelNewEventTests {
 
     @Test("moa.reference lands as a discrete labelled thinking block")
     @MainActor
-    func moaReferenceLandsAsLabelledBlock() async {
+    internal func moaReferenceLandsAsLabelledBlock() async {
         let vm = ChatViewModel()
         _ = vm.beginSwitchToSession(key: "s1")
         vm.receiveGatewayEventForTesting(.messageStart, sessionID: "s1")
@@ -401,7 +401,7 @@ struct ChatViewModelNewEventTests {
 
     @Test("moa.aggregating sets the transient status line")
     @MainActor
-    func moaAggregatingSetsStatus() async {
+    internal func moaAggregatingSetsStatus() async {
         let vm = ChatViewModel()
         _ = vm.beginSwitchToSession(key: "s1")
         vm.receiveGatewayEventForTesting(.messageStart, sessionID: "s1")
@@ -411,7 +411,7 @@ struct ChatViewModelNewEventTests {
 
     @Test("statusUpdate (browser/preview progress) sets the transient status line")
     @MainActor
-    func statusUpdateSetsStatus() async {
+    internal func statusUpdateSetsStatus() async {
         let vm = ChatViewModel()
         _ = vm.beginSwitchToSession(key: "s1")
         vm.receiveGatewayEventForTesting(.statusUpdate(kind: "browser", text: "navigating"), sessionID: "s1")

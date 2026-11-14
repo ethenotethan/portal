@@ -133,6 +133,15 @@ struct ChatMessage: Identifiable, Codable {
     /// instead of treating the whole envelope as ordinary assistant prose.
     internal var delegationBatchNotice: DelegationBatchNotice? {
         guard role == .assistant else { return nil }
+        // A notice opens with "[" or the bare marker. Check that on the first
+        // non-blank character before normalizing: this is read per row per
+        // render, and normalizing the full content of every visible assistant
+        // message made each transcript pass O(total characters on screen).
+        guard let start = content.firstIndex(where: { !$0.isWhitespace }) else { return nil }
+        if content[start] != "[" {
+            let probe = content[start...].prefix(23)
+            guard probe.uppercased() == "ASYNC DELEGATION BATCH " else { return nil }
+        }
         let normalized = content.replacingOccurrences(of: "\r\n", with: "\n")
         let trimmed = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let newline = trimmed.firstIndex(of: "\n") else {

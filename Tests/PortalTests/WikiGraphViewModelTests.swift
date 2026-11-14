@@ -5,7 +5,7 @@ import SwiftUI
 
 @Suite("Wiki Shared Selection Plane")
 @MainActor
-struct WikiGraphViewModelTests {
+internal struct WikiGraphViewModelTests {
 
     private func page(_ id: String, path: String, tagPath: [String] = []) -> WikiPage {
         WikiPage(
@@ -94,7 +94,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Selecting a node makes its page the shared current page")
-    func nodeSelectSetsPath() {
+    internal func nodeSelectSetsPath() {
         let vm = makeVM()
         guard let idx = vm.nodeIndexByID["beta"] else {
             Issue.record("beta node missing")
@@ -107,7 +107,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Navigating to a path selects the corresponding graph node")
-    func pathSelectSetsNode() {
+    internal func pathSelectSetsNode() {
         let vm = makeVM()
         vm.navigate(to: "entities/gamma.md")
         let idx = vm.selectedNodeIndex
@@ -116,7 +116,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Node select ↔ path select round-trip")
-    func selectionRoundTrip() {
+    internal func selectionRoundTrip() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         let nodeIdx = vm.selectedNodeIndex
@@ -128,7 +128,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Navigating to a path outside the graph clears node selection")
-    func unknownPathClearsNode() {
+    internal func unknownPathClearsNode() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         #expect(vm.selectedNodeIndex != nil)
@@ -138,7 +138,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("History push/pop across navigate, back, and forward")
-    func historyPushPop() {
+    internal func historyPushPop() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         vm.navigate(to: "concepts/beta.md")
@@ -164,7 +164,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Navigating to the current path is a no-op for history")
-    func navigateSamePathNoop() {
+    internal func navigateSamePathNoop() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         vm.navigate(to: "concepts/alpha.md")
@@ -172,7 +172,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Sim rebuild re-syncs node selection from the shared path")
-    func rebuildKeepsSelection() {
+    internal func rebuildKeepsSelection() {
         let vm = makeVM()
         vm.navigate(to: "concepts/beta.md")
         vm.setupSimulation()
@@ -182,7 +182,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Backlink index is built from the graph on assignment")
-    func backlinkIndexBuilt() {
+    internal func backlinkIndexBuilt() {
         let vm = makeVM()
         let betaBacklinks = vm.backlinks(for: vm.graph.pages.first { $0.id == "beta" })
         #expect(betaBacklinks.map(\.id).sorted() == ["alpha", "gamma"])
@@ -206,7 +206,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Clearing page selection resets path, history, and node")
-    func clearSelection() {
+    internal func clearSelection() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         vm.navigate(to: "concepts/beta.md")
@@ -219,7 +219,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Cached content stores and reports failures for the current page")
-    func contentCacheStoreAndFail() {
+    internal func contentCacheStoreAndFail() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         let content = WikiPageContent(frontmatter: ["title": "Alpha"], body: "hello", path: "concepts/alpha.md")
@@ -236,7 +236,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Switching wikis clears selection and history; reloading the same wiki keeps them")
-    func wikiSwitchClearsSelection() {
+    internal func wikiSwitchClearsSelection() {
         let vm = makeVM()
         vm.prepareForLoad(wiki: "research")
         vm.navigate(to: "concepts/alpha.md")
@@ -273,7 +273,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Reveal in file tree opens the sidebar with the page selected")
-    func revealInFileTree() {
+    internal func revealInFileTree() {
         let vm = makeVM()
         vm.revealInFileTree(path: "concepts/beta.md")
         #expect(vm.showFileTree)
@@ -281,7 +281,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Show in Graph closes the reader, drops to 2D, and selects the node")
-    func showInGraph() {
+    internal func showInGraph() {
         let vm = makeVM()
         vm.is3D = true
         vm.navigate(to: "concepts/beta.md")
@@ -303,7 +303,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Activating a node selects its page and opens the reader")
-    func activateNodeOpensReader() {
+    internal func activateNodeOpensReader() {
         let vm = makeVM()
         guard let idx = vm.nodeIndexByID["alpha"] else {
             Issue.record("alpha node missing")
@@ -317,7 +317,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("Deactivating (empty-canvas tap) closes the reader but keeps history")
-    func deactivateClosesReader() {
+    internal func deactivateClosesReader() {
         let vm = makeVM()
         vm.navigate(to: "concepts/alpha.md")
         vm.navigate(to: "concepts/beta.md")
@@ -331,7 +331,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("3D rendering toggle reseeds the sim and keeps the page selection")
-    func renderingToggleKeepsSelection() {
+    internal func renderingToggleKeepsSelection() {
         let vm = makeVM()
         vm.navigate(to: "entities/gamma.md")
 
@@ -381,7 +381,7 @@ struct WikiGraphViewModelTests {
     /// and page read, so the reader fell back to the home gateway and every
     /// Centaur page 404'd. The VM must retain the source it loaded from.
     @Test("Override source outlives its creation scope for page reads")
-    func overrideSourceRetained() async {
+    internal func overrideSourceRetained() async {
         final class StubSource: WikiSource {
             var pageFetches = 0
             func fetchGraph() async throws -> WikiGraph {

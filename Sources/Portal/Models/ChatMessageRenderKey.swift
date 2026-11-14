@@ -21,6 +21,12 @@ internal struct ChatMessageRenderKey: Equatable, Hashable {
     internal let traceUpdatedAt: Date?
     internal let traceBlockCount: Int
     internal let toolCallSignature: [String]
+    /// Each attachment's id and download phase. The chip renders a spinner, a
+    /// thumbnail or a failure from `downloadState`, and a pre-fetch finishing is
+    /// the only thing that changes on the message — a count alone froze the chip
+    /// in its pre-download state once rows became equatable. The bytes are not
+    /// compared.
+    internal let attachmentStates: [String]
     internal let attachmentCount: Int
     internal let userAttachmentCount: Int
     internal let skillCount: Int
@@ -40,6 +46,14 @@ internal struct ChatMessageRenderKey: Equatable, Hashable {
         // A tool call's visible state is its completion and its summary; the
         // id keeps two calls of the same tool apart.
         toolCallSignature = message.toolCalls.map { "\($0.id)|\($0.isComplete)|\($0.summary ?? "")" }
+        attachmentStates = message.attachments.map { attachment in
+            switch attachment.downloadState {
+            case .notStarted: "\(attachment.id)|idle"
+            case .downloading(let progress): "\(attachment.id)|dl\(Int(progress * 20))"
+            case .ready: "\(attachment.id)|ready"
+            case .failed: "\(attachment.id)|failed"
+            }
+        }
         attachmentCount = message.attachments.count
         userAttachmentCount = message.userAttachments.count
         skillCount = message.skills.count
