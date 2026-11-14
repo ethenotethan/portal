@@ -63,6 +63,7 @@ private final class FakeArtifactGateway: ArtifactGateway {
         id: String, kind: String, content: String, title: String?, replace: Bool
     ) async throws -> LivingArtifact? { nil }
     func artifactDelete(id: String) async throws {}
+    func artifactCategorize(id: String, category: String) async throws -> LivingArtifact? { nil }
 }
 
 // MARK: - Tests

@@ -79,6 +79,7 @@ private final class FakeQueryGateway: ArtifactGateway {
         return nil
     }
     func artifactDelete(id: String) async throws {}
+    func artifactCategorize(id: String, category: String) async throws -> LivingArtifact? { nil }
 }
 
 @Suite("Artifact query slots")

@@ -110,6 +110,12 @@ vs. database-format `session_key` (e.g. `20260501_112429_d91274`, used to resume
 | `activity.dismiss` | `activity_id` | Dismiss an item |
 | `activity.artifacts.get` | `artifact_id` | Fetch artifact content |
 
+### artifact.categorize
+
+| Method | Params | Description |
+|--------|--------|-------------|
+| `artifact.categorize` | `id`, `category` (`""` = unfiled) | File an artifact under a folder → `{artifact}` (summary, no content). Metadata only: no revision, `rev` and `updated_at` unchanged. The gateway may respell `category` to match an existing folder. Gated on the `artifact.categorize` capability (`supportsArtifactCategories`); `artifact.set` also accepts `category` |
+
 ### artifact.query.*
 
 The read side of artifact intents: an HTML artifact's page asks for data
@@ -358,7 +364,7 @@ Current gateways send blocking prompts as JSON-RPC **requests** (string `srq-…
 | `voice.status` | `voiceStatus(state)` | Voice state change |
 | `activity.created` | `activityCreated(ActivityItem)` | New inbox item |
 | `activity.updated` / `activity.read` / `activity.dismissed` | `activityUpdated(ActivityItem)` | Inbox item modified (all three wire types decode to the same case) |
-| `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields; clients refetch content via `artifact.get` |
+| `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields (incl. `category`); clients refetch via `artifact.get`. Filing an artifact (`artifact.categorize`) emits it without moving `rev`, so the store adopts `category` from an equal-rev record |
 | `artifact.query.changed` | `artifactQueryChanged(artifactID, queryID, status, reason)` | A subscribed query's result changed (`status: "ok"` — re-fetch via `artifact.query.invoke`) or its slot was dropped server-side (`"unsupported"` + `reason`). Etag-diffed: identical data emits nothing |
 | `learning.changed` | `learningChanged(entity, id, rev, deleted)` | Learning store mutation (course/deck) — id + rev only; clients refetch via `learning.course.get` / `learning.deck.get` |
 | `architecture.changed` | `architectureChanged(service, revision, reason, status)` | A service's architecture model moved: a newly stored revision (`reason: "snapshot"`) or a finished check (`reason: "check"` + `status`). Clients refetch via `architecture.describe` |
