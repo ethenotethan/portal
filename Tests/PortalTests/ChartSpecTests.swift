@@ -289,14 +289,14 @@ internal struct TimelineTests {
     }
 
     @Test("Date range spans min start to max end")
-    func range() {
-        let spec = TimelineSpec.parse("""
+    internal func range() throws {
+        let spec = try #require(TimelineSpec.parse("""
         {"items": [
           {"label": "A", "start": "2026-07-10", "end": "2026-07-20"},
           {"label": "B", "start": "2026-07-01", "end": "2026-07-05"}
         ]}
-        """)!
-        let range = spec.dateRange!
+        """))
+        let range = try #require(spec.dateRange)
         #expect(range.lowerBound == TimelineSpec.parseDate("2026-07-01"))
         #expect(range.upperBound == TimelineSpec.parseDate("2026-07-20"))
     }
@@ -324,11 +324,11 @@ internal struct TimelineTests {
     }
 
     @Test("Single milestone pads the axis instead of collapsing")
-    func singleInstant() {
-        let spec = TimelineSpec.parse("""
+    internal func singleInstant() throws {
+        let spec = try #require(TimelineSpec.parse("""
         {"items": [{"label": "GA", "at": "2026-08-20"}]}
-        """)!
-        let range = spec.dateRange!
+        """))
+        let range = try #require(spec.dateRange)
         #expect(range.upperBound > range.lowerBound)
     }
 
