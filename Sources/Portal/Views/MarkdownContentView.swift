@@ -1621,6 +1621,9 @@ struct InlineHTMLView: View {
     /// Current query results per page element, written into the page's sinks
     /// in the isolated content world.
     internal let queryMarks: [HTMLArtifactQueryBridge.ResultMark]
+    /// Present only for a live HTML artifact on a gateway that stores
+    /// comments: the pins to draw and what a click on the page reports.
+    internal let comments: HTMLArtifactCommentBridge.Host?
     /// Expanded interactive canvases use the next trusted canvas click to
     /// acquire Pointer Lock. Ordinary inline HTML leaves this disabled.
     internal let capturesPointerInput: Bool
@@ -1639,6 +1642,7 @@ struct InlineHTMLView: View {
         statusMarks: [HTMLArtifactIntentBridge.StatusMark] = [],
         onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)? = nil,
         queryMarks: [HTMLArtifactQueryBridge.ResultMark] = [],
+        comments: HTMLArtifactCommentBridge.Host? = nil,
         capturesPointerInput: Bool = false,
         baseURL: URL? = nil,
         onPointerLockChange: ((Bool) -> Void)? = nil
@@ -1648,6 +1652,7 @@ struct InlineHTMLView: View {
         self.statusMarks = statusMarks
         self.onArtifactQuery = onArtifactQuery
         self.queryMarks = queryMarks
+        self.comments = comments
         self.capturesPointerInput = capturesPointerInput
         self.baseURL = baseURL
         self.onPointerLockChange = onPointerLockChange
@@ -1661,6 +1666,7 @@ struct InlineHTMLView: View {
             statusMarks: statusMarks,
             onArtifactQuery: onArtifactQuery,
             queryMarks: queryMarks,
+            comments: comments,
             capturesPointerInput: capturesPointerInput,
             baseURL: baseURL,
             onPointerLockChange: onPointerLockChange
@@ -1673,6 +1679,7 @@ struct InlineHTMLView: View {
             statusMarks: statusMarks,
             onArtifactQuery: onArtifactQuery,
             queryMarks: queryMarks,
+            comments: comments,
             capturesPointerInput: capturesPointerInput,
             baseURL: baseURL,
             onPointerLockChange: onPointerLockChange
@@ -1689,6 +1696,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
     internal let onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)?
     internal let queryMarks: [HTMLArtifactQueryBridge.ResultMark]
+    internal let comments: HTMLArtifactCommentBridge.Host?
     internal let capturesPointerInput: Bool
     internal let baseURL: URL?
     internal let onPointerLockChange: ((Bool) -> Void)?
@@ -1722,6 +1730,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
                 in: WKContentWorld.world(name: HTMLArtifactQueryBridge.contentWorldName)
             ))
         }
+        context.coordinator.installCommentScript(into: config, enabled: comments != nil)
         if capturesPointerInput {
             config.userContentController.addUserScript(WKUserScript(
                 source: HTMLPointerLockBridge.userScriptSource,
@@ -1762,6 +1771,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onArtifactIntent = onArtifactIntent
         context.coordinator.onArtifactQuery = onArtifactQuery
+        context.coordinator.comments = comments
         context.coordinator.pointerLock.onLockChange = onPointerLockChange
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
@@ -1772,6 +1782,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
         }
         context.coordinator.applyStatusMarks(statusMarks, to: webView)
         context.coordinator.applyQueryMarks(queryMarks, to: webView)
+        context.coordinator.applyComments(to: webView)
     }
 }
 
@@ -1800,6 +1811,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
     internal let onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)?
     internal let queryMarks: [HTMLArtifactQueryBridge.ResultMark]
+    internal let comments: HTMLArtifactCommentBridge.Host?
     internal let capturesPointerInput: Bool
     internal let baseURL: URL?
     /// Unused on iOS — WKWebView has no Pointer Lock; declared so
@@ -1835,6 +1847,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
                 in: WKContentWorld.world(name: HTMLArtifactQueryBridge.contentWorldName)
             ))
         }
+        context.coordinator.installCommentScript(into: config, enabled: comments != nil)
         // Match macOS: embedded media plays inline instead of hijacking the
         // screen with the system fullscreen player, and element-fullscreen
         // requests (charts, embeds) are honored instead of silently ignored.
@@ -1854,6 +1867,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.onArtifactIntent = onArtifactIntent
         context.coordinator.onArtifactQuery = onArtifactQuery
+        context.coordinator.comments = comments
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
             healthCounters.increment(HealthCounter.webViewReloads)
@@ -1863,6 +1877,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
         }
         context.coordinator.applyStatusMarks(statusMarks, to: webView)
         context.coordinator.applyQueryMarks(queryMarks, to: webView)
+        context.coordinator.applyComments(to: webView)
     }
 }
 #endif
@@ -1884,6 +1899,10 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
     /// discipline as `appliedMarks`.
     private var appliedQueryMarks: [HTMLArtifactQueryBridge.ResultMark] = []
     private weak var reflectionWebView: WKWebView?
+    /// The comment pins the host wants on the page, and what is there now
+    /// (see HTMLNavigationDelegate+Comments).
+    internal var comments: HTMLArtifactCommentBridge.Host?
+    internal var appliedCommentState: HTMLArtifactCommentBridge.PageState?
 
     #if os(macOS)
     /// Grants Pointer Lock for interactive canvases. `WKWebView.uiDelegate` is
@@ -1956,6 +1975,8 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
         let queryMarks = appliedQueryMarks
         appliedQueryMarks = []
         applyQueryMarks(queryMarks, to: webView)
+        appliedCommentState = nil
+        applyComments(to: webView)
     }
 
     func webView(
@@ -1978,6 +1999,10 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
             if let request = HTMLArtifactQueryRequest(url: url, expectedNonce: nonce) {
                 onArtifactQuery?(request)
             }
+            decisionHandler(.cancel)
+            return
+        }
+        if let url = navigationAction.request.url, handleCommentNavigation(url) {
             decisionHandler(.cancel)
             return
         }

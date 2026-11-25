@@ -47,6 +47,15 @@ struct GatewayCapabilities: Equatable, Sendable {
         })
     }
 
+    /// Whether the gateway stores comments pinned to artifacts
+    /// (artifact.comment.*). Gates the comment controls on an HTML artifact,
+    /// so an old gateway shows none rather than a pin that cannot be saved.
+    internal var supportsArtifactComments: Bool {
+        capabilityNames.contains(where: {
+            $0.contains("artifact.comment") || $0.contains("artifact_comment")
+        })
+    }
+
     /// One-line rendering of the negotiated set for diagnostics.
     ///
     /// The capability list gates whole features (artifact intents among them)

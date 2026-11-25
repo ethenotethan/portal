@@ -222,16 +222,19 @@ private struct ArtifactHTMLIntentView: View {
             if let activeState {
                 inlineStatus(activeState)
             }
-            InlineHTMLView(
-                html: html,
-                onArtifactIntent: handleRequest,
-                statusMarks: statusMarks,
-                onArtifactQuery: queryHandler,
-                queryMarks: queryMarks,
-                capturesPointerInput: capturesPointerInput,
-                onPointerLockChange: onPointerLockChange
-            )
-                .frame(minHeight: 320)
+            ArtifactCommentLayer(artifactID: artifactID) { comments in
+                InlineHTMLView(
+                    html: html,
+                    onArtifactIntent: handleRequest,
+                    statusMarks: statusMarks,
+                    onArtifactQuery: queryHandler,
+                    queryMarks: queryMarks,
+                    comments: comments,
+                    capturesPointerInput: capturesPointerInput,
+                    onPointerLockChange: onPointerLockChange
+                )
+                    .frame(minHeight: 320)
+            }
         }
         .onDisappear {
             // Subscriptions belong to the page that asked; the gateway stops

@@ -125,6 +125,21 @@ gateway contract in `harness/docs/api/artifact-queries.md`.
 | `artifact.query.unsubscribe` | `subscription` | Drop a handle; the slot stops being polled with its last subscriber |
 | `artifact.query.handlers` | — | Registered read handlers and their parameter schemas (what a manifest may declare against) |
 
+### artifact.comment.*
+
+Comments the reader pins to a spot on a rendered HTML artifact. The page
+reports only where the reader clicked (`hermes-artifact-comment://`, nonce'd,
+trusted clicks only); the note is typed in native chrome and stored by the
+gateway beside the artifact, where the agent reads it. Server-side gateway
+contract in `harness/website/docs/developer-guide/api/artifact-comments.md`.
+
+| Method | Params | Purpose |
+|--------|--------|---------|
+| `artifact.comment.list` | `artifact_id` | Every comment on the artifact, oldest first → `{comments: [{id, artifact_id, rev, anchor: {selector, x, y, text}, author, body, created_at, resolved, resolved_by?}]}`. **-32601** on gateways without the surface (no comment controls shown) |
+| `artifact.comment.add` | `artifact_id`, `artifact_rev`, `body`, `author`, `anchor?` | Pin a comment written against `artifact_rev` → `{comment}`. Appends no revision |
+| `artifact.comment.resolve` | `artifact_id`, `comment_id`, `resolved`, `resolved_by` | Mark addressed or reopen → `{comment}` |
+| `artifact.comment.delete` | `artifact_id`, `comment_id` | Remove one comment; **4004** (already gone) is treated as success |
+
 ### cron.*
 
 | Method | Params | Description |
@@ -360,6 +375,7 @@ Current gateways send blocking prompts as JSON-RPC **requests** (string `srq-…
 | `activity.updated` / `activity.read` / `activity.dismissed` | `activityUpdated(ActivityItem)` | Inbox item modified (all three wire types decode to the same case) |
 | `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields; clients refetch content via `artifact.get` |
 | `artifact.query.changed` | `artifactQueryChanged(artifactID, queryID, status, reason)` | A subscribed query's result changed (`status: "ok"` — re-fetch via `artifact.query.invoke`) or its slot was dropped server-side (`"unsupported"` + `reason`). Etag-diffed: identical data emits nothing |
+| `artifact.comment.changed` | `artifactCommentChanged(artifactID, commentID, change, open)` | A comment on an artifact was `added`, `resolved`, `reopened` or `deleted` (by this device, another, or the agent); `open` is the count left open. Clients refetch via `artifact.comment.list` |
 | `learning.changed` | `learningChanged(entity, id, rev, deleted)` | Learning store mutation (course/deck) — id + rev only; clients refetch via `learning.course.get` / `learning.deck.get` |
 | `architecture.changed` | `architectureChanged(service, revision, reason, status)` | A service's architecture model moved: a newly stored revision (`reason: "snapshot"`) or a finished check (`reason: "check"` + `status`). Clients refetch via `architecture.describe` |
 | `service.log` | `serviceLog(ArchitectureLogEvent)` | New complete lines on a followed log sink (`service.logs.follow`): `{service, sink, lines, cursor, rotated?, stopped?}` — `rotated` when the file shrank and the tail restarted, `stopped: "idle-timeout"` when the gateway ended the follow. Max 500 lines per event |
