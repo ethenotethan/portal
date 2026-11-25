@@ -119,8 +119,11 @@ jobs:
           # reach the updater, and therefore is not a runnable gateway env.
           python3.14 -m venv .venv
           . .venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[messaging,cron]'
+          python -m pip install --upgrade pip uv
+          # Install from uv.lock. Hermes pins Pillow 13 while a core dependency
+          # pins pillow 12.3.0, and settles it with a [tool.uv] override that
+          # pip never reads, so `pip install -e` fails to resolve.
+          uv sync --locked --active --extra messaging --extra cron
 
       - name: Start local Hermes API server
         working-directory: hermes-agent
