@@ -3864,17 +3864,17 @@
       "summary": "The `ios-smoke` job in `tests.yml` runs on `macos-15`: it checks out Portal and `NousResearch/hermes-agent`, starts a local Hermes API server on `127.0.0.1:18642` and waits for `/health`, picks the newest available iPhone simulator, builds scheme `Portal-iOS`, then runs offline onboarding, local-gateway smoke and E2E steps, uploading `ios-simulator-test-artifacts`."
     },
     {
-      "cited_hash": "7badf9b07bb6cced7c2007a20c5f8a380800df6c35f4928fea270fa19d46393a",
+      "cited_hash": "3963cef00fd316492649fe94598419f766cc66384364aab845c3ec7720a6e211",
       "evidence": [
-        {
-          "line": 28,
-          "path": ".github/workflows/tests.yml",
-          "text": "# Strict lint gated on the frozen baseline: only NEWLY introduced violations"
-        },
         {
           "line": 31,
           "path": ".github/workflows/tests.yml",
           "text": "swift-lint:"
+        },
+        {
+          "line": 33,
+          "path": ".github/workflows/tests.yml",
+          "text": "runs-on: macos-26"
         },
         {
           "line": 47,
@@ -3882,9 +3882,9 @@
           "text": "SWIFTLINT_VERSION: 0.65.0"
         },
         {
-          "line": 54,
+          "line": 55,
           "path": ".github/workflows/tests.yml",
-          "text": "- name: Verify SwiftLint version"
+          "text": "run: swiftlint version"
         },
         {
           "line": 62,
@@ -3902,7 +3902,7 @@
         ],
         "produces": [],
         "proves": [
-          "The lint ran with the SwiftLint release pinned by `SWIFTLINT_VERSION` (`0.65.0`)",
+          "The lint ran with the SwiftLint release downloaded for the pinned `SWIFTLINT_VERSION` (`0.65.0`)",
           "`swiftlint lint --strict` reports no violation that is not already frozen in `.swiftlint-baseline`"
         ],
         "scripts": {}
@@ -3911,12 +3911,13 @@
       "kind": "gate",
       "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "The README says SwiftLint enforces zero violations on every CI run, while the job tolerates baselined ones; the baseline's current size is not shown.",
+        "The README says SwiftLint enforces zero violations on every CI run, while the job tolerates baselined ones; the size of `.swiftlint-baseline` is not shown.",
+        "The workflow's triggers and any branch-protection settings that make this check required are outside the excerpt.",
         "`Verify SwiftLint version` only prints `swiftlint version`; nothing in the excerpt compares the output to `SWIFTLINT_VERSION`."
       ],
-      "purpose": "Without this job, new lint violations could merge, including breaches of the custom rules in `.swiftlint.yml` that `docs/architecture-rules.md` says are blocking because `--strict` promotes warnings to errors; the team would pay through eroding architecture rules and a growing debt pile. The version pin exists because a newer SwiftLint finds violations the baseline was not written with, which broke CI before (#222). Stopping the baseline from being grown is a separate check, `Ratchet / Quality`.",
-      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
-      "summary": "The `swift-lint` job in `tests.yml` runs on `macos-14`: it downloads the portable SwiftLint release pinned by `SWIFTLINT_VERSION` `0.65.0`, adds it to the path, prints `swiftlint version`, then runs `swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging`, so only violations absent from the baseline fail."
+      "purpose": "Without this job, new lint violations could merge, including breaches of the custom rules in `.swiftlint.yml` that `docs/architecture-rules.md` calls blocking because `--strict` promotes warnings to errors; the team would pay as Portal's architectural checks erode. The version pin exists because a newer SwiftLint finds violations the baseline was not written with, which broke CI before (#222). Keeping the baseline from growing is a separate check, `Ratchet / Quality`.",
+      "source_revision": "98b16f0db6f8551a7459891d89340c61a701785f",
+      "summary": "The `swift-lint` job in `tests.yml` runs on `macos-26`: it checks out the repository, downloads the portable SwiftLint release pinned by `SWIFTLINT_VERSION` `0.65.0`, adds it to the path, prints `swiftlint version`, then runs `swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging`, so only violations absent from the baseline fail."
     },
     {
       "cited_hash": "960ce65bc2b3b0db36e886a4fae384d865bca92c166f4ae034830228e66906db",
