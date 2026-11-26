@@ -387,9 +387,9 @@ internal enum ArchitectureSystemMapPalette {
         switch kind {
         case .hub, .seam: return Theme.agentAccent
         case .owner: return Theme.graphOther
-        case .provider, .machine: return Theme.graphPatch
+        case .provider, .machine, .state: return Theme.graphPatch
         case .caller: return Theme.graphTerminal
-        case .client, .subscriber: return Theme.graphRead
+        case .client, .subscriber, .tick: return Theme.graphRead
         case .endpoint: return Theme.accent
         case .section: return Theme.graphCompaction
         case .resource, .operation: return Theme.graphReasoning

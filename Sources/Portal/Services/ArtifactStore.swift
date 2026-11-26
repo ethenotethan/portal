@@ -30,6 +30,10 @@ final class ArtifactStore: ObservableObject {
     /// re-parsing every artifact) on each result was the long-session churn loop.
     internal let live = ArtifactQueryStateStore()
 
+    /// Comments the reader pinned to artifacts. Its own observable for the
+    /// same reason as `live`: a new comment is not a change to the artifact.
+    internal let comments = ArtifactCommentStore()
+
     // MARK: - Intent invocation state
 
     /// One entry per in-flight or recently-completed intent invocation.
@@ -700,6 +704,7 @@ final class ArtifactStore: ObservableObject {
     internal func setClient(_ client: any ArtifactGateway) {
         guard self.client !== client else { return }
         self.client = client
+        comments.setClient(client as? any ArtifactCommentGateway)
         syncAvailable = nil
         eventCancellable = client.eventStream
             .receive(on: RunLoop.main)
@@ -717,6 +722,8 @@ final class ArtifactStore: ObservableObject {
             applyRemoteChange(id: id, deleted: deleted)
         case .artifactQueryChanged(let artifactID, let queryID, let status, let reason):
             applyQueryChange(artifactID: artifactID, queryID: queryID, status: status, reason: reason)
+        case .artifactCommentChanged(let artifactID, _, _, _):
+            comments.remoteChange(artifactID: artifactID)
         default:
             break
         }
@@ -735,6 +742,7 @@ final class ArtifactStore: ObservableObject {
     /// another device). Refetch that artifact so open panes update live.
     private func applyRemoteChange(id: String, deleted: Bool) {
         if deleted {
+            comments.forget(artifactID: id)
             if artifacts.removeValue(forKey: id) != nil { persistToDisk() }
             return
         }

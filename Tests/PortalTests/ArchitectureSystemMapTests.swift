@@ -120,7 +120,7 @@ internal struct ArchitectureSystemMapDocumentTests {
         #expect(map.edges.first?.edgeClass == .usage)
         #expect(ArchitectureNodeKind(rawValue: "store").rawValue == "store")
         #expect(ArchitectureEdgeClass(rawValue: "lifecycle").rawValue == "lifecycle")
-        #expect(ArchitectureNodeKind.legend.count == 15)
+        #expect(ArchitectureNodeKind.legend.count == 17)
         #expect(ArchitectureEdgeClass.legend.count == 5)
     }
 

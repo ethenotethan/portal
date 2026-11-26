@@ -18,14 +18,17 @@ internal enum ArchitectureNodeKind: Hashable {
     case resource
     case seam
     case section
+    case state
     case store
     case subscriber
+    case tick
     case custom(String)
 
     private static let known: [String: ArchitectureNodeKind] = [
         "artifact": .artifact, "caller": .caller, "client": .client, "endpoint": .endpoint, "external": .external,
         "hub": .hub, "machine": .machine, "operation": .operation, "owner": .owner, "provider": .provider,
-        "resource": .resource, "seam": .seam, "section": .section, "store": .store, "subscriber": .subscriber,
+        "resource": .resource, "seam": .seam, "section": .section, "state": .state, "store": .store,
+        "subscriber": .subscriber, "tick": .tick,
     ]
 
     internal init(rawValue: String) {
@@ -47,8 +50,10 @@ internal enum ArchitectureNodeKind: Hashable {
         case .resource: return "resource"
         case .seam: return "seam"
         case .section: return "section"
+        case .state: return "state"
         case .store: return "store"
         case .subscriber: return "subscriber"
+        case .tick: return "tick"
         case .custom(let value): return value
         }
     }
@@ -69,8 +74,10 @@ internal enum ArchitectureNodeKind: Hashable {
         case .resource: return "Stored resource"
         case .seam: return "Backend seam"
         case .section: return "Critical section"
+        case .state: return "Held state"
         case .store: return "Data store"
         case .subscriber: return "Event subscriber"
+        case .tick: return "Timer or loop"
         case .custom(let value): return value
         }
     }
@@ -78,7 +85,7 @@ internal enum ArchitectureNodeKind: Hashable {
     /// Every kind the legend lists, in display order.
     internal static let legend: [ArchitectureNodeKind] = [
         .hub, .seam, .owner, .provider, .caller, .client, .endpoint, .section, .resource, .operation,
-        .machine, .store, .artifact, .subscriber, .external,
+        .machine, .state, .store, .artifact, .subscriber, .tick, .external,
     ]
 }
 

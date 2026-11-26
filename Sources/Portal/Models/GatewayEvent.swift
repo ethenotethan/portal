@@ -47,6 +47,7 @@ enum GatewayEvent {
         case .reviewSummary: "review.summary"
         case .artifactChanged: "artifact.changed"
         case .artifactQueryChanged: "artifact.query.changed"
+        case .artifactCommentChanged: "artifact.comment.changed"
         case .learningChanged: "learning.changed"
         case .architectureChanged: "architecture.changed"
         case .serviceLog: "service.log"
@@ -180,6 +181,10 @@ enum GatewayEvent {
     // A subscribed artifact query's result changed server-side (etag-diffed);
     // `status` is "ok" (re-fetch) or "unsupported" (slot dropped, `reason`).
     case artifactQueryChanged(artifactID: String, queryID: String, status: String, reason: String)
+
+    // A comment pinned to an artifact was added, resolved, reopened or deleted
+    // (`change`); `open` is how many are left open. Clients refetch the list.
+    case artifactCommentChanged(artifactID: String, commentID: String, change: String, open: Int)
 
     // Learning surface (course/deck/progress mutations — metadata only;
     // clients refetch via learning.course.get / learning.deck.get)
@@ -376,6 +381,14 @@ enum GatewayEvent {
                 queryID: p["query_id"]?.stringValue ?? "",
                 status: p["status"]?.stringValue ?? "ok",
                 reason: p["reason"]?.stringValue ?? ""
+            )
+
+        case "artifact.comment.changed":
+            return .artifactCommentChanged(
+                artifactID: p["artifact_id"]?.stringValue ?? "",
+                commentID: p["comment_id"]?.stringValue ?? "",
+                change: p["change"]?.stringValue ?? "",
+                open: p["open"]?.intValue ?? 0
             )
 
         case "learning.changed":

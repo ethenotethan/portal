@@ -1044,6 +1044,33 @@
       "summary": "`GatewayClient+Architecture` is an extension of `GatewayClient` in `Sources/Portal/Services/GatewayClient+Architecture.swift`. The map records it as implementing the JSON-RPC `architecture` namespace and routing calls through `GatewayClient`. No callers are recorded and no excerpts were supplied."
     },
     {
+      "cited_hash": "49427e6fadbc1b708ec8461213c893c3032fe24af921f1789b312a99d3481243",
+      "evidence": [
+        {
+          "line": 32,
+          "path": "Sources/Portal/Services/GatewayClient.swift",
+          "text": "/// WebSocket client for the Hermes gateway JSON-RPC protocol."
+        }
+      ],
+      "fields": {
+        "wraps": [
+          "endpoint:jsonrpc:artifact"
+        ]
+      },
+      "key": "client:hermes-services:GatewayClient+ArtifactComments",
+      "kind": "client",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "Do the comments belong to living artifacts or to another artifact type? The file name alone does not say.",
+        "How are gateway errors from `artifact` calls mapped or surfaced? Not visible in the packet.",
+        "The evidence line is taken from `docs/GLOSSARY.md`'s reference to `Services/GatewayClient.swift:32`; no excerpt range was available to check it against.",
+        "Which `artifact` JSON-RPC methods does the extension call, and with what parameters? No excerpt was supplied."
+      ],
+      "purpose": "Inferred from the map and the file name alone, since no `docs` paragraph names this extension: it appears to give Portal a way to reach the gateway's `artifact` namespace for comments on artifacts over the shared `GatewayClient` WebSocket connection. Without it, whatever Portal feature depends on those `artifact` calls would have no route to the gateway. The exact feature it serves for the person running Portal is not settled by the packet.",
+      "source_revision": "780205cc1794d9577de88fb9b6b9aebc8a3c11e9",
+      "summary": "`GatewayClient+ArtifactComments` is a client extension of `GatewayClient` in the `hermes-services` component. The map records that it implements the `artifact` JSON-RPC namespace and routes through `GatewayClient`, the WebSocket JSON-RPC client for the gateway. No source excerpt was supplied, so its methods, parameters and decoding are not described here."
+    },
+    {
       "cited_hash": "c33363936c3329ad1ff63055a8e9c3d58fa3548dedb7326ff91a59b44c7dee97",
       "evidence": [
         {
@@ -3837,17 +3864,17 @@
       "summary": "The `ios-smoke` job in `tests.yml` runs on `macos-15`: it checks out Portal and `NousResearch/hermes-agent`, starts a local Hermes API server on `127.0.0.1:18642` and waits for `/health`, picks the newest available iPhone simulator, builds scheme `Portal-iOS`, then runs offline onboarding, local-gateway smoke and E2E steps, uploading `ios-simulator-test-artifacts`."
     },
     {
-      "cited_hash": "7badf9b07bb6cced7c2007a20c5f8a380800df6c35f4928fea270fa19d46393a",
+      "cited_hash": "3963cef00fd316492649fe94598419f766cc66384364aab845c3ec7720a6e211",
       "evidence": [
-        {
-          "line": 28,
-          "path": ".github/workflows/tests.yml",
-          "text": "# Strict lint gated on the frozen baseline: only NEWLY introduced violations"
-        },
         {
           "line": 31,
           "path": ".github/workflows/tests.yml",
           "text": "swift-lint:"
+        },
+        {
+          "line": 33,
+          "path": ".github/workflows/tests.yml",
+          "text": "runs-on: macos-26"
         },
         {
           "line": 47,
@@ -3855,9 +3882,9 @@
           "text": "SWIFTLINT_VERSION: 0.65.0"
         },
         {
-          "line": 54,
+          "line": 55,
           "path": ".github/workflows/tests.yml",
-          "text": "- name: Verify SwiftLint version"
+          "text": "run: swiftlint version"
         },
         {
           "line": 62,
@@ -3875,7 +3902,7 @@
         ],
         "produces": [],
         "proves": [
-          "The lint ran with the SwiftLint release pinned by `SWIFTLINT_VERSION` (`0.65.0`)",
+          "The lint ran with the SwiftLint release downloaded for the pinned `SWIFTLINT_VERSION` (`0.65.0`)",
           "`swiftlint lint --strict` reports no violation that is not already frozen in `.swiftlint-baseline`"
         ],
         "scripts": {}
@@ -3884,12 +3911,13 @@
       "kind": "gate",
       "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "The README says SwiftLint enforces zero violations on every CI run, while the job tolerates baselined ones; the baseline's current size is not shown.",
+        "The README says SwiftLint enforces zero violations on every CI run, while the job tolerates baselined ones; the size of `.swiftlint-baseline` is not shown.",
+        "The workflow's triggers and any branch-protection settings that make this check required are outside the excerpt.",
         "`Verify SwiftLint version` only prints `swiftlint version`; nothing in the excerpt compares the output to `SWIFTLINT_VERSION`."
       ],
-      "purpose": "Without this job, new lint violations could merge, including breaches of the custom rules in `.swiftlint.yml` that `docs/architecture-rules.md` says are blocking because `--strict` promotes warnings to errors; the team would pay through eroding architecture rules and a growing debt pile. The version pin exists because a newer SwiftLint finds violations the baseline was not written with, which broke CI before (#222). Stopping the baseline from being grown is a separate check, `Ratchet / Quality`.",
-      "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
-      "summary": "The `swift-lint` job in `tests.yml` runs on `macos-14`: it downloads the portable SwiftLint release pinned by `SWIFTLINT_VERSION` `0.65.0`, adds it to the path, prints `swiftlint version`, then runs `swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging`, so only violations absent from the baseline fail."
+      "purpose": "Without this job, new lint violations could merge, including breaches of the custom rules in `.swiftlint.yml` that `docs/architecture-rules.md` calls blocking because `--strict` promotes warnings to errors; the team would pay as Portal's architectural checks erode. The version pin exists because a newer SwiftLint finds violations the baseline was not written with, which broke CI before (#222). Keeping the baseline from growing is a separate check, `Ratchet / Quality`.",
+      "source_revision": "98b16f0db6f8551a7459891d89340c61a701785f",
+      "summary": "The `swift-lint` job in `tests.yml` runs on `macos-26`: it checks out the repository, downloads the portable SwiftLint release pinned by `SWIFTLINT_VERSION` `0.65.0`, adds it to the path, prints `swiftlint version`, then runs `swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging`, so only violations absent from the baseline fail."
     },
     {
       "cited_hash": "960ce65bc2b3b0db36e886a4fae384d865bca92c166f4ae034830228e66906db",
@@ -5739,6 +5767,79 @@
       "summary": "`SessionRunHistoryStore` is a singleton `ObservableObject` that publishes `[SessionRunEvent]`. `recordRunStart` appends a running entry. `recordRunEnd` fills tokens, `apiCalls`, `costUSD` and `status` into the latest running entry for that session. `events(for:)` returns runs newest first. Saves debounce 5 seconds to a JSON file, after a one-time migration from `UserDefaults`."
     },
     {
+      "cited_hash": "fadd2dd62da6f9c20f89f52b9917733328c3709e2c4a2b35f6f1a3c6c9d83f0e",
+      "evidence": [
+        {
+          "line": 11,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "text": "internal final class ArtifactCommentStore: ObservableObject {"
+        },
+        {
+          "line": 12,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "text": "@Published internal private(set) var commentsByArtifact: [String: [ArtifactComment]] = [:]"
+        },
+        {
+          "line": 16,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "text": "private var client: (any ArtifactCommentGateway)?"
+        },
+        {
+          "line": 34,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "text": "internal func refresh(artifactID: String) async {"
+        },
+        {
+          "line": 46,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "text": "internal func add("
+        },
+        {
+          "line": 59,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "text": "failure = \"This gateway does not store artifact comments.\""
+        },
+        {
+          "line": 102,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "text": "internal func remoteChange(artifactID: String) {"
+        },
+        {
+          "line": 108,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "text": "internal func forget(artifactID: String) {"
+        }
+      ],
+      "fields": {
+        "keyed_by": "artifact id (`String`), then `ArtifactComment.id` within each list",
+        "location": "`commentsByArtifact` in `ArtifactCommentStore`; comments are stored by the gateway via `ArtifactCommentGateway`",
+        "medium": "in_memory",
+        "read_when": [
+          "on_demand",
+          "on_event"
+        ],
+        "record_type": [
+          "ArtifactComment"
+        ],
+        "retention": "session",
+        "written_when": [
+          "on_change"
+        ]
+      },
+      "key": "store:local-services:ArtifactCommentStore",
+      "kind": "store",
+      "model": "us.anthropic.claude-fable-5-2",
+      "open_questions": [
+        "Is `failure` also logged anywhere, or only published for the pane to show?",
+        "What does the `unobserved` persistence marker imply here? The excerpt shows no local disk write.",
+        "Which methods does `ArtifactStore` call on this store (`remoteChange`, `forget`, or others)? The excerpts show only a `uses` edge, not the call sites.",
+        "Who calls `setClient`, and when? Before it is called, `refresh`, `setResolved` and `delete` return without doing anything."
+      ],
+      "purpose": "Inferred from the code, as the docs do not name it: it lets the person running Portal pin comments to a revision of a living artifact, resolve or reopen them, and see an open count, with the gateway as the place they are stored. Without it the artifact pane would have no comment list, no explanation when a comment fails to save, and no refresh when a comment changes on the gateway.",
+      "source_revision": "780205cc1794d9577de88fb9b6b9aebc8a3c11e9",
+      "summary": "`ArtifactCommentStore` is an `ObservableObject` that holds `ArtifactComment` lists per artifact id in the published `commentsByArtifact` dictionary. It lists, adds, resolves and deletes comments through an injected `ArtifactCommentGateway` client, mirrors each stored result into memory, and publishes a `failure` string when an action does not land."
+    },
+    {
       "cited_hash": "065b6763aaa12b882e83430e6232e4214d76641e9c1c437466981df2f189bd8c",
       "evidence": [
         {
@@ -6434,7 +6535,7 @@
       "summary": "`ActivityInboxViewModel` subscribes to `eventStream` on the main run loop in `setGatewayClient(_:)` and routes each `GatewayEvent` through `handle(_:eventSessionID:)`. Activity events are upserted directly. Approval, clarify, sudo, secret, error, background and subagent events become synthesized `ActivityItem`s in `ActivityStore`, and most are sent to `NotificationService`."
     },
     {
-      "cited_hash": "f282da160762187cc68c6381f8552438f3834038bbfbc4403a427ef0f4212708",
+      "cited_hash": "258973e9df0231a79bef1864ec49096f056d70e36ff5dcd80835a512f1a07950",
       "evidence": [
         {
           "line": 18,
@@ -6452,35 +6553,74 @@
           "text": "internal let live = ArtifactQueryStateStore()"
         },
         {
-          "line": 39,
+          "line": 35,
           "path": "Sources/Portal/Services/ArtifactStore.swift",
-          "text": "internal var intentStates: [String: IntentInvocationState] { live.intentStates }"
+          "text": "internal let comments = ArtifactCommentStore()"
+        },
+        {
+          "line": 82,
+          "path": "Sources/Portal/Services/ArtifactStore.swift",
+          "text": "private var idempotencyKeys: [String: String] = [:]"
+        },
+        {
+          "line": 88,
+          "path": "Sources/Portal/Services/ArtifactStore.swift",
+          "text": "@Published internal var focusedGatewayID: UUID? {"
+        },
+        {
+          "line": 103,
+          "path": "Sources/Portal/Services/ArtifactStore.swift",
+          "text": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))"
+        },
+        {
+          "line": 120,
+          "path": "Sources/Portal/Services/ArtifactStore.swift",
+          "text": "func upsert(id: String, kind: String, title: String?, content: String) -> LivingArtifact {"
+        },
+        {
+          "line": 153,
+          "path": "Sources/Portal/Services/ArtifactStore.swift",
+          "text": "func applyAction("
+        },
+        {
+          "line": 214,
+          "path": "Sources/Portal/Services/ArtifactStore.swift",
+          "text": "internal func runQuery(artifactID: String, queryID: String, rawParams: String, rawCursor: String = \"\") {"
+        },
+        {
+          "line": 235,
+          "path": "Sources/Portal/Services/ArtifactStore.swift",
+          "text": "internal func releaseQueries(artifactID: String) {"
         }
       ],
       "fields": {
         "reacts_to": [
-          "`artifact.query` conflict (one retry)",
-          "fence block with id (`upsert`)",
+          "change of `artifacts` or `focusedGatewayID` (cache reset)",
+          "fence block with an id (`upsert`)",
+          "gateway `artifact.query.changed` re-running a live slot",
           "page query run or release (`runQuery`, `releaseQueries`)",
           "user action on an entry (`applyAction`)"
         ],
         "state": [
-          "`artifacts: [String: LivingArtifact]` (@Published)",
-          "`focusedGatewayID: UUID?` (@Published)",
-          "`idempotencyKeys`, `querySubscriptions`, `queryTasks`",
+          "`artifacts: [String: LivingArtifact]` (`@Published`)",
+          "`comments: ArtifactCommentStore`",
+          "`focusedGatewayID: UUID?` (`@Published`)",
+          "`idempotencyKeys`, `querySubscriptions`, `queryTasks`, `queryCoalescer`",
           "`live: ArtifactQueryStateStore` (`queryStates`, `intentStates`)",
-          "`syncAvailable: Bool?` and weak `client`"
+          "`sortedArtifactsCache` and `sortedArtifactIDsCache`",
+          "`syncAvailable: Bool?`, weak `client`, `pushTask`"
         ]
       },
       "key": "subscriber:ArtifactStore",
       "kind": "surface",
-      "model": "anthropic/claude-opus-5.5",
+      "model": "us.anthropic.claude-fable-5-2",
       "open_questions": [
-        "The excerpt truncates before `invokeIntent`, `schedulePush`, `persistToDisk` and `setClient`; how `eventStream` is subscribed is not visible."
+        "The excerpt truncates before `invokeIntent`, `schedulePush`, `persistToDisk` and how `client` is set; how `eventStream` reaches the store is not visible.",
+        "`performQuery` takes `retryingConflict`, but the `.conflict` branch is cut off, so the retry behaviour is unconfirmed."
       ],
-      "purpose": "Per `artifact-intents.md`, a living artifact is a named, persistent object that the agent maintains and the user can act on. `ArtifactStore` keeps that object on the device for the person running Portal. Their triage lands in revision history, and query results reach the page without redrawing the whole canvas. Without it, artifacts would be transient rendered messages rather than control surfaces.",
-      "source_revision": "28a704cc176c5609f09622534d3cb2c00fa9ec42",
-      "summary": "`ArtifactStore` is a shared `ObservableObject` that holds each `LivingArtifact` by id. It merges fence bodies in `upsert`, applies declared per-entry actions in `applyAction`, and runs page queries in `runQuery` through an `ArtifactGateway`. It persists to `portal/artifacts.json` and keeps query and intent states in `ArtifactQueryStateStore`."
+      "purpose": "Per `artifact-intents.md`, a living artifact is a named, persistent object the agent maintains across turns and sessions, and one the user can act on. `ArtifactStore` keeps that object on the device for the person running Portal, so revisions accumulate, their triage reaches agents, and live query results redraw only the affected slot. Without it an artifact would be a rendered message, not a control surface.",
+      "source_revision": "780205cc1794d9577de88fb9b6b9aebc8a3c11e9",
+      "summary": "`ArtifactStore` is a shared `ObservableObject` holding each `LivingArtifact` by id. `upsert` merges fence bodies, `applyAction` applies declared per-entry actions, and `runQuery` runs coalesced page queries through an `ArtifactGateway`. It loads from and persists to `portal/artifacts.json`, and reads query and intent states through `ArtifactQueryStateStore`."
     },
     {
       "cited_hash": "4e27d2acff3ea4dde8e1c645218845396d35013cbd3891f0bd0ef8331e6fd804",

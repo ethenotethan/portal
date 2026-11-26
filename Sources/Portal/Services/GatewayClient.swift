@@ -2794,7 +2794,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     /// URLSessionWebSocketTask can strip Authorization during the upgrade on
     /// macOS/iOS 26, so Portal also sends the API key as a query fallback.
-    nonisolated static func authenticatedWebSocketURL(_ url: URL, apiKey: String) -> URL {
+    nonisolated internal static func authenticatedWebSocketURL(_ url: URL, apiKey: String) -> URL {
         guard !apiKey.isEmpty,
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else { return url }
