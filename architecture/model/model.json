@@ -7,8 +7,8 @@
         "unparsed": []
       },
       "task_sites": {
-        "parsed": 440,
-        "seen": 440,
+        "parsed": 444,
+        "seen": 444,
         "unparsed": []
       }
     },
@@ -2912,7 +2912,7 @@
         "owner_type": "ArtifactStore",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-10379f3bd70f"
+          "task-site-e51cbbcb1592"
         ]
       },
       {
@@ -4887,16 +4887,32 @@
       },
       {
         "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "remoteChange",
+        "enclosing_type": "ArtifactCommentStore",
+        "evidence": {
+          "excerpt": "Task { await refresh(artifactID: artifactID) }",
+          "line": 104,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-e1ddb9f9dd07",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
         "component": "artifact-intents",
         "enclosing_function": null,
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "private var pushTask: Task<Void, Never>?",
-          "line": 71,
+          "line": 75,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-10379f3bd70f",
+        "id": "task-site-e51cbbcb1592",
         "kind": "stored_task_handle",
         "label": "pushTask",
         "rule_id": "swift.task.stored_handle"
@@ -4908,11 +4924,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task {",
-          "line": 241,
+          "line": 245,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8d8ba5ff32c2",
+        "id": "task-site-453defcbbeaa",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4924,11 +4940,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 480,
+          "line": 484,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e3edf09c5c65",
+        "id": "task-site-3f2a0a24fca7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4940,11 +4956,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 561,
+          "line": 565,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2405e2dd1069",
+        "id": "task-site-9c94549414ce",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4956,11 +4972,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in try? await self?.client?.artifactDelete(id: id) }",
-          "line": 648,
+          "line": 652,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-cf95defc8772",
+        "id": "task-site-e906d0140ecd",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4972,11 +4988,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 664,
+          "line": 668,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e4a2ad149174",
+        "id": "task-site-699d4f5daab6",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4988,11 +5004,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { await pull() }",
-          "line": 709,
+          "line": 714,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-710186443636",
+        "id": "task-site-8b26f634bb7b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5004,11 +5020,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 743,
+          "line": 751,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-74d472e3d48f",
+        "id": "task-site-9af445b93b31",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5020,11 +5036,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "pushTask?.cancel()",
-          "line": 827,
+          "line": 835,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-97646319c752",
+        "id": "task-site-b643cd0f22c2",
         "kind": "task_cancellation",
         "label": "pushTask",
         "rule_id": "swift.task.cancel"
@@ -5036,11 +5052,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "pushTask = Task { [weak self] in",
-          "line": 828,
+          "line": 836,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-bda75ee12de2",
+        "id": "task-site-32ac164148e1",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5052,11 +5068,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "queryTasks[slot] = Task { [weak self] in",
-          "line": 897,
+          "line": 905,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-08a12da9f0f8",
+        "id": "task-site-15f0297f70de",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7724,11 +7740,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await loadSessionHistoryPreservingStream() }",
-          "line": 4022,
+          "line": 4023,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5b10d5cd0c85",
+        "id": "task-site-ee2e5c0c95a8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7740,11 +7756,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4075,
+          "line": 4076,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a70804c78e2a",
+        "id": "task-site-3c8624618e9a",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7756,11 +7772,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 4297,
+          "line": 4298,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c615766c826a",
+        "id": "task-site-cf5ec19e824a",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7772,11 +7788,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4548,
+          "line": 4550,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a519f2ecfb25",
+        "id": "task-site-a93784e46488",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7788,11 +7804,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4609,
+          "line": 4611,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-053ce0e52f6a",
+        "id": "task-site-a56b8a3ad9ff",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8664,6 +8680,54 @@
       {
         "authority": "observed",
         "component": "artifact-ui",
+        "enclosing_function": "save",
+        "enclosing_type": "ArtifactCommentLayer",
+        "evidence": {
+          "excerpt": "Task {",
+          "line": 142,
+          "path": "Sources/Portal/Views/ArtifactCommentLayer.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-c33099356b50",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "artifact-ui",
+        "enclosing_function": "row",
+        "enclosing_type": "ArtifactCommentLayer",
+        "evidence": {
+          "excerpt": "Task {",
+          "line": 196,
+          "path": "Sources/Portal/Views/ArtifactCommentLayer.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-541d51890f6d",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "artifact-ui",
+        "enclosing_function": "row",
+        "enclosing_type": "ArtifactCommentLayer",
+        "evidence": {
+          "excerpt": "Task { await store.delete(artifactID: artifactID, commentID: comment.id) }",
+          "line": 202,
+          "path": "Sources/Portal/Views/ArtifactCommentLayer.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-d1ec60ab7058",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "artifact-ui",
         "enclosing_function": "export",
         "enclosing_type": "ArtifactExportMenu",
         "evidence": {
@@ -8716,11 +8780,11 @@
         "enclosing_type": "ArtifactHTMLIntentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 251,
+          "line": 254,
           "path": "Sources/Portal/Views/ArtifactKindRenderer.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a3829b89c7ab",
+        "id": "task-site-b2a6e6d76fee",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8732,11 +8796,11 @@
         "enclosing_type": "ArtifactHTMLIntentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 292,
+          "line": 295,
           "path": "Sources/Portal/Views/ArtifactKindRenderer.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a25679daf7e6",
+        "id": "task-site-b2c3a45ba469",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -14760,21 +14824,21 @@
           }
         ],
         "role": "gate",
-        "runs_on": "macos-14",
+        "runs_on": "macos-26",
         "scripts": [],
         "semantic": {
           "authority": "synthesized",
-          "cited_hash": "7badf9b07bb6cced7c2007a20c5f8a380800df6c35f4928fea270fa19d46393a",
+          "cited_hash": "3963cef00fd316492649fe94598419f766cc66384364aab845c3ec7720a6e211",
           "evidence": [
-            {
-              "line": 28,
-              "path": ".github/workflows/tests.yml",
-              "text": "# Strict lint gated on the frozen baseline: only NEWLY introduced violations"
-            },
             {
               "line": 31,
               "path": ".github/workflows/tests.yml",
               "text": "swift-lint:"
+            },
+            {
+              "line": 33,
+              "path": ".github/workflows/tests.yml",
+              "text": "runs-on: macos-26"
             },
             {
               "line": 47,
@@ -14782,9 +14846,9 @@
               "text": "SWIFTLINT_VERSION: 0.65.0"
             },
             {
-              "line": 54,
+              "line": 55,
               "path": ".github/workflows/tests.yml",
-              "text": "- name: Verify SwiftLint version"
+              "text": "run: swiftlint version"
             },
             {
               "line": 62,
@@ -14802,7 +14866,7 @@
             ],
             "produces": [],
             "proves": [
-              "The lint ran with the SwiftLint release pinned by `SWIFTLINT_VERSION` (`0.65.0`)",
+              "The lint ran with the SwiftLint release downloaded for the pinned `SWIFTLINT_VERSION` (`0.65.0`)",
               "`swiftlint lint --strict` reports no violation that is not already frozen in `.swiftlint-baseline`"
             ],
             "scripts": {}
@@ -14810,13 +14874,14 @@
           "kind": "gate",
           "model": "us.anthropic.claude-fable-5-2",
           "open_questions": [
-            "The README says SwiftLint enforces zero violations on every CI run, while the job tolerates baselined ones; the baseline's current size is not shown.",
+            "The README says SwiftLint enforces zero violations on every CI run, while the job tolerates baselined ones; the size of `.swiftlint-baseline` is not shown.",
+            "The workflow's triggers and any branch-protection settings that make this check required are outside the excerpt.",
             "`Verify SwiftLint version` only prints `swiftlint version`; nothing in the excerpt compares the output to `SWIFTLINT_VERSION`."
           ],
-          "purpose": "Without this job, new lint violations could merge, including breaches of the custom rules in `.swiftlint.yml` that `docs/architecture-rules.md` says are blocking because `--strict` promotes warnings to errors; the team would pay through eroding architecture rules and a growing debt pile. The version pin exists because a newer SwiftLint finds violations the baseline was not written with, which broke CI before (#222). Stopping the baseline from being grown is a separate check, `Ratchet / Quality`.",
-          "source_revision": "f3c6f4dc04619512eda01c262640a0fec6a769df",
+          "purpose": "Without this job, new lint violations could merge, including breaches of the custom rules in `.swiftlint.yml` that `docs/architecture-rules.md` calls blocking because `--strict` promotes warnings to errors; the team would pay as Portal's architectural checks erode. The version pin exists because a newer SwiftLint finds violations the baseline was not written with, which broke CI before (#222). Keeping the baseline from growing is a separate check, `Ratchet / Quality`.",
+          "source_revision": "98b16f0db6f8551a7459891d89340c61a701785f",
           "stale": false,
-          "summary": "The `swift-lint` job in `tests.yml` runs on `macos-14`: it downloads the portable SwiftLint release pinned by `SWIFTLINT_VERSION` `0.65.0`, adds it to the path, prints `swiftlint version`, then runs `swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging`, so only violations absent from the baseline fail."
+          "summary": "The `swift-lint` job in `tests.yml` runs on `macos-26`: it checks out the repository, downloads the portable SwiftLint release pinned by `SWIFTLINT_VERSION` `0.65.0`, adds it to the path, prints `swiftlint version`, then runs `swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging`, so only violations absent from the baseline fail."
         },
         "step_count": 4,
         "steps": [
@@ -14975,17 +15040,20 @@
               "text": "- name: Checkout Hermes Agent"
             },
             {
-              "line": 125,
+              "line": 128,
+              "moved_from": 125,
               "path": ".github/workflows/tests.yml",
               "text": "- name: Start local Hermes API server"
             },
             {
-              "line": 183,
+              "line": 186,
+              "moved_from": 183,
               "path": ".github/workflows/tests.yml",
               "text": "- name: Select an available iPhone simulator"
             },
             {
-              "line": 195,
+              "line": 198,
+              "moved_from": 195,
               "path": ".github/workflows/tests.yml",
               "text": "- name: Build iOS Simulator app"
             }
@@ -15050,50 +15118,50 @@
           {
             "command": "cat > \"$HERMES_HOME/config.yaml\" <<'YAML'",
             "command_lines": 37,
-            "line": 125,
+            "line": 128,
             "name": "Start local Hermes API server"
           },
           {
             "command": "xcodegen generate",
             "command_lines": 1,
-            "line": 179,
+            "line": 182,
             "name": "Generate Xcode project"
           },
           {
             "command": "SIM_ID=$(xcrun simctl list devices available | grep -oE 'iPhone [0-9].*\\([0-9A-F-]{36}\\)' | grep -oE '[0-9A-F-]{36}' | tail -1)",
             "command_lines": 6,
-            "line": 183,
+            "line": 186,
             "name": "Select an available iPhone simulator"
           },
           {
             "command": "xcodebuild build",
             "command_lines": 8,
-            "line": 195,
+            "line": 198,
             "name": "Build iOS Simulator app"
           },
           {
             "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
             "command_lines": 12,
-            "line": 207,
+            "line": 210,
             "name": "Run offline onboarding smoke test"
           },
           {
             "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
             "command_lines": 13,
             "condition": "always()",
-            "line": 225,
+            "line": 228,
             "name": "Run local-Hermes gateway smoke test"
           },
           {
             "command": "xcrun simctl boot \"$SIM_ID\" 2>/dev/null || true",
             "command_lines": 17,
             "condition": "always()",
-            "line": 249,
+            "line": 252,
             "name": "Run E2E integration tests"
           },
           {
             "condition": "always()",
-            "line": 277,
+            "line": 280,
             "name": "Upload iOS simulator test artifacts",
             "uses": "actions/upload-artifact@v4"
           },
@@ -15101,7 +15169,7 @@
             "command": "kill \"$(cat \"$RUNNER_TEMP/hermes-api-server.pid\")\" 2>/dev/null || true",
             "command_lines": 3,
             "condition": "always()",
-            "line": 294,
+            "line": 297,
             "name": "Stop local Hermes API server"
           }
         ],
@@ -15114,7 +15182,7 @@
         ],
         "condition": null,
         "evidence": {
-          "line": 306,
+          "line": 309,
           "path": ".github/workflows/tests.yml"
         },
         "family": "behavior",
@@ -15131,27 +15199,32 @@
           "cited_hash": "6b7c855975783b9c738115b65bfdd76e48128f887e30db4e1cb92f866c08dd70",
           "evidence": [
             {
-              "line": 302,
+              "line": 305,
+              "moved_from": 302,
               "path": ".github/workflows/tests.yml",
               "text": "# The beachball gate. Launches the macOS app under the MainThreadWatchdog with"
             },
             {
-              "line": 306,
+              "line": 309,
+              "moved_from": 306,
               "path": ".github/workflows/tests.yml",
               "text": "hang-gate:"
             },
             {
-              "line": 320,
+              "line": 323,
+              "moved_from": 320,
               "path": ".github/workflows/tests.yml",
               "text": "- name: Run macOS hang gate (--hang-fatal)"
             },
             {
-              "line": 336,
+              "line": 339,
+              "moved_from": 336,
               "path": ".github/workflows/tests.yml",
               "text": "- name: Assert the hang test actually executed"
             },
             {
-              "line": 350,
+              "line": 353,
+              "moved_from": 350,
               "path": ".github/workflows/tests.yml",
               "text": "- name: Upload hang-gate artifacts"
             }
@@ -15189,38 +15262,38 @@
         "step_count": 6,
         "steps": [
           {
-            "line": 311,
+            "line": 314,
             "name": "Checkout",
             "uses": "actions/checkout@v4"
           },
           {
             "command": "brew install xcodegen",
             "command_lines": 1,
-            "line": 314,
+            "line": 317,
             "name": "Install build tools"
           },
           {
             "command": "xcodegen generate",
             "command_lines": 1,
-            "line": 317,
+            "line": 320,
             "name": "Generate Xcode project"
           },
           {
             "command": "xcodebuild test",
             "command_lines": 10,
-            "line": 320,
+            "line": 323,
             "name": "Run macOS hang gate (--hang-fatal)"
           },
           {
             "command": "tail -60 \"$LOG\" || true",
             "command_lines": 10,
             "condition": "always()",
-            "line": 336,
+            "line": 339,
             "name": "Assert the hang test actually executed"
           },
           {
             "condition": "always()",
-            "line": 350,
+            "line": 353,
             "name": "Upload hang-gate artifacts",
             "uses": "actions/upload-artifact@v4"
           }
@@ -16066,7 +16139,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 7143
+      "line_count": 7168
     },
     {
       "declaration_count": 140,
@@ -16372,7 +16445,7 @@
       "line_count": 5091
     },
     {
-      "declaration_count": 132,
+      "declaration_count": 134,
       "declarations": [
         "Artifact",
         "ArtifactActionControls",
@@ -16380,6 +16453,7 @@
         "ArtifactChoiceList",
         "ArtifactChoicePickerHost",
         "ArtifactChoicePrompt",
+        "ArtifactCommentLayer",
         "ArtifactDetailView",
         "ArtifactDiff",
         "ArtifactExpandedOverlay",
@@ -16429,6 +16503,7 @@
         "DiffBlockView",
         "DiffLine",
         "DiffLineView",
+        "Draft",
         "ErrorCard",
         "ExportModelArtifactView",
         "FileTreeNode",
@@ -16509,9 +16584,10 @@
       ],
       "description": "Living artifact presentation, structured blocks, exports, and typed action surfaces.",
       "external": false,
-      "file_count": 35,
+      "file_count": 36,
       "files": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
+        "Sources/Portal/Views/ArtifactCommentLayer.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
         "Sources/Portal/Views/ArtifactExportMenu.swift",
         "Sources/Portal/Views/ArtifactExporter.swift",
@@ -16550,7 +16626,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 12430,
+      "line_count": 12656,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -16741,7 +16817,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 6017
+      "line_count": 6019
     },
     {
       "declaration_count": 85,
@@ -16960,7 +17036,7 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "line_count": 1062
+      "line_count": 1075
     },
     {
       "declaration_count": 32,
@@ -17000,10 +17076,11 @@
       ],
       "description": "Harness WebSocket JSON-RPC transport, cron polling, and push registration.",
       "external": false,
-      "file_count": 16,
+      "file_count": 17,
       "files": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
+        "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
         "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
@@ -17022,7 +17099,7 @@
       "id": "hermes-services",
       "label": "Harness services",
       "layer": "integration",
-      "line_count": 5213,
+      "line_count": 5280,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -17079,7 +17156,7 @@
       "id": "artifact-intents",
       "label": "Artifact intents",
       "layer": "integration",
-      "line_count": 1797,
+      "line_count": 1805,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -17130,10 +17207,11 @@
       "line_count": 92
     },
     {
-      "declaration_count": 125,
+      "declaration_count": 126,
       "declarations": [
         "AVAudioEngineMicrophone",
         "AgentRun",
+        "ArtifactCommentStore",
         "ArtifactQueryCoalescer",
         "AudioLevelMeter",
         "ByteCountLabel",
@@ -17260,8 +17338,9 @@
       ],
       "description": "Persistence, export, media, notifications, caching, reasoning, and device-local support services.",
       "external": false,
-      "file_count": 44,
+      "file_count": 45,
       "files": [
+        "Sources/Portal/Services/ArtifactCommentStore.swift",
         "Sources/Portal/Services/ArtifactQueryCoalescer.swift",
         "Sources/Portal/Services/AudioLevelMeter.swift",
         "Sources/Portal/Services/ChatHistoryStore.swift",
@@ -17310,7 +17389,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 10254,
+      "line_count": 10379,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -17334,7 +17413,7 @@
       }
     },
     {
-      "declaration_count": 377,
+      "declaration_count": 385,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -17412,6 +17491,9 @@
         "ArchitectureSystemMapDocument",
         "ArchitectureTestCase",
         "Artifact",
+        "ArtifactComment",
+        "ArtifactCommentAnchor",
+        "ArtifactCommentGateway",
         "ArtifactGateway",
         "ArtifactMerge",
         "ArtifactQuery",
@@ -17553,9 +17635,12 @@
         "GitInfo",
         "GraphStats",
         "GraphSurface",
+        "HTMLArtifactCommentBridge",
+        "HTMLArtifactCommentRequest",
         "HTMLArtifactQueryBridge",
         "HTMLArtifactQueryRequest",
         "HardwareProfile",
+        "Host",
         "Identicon",
         "IdenticonView",
         "IntegrationLink",
@@ -17598,11 +17683,13 @@
         "NodeTranscriptEntry",
         "Options",
         "Outcome",
+        "PageState",
         "PanelKind",
         "Params",
         "PersistedQuizSession",
         "Persona",
         "PersonaImage",
+        "Pin",
         "PlacedNode",
         "Polarity",
         "PortalBootstrapConfiguration",
@@ -17716,7 +17803,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 101,
+      "file_count": 103,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -17730,6 +17817,7 @@
         "Sources/Portal/Models/ArchitectureModelDocument.swift",
         "Sources/Portal/Models/ArchitectureRevisionsDocument.swift",
         "Sources/Portal/Models/ArchitectureSystemMapDocument.swift",
+        "Sources/Portal/Models/ArtifactComment.swift",
         "Sources/Portal/Models/ArtifactQueries.swift",
         "Sources/Portal/Models/BlueprintSpec.swift",
         "Sources/Portal/Models/ButtonTheme.swift",
@@ -17768,6 +17856,7 @@
         "Sources/Portal/Models/GatewayRestartOutcome.swift",
         "Sources/Portal/Models/GraphStats.swift",
         "Sources/Portal/Models/GraphSurface.swift",
+        "Sources/Portal/Models/HTMLArtifactCommentBridge.swift",
         "Sources/Portal/Models/HardwareProfile.swift",
         "Sources/Portal/Models/Identicon.swift",
         "Sources/Portal/Models/JSONRPC/JSONRPCRequest.swift",
@@ -17823,7 +17912,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 19724,
+      "line_count": 20146,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -17990,7 +18079,7 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 55,
+      "file_count": 56,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -18024,6 +18113,7 @@
         "Sources/Portal/Views/GitHubReleaseCard.swift",
         "Sources/Portal/Views/GraphStatsPanel.swift",
         "Sources/Portal/Views/GraphsView.swift",
+        "Sources/Portal/Views/HTMLNavigationDelegate+Comments.swift",
         "Sources/Portal/Views/HarnessConnectionStatus.swift",
         "Sources/Portal/Views/InAppBrowserView.swift",
         "Sources/Portal/Views/LocalDiscussionPane.swift",
@@ -18051,7 +18141,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 11933,
+      "line_count": 11975,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -18614,7 +18704,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by domain-models.",
+      "description": "References 15 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Models/ArtifactActions.swift",
         "Sources/Portal/Models/HTMLArtifactIntentBridge.swift",
@@ -18625,6 +18715,7 @@
       "source": "artifact-intents",
       "symbols": [
         "AnyCodable",
+        "ArtifactCommentGateway",
         "ArtifactGateway",
         "ArtifactMerge",
         "ArtifactQueryResult",
@@ -18632,31 +18723,31 @@
         "EntityRef",
         "HTMLArtifactQueryBridge",
         "HTMLArtifactQueryRequest",
+        "Host",
         "LivingArtifact",
-        "ModelSpec",
-        "Result",
-        "Session"
+        "ModelSpec"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 18
+      "weight": 20
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by local-services.",
+      "description": "References 4 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/Models/HTMLArtifactIntentBridge.swift",
         "Sources/Portal/Services/ArtifactStore.swift"
       ],
       "source": "artifact-intents",
       "symbols": [
+        "ArtifactCommentStore",
         "ArtifactQueryCoalescer",
         "Page",
         "SessionMetaSyncService"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 5
+      "weight": 6
     },
     {
       "authority": "observed",
@@ -18680,6 +18771,7 @@
       "description": "References 2 declaration(s) owned by app-shell.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
+        "Sources/Portal/Views/ArtifactCommentLayer.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
         "Sources/Portal/Views/ArtifactExportMenu.swift",
         "Sources/Portal/Views/ArtifactExporter.swift",
@@ -18689,8 +18781,7 @@
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
         "Sources/Portal/Views/ArtifactsPane.swift",
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
-        "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
-        "Sources/Portal/Views/Blocks/ArtifactParseError.swift"
+        "Sources/Portal/Views/Blocks/ArtifactPanel.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
@@ -18699,13 +18790,14 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 34
+      "weight": 35
     },
     {
       "authority": "observed",
       "description": "References 9 declaration(s) owned by artifact-intents.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
+        "Sources/Portal/Views/ArtifactCommentLayer.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
         "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
@@ -18715,8 +18807,7 @@
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/ChecklistBlockView.swift",
-        "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
-        "Sources/Portal/Views/Blocks/KanbanBlockView.swift"
+        "Sources/Portal/Views/Blocks/DatasetBlockView.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
@@ -18732,13 +18823,14 @@
       ],
       "target": "artifact-intents",
       "type": "references",
-      "weight": 24
+      "weight": 25
     },
     {
       "authority": "observed",
       "description": "References 1 declaration(s) owned by chat-state.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
+        "Sources/Portal/Views/ArtifactCommentLayer.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
@@ -18751,7 +18843,7 @@
       ],
       "target": "chat-state",
       "type": "references",
-      "weight": 7
+      "weight": 8
     },
     {
       "authority": "observed",
@@ -18781,9 +18873,10 @@
     },
     {
       "authority": "observed",
-      "description": "References 48 declaration(s) owned by domain-models.",
+      "description": "References 54 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
+        "Sources/Portal/Views/ArtifactCommentLayer.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
         "Sources/Portal/Views/ArtifactExportMenu.swift",
         "Sources/Portal/Views/ArtifactExporter.swift",
@@ -18793,11 +18886,12 @@
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
         "Sources/Portal/Views/ArtifactsPane.swift",
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
-        "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
-        "Sources/Portal/Views/Blocks/ArtifactParseError.swift"
+        "Sources/Portal/Views/Blocks/ArtifactPanel.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
+        "ArtifactComment",
+        "ArtifactCommentAnchor",
         "ArtifactQuery",
         "ArtifactRevision",
         "BlueprintSpec",
@@ -18807,13 +18901,11 @@
         "ChartDistribution",
         "ChartPoint",
         "ChartSeries",
-        "ChartSpec",
-        "ChartWaterfall",
-        "ChecklistSpec"
+        "ChartSpec"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 82
+      "weight": 89
     },
     {
       "authority": "observed",
@@ -18837,6 +18929,7 @@
       "authority": "observed",
       "description": "References 5 declaration(s) owned by local-services.",
       "evidence": [
+        "Sources/Portal/Views/ArtifactCommentLayer.swift",
         "Sources/Portal/Views/ArtifactExporter.swift",
         "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
@@ -18852,7 +18945,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 9
+      "weight": 10
     },
     {
       "authority": "observed",
@@ -19304,7 +19397,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 29 declaration(s) owned by domain-models.",
+      "description": "References 32 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -19329,14 +19422,14 @@
         "DownloadState",
         "FileAttachment",
         "Flashcard",
+        "HTMLArtifactCommentBridge",
         "HTMLArtifactQueryBridge",
         "HTMLArtifactQueryRequest",
-        "MediaAttachment",
-        "ModelCatalog"
+        "Host"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 41
+      "weight": 44
     },
     {
       "authority": "observed",
@@ -19523,6 +19616,7 @@
         "Sources/Portal/Models/CronGraph.swift",
         "Sources/Portal/Models/DashboardPanel.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
+        "Sources/Portal/Models/HTMLArtifactCommentBridge.swift",
         "Sources/Portal/Models/LivingArtifact.swift",
         "Sources/Portal/Models/ModelSpec.swift"
       ],
@@ -19537,7 +19631,7 @@
       ],
       "target": "artifact-intents",
       "type": "references",
-      "weight": 13
+      "weight": 14
     },
     {
       "authority": "observed",
@@ -19662,23 +19756,24 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by local-services.",
+      "description": "References 14 declaration(s) owned by local-services.",
       "evidence": [
+        "Sources/Portal/Models/ArtifactComment.swift",
         "Sources/Portal/Models/ArtifactQueries.swift",
         "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DelegationBatchMessage.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
         "Sources/Portal/Models/FeedArticle.swift",
         "Sources/Portal/Models/GatewayCapabilities.swift",
+        "Sources/Portal/Models/HTMLArtifactCommentBridge.swift",
         "Sources/Portal/Models/Learning/Curriculum.swift",
         "Sources/Portal/Models/Learning/LearningWire.swift",
         "Sources/Portal/Models/LocalDiscussion.swift",
-        "Sources/Portal/Models/LocalDiscussionBriefing.swift",
-        "Sources/Portal/Models/Quiz/FlashcardModels.swift",
-        "Sources/Portal/Models/SavedGateway.swift"
+        "Sources/Portal/Models/LocalDiscussionBriefing.swift"
       ],
       "source": "domain-models",
       "symbols": [
+        "ArtifactCommentStore",
         "HeuristicReasoningSummarizer",
         "KeychainStore",
         "LearningStore",
@@ -19689,12 +19784,11 @@
         "QuizStore",
         "SRSEngine",
         "Skip",
-        "TTSService",
-        "WikiSource"
+        "TTSService"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 28
+      "weight": 31
     },
     {
       "authority": "observed",
@@ -19892,10 +19986,11 @@
     },
     {
       "authority": "observed",
-      "description": "References 75 declaration(s) owned by domain-models.",
+      "description": "References 79 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Architecture.swift",
+        "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
         "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
@@ -19904,8 +19999,7 @@
         "Sources/Portal/Services/GatewayClient+Files.swift",
         "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Push.swift",
-        "Sources/Portal/Services/GatewayClient+Restart.swift",
-        "Sources/Portal/Services/GatewayClient+ServiceLogs.swift"
+        "Sources/Portal/Services/GatewayClient+Restart.swift"
       ],
       "source": "hermes-services",
       "symbols": [
@@ -19918,19 +20012,20 @@
         "ArchitectureModelDocument",
         "ArchitectureRevisionDiff",
         "ArchitectureRevisionHistory",
-        "ArtifactQueryResult",
-        "ArtifactRevision",
-        "ChatMessage"
+        "ArtifactComment",
+        "ArtifactCommentAnchor",
+        "ArtifactCommentGateway"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 91
+      "weight": 96
     },
     {
       "authority": "observed",
       "description": "References 11 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
+        "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
         "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Wiki.swift",
@@ -19952,7 +20047,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 16
+      "weight": 17
     },
     {
       "authority": "observed",
@@ -20114,8 +20209,9 @@
     },
     {
       "authority": "observed",
-      "description": "References 46 declaration(s) owned by domain-models.",
+      "description": "References 49 declaration(s) owned by domain-models.",
       "evidence": [
+        "Sources/Portal/Services/ArtifactCommentStore.swift",
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CronChangesetSource.swift",
         "Sources/Portal/Services/CronGraphStore.swift",
@@ -20126,12 +20222,14 @@
         "Sources/Portal/Services/GitHubContentService.swift",
         "Sources/Portal/Services/KeychainStore.swift",
         "Sources/Portal/Services/LearningStore.swift",
-        "Sources/Portal/Services/LocalChatEngine.swift",
-        "Sources/Portal/Services/LocalChatService.swift"
+        "Sources/Portal/Services/LocalChatEngine.swift"
       ],
       "source": "local-services",
       "symbols": [
         "ActivityItem",
+        "ArtifactComment",
+        "ArtifactCommentAnchor",
+        "ArtifactCommentGateway",
         "ChatMessage",
         "Connection",
         "CronChangesetsPage",
@@ -20139,14 +20237,11 @@
         "CronGraphDiff",
         "CronGraphRevisionStore",
         "Curriculum",
-        "DownloadState",
-        "EntitySet",
-        "FeedReply",
-        "FeedTweetDetail"
+        "DownloadState"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 84
+      "weight": 88
     },
     {
       "authority": "observed",
@@ -20893,12 +20988,13 @@
     },
     {
       "authority": "observed",
-      "description": "References 7 declaration(s) owned by chat-ui.",
+      "description": "References 8 declaration(s) owned by chat-ui.",
       "evidence": [
         "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GitHubReleaseCard.swift",
+        "Sources/Portal/Views/HTMLNavigationDelegate+Comments.swift",
         "Sources/Portal/Views/PageIntentDock.swift",
         "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
         "Sources/Portal/Views/Skins/TUISkin.swift",
@@ -20908,6 +21004,7 @@
       "symbols": [
         "AttachmentChipView",
         "ChatView",
+        "HTMLNavigationDelegate",
         "InlineHTMLView",
         "LongResponseView",
         "MarkdownContentView",
@@ -20916,11 +21013,11 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 15
+      "weight": 17
     },
     {
       "authority": "observed",
-      "description": "References 69 declaration(s) owned by domain-models.",
+      "description": "References 72 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -20952,7 +21049,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 122
+      "weight": 126
     },
     {
       "authority": "observed",
@@ -21227,7 +21324,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 36 declaration(s) owned by domain-models.",
+      "description": "References 37 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AgentPanel.swift",
         "Sources/Portal/Views/DelegationBatchNoticeView.swift",
@@ -21259,7 +21356,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 55
+      "weight": 56
     },
     {
       "authority": "observed",
@@ -22314,15 +22411,16 @@
       },
       {
         "authority": "observed",
-        "description": "24 signature hit(s) across 2 file(s).",
+        "description": "25 signature hit(s) across 3 file(s).",
         "evidence": [
           "Sources/Portal/Views/CFAuthView.swift",
+          "Sources/Portal/Views/HTMLNavigationDelegate+Comments.swift",
           "Sources/Portal/Views/InAppBrowserView.swift"
         ],
         "source": "shared-ui",
         "target": "webkit",
         "type": "uses",
-        "weight": 24
+        "weight": 25
       },
       {
         "authority": "observed",
@@ -23122,7 +23220,7 @@
             "evidence": [
               {
                 "excerpt": "let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
-                "line": 95,
+                "line": 99,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -24062,8 +24160,8 @@
         "description": "Renders HTML artifacts and rich content; the only bridge from untrusted markup to native intents.",
         "description_authority": "specified",
         "evidence_class": "static_source",
-        "file_count": 8,
-        "hit_count": 63,
+        "file_count": 9,
+        "hit_count": 64,
         "id": "webkit",
         "label": "WebKit",
         "paths": [
@@ -24072,6 +24170,7 @@
           "Sources/Portal/Views/AttachmentChipView.swift",
           "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
           "Sources/Portal/Views/CFAuthView.swift",
+          "Sources/Portal/Views/HTMLNavigationDelegate+Comments.swift",
           "Sources/Portal/Views/InAppBrowserView.swift",
           "Sources/Portal/Views/MarkdownContentView.swift",
           "Sources/Portal/Views/MermaidDiagramView.swift"
@@ -24213,7 +24312,7 @@
               },
               {
                 "excerpt": "func makeNSView(context: Context) -> WKWebView {",
-                "line": 1703,
+                "line": 1711,
                 "path": "Sources/Portal/Views/MarkdownContentView.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -24221,7 +24320,7 @@
               },
               {
                 "excerpt": "func updateNSView(_ webView: WKWebView, context: Context) {",
-                "line": 1762,
+                "line": 1771,
                 "path": "Sources/Portal/Views/MarkdownContentView.swift",
                 "rule_id": "swift.boundary.external_signature",
                 "scope": "code",
@@ -24361,9 +24460,10 @@
             ],
             "files": [
               "Sources/Portal/Views/CFAuthView.swift",
+              "Sources/Portal/Views/HTMLNavigationDelegate+Comments.swift",
               "Sources/Portal/Views/InAppBrowserView.swift"
             ],
-            "hit_count": 24
+            "hit_count": 25
           }
         ]
       },
@@ -24706,7 +24806,7 @@
         "origins": [
           {
             "family": "store",
-            "line": 99,
+            "line": 103,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.store.artifact_literal"
           }
@@ -26604,6 +26704,20 @@
       },
       {
         "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+ArtifactComments",
+        "kind": "client",
+        "label": "GatewayClient+ArtifactComments",
+        "origins": [
+          {
+            "family": "wiring",
+            "line": 11,
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+            "rule": "map.client"
+          }
+        ]
+      },
+      {
+        "component": "hermes-services",
         "id": "client:hermes-services:GatewayClient+CodeGraph",
         "kind": "client",
         "label": "GatewayClient+CodeGraph",
@@ -26790,6 +26904,30 @@
         "kind": "endpoint",
         "label": "artifact",
         "origins": [
+          {
+            "family": "wiring",
+            "line": 11,
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+            "rule": "map.endpoint"
+          },
+          {
+            "family": "wiring",
+            "line": 33,
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+            "rule": "map.endpoint"
+          },
+          {
+            "family": "wiring",
+            "line": 39,
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+            "rule": "map.endpoint"
+          },
+          {
+            "family": "wiring",
+            "line": 48,
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+            "rule": "map.endpoint"
+          },
           {
             "family": "wiring",
             "line": 2195,
@@ -27900,43 +28038,43 @@
           },
           {
             "family": "behaviour",
-            "line": 4519,
+            "line": 4521,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4546,
+            "line": 4548,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4579,
+            "line": 4581,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4629,
+            "line": 4631,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4682,
+            "line": 4684,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4688,
+            "line": 4690,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           },
           {
             "family": "behaviour",
-            "line": 4729,
+            "line": 4731,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.transition"
           }
@@ -28861,19 +28999,19 @@
         "origins": [
           {
             "family": "behaviour",
-            "line": 78,
+            "line": 82,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 409,
+            "line": 413,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 519,
+            "line": 523,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           }
@@ -28887,25 +29025,25 @@
         "origins": [
           {
             "family": "behaviour",
-            "line": 192,
+            "line": 196,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 239,
+            "line": 243,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 305,
+            "line": 309,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 351,
+            "line": 355,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           }
@@ -28919,25 +29057,25 @@
         "origins": [
           {
             "family": "behaviour",
-            "line": 193,
+            "line": 197,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 234,
+            "line": 238,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 897,
+            "line": 905,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.task.structured"
           },
           {
             "family": "behaviour",
-            "line": 900,
+            "line": 908,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           }
@@ -28951,19 +29089,19 @@
         "origins": [
           {
             "family": "behaviour",
-            "line": 91,
+            "line": 95,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 933,
+            "line": 941,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 948,
+            "line": 956,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.state.resident"
           }
@@ -29075,37 +29213,37 @@
           },
           {
             "family": "behaviour",
-            "line": 4396,
+            "line": 4397,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4544,
+            "line": 4546,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4575,
+            "line": 4577,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4630,
+            "line": 4632,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4649,
+            "line": 4651,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4658,
+            "line": 4660,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           }
@@ -29137,13 +29275,13 @@
           },
           {
             "family": "behaviour",
-            "line": 4035,
+            "line": 4036,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4070,
+            "line": 4071,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           }
@@ -29239,13 +29377,13 @@
           },
           {
             "family": "behaviour",
-            "line": 4041,
+            "line": 4042,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4522,
+            "line": 4524,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           }
@@ -29371,13 +29509,13 @@
           },
           {
             "family": "behaviour",
-            "line": 4399,
+            "line": 4400,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4573,
+            "line": 4575,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           }
@@ -29765,13 +29903,13 @@
           },
           {
             "family": "behaviour",
-            "line": 4332,
+            "line": 4333,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           },
           {
             "family": "behaviour",
-            "line": 4363,
+            "line": 4364,
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
             "rule": "swift.state.resident"
           }
@@ -31981,7 +32119,7 @@
         "origins": [
           {
             "family": "store",
-            "line": 857,
+            "line": 865,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.store.declaration"
           }
@@ -32193,6 +32331,20 @@
             "family": "store",
             "line": 52,
             "path": "Sources/Portal/Models/SessionRunEvent.swift",
+            "rule": "swift.store.declaration"
+          }
+        ]
+      },
+      {
+        "component": "local-services",
+        "id": "store:local-services:ArtifactCommentStore",
+        "kind": "store",
+        "label": "ArtifactCommentStore",
+        "origins": [
+          {
+            "family": "store",
+            "line": 11,
+            "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
             "rule": "swift.store.declaration"
           }
         ]
@@ -32462,7 +32614,7 @@
           },
           {
             "family": "behaviour",
-            "line": 704,
+            "line": 709,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "rule": "swift.resource.bus_subscription"
           },
@@ -32475,21 +32627,56 @@
           },
           {
             "family": "trigger",
-            "line": 236,
+            "line": 46,
+            "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 127,
+            "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 131,
+            "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 195,
+            "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 201,
+            "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+            "rule": "swift.trigger.surface_call",
+            "via": "trigger"
+          },
+          {
+            "family": "trigger",
+            "line": 239,
             "path": "Sources/Portal/Views/ArtifactKindRenderer.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 246,
+            "line": 249,
             "path": "Sources/Portal/Views/ArtifactKindRenderer.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
           },
           {
             "family": "trigger",
-            "line": 260,
+            "line": 263,
             "path": "Sources/Portal/Views/ArtifactKindRenderer.swift",
             "rule": "swift.trigger.surface_call",
             "via": "trigger"
@@ -34368,156 +34555,156 @@
           },
           {
             "kind": "enum",
-            "line": 86,
+            "line": 93,
             "name": "ArchitectureEdgeClass",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 119,
+            "line": 126,
             "name": "ArchitectureMapNode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 142,
+            "line": 149,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 163,
+            "line": 170,
             "name": "ArchitectureMapEdge",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 169,
+            "line": 176,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 181,
+            "line": 188,
             "name": "ArchitectureMapPage",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 185,
+            "line": 192,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 191,
+            "line": 198,
             "name": "ArchitectureBoundaryGroup",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 196,
+            "line": 203,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 206,
+            "line": 213,
             "name": "ArchitectureMapCluster",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 211,
+            "line": 218,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 217,
+            "line": 224,
             "name": "ArchitectureFlowStep",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 223,
+            "line": 230,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 229,
+            "line": 236,
             "name": "ArchitectureFlow",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 240,
+            "line": 247,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 256,
+            "line": 263,
             "name": "ArchitectureInvariant",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 265,
+            "line": 272,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 279,
+            "line": 286,
             "name": "ArchitectureFlowEndpoint",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 289,
+            "line": 296,
             "name": "ArchitectureSystemMapDocument",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 331,
+            "line": 338,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 347,
+            "line": 354,
             "name": "decode",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 357,
+            "line": 364,
             "name": "node",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 361,
+            "line": 368,
             "name": "node",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 371,
+            "line": 378,
             "name": "resolve",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 383,
+            "line": 390,
             "name": "flows",
             "passes": []
           }
         ],
-        "line_count": 392,
+        "line_count": 399,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/ArchitectureSystemMapDocument.swift",
@@ -34618,6 +34805,49 @@
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/ArtifactActions.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "domain-models",
+        "declaration_count": 5,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 7,
+            "name": "ArtifactCommentAnchor",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 29,
+            "name": "from",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 42,
+            "name": "ArtifactComment",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 57,
+            "name": "from",
+            "passes": []
+          },
+          {
+            "kind": "protocol",
+            "line": 77,
+            "name": "ArtifactCommentGateway",
+            "passes": []
+          }
+        ],
+        "line_count": 86,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Models/ArtifactComment.swift",
         "semantic_citations": 0,
         "touched": false
       },
@@ -37324,14 +37554,8 @@
           },
           {
             "kind": "func",
-            "line": 124,
+            "line": 133,
             "name": "fallback",
-            "passes": []
-          },
-          {
-            "kind": "func",
-            "line": 130,
-            "name": "from",
             "passes": []
           },
           {
@@ -37342,48 +37566,54 @@
           },
           {
             "kind": "func",
-            "line": 193,
+            "line": 148,
+            "name": "from",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 202,
             "name": "boolCapability",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 214,
+            "line": 223,
             "name": "normalizedTruth",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 218,
+            "line": 227,
             "name": "firstString",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 233,
+            "line": 242,
             "name": "firstDictionary",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 242,
+            "line": 251,
             "name": "normalizedCapabilityNames",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 248,
+            "line": 257,
             "name": "collectCapabilityNames",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 273,
+            "line": 282,
             "name": "normalizeName",
             "passes": []
           }
         ],
-        "line_count": 278,
+        "line_count": 287,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/GatewayCapabilities.swift",
@@ -37440,198 +37670,198 @@
           },
           {
             "kind": "func",
-            "line": 199,
+            "line": 204,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 415,
+            "line": 428,
             "name": "SessionInfo",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 426,
+            "line": 439,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 455,
+            "line": 468,
             "name": "UsageInfo",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 470,
+            "line": 483,
             "name": "CodingKeys",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 476,
+            "line": 489,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 486,
+            "line": 499,
             "name": "MCPServerInfo",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 491,
+            "line": 504,
             "name": "MessageCompletePayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 499,
+            "line": 512,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 511,
+            "line": 524,
             "name": "ToolStartPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 516,
+            "line": 529,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 525,
+            "line": 538,
             "name": "ToolCompletePayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 533,
+            "line": 546,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 557,
+            "line": 570,
             "name": "TodoItem",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 564,
+            "line": 577,
             "name": "ToolOutputRiskPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 571,
+            "line": 584,
             "name": "from",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 584,
+            "line": 597,
             "name": "ToolRiskLevel",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 590,
+            "line": 603,
             "name": "ApprovalPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 638,
+            "line": 651,
             "name": "from",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 644,
+            "line": 657,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 661,
+            "line": 674,
             "name": "ClarifyQuestion",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 672,
+            "line": 685,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 689,
+            "line": 702,
             "name": "ClarifyPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 715,
+            "line": 728,
             "name": "from",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 725,
+            "line": 738,
             "name": "from",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 742,
+            "line": 755,
             "name": "advanced",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 755,
+            "line": 768,
             "name": "SubagentPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 764,
+            "line": 777,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 777,
+            "line": 790,
             "name": "SubagentCompletePayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 791,
+            "line": 804,
             "name": "from",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 809,
+            "line": 822,
             "name": "SubagentToolPayload",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 818,
+            "line": 831,
             "name": "from",
             "passes": []
           }
         ],
-        "line_count": 829,
+        "line_count": 842,
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/GatewayEvent.swift",
@@ -37800,6 +38030,91 @@
         "mapped_declarations": 0,
         "passes": [],
         "path": "Sources/Portal/Models/GraphSurface.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "domain-models",
+        "declaration_count": 12,
+        "declarations": [
+          {
+            "kind": "enum",
+            "line": 10,
+            "name": "HTMLArtifactCommentRequest",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 53,
+            "name": "isPlain",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 57,
+            "name": "fraction",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 62,
+            "name": "isValidCommentID",
+            "passes": []
+          },
+          {
+            "kind": "enum",
+            "line": 76,
+            "name": "HTMLArtifactCommentBridge",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 80,
+            "name": "Pin",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 88,
+            "name": "PageState",
+            "passes": []
+          },
+          {
+            "kind": "struct",
+            "line": 97,
+            "name": "Host",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 105,
+            "name": "pins",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 113,
+            "name": "applyScript",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 126,
+            "name": "userScriptSource",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 133,
+            "name": "jsonLiteral",
+            "passes": []
+          }
+        ],
+        "line_count": 320,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Models/HTMLArtifactCommentBridge.swift",
         "semantic_citations": 0,
         "touched": false
       },
@@ -41254,6 +41569,107 @@
         "touched": true
       },
       {
+        "citations": 3,
+        "component": "local-services",
+        "declaration_count": 13,
+        "declarations": [
+          {
+            "kind": "class",
+            "line": 11,
+            "name": "ArtifactCommentStore",
+            "passes": [
+              "map.store",
+              "swift.store.declaration",
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 20,
+            "name": "setClient",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 24,
+            "name": "comments",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 28,
+            "name": "openCount",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 34,
+            "name": "refresh",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 46,
+            "name": "add",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 71,
+            "name": "setResolved",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 85,
+            "name": "delete",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 96,
+            "name": "clearFailure",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 102,
+            "name": "remoteChange",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 108,
+            "name": "forget",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 112,
+            "name": "upsert",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 122,
+            "name": "describe",
+            "passes": []
+          }
+        ],
+        "line_count": 125,
+        "mapped_declarations": 2,
+        "passes": [
+          "map.store",
+          "swift.store.declaration",
+          "swift.task.structured"
+        ],
+        "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+        "semantic_citations": 8,
+        "touched": true
+      },
+      {
         "citations": 0,
         "component": "local-services",
         "declaration_count": 6,
@@ -41328,49 +41744,49 @@
           },
           {
             "kind": "enum",
-            "line": 41,
+            "line": 45,
             "name": "IntentInvocationState",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 58,
+            "line": 62,
             "name": "from",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 116,
+            "line": 120,
             "name": "upsert",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 149,
+            "line": 153,
             "name": "applyAction",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 210,
+            "line": 214,
             "name": "runQuery",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 218,
+            "line": 222,
             "name": "markQueryUnsupported",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 226,
+            "line": 230,
             "name": "querySlots",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 231,
+            "line": 235,
             "name": "releaseQueries",
             "passes": [
               "swift.state.resident",
@@ -41379,7 +41795,7 @@
           },
           {
             "kind": "func",
-            "line": 254,
+            "line": 258,
             "name": "performQuery",
             "passes": [
               "swift.state.resident"
@@ -41387,7 +41803,7 @@
           },
           {
             "kind": "func",
-            "line": 347,
+            "line": 351,
             "name": "applyQueryChange",
             "passes": [
               "swift.state.resident"
@@ -41395,13 +41811,13 @@
           },
           {
             "kind": "func",
-            "line": 361,
+            "line": 365,
             "name": "invalidateQueries",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 380,
+            "line": 384,
             "name": "invokeIntent",
             "passes": [
               "swift.state.resident"
@@ -41409,13 +41825,13 @@
           },
           {
             "kind": "func",
-            "line": 443,
+            "line": 447,
             "name": "confirmIntent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 478,
+            "line": 482,
             "name": "rehydrateBadges",
             "passes": [
               "swift.task.structured"
@@ -41423,7 +41839,7 @@
           },
           {
             "kind": "func",
-            "line": 516,
+            "line": 520,
             "name": "clearIntentState",
             "passes": [
               "swift.state.resident"
@@ -41431,13 +41847,13 @@
           },
           {
             "kind": "func",
-            "line": 522,
+            "line": 526,
             "name": "applyInvokeResult",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 559,
+            "line": 563,
             "name": "refreshArtifact",
             "passes": [
               "swift.task.structured"
@@ -41445,37 +41861,37 @@
           },
           {
             "kind": "func",
-            "line": 574,
+            "line": 578,
             "name": "slotKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 579,
+            "line": 583,
             "name": "intentSlotKey",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 589,
+            "line": 593,
             "name": "intentSlots",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 608,
+            "line": 612,
             "name": "setMaintainers",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 621,
+            "line": 625,
             "name": "currentFieldValue",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 644,
+            "line": 648,
             "name": "remove",
             "passes": [
               "swift.task.structured"
@@ -41483,13 +41899,13 @@
           },
           {
             "kind": "func",
-            "line": 653,
+            "line": 657,
             "name": "loadFromDisk",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 661,
+            "line": 665,
             "name": "persistToDisk",
             "passes": [
               "swift.task.detached"
@@ -41497,25 +41913,25 @@
           },
           {
             "kind": "func",
-            "line": 679,
+            "line": 683,
             "name": "injectClientForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 687,
+            "line": 691,
             "name": "seedArtifactForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 693,
+            "line": 697,
             "name": "seedIntentStateForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 700,
+            "line": 704,
             "name": "setClient",
             "passes": [
               "swift.resource.bus_subscription",
@@ -41524,19 +41940,19 @@
           },
           {
             "kind": "func",
-            "line": 714,
+            "line": 719,
             "name": "handleGatewayEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 728,
+            "line": 735,
             "name": "applyGatewayEventForTesting",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 736,
+            "line": 743,
             "name": "applyRemoteChange",
             "passes": [
               "swift.task.structured"
@@ -41544,13 +41960,13 @@
           },
           {
             "kind": "func",
-            "line": 760,
+            "line": 768,
             "name": "pull",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 824,
+            "line": 832,
             "name": "schedulePush",
             "passes": [
               "swift.task.cancel",
@@ -41559,13 +41975,13 @@
           },
           {
             "kind": "func",
-            "line": 838,
+            "line": 846,
             "name": "push",
             "passes": []
           },
           {
             "kind": "class",
-            "line": 857,
+            "line": 865,
             "name": "ArtifactQueryStateStore",
             "passes": [
               "map.store",
@@ -41574,25 +41990,25 @@
           },
           {
             "kind": "extension",
-            "line": 866,
+            "line": 874,
             "name": "ArtifactStore",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 870,
+            "line": 878,
             "name": "QuerySlot",
             "passes": []
           },
           {
             "kind": "enum",
-            "line": 880,
+            "line": 888,
             "name": "QueryState",
             "passes": []
           },
           {
             "kind": "extension",
-            "line": 893,
+            "line": 901,
             "name": "ArtifactStore",
             "passes": [
               "swift.state.resident",
@@ -41601,7 +42017,7 @@
           },
           {
             "kind": "func",
-            "line": 896,
+            "line": 904,
             "name": "startQueryTask",
             "passes": [
               "swift.state.resident",
@@ -41610,7 +42026,7 @@
           },
           {
             "kind": "extension",
-            "line": 915,
+            "line": 923,
             "name": "ArtifactStore",
             "passes": [
               "swift.state.resident"
@@ -41618,14 +42034,14 @@
           },
           {
             "kind": "func",
-            "line": 947,
+            "line": 955,
             "name": "invalidateSortedArtifacts",
             "passes": [
               "swift.state.resident"
             ]
           }
         ],
-        "line_count": 951,
+        "line_count": 959,
         "mapped_declarations": 18,
         "passes": [
           "map.artifact",
@@ -41643,7 +42059,7 @@
           "swift.task.structured"
         ],
         "path": "Sources/Portal/Services/ArtifactStore.swift",
-        "semantic_citations": 17,
+        "semantic_citations": 23,
         "touched": true
       },
       {
@@ -42335,6 +42751,70 @@
         ],
         "path": "Sources/Portal/Services/GatewayClient+Architecture.swift",
         "semantic_citations": 1,
+        "touched": true
+      },
+      {
+        "citations": 5,
+        "component": "hermes-services",
+        "declaration_count": 6,
+        "declarations": [
+          {
+            "kind": "extension",
+            "line": 7,
+            "name": "GatewayClient",
+            "passes": [
+              "map.client",
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 10,
+            "name": "artifactCommentList",
+            "passes": [
+              "map.client",
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 23,
+            "name": "artifactCommentAdd",
+            "passes": [
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 36,
+            "name": "artifactCommentResolve",
+            "passes": [
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 47,
+            "name": "artifactCommentDelete",
+            "passes": [
+              "map.endpoint"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 60,
+            "name": "commentResult",
+            "passes": []
+          }
+        ],
+        "line_count": 67,
+        "mapped_declarations": 5,
+        "passes": [
+          "map.client",
+          "map.endpoint"
+        ],
+        "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+        "semantic_citations": 0,
         "touched": true
       },
       {
@@ -52243,19 +52723,19 @@
           },
           {
             "kind": "func",
-            "line": 4441,
+            "line": 4442,
             "name": "delegatingToolID",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 4454,
+            "line": 4455,
             "name": "applySubagentEvent",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 4480,
+            "line": 4481,
             "name": "handleEvent",
             "passes": [
               "swift.state.resident",
@@ -52265,12 +52745,12 @@
           },
           {
             "kind": "func",
-            "line": 4768,
+            "line": 4770,
             "name": "notifyResponseCompleteIfNeeded",
             "passes": []
           }
         ],
-        "line_count": 4787,
+        "line_count": 4789,
         "mapped_declarations": 61,
         "passes": [
           "map.caller",
@@ -56757,6 +57237,74 @@
         "touched": true
       },
       {
+        "citations": 8,
+        "component": "artifact-ui",
+        "declaration_count": 7,
+        "declarations": [
+          {
+            "kind": "struct",
+            "line": 9,
+            "name": "ArtifactCommentLayer",
+            "passes": [
+              "swift.task.structured",
+              "swift.trigger.surface_call"
+            ]
+          },
+          {
+            "kind": "struct",
+            "line": 22,
+            "name": "Draft",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 53,
+            "name": "handle",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 104,
+            "name": "composer",
+            "passes": [
+              "swift.trigger.surface_call"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 140,
+            "name": "save",
+            "passes": [
+              "swift.task.structured"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 174,
+            "name": "row",
+            "passes": [
+              "swift.task.structured",
+              "swift.trigger.surface_call"
+            ]
+          },
+          {
+            "kind": "func",
+            "line": 218,
+            "name": "status",
+            "passes": []
+          }
+        ],
+        "line_count": 223,
+        "mapped_declarations": 4,
+        "passes": [
+          "swift.task.structured",
+          "swift.trigger.surface_call"
+        ],
+        "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+        "semantic_citations": 0,
+        "touched": true
+      },
+      {
         "citations": 2,
         "component": "artifact-ui",
         "declaration_count": 3,
@@ -57273,7 +57821,7 @@
           },
           {
             "kind": "func",
-            "line": 267,
+            "line": 270,
             "name": "handleRequest",
             "passes": [
               "swift.task.structured"
@@ -57281,24 +57829,24 @@
           },
           {
             "kind": "func",
-            "line": 319,
+            "line": 322,
             "name": "handleQuery",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 339,
+            "line": 342,
             "name": "inlineStatus",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 398,
+            "line": 401,
             "name": "clearActiveState",
             "passes": []
           }
         ],
-        "line_count": 411,
+        "line_count": 414,
         "mapped_declarations": 2,
         "passes": [
           "swift.task.structured",
@@ -63005,6 +63553,43 @@
       {
         "citations": 0,
         "component": "shared-ui",
+        "declaration_count": 4,
+        "declarations": [
+          {
+            "kind": "extension",
+            "line": 7,
+            "name": "HTMLNavigationDelegate",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 10,
+            "name": "installCommentScript",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 22,
+            "name": "applyComments",
+            "passes": []
+          },
+          {
+            "kind": "func",
+            "line": 35,
+            "name": "handleCommentNavigation",
+            "passes": []
+          }
+        ],
+        "line_count": 42,
+        "mapped_declarations": 0,
+        "passes": [],
+        "path": "Sources/Portal/Views/HTMLNavigationDelegate+Comments.swift",
+        "semantic_citations": 0,
+        "touched": false
+      },
+      {
+        "citations": 0,
+        "component": "shared-ui",
         "declaration_count": 3,
         "declarations": [
           {
@@ -64249,7 +64834,7 @@
           },
           {
             "kind": "struct",
-            "line": 1686,
+            "line": 1693,
             "name": "InlineHTMLNSView",
             "passes": [
               "swift.boundary.external_signature"
@@ -64257,13 +64842,13 @@
           },
           {
             "kind": "func",
-            "line": 1696,
+            "line": 1704,
             "name": "makeCoordinator",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1703,
+            "line": 1711,
             "name": "makeNSView",
             "passes": [
               "swift.boundary.external_signature"
@@ -64271,7 +64856,7 @@
           },
           {
             "kind": "func",
-            "line": 1762,
+            "line": 1771,
             "name": "updateNSView",
             "passes": [
               "swift.boundary.external_signature"
@@ -64279,72 +64864,72 @@
           },
           {
             "kind": "class",
-            "line": 1784,
+            "line": 1795,
             "name": "InputCapturingWebView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1789,
+            "line": 1800,
             "name": "mouseDown",
             "passes": []
           },
           {
             "kind": "struct",
-            "line": 1797,
+            "line": 1808,
             "name": "InlineHTMLUIView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1809,
+            "line": 1821,
             "name": "makeCoordinator",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1816,
+            "line": 1828,
             "name": "makeUIView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1854,
+            "line": 1867,
             "name": "updateUIView",
             "passes": []
           },
           {
             "kind": "class",
-            "line": 1871,
+            "line": 1886,
             "name": "HTMLNavigationDelegate",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1908,
+            "line": 1927,
             "name": "applyQueryMarks",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1926,
+            "line": 1945,
             "name": "applyStatusMarks",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1951,
+            "line": 1970,
             "name": "webView",
             "passes": []
           },
           {
             "kind": "func",
-            "line": 1961,
+            "line": 1982,
             "name": "webView",
             "passes": []
           }
         ],
-        "line_count": 2003,
+        "line_count": 2028,
         "mapped_declarations": 8,
         "passes": [
           "map.store",
@@ -70619,17 +71204,17 @@
         "id": "map.caller"
       },
       {
-        "citations": 12,
+        "citations": 13,
         "class": "mechanical",
         "description": "A client construction on the system map cites the declaration it was extracted from",
-        "files": 12,
+        "files": 13,
         "id": "map.client"
       },
       {
-        "citations": 80,
+        "citations": 84,
         "class": "mechanical",
         "description": "An endpoint construction on the system map cites the declaration it was extracted from",
-        "files": 13,
+        "files": 14,
         "id": "map.endpoint"
       },
       {
@@ -70689,10 +71274,10 @@
         "id": "map.section"
       },
       {
-        "citations": 19,
+        "citations": 20,
         "class": "mechanical",
         "description": "A store construction on the system map cites the declaration it was extracted from",
-        "files": 19,
+        "files": 20,
         "id": "map.store"
       },
       {
@@ -70703,10 +71288,10 @@
         "id": "map.subscriber"
       },
       {
-        "citations": 304,
+        "citations": 318,
         "class": "semantic",
         "description": "A human-written construct record cites the lines it explains (semantic layer, validated against the map, not extraction)",
-        "files": 66,
+        "files": 67,
         "id": "semantic.construct"
       },
       {
@@ -70899,10 +71484,10 @@
         "id": "swift.store.artifact_literal"
       },
       {
-        "citations": 24,
+        "citations": 25,
         "class": "mechanical",
         "description": "A class, struct, actor, or enum whose name ends in Store, Cache, Inventory, or Ledger",
-        "files": 23,
+        "files": 24,
         "id": "swift.store.declaration"
       },
       {
@@ -70955,10 +71540,10 @@
         "id": "swift.task.stored_handle"
       },
       {
-        "citations": 327,
+        "citations": 331,
         "class": "mechanical",
         "description": "Task initializer with closure, with or without explicit generics",
-        "files": 98,
+        "files": 100,
         "id": "swift.task.structured"
       },
       {
@@ -70969,10 +71554,10 @@
         "id": "swift.trigger.launch_construction"
       },
       {
-        "citations": 178,
+        "citations": 183,
         "class": "mechanical",
         "description": "A SwiftUI action (Button, onTapGesture, keyboardShortcut, onSubmit, swipeActions, refreshable, Toggle, Picker) or lifecycle hook (onAppear, task, onChange, onReceive, onDisappear) whose closure calls a method on a same-file property typed as a calling surface",
-        "files": 45,
+        "files": 46,
         "id": "swift.trigger.surface_call"
       }
     ],
@@ -70983,48 +71568,48 @@
           "total": 4
         },
         "class": {
-          "mapped": 80,
-          "total": 132
+          "mapped": 81,
+          "total": 133
         },
         "enum": {
           "mapped": 9,
-          "total": 310
+          "total": 312
         },
         "extension": {
-          "mapped": 23,
-          "total": 130
+          "mapped": 24,
+          "total": 132
         },
         "func": {
-          "mapped": 561,
-          "total": 3374
+          "mapped": 569,
+          "total": 3408
         },
         "protocol": {
           "mapped": 1,
-          "total": 26
+          "total": 27
         },
         "struct": {
-          "mapped": 109,
-          "total": 883
+          "mapped": 110,
+          "total": 890
         }
       },
-      "citations": 1792,
-      "declarations": 4859,
-      "entities": 249,
-      "entities_with_origin": 249,
-      "files": 428,
+      "citations": 1808,
+      "declarations": 4906,
+      "entities": 251,
+      "entities_with_origin": 251,
+      "files": 434,
       "functions": {
-        "mapped": 561,
-        "total": 3374
+        "mapped": 569,
+        "total": 3408
       },
-      "mapped_declarations": 787,
+      "mapped_declarations": 798,
       "passes": 52,
-      "semantic_citations": 828,
-      "touched_files": 174,
+      "semantic_citations": 842,
+      "touched_files": 177,
       "types": {
-        "mapped": 226,
-        "total": 1485
+        "mapped": 229,
+        "total": 1498
       },
-      "untouched_files": 254
+      "untouched_files": 257
     }
   },
   "interplay": {
@@ -71367,6 +71952,14 @@
       },
       {
         "component": "local-services",
+        "id": "interplay-cluster-74fd9143a691",
+        "node_ids": [
+          "store:local-services:ArtifactCommentStore"
+        ],
+        "owner_type": "Data stores"
+      },
+      {
+        "component": "local-services",
         "id": "interplay-cluster-7b136d3c2c60",
         "node_ids": [
           "operation:lifecycle-operation-250a3dd578d6",
@@ -71444,6 +72037,7 @@
         "id": "interplay-cluster-cc716b1d97de",
         "node_ids": [
           "client:hermes-services:GatewayClient+Architecture",
+          "client:hermes-services:GatewayClient+ArtifactComments",
           "client:hermes-services:GatewayClient+CodeGraph",
           "client:hermes-services:GatewayClient+Cron",
           "client:hermes-services:GatewayClient+CronChangesets",
@@ -71521,7 +72115,7 @@
       }
     ],
     "constructs": {
-      "described": 133,
+      "described": 135,
       "set_aside": 0,
       "stale": 0
     },
@@ -72789,6 +73383,18 @@
         "class": "structure",
         "relation": "routes-through",
         "source": "client:hermes-services:GatewayClient+Architecture",
+        "target": "owner:hermes-services:GatewayClient"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+ArtifactComments",
+        "target": "endpoint:1f147016b905"
+      },
+      {
+        "class": "structure",
+        "relation": "routes-through",
+        "source": "client:hermes-services:GatewayClient+ArtifactComments",
         "target": "owner:hermes-services:GatewayClient"
       },
       {
@@ -74255,6 +74861,16 @@
         "relation": "uses",
         "source": "subscriber:ArtifactStore",
         "target": "store:artifact-intents:ArtifactQueryStateStore"
+      },
+      {
+        "chain": [
+          "ArtifactStore.applyRemoteChange",
+          "ArtifactCommentStore.forget"
+        ],
+        "class": "usage",
+        "relation": "uses",
+        "source": "subscriber:ArtifactStore",
+        "target": "store:local-services:ArtifactCommentStore"
       },
       {
         "class": "structure",
@@ -84945,37 +85561,44 @@
             "text": "@Published internal private(set) var artifacts: [String: LivingArtifact] = [:] {"
           },
           {
-            "line": 69,
+            "line": 73,
+            "moved_from": 69,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "text": "private weak var client: (any ArtifactGateway)?"
           },
           {
-            "line": 70,
+            "line": 74,
+            "moved_from": 70,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "text": "private var syncAvailable: Bool?"
           },
           {
-            "line": 97,
+            "line": 101,
+            "moved_from": 97,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "text": "let folder = dir.appendingPathComponent(\"portal\", isDirectory: true)"
           },
           {
-            "line": 98,
+            "line": 102,
+            "moved_from": 98,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "text": "try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)"
           },
           {
-            "line": 106,
+            "line": 110,
+            "moved_from": 106,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "text": "internal init(fileURL: URL) {"
           },
           {
-            "line": 108,
+            "line": 112,
+            "moved_from": 108,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "text": "loadFromDisk()"
           },
           {
-            "line": 137,
+            "line": 141,
+            "moved_from": 137,
             "path": "Sources/Portal/Services/ArtifactStore.swift",
             "text": "persistToDisk()"
           },
@@ -85048,17 +85671,20 @@
                 "text": "@Published internal private(set) var artifacts: [String: LivingArtifact] = [:] {"
               },
               {
-                "line": 69,
+                "line": 73,
+                "moved_from": 69,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "text": "private weak var client: (any ArtifactGateway)?"
               },
               {
-                "line": 70,
+                "line": 74,
+                "moved_from": 70,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "text": "private var syncAvailable: Bool?"
               },
               {
-                "line": 137,
+                "line": 141,
+                "moved_from": 137,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "text": "persistToDisk()"
               }
@@ -85072,22 +85698,26 @@
           {
             "cites": [
               {
-                "line": 97,
+                "line": 101,
+                "moved_from": 97,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "text": "let folder = dir.appendingPathComponent(\"portal\", isDirectory: true)"
               },
               {
-                "line": 98,
+                "line": 102,
+                "moved_from": 98,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "text": "try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)"
               },
               {
-                "line": 106,
+                "line": 110,
+                "moved_from": 106,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "text": "internal init(fileURL: URL) {"
               },
               {
-                "line": 108,
+                "line": 112,
+                "moved_from": 108,
                 "path": "Sources/Portal/Services/ArtifactStore.swift",
                 "text": "loadFromDisk()"
               }
@@ -85106,7 +85736,7 @@
     ],
     "glossary": {
       "count": 29,
-      "described": 133,
+      "described": 135,
       "flows": 40,
       "terms": [
         {
@@ -85279,6 +85909,7 @@
             "caller:operations-state:SkillsViewModel",
             "caller:operations-ui:CodeGraphSurfaceView",
             "client:hermes-services:GatewayClient+Architecture",
+            "client:hermes-services:GatewayClient+ArtifactComments",
             "client:hermes-services:GatewayClient+CodeGraph",
             "client:hermes-services:GatewayClient+Cron",
             "client:hermes-services:GatewayClient+CronChangesets",
@@ -85375,15 +86006,17 @@
             "seam:AgentBackend",
             "store:chat-state:GatewayCapabilitiesStore",
             "store:domain-models:CronRunHistoryStore",
+            "store:local-services:ArtifactCommentStore",
             "store:local-services:CronGraphStore",
             "store:local-services:KeychainStore",
             "store:local-services:VideoCache",
             "store:local-services:WikiGraphCache",
             "subscriber:ActivityInboxViewModel",
+            "subscriber:ArtifactStore",
             "subscriber:LearningStore",
             "subscriber:SessionListViewModel"
           ],
-          "uses": 118
+          "uses": 121
         },
         {
           "avoid": [],
@@ -85515,6 +86148,7 @@
           "term": "JSON-RPC",
           "used_by": [
             "client:hermes-services:GatewayClient+Architecture",
+            "client:hermes-services:GatewayClient+ArtifactComments",
             "client:hermes-services:GatewayClient+CodeGraph",
             "client:hermes-services:GatewayClient+Cron",
             "client:hermes-services:GatewayClient+CronChangesets",
@@ -85570,7 +86204,7 @@
             "flow:skills-search-hub",
             "owner:hermes-services:GatewayClient"
           ],
-          "uses": 55
+          "uses": 56
         },
         {
           "avoid": [
@@ -85609,13 +86243,15 @@
           "kind": "concept",
           "term": "living artifact",
           "used_by": [
+            "client:hermes-services:GatewayClient+ArtifactComments",
             "endpoint:jsonrpc:artifact",
             "external:file-system",
             "hub:ChatViewModel",
             "page:artifacts",
+            "store:local-services:ArtifactCommentStore",
             "subscriber:ArtifactStore"
           ],
-          "uses": 5
+          "uses": 7
         },
         {
           "avoid": [
@@ -85678,6 +86314,7 @@
             "caller:operations-state:SkillsViewModel",
             "caller:operations-ui:CodeGraphSurfaceView",
             "client:hermes-services:GatewayClient+Architecture",
+            "client:hermes-services:GatewayClient+ArtifactComments",
             "client:hermes-services:GatewayClient+CodeGraph",
             "client:hermes-services:GatewayClient+Cron",
             "client:hermes-services:GatewayClient+CronChangesets",
@@ -85728,6 +86365,7 @@
             "gate:testflight/testflight",
             "gate:tests/hang-gate",
             "gate:tests/ios-smoke",
+            "gate:tests/swift-lint",
             "hub:ChatViewModel",
             "owner:hermes-services:GatewayClient",
             "owner:local-services:MLXLocalChatEngine",
@@ -85752,6 +86390,7 @@
             "store:domain-models:CronRunHistoryStore",
             "store:domain-models:DelegationBatchHistoryStore",
             "store:domain-models:SessionRunHistoryStore",
+            "store:local-services:ArtifactCommentStore",
             "store:local-services:ChatHistoryStore",
             "store:local-services:CurriculumStore",
             "store:local-services:KeychainStore",
@@ -85764,7 +86403,7 @@
             "subscriber:LearningStore",
             "subscriber:SessionListViewModel"
           ],
-          "uses": 102
+          "uses": 105
         },
         {
           "avoid": [],
@@ -85831,10 +86470,11 @@
             "store:local-services:QuizStore",
             "store:local-services:SRSStore",
             "subscriber:ActivityInboxViewModel",
+            "subscriber:ArtifactStore",
             "subscriber:SessionListViewModel",
             "subscriber:SpawnTreeStore"
           ],
-          "uses": 52
+          "uses": 53
         },
         {
           "avoid": [],
@@ -86021,9 +86661,10 @@
             "owner:local-services:MLXReasoningSummarizer",
             "owner:local-services:TTSService",
             "page:artifacts",
-            "subscriber:ActivityInboxViewModel"
+            "subscriber:ActivityInboxViewModel",
+            "subscriber:ArtifactStore"
           ],
-          "uses": 23
+          "uses": 24
         },
         {
           "avoid": [
@@ -86061,6 +86702,7 @@
           "term": "WebSocket",
           "used_by": [
             "client:hermes-services:GatewayClient+Architecture",
+            "client:hermes-services:GatewayClient+ArtifactComments",
             "client:hermes-services:GatewayClient+CodeGraph",
             "client:hermes-services:GatewayClient+Feed",
             "client:hermes-services:GatewayClient+Learning",
@@ -86103,7 +86745,7 @@
             "flow:skills-search-hub",
             "owner:hermes-services:GatewayClient"
           ],
-          "uses": 42
+          "uses": 43
         },
         {
           "avoid": [],
@@ -86137,7 +86779,7 @@
     },
     "injected_methods": {
       "edges_added": 10,
-      "members_indexed": 3223
+      "members_indexed": 3257
     },
     "invariants": [
       {
@@ -86189,7 +86831,7 @@
         "why": "Every namespace box is dispatched by a transport core; a namespace reached any other way is a new construction, not a variant of this one."
       },
       {
-        "checked": 24,
+        "checked": 25,
         "id": "stores-mapped",
         "kind": "stores_mapped",
         "layer": "extraction",
@@ -86197,7 +86839,7 @@
         "why": "Every store the extractor recognises is a construction on the map, so the System map can never disagree with the extractor about what holds state."
       },
       {
-        "checked": 274,
+        "checked": 279,
         "id": "triggers-observed",
         "kind": "triggers_observed",
         "layer": "extraction",
@@ -86221,7 +86863,7 @@
         "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
       },
       {
-        "checked": 440,
+        "checked": 444,
         "id": "tasks-parsed",
         "kind": "tasks_parsed",
         "layer": "extraction",
@@ -87008,12 +87650,14 @@
               "text": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)"
             },
             {
-              "line": 95,
+              "line": 99,
+              "moved_from": 95,
               "path": "Sources/Portal/Services/ArtifactStore.swift",
               "text": "let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first"
             },
             {
-              "line": 99,
+              "line": 103,
+              "moved_from": 99,
               "path": "Sources/Portal/Services/ArtifactStore.swift",
               "text": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))"
             },
@@ -88046,6 +88690,107 @@
         "sub_kind": "event_bus"
       },
       {
+        "cluster": "interplay-cluster-74fd9143a691",
+        "component": "local-services",
+        "history_key": "store:local-services:ArtifactCommentStore",
+        "id": "store:local-services:ArtifactCommentStore",
+        "kind": "store",
+        "label": "ArtifactCommentStore",
+        "line": 11,
+        "owner_type": null,
+        "page": "artifacts",
+        "page_resolution": "reference",
+        "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+        "semantic": {
+          "authority": "synthesized",
+          "cited_hash": "fadd2dd62da6f9c20f89f52b9917733328c3709e2c4a2b35f6f1a3c6c9d83f0e",
+          "evidence": [
+            {
+              "line": 11,
+              "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+              "text": "internal final class ArtifactCommentStore: ObservableObject {"
+            },
+            {
+              "line": 12,
+              "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+              "text": "@Published internal private(set) var commentsByArtifact: [String: [ArtifactComment]] = [:]"
+            },
+            {
+              "line": 16,
+              "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+              "text": "private var client: (any ArtifactCommentGateway)?"
+            },
+            {
+              "line": 34,
+              "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+              "text": "internal func refresh(artifactID: String) async {"
+            },
+            {
+              "line": 46,
+              "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+              "text": "internal func add("
+            },
+            {
+              "line": 59,
+              "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+              "text": "failure = \"This gateway does not store artifact comments.\""
+            },
+            {
+              "line": 102,
+              "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+              "text": "internal func remoteChange(artifactID: String) {"
+            },
+            {
+              "line": 108,
+              "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+              "text": "internal func forget(artifactID: String) {"
+            }
+          ],
+          "fields": {
+            "keyed_by": "artifact id (`String`), then `ArtifactComment.id` within each list",
+            "location": "`commentsByArtifact` in `ArtifactCommentStore`; comments are stored by the gateway via `ArtifactCommentGateway`",
+            "medium": "in_memory",
+            "read_when": [
+              "on_demand",
+              "on_event"
+            ],
+            "record_type": [
+              "ArtifactComment"
+            ],
+            "retention": "session",
+            "written_when": [
+              "on_change"
+            ]
+          },
+          "kind": "store",
+          "model": "us.anthropic.claude-fable-5-2",
+          "open_questions": [
+            "Is `failure` also logged anywhere, or only published for the pane to show?",
+            "What does the `unobserved` persistence marker imply here? The excerpt shows no local disk write.",
+            "Which methods does `ArtifactStore` call on this store (`remoteChange`, `forget`, or others)? The excerpts show only a `uses` edge, not the call sites.",
+            "Who calls `setClient`, and when? Before it is called, `refresh`, `setResolved` and `delete` return without doing anything."
+          ],
+          "purpose": "Inferred from the code, as the docs do not name it: it lets the person running Portal pin comments to a revision of a living artifact, resolve or reopen them, and see an open count, with the gateway as the place they are stored. Without it the artifact pane would have no comment list, no explanation when a comment fails to save, and no refresh when a comment changes on the gateway.",
+          "source_revision": "780205cc1794d9577de88fb9b6b9aebc8a3c11e9",
+          "stale": false,
+          "summary": "`ArtifactCommentStore` is an `ObservableObject` that holds `ArtifactComment` lists per artifact id in the published `commentsByArtifact` dictionary. It lists, adds, resolves and deletes comments through an injected `ArtifactCommentGateway` client, mirrors each stored result into memory, and publishes a `failure` string when an action does not land."
+        },
+        "store": {
+          "artifacts": [],
+          "line": 11,
+          "mechanism_count": 0,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift",
+          "persistence": [
+            "unobserved"
+          ]
+        },
+        "sub_kind": "class",
+        "triggers": {
+          "lifecycle": 0,
+          "user_action": 0
+        }
+      },
+      {
         "cluster": "interplay-cluster-00216ece3da1",
         "component": null,
         "flows": [
@@ -88062,7 +88807,7 @@
         "path": "Sources/Portal/Services/ArtifactStore.swift",
         "semantic": {
           "authority": "synthesized",
-          "cited_hash": "f282da160762187cc68c6381f8552438f3834038bbfbc4403a427ef0f4212708",
+          "cited_hash": "258973e9df0231a79bef1864ec49096f056d70e36ff5dcd80835a512f1a07950",
           "evidence": [
             {
               "line": 18,
@@ -88080,35 +88825,74 @@
               "text": "internal let live = ArtifactQueryStateStore()"
             },
             {
-              "line": 39,
+              "line": 35,
               "path": "Sources/Portal/Services/ArtifactStore.swift",
-              "text": "internal var intentStates: [String: IntentInvocationState] { live.intentStates }"
+              "text": "internal let comments = ArtifactCommentStore()"
+            },
+            {
+              "line": 82,
+              "path": "Sources/Portal/Services/ArtifactStore.swift",
+              "text": "private var idempotencyKeys: [String: String] = [:]"
+            },
+            {
+              "line": 88,
+              "path": "Sources/Portal/Services/ArtifactStore.swift",
+              "text": "@Published internal var focusedGatewayID: UUID? {"
+            },
+            {
+              "line": 103,
+              "path": "Sources/Portal/Services/ArtifactStore.swift",
+              "text": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))"
+            },
+            {
+              "line": 120,
+              "path": "Sources/Portal/Services/ArtifactStore.swift",
+              "text": "func upsert(id: String, kind: String, title: String?, content: String) -> LivingArtifact {"
+            },
+            {
+              "line": 153,
+              "path": "Sources/Portal/Services/ArtifactStore.swift",
+              "text": "func applyAction("
+            },
+            {
+              "line": 214,
+              "path": "Sources/Portal/Services/ArtifactStore.swift",
+              "text": "internal func runQuery(artifactID: String, queryID: String, rawParams: String, rawCursor: String = \"\") {"
+            },
+            {
+              "line": 235,
+              "path": "Sources/Portal/Services/ArtifactStore.swift",
+              "text": "internal func releaseQueries(artifactID: String) {"
             }
           ],
           "fields": {
             "reacts_to": [
-              "`artifact.query` conflict (one retry)",
-              "fence block with id (`upsert`)",
+              "change of `artifacts` or `focusedGatewayID` (cache reset)",
+              "fence block with an id (`upsert`)",
+              "gateway `artifact.query.changed` re-running a live slot",
               "page query run or release (`runQuery`, `releaseQueries`)",
               "user action on an entry (`applyAction`)"
             ],
             "state": [
-              "`artifacts: [String: LivingArtifact]` (@Published)",
-              "`focusedGatewayID: UUID?` (@Published)",
-              "`idempotencyKeys`, `querySubscriptions`, `queryTasks`",
+              "`artifacts: [String: LivingArtifact]` (`@Published`)",
+              "`comments: ArtifactCommentStore`",
+              "`focusedGatewayID: UUID?` (`@Published`)",
+              "`idempotencyKeys`, `querySubscriptions`, `queryTasks`, `queryCoalescer`",
               "`live: ArtifactQueryStateStore` (`queryStates`, `intentStates`)",
-              "`syncAvailable: Bool?` and weak `client`"
+              "`sortedArtifactsCache` and `sortedArtifactIDsCache`",
+              "`syncAvailable: Bool?`, weak `client`, `pushTask`"
             ]
           },
           "kind": "surface",
-          "model": "anthropic/claude-opus-5.5",
+          "model": "us.anthropic.claude-fable-5-2",
           "open_questions": [
-            "The excerpt truncates before `invokeIntent`, `schedulePush`, `persistToDisk` and `setClient`; how `eventStream` is subscribed is not visible."
+            "The excerpt truncates before `invokeIntent`, `schedulePush`, `persistToDisk` and how `client` is set; how `eventStream` reaches the store is not visible.",
+            "`performQuery` takes `retryingConflict`, but the `.conflict` branch is cut off, so the retry behaviour is unconfirmed."
           ],
-          "purpose": "Per `artifact-intents.md`, a living artifact is a named, persistent object that the agent maintains and the user can act on. `ArtifactStore` keeps that object on the device for the person running Portal. Their triage lands in revision history, and query results reach the page without redrawing the whole canvas. Without it, artifacts would be transient rendered messages rather than control surfaces.",
-          "source_revision": "28a704cc176c5609f09622534d3cb2c00fa9ec42",
+          "purpose": "Per `artifact-intents.md`, a living artifact is a named, persistent object the agent maintains across turns and sessions, and one the user can act on. `ArtifactStore` keeps that object on the device for the person running Portal, so revisions accumulate, their triage reaches agents, and live query results redraw only the affected slot. Without it an artifact would be a rendered message, not a control surface.",
+          "source_revision": "780205cc1794d9577de88fb9b6b9aebc8a3c11e9",
           "stale": false,
-          "summary": "`ArtifactStore` is a shared `ObservableObject` that holds each `LivingArtifact` by id. It merges fence bodies in `upsert`, applies declared per-entry actions in `applyAction`, and runs page queries in `runQuery` through an `ArtifactGateway`. It persists to `portal/artifacts.json` and keeps query and intent states in `ArtifactQueryStateStore`."
+          "summary": "`ArtifactStore` is a shared `ObservableObject` holding each `LivingArtifact` by id. `upsert` merges fence bodies, `applyAction` applies declared per-entry actions, and `runQuery` runs coalesced page queries through an `ArtifactGateway`. It loads from and persists to `portal/artifacts.json`, and reads query and intent states through `ArtifactQueryStateStore`."
         },
         "store": {
           "artifacts": [
@@ -88123,15 +88907,15 @@
           ]
         },
         "subscription": {
-          "line": 704,
+          "line": 709,
           "mode": "direct",
           "path": "Sources/Portal/Services/ArtifactStore.swift",
           "rule_id": "swift.resource.bus_subscription",
           "scheduler": "RunLoop.main"
         },
         "triggers": {
-          "lifecycle": 3,
-          "user_action": 12
+          "lifecycle": 4,
+          "user_action": 16
         }
       },
       {
@@ -88141,7 +88925,7 @@
         "id": "state:artifact-intents:ArtifactStore.idempotencyKeys",
         "kind": "state",
         "label": "ArtifactStore.idempotencyKeys",
-        "line": 78,
+        "line": 82,
         "owner_type": "ArtifactStore",
         "page": "artifacts",
         "path": "Sources/Portal/Services/ArtifactStore.swift",
@@ -88156,13 +88940,13 @@
         "writes": [
           {
             "function": "invokeIntent",
-            "line": 409,
+            "line": 413,
             "op": "subscript",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           },
           {
             "function": "clearIntentState",
-            "line": 519,
+            "line": 523,
             "op": "removeValue",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           }
@@ -88175,7 +88959,7 @@
         "id": "state:artifact-intents:ArtifactStore.sortedArtifactsCache",
         "kind": "state",
         "label": "ArtifactStore.sortedArtifactsCache",
-        "line": 91,
+        "line": 95,
         "owner_type": "ArtifactStore",
         "page": "artifacts",
         "path": "Sources/Portal/Services/ArtifactStore.swift",
@@ -88190,13 +88974,13 @@
         "writes": [
           {
             "function": null,
-            "line": 933,
+            "line": 941,
             "op": "assign",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           },
           {
             "function": "invalidateSortedArtifacts",
-            "line": 948,
+            "line": 956,
             "op": "assign",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           }
@@ -88208,7 +88992,7 @@
         "evidence": [
           {
             "excerpt": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))",
-            "line": 99,
+            "line": 103,
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           }
         ],
@@ -88219,7 +89003,7 @@
         "id": "artifact:file-system:portal/artifacts.json",
         "kind": "artifact",
         "label": "portal/artifacts.json",
-        "line": 99,
+        "line": 103,
         "owner_type": "External systems",
         "path": "Sources/Portal/Services/ArtifactStore.swift",
         "stores": [
@@ -88235,7 +89019,7 @@
         "id": "state:artifact-intents:ArtifactStore.querySubscriptions",
         "kind": "state",
         "label": "ArtifactStore.querySubscriptions",
-        "line": 192,
+        "line": 196,
         "owner_type": "ArtifactStore",
         "page": "artifacts",
         "path": "Sources/Portal/Services/ArtifactStore.swift",
@@ -88250,19 +89034,19 @@
         "writes": [
           {
             "function": "releaseQueries",
-            "line": 239,
+            "line": 243,
             "op": "subscript",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           },
           {
             "function": "performQuery",
-            "line": 305,
+            "line": 309,
             "op": "subscript",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           },
           {
             "function": "applyQueryChange",
-            "line": 351,
+            "line": 355,
             "op": "subscript",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           }
@@ -88275,7 +89059,7 @@
         "id": "state:artifact-intents:ArtifactStore.queryTasks",
         "kind": "state",
         "label": "ArtifactStore.queryTasks",
-        "line": 193,
+        "line": 197,
         "owner_type": "ArtifactStore",
         "page": "artifacts",
         "path": "Sources/Portal/Services/ArtifactStore.swift",
@@ -88290,19 +89074,19 @@
         "writes": [
           {
             "function": "releaseQueries",
-            "line": 234,
+            "line": 238,
             "op": "subscript",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           },
           {
             "function": "startQueryTask",
-            "line": 897,
+            "line": 905,
             "op": "subscript",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           },
           {
             "function": "startQueryTask",
-            "line": 900,
+            "line": 908,
             "op": "subscript",
             "path": "Sources/Portal/Services/ArtifactStore.swift"
           }
@@ -88315,7 +89099,7 @@
         "id": "store:artifact-intents:ArtifactQueryStateStore",
         "kind": "store",
         "label": "ArtifactQueryStateStore",
-        "line": 857,
+        "line": 865,
         "owner_type": null,
         "page": "artifacts",
         "page_resolution": "component",
@@ -88325,17 +89109,20 @@
           "cited_hash": "26ed0c6f4bb2916f9a07fb4698aca80b18ebca27b630788323d2b2923b5df241",
           "evidence": [
             {
-              "line": 857,
+              "line": 865,
+              "moved_from": 857,
               "path": "Sources/Portal/Services/ArtifactStore.swift",
               "text": "internal final class ArtifactQueryStateStore: ObservableObject {"
             },
             {
-              "line": 858,
+              "line": 866,
+              "moved_from": 858,
               "path": "Sources/Portal/Services/ArtifactStore.swift",
               "text": "@Published internal fileprivate(set) var intentStates: [String: ArtifactStore.IntentInvocationState] = [:]"
             },
             {
-              "line": 859,
+              "line": 867,
+              "moved_from": 859,
               "path": "Sources/Portal/Services/ArtifactStore.swift",
               "text": "@Published internal fileprivate(set) var queryStates: [ArtifactStore.QuerySlot: ArtifactStore.QueryState] = [:]"
             }
@@ -88371,7 +89158,7 @@
         },
         "store": {
           "artifacts": [],
-          "line": 857,
+          "line": 865,
           "mechanism_count": 0,
           "path": "Sources/Portal/Services/ArtifactStore.swift",
           "persistence": [
@@ -89191,6 +89978,179 @@
           "source_revision": "28a704cc176c5609f09622534d3cb2c00fa9ec42",
           "stale": false,
           "summary": "The `architecture` JSON-RPC namespace groups four methods that `GatewayClient` dispatches to the Harness gateway over its WebSocket transport. The `GatewayClient+Architecture` extension implements them, and replies are matched through `pendingRequests`. The map records no caller."
+        },
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "endpoint_ids": [
+          "endpoint:1f147016b905"
+        ],
+        "history_key": "client:hermes-services:GatewayClient+ArtifactComments",
+        "id": "client:hermes-services:GatewayClient+ArtifactComments",
+        "kind": "client",
+        "label": "GatewayClient+ArtifactComments",
+        "line": 11,
+        "namespaces": [
+          "artifact"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+        "semantic": {
+          "authority": "synthesized",
+          "cited_hash": "49427e6fadbc1b708ec8461213c893c3032fe24af921f1789b312a99d3481243",
+          "evidence": [
+            {
+              "line": 32,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "text": "/// WebSocket client for the Hermes gateway JSON-RPC protocol."
+            }
+          ],
+          "fields": {
+            "wraps": [
+              "endpoint:jsonrpc:artifact"
+            ]
+          },
+          "kind": "client",
+          "model": "us.anthropic.claude-fable-5-2",
+          "open_questions": [
+            "Do the comments belong to living artifacts or to another artifact type? The file name alone does not say.",
+            "How are gateway errors from `artifact` calls mapped or surfaced? Not visible in the packet.",
+            "The evidence line is taken from `docs/GLOSSARY.md`'s reference to `Services/GatewayClient.swift:32`; no excerpt range was available to check it against.",
+            "Which `artifact` JSON-RPC methods does the extension call, and with what parameters? No excerpt was supplied."
+          ],
+          "purpose": "Inferred from the map and the file name alone, since no `docs` paragraph names this extension: it appears to give Portal a way to reach the gateway's `artifact` namespace for comments on artifacts over the shared `GatewayClient` WebSocket connection. Without it, whatever Portal feature depends on those `artifact` calls would have no route to the gateway. The exact feature it serves for the person running Portal is not settled by the packet.",
+          "source_revision": "780205cc1794d9577de88fb9b6b9aebc8a3c11e9",
+          "stale": false,
+          "summary": "`GatewayClient+ArtifactComments` is a client extension of `GatewayClient` in the `hermes-services` component. The map records that it implements the `artifact` JSON-RPC namespace and routes through `GatewayClient`, the WebSocket JSON-RPC client for the gateway. No source excerpt was supplied, so its methods, parameters and decoding are not described here."
+        },
+        "sub_kind": "client_extension"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
+        "history_key": "endpoint:jsonrpc:artifact",
+        "id": "endpoint:1f147016b905",
+        "kind": "endpoint",
+        "label": "artifact",
+        "line": 11,
+        "method_count": 16,
+        "methods": [
+          {
+            "line": 2362,
+            "method": "artifact.action.confirm",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2260,
+            "method": "artifact.action.invoke",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2281,
+            "method": "artifact.action.log",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 33,
+            "method": "artifact.comment.add",
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift"
+          },
+          {
+            "line": 48,
+            "method": "artifact.comment.delete",
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift"
+          },
+          {
+            "line": 11,
+            "method": "artifact.comment.list",
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift"
+          },
+          {
+            "line": 39,
+            "method": "artifact.comment.resolve",
+            "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift"
+          },
+          {
+            "line": 2225,
+            "method": "artifact.delete",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2204,
+            "method": "artifact.get",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2215,
+            "method": "artifact.list",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2309,
+            "method": "artifact.query.invoke",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2332,
+            "method": "artifact.query.subscribe",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2341,
+            "method": "artifact.query.unsubscribe",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2372,
+            "method": "artifact.revision",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2233,
+            "method": "artifact.revisions",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          },
+          {
+            "line": 2195,
+            "method": "artifact.set",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+ArtifactComments.swift",
+        "protocol": "jsonrpc",
+        "semantic": {
+          "authority": "synthesized",
+          "cited_hash": "e019d9748cae147940e087a37a1c2897d0b5835250166a5ced9f67f68ca41371",
+          "evidence": [
+            {
+              "line": 1,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "text": "// swiftlint:disable file_length type_body_length"
+            }
+          ],
+          "fields": {
+            "request_shape": "JSON-RPC request with an `artifact.*` method, correlated by id through `pendingRequests`"
+          },
+          "kind": "endpoint",
+          "model": "us.anthropic.claude-fable-5-1",
+          "open_questions": [
+            "Idempotency of revision-creating calls is not visible without the source.",
+            "No caller edge is recorded; which view model or service invokes the namespace is unknown.",
+            "Whether any `artifact` method streams, or every call is single request/reply.",
+            "Whether intent dispatch (`binding_id`, pinned revision) travels through this namespace.",
+            "Which 12 methods make up the namespace and their parameters; no excerpt was provided."
+          ],
+          "purpose": "Per `architecture/specifications/artifact-intents.md`, a living artifact is a persistent, revisioned object the agent maintains across turns and sessions, and it can declare intents as data that a real user click dispatches back to the harness. This namespace is how Portal reaches that object on the gateway; the setup docs list artifact RPCs among those only Harness provides, so without it the artifact surface would have no backend.",
+          "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
+          "stale": false,
+          "summary": "The `artifact` JSON-RPC namespace is a group of 12 methods that `GatewayClient` dispatches over the Harness WebSocket transport. Replies are correlated by id through `pendingRequests`, and the Harness gateway serves them. The map records no caller outside `GatewayClient`. No source excerpt is in the packet, so method names and payloads are not visible."
         },
         "sub_kind": "rpc_namespace"
       },
@@ -92008,112 +92968,6 @@
           "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
           "stale": false,
           "summary": "`model` is a single-method JSON-RPC namespace that `GatewayClient` dispatches to the Harness gateway over the WebSocket at `/v1/ws`, invoked by `ChatViewModel`. The call is tracked in `pendingRequests` until the gateway answers. No source excerpt is in the packet, so whether the method lists, reads or switches a model is not visible."
-        },
-        "sub_kind": "rpc_namespace"
-      },
-      {
-        "cluster": "interplay-cluster-50d529a93091",
-        "component": "hermes-services",
-        "files": [
-          "Sources/Portal/Services/GatewayClient.swift"
-        ],
-        "history_key": "endpoint:jsonrpc:artifact",
-        "id": "endpoint:1f147016b905",
-        "kind": "endpoint",
-        "label": "artifact",
-        "line": 2195,
-        "method_count": 12,
-        "methods": [
-          {
-            "line": 2362,
-            "method": "artifact.action.confirm",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2260,
-            "method": "artifact.action.invoke",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2281,
-            "method": "artifact.action.log",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2225,
-            "method": "artifact.delete",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2204,
-            "method": "artifact.get",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2215,
-            "method": "artifact.list",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2309,
-            "method": "artifact.query.invoke",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2332,
-            "method": "artifact.query.subscribe",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2341,
-            "method": "artifact.query.unsubscribe",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2372,
-            "method": "artifact.revision",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2233,
-            "method": "artifact.revisions",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          },
-          {
-            "line": 2195,
-            "method": "artifact.set",
-            "path": "Sources/Portal/Services/GatewayClient.swift"
-          }
-        ],
-        "owner_type": "GatewayClient",
-        "path": "Sources/Portal/Services/GatewayClient.swift",
-        "protocol": "jsonrpc",
-        "semantic": {
-          "authority": "synthesized",
-          "cited_hash": "e019d9748cae147940e087a37a1c2897d0b5835250166a5ced9f67f68ca41371",
-          "evidence": [
-            {
-              "line": 1,
-              "path": "Sources/Portal/Services/GatewayClient.swift",
-              "text": "// swiftlint:disable file_length type_body_length"
-            }
-          ],
-          "fields": {
-            "request_shape": "JSON-RPC request with an `artifact.*` method, correlated by id through `pendingRequests`"
-          },
-          "kind": "endpoint",
-          "model": "us.anthropic.claude-fable-5-1",
-          "open_questions": [
-            "Idempotency of revision-creating calls is not visible without the source.",
-            "No caller edge is recorded; which view model or service invokes the namespace is unknown.",
-            "Whether any `artifact` method streams, or every call is single request/reply.",
-            "Whether intent dispatch (`binding_id`, pinned revision) travels through this namespace.",
-            "Which 12 methods make up the namespace and their parameters; no excerpt was provided."
-          ],
-          "purpose": "Per `architecture/specifications/artifact-intents.md`, a living artifact is a persistent, revisioned object the agent maintains across turns and sessions, and it can declare intents as data that a real user click dispatches back to the harness. This namespace is how Portal reaches that object on the gateway; the setup docs list artifact RPCs among those only Harness provides, so without it the artifact surface would have no backend.",
-          "source_revision": "212038fc9b999b724d10d30520b714bf505bd19e",
-          "stale": false,
-          "summary": "The `artifact` JSON-RPC namespace is a group of 12 methods that `GatewayClient` dispatches over the Harness WebSocket transport. Replies are correlated by id through `pendingRequests`, and the Harness gateway serves them. The map records no caller outside `GatewayClient`. No source excerpt is in the packet, so method names and payloads are not visible."
         },
         "sub_kind": "rpc_namespace"
       },
@@ -95820,37 +96674,37 @@
           },
           {
             "function": "applySessionEvent",
-            "line": 4396,
+            "line": 4397,
             "op": "assign",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "handleEvent",
-            "line": 4544,
+            "line": 4546,
             "op": "assign",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "handleEvent",
-            "line": 4575,
+            "line": 4577,
             "op": "assign",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "handleEvent",
-            "line": 4630,
+            "line": 4632,
             "op": "subscript",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "handleEvent",
-            "line": 4649,
+            "line": 4651,
             "op": "subscript",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "handleEvent",
-            "line": 4658,
+            "line": 4660,
             "op": "subscript",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           }
@@ -95965,7 +96819,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4519,
+              "line": 4521,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "speaking"
@@ -95973,7 +96827,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4546,
+              "line": 4548,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -95981,7 +96835,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4579,
+              "line": 4581,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "idle"
@@ -95989,7 +96843,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4629,
+              "line": 4631,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "toolUse"
@@ -95997,7 +96851,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4682,
+              "line": 4684,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "thinking"
@@ -96005,7 +96859,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4688,
+              "line": 4690,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "thinking"
@@ -96013,7 +96867,7 @@
             {
               "from": null,
               "function": "handleEvent",
-              "line": 4729,
+              "line": 4731,
               "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
               "rule_id": "swift.state.transition",
               "to": "error"
@@ -96067,13 +96921,13 @@
           },
           {
             "function": "applySessionEvent",
-            "line": 4041,
+            "line": 4042,
             "op": "assign",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "handleEvent",
-            "line": 4522,
+            "line": 4524,
             "op": "assign",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           }
@@ -96303,13 +97157,13 @@
           },
           {
             "function": "applySessionEvent",
-            "line": 4399,
+            "line": 4400,
             "op": "assign",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "handleEvent",
-            "line": 4573,
+            "line": 4575,
             "op": "assign",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           }
@@ -96653,13 +97507,13 @@
           },
           {
             "function": "applySessionEvent",
-            "line": 4332,
+            "line": 4333,
             "op": "subscript",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "applySessionEvent",
-            "line": 4363,
+            "line": 4364,
             "op": "subscript",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           }
@@ -96813,13 +97667,13 @@
           },
           {
             "function": "applySessionEvent",
-            "line": 4035,
+            "line": 4036,
             "op": "removeValue",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           },
           {
             "function": "applySessionEvent",
-            "line": 4070,
+            "line": 4071,
             "op": "removeValue",
             "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
           }
@@ -101550,12 +102404,87 @@
         "view": "ArtifactCanvasView"
       },
       {
+        "api": "task",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-29680c54ebb5",
+        "kind": "lifecycle",
+        "line": 46,
+        "method": "refresh",
+        "namespaces": [],
+        "page": null,
+        "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "ArtifactStore",
+        "view": "ArtifactCommentLayer"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-de732b306416",
+        "kind": "user_action",
+        "line": 127,
+        "method": "clearFailure",
+        "namespaces": [],
+        "page": null,
+        "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "ArtifactStore",
+        "view": "ArtifactCommentLayer"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-ed620e1f74d4",
+        "kind": "user_action",
+        "line": 131,
+        "method": "add",
+        "namespaces": [],
+        "page": null,
+        "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "ArtifactStore",
+        "view": "ArtifactCommentLayer"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-c73a555c8a40",
+        "kind": "user_action",
+        "line": 195,
+        "method": "setResolved",
+        "namespaces": [],
+        "page": null,
+        "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "ArtifactStore",
+        "view": "ArtifactCommentLayer"
+      },
+      {
+        "api": "Button",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-5a23fb8a7429",
+        "kind": "user_action",
+        "line": 201,
+        "method": "delete",
+        "namespaces": [],
+        "page": null,
+        "path": "Sources/Portal/Views/ArtifactCommentLayer.swift",
+        "rule_id": "swift.trigger.surface_call",
+        "surface": "ArtifactStore",
+        "view": "ArtifactCommentLayer"
+      },
+      {
         "api": "onDisappear",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-4627dcc8d1b8",
+        "id": "trigger-df131a230430",
         "kind": "lifecycle",
-        "line": 236,
+        "line": 239,
         "method": "releaseQueries",
         "namespaces": [],
         "page": null,
@@ -101568,9 +102497,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-21ffece91f1e",
+        "id": "trigger-e9cd12c608a7",
         "kind": "user_action",
-        "line": 246,
+        "line": 249,
         "method": "confirmIntent",
         "namespaces": [],
         "page": null,
@@ -101583,9 +102512,9 @@
         "api": "Button",
         "authority": "observed",
         "evidence_class": "static_source",
-        "id": "trigger-f7538d0e003f",
+        "id": "trigger-db125eafa759",
         "kind": "user_action",
-        "line": 260,
+        "line": 263,
         "method": "clearIntentState",
         "namespaces": [],
         "page": null,
@@ -105520,15 +106449,15 @@
         "view": "WikiTimelineView"
       }
     ],
-    "unattributed_triggers": 482
+    "unattributed_triggers": 485
   },
   "inventory": {
-    "assigned_files": 426,
-    "declarations": 1329,
-    "files": 426,
-    "lines": 122824,
-    "swift_files": 426,
-    "swift_lines": 122824,
+    "assigned_files": 432,
+    "declarations": 1340,
+    "files": 432,
+    "lines": 123754,
+    "swift_files": 432,
+    "swift_lines": 123754,
     "unassigned_files": []
   },
   "layers": [
@@ -105560,15 +106489,15 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "40a707f5b83b7ee3afb629a2baf3fc1638c4185da6534a449193a003467e4846",
+  "source_tree_sha256": "f3e1e4c2ee46a71ee1c9a8d61a4984a74e7064933a93cf0091e54a8409b4da6f",
   "stores": {
     "by_persistence": {
       "defaults": 6,
       "file": 13,
       "keychain": 1,
-      "unobserved": 9
+      "unobserved": 10
     },
-    "count": 24,
+    "count": 25,
     "items": [
       {
         "artifacts": [
@@ -106329,17 +107258,41 @@
         "type_name": "SessionRunHistoryStore"
       },
       {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal final class ArtifactCommentStore: ObservableObject {",
+          "line": 11,
+          "path": "Sources/Portal/Services/ArtifactCommentStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-d0afd70803b8",
+        "kind": "class",
+        "label": "ArtifactCommentStore",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class ArtifactCommentStore"
+        ],
+        "type_name": "ArtifactCommentStore"
+      },
+      {
         "artifacts": [
           {
             "authority": "observed",
             "component": "artifact-intents",
             "evidence": {
               "excerpt": "let folder = dir.appendingPathComponent(\"portal\", isDirectory: true)",
-              "line": 97,
+              "line": 101,
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-artifact-0e4cca2a9efb",
+            "id": "store-artifact-51041e8905e0",
             "kind": "directory",
             "label": "portal",
             "rule_id": "swift.store.artifact_literal",
@@ -106351,11 +107304,11 @@
             "component": "artifact-intents",
             "evidence": {
               "excerpt": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))",
-              "line": 99,
+              "line": 103,
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-artifact-08d38cc80baa",
+            "id": "store-artifact-6dc6b6c811d5",
             "kind": "file",
             "label": "artifacts.json",
             "rule_id": "swift.store.artifact_literal",
@@ -106381,11 +107334,11 @@
             "component": "artifact-intents",
             "evidence": {
               "excerpt": "let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
-              "line": 95,
+              "line": 99,
               "path": "Sources/Portal/Services/ArtifactStore.swift"
             },
             "evidence_class": "static_source",
-            "id": "store-mechanism-c0731d5d5ead",
+            "id": "store-mechanism-9c0edee18f8d",
             "kind": "file",
             "label": ".applicationSupportDirectory",
             "rule_id": "swift.store.mechanism.file",
@@ -106412,11 +107365,11 @@
         "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
         "evidence": {
           "excerpt": "internal final class ArtifactQueryStateStore: ObservableObject {",
-          "line": 857,
+          "line": 865,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "store-06763e34f0f0",
+        "id": "store-8aed40f11738",
         "kind": "class",
         "label": "ArtifactQueryStateStore",
         "mechanisms": [],
